@@ -13,18 +13,7 @@ if(WIN32)
     set(CPACK_GENERATOR ZIP)
     
     set(INSTALL_DLLS)
-    
-    if(TLRENDER_FFMPEG)
-        set(FFMPEG_DLLS
-            ${CMAKE_INSTALL_PREFIX}/bin/avcodec-62.dll
-            ${CMAKE_INSTALL_PREFIX}/bin/avdevice-62.dll
-            ${CMAKE_INSTALL_PREFIX}/bin/avformat-62.dll
-            ${CMAKE_INSTALL_PREFIX}/bin/avutil-60.dll
-            ${CMAKE_INSTALL_PREFIX}/bin/swresample-6.dll
-            ${CMAKE_INSTALL_PREFIX}/bin/swscale-9.dll)
-        list(APPEND INSTALL_DLLS ${FFMPEG_DLLS})
-    endif()
-    
+        
     if(TLRENDER_USD)
         set(MATERIALX_DLLS
             ${CMAKE_INSTALL_PREFIX}/bin/MaterialXCore.dll
@@ -132,30 +121,7 @@ elseif(APPLE)
     #set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 
     set(INSTALL_DYLIBS)
-    
-    if(TLRENDER_FFMPEG)
-        set(FFMPEG_DYLIBS
-            ${CMAKE_INSTALL_PREFIX}/lib/libavcodec.62.28.100.dylib
-            ${CMAKE_INSTALL_PREFIX}/lib/libavcodec.62.dylib
-            ${CMAKE_INSTALL_PREFIX}/lib/libavcodec.dylib
-            ${CMAKE_INSTALL_PREFIX}/lib/libavdevice.62.3.100.dylib
-            ${CMAKE_INSTALL_PREFIX}/lib/libavdevice.62.dylib
-            ${CMAKE_INSTALL_PREFIX}/lib/libavdevice.dylib
-            ${CMAKE_INSTALL_PREFIX}/lib/libavformat.62.12.100.dylib
-            ${CMAKE_INSTALL_PREFIX}/lib/libavformat.62.dylib
-            ${CMAKE_INSTALL_PREFIX}/lib/libavformat.dylib
-            ${CMAKE_INSTALL_PREFIX}/lib/libavutil.60.26.100.dylib
-            ${CMAKE_INSTALL_PREFIX}/lib/libavutil.60.dylib
-            ${CMAKE_INSTALL_PREFIX}/lib/libavutil.dylib
-            ${CMAKE_INSTALL_PREFIX}/lib/libswresample.6.3.100.dylib
-            ${CMAKE_INSTALL_PREFIX}/lib/libswresample.6.dylib
-            ${CMAKE_INSTALL_PREFIX}/lib/libswresample.dylib
-            ${CMAKE_INSTALL_PREFIX}/lib/libswscale.9.5.100.dylib
-            ${CMAKE_INSTALL_PREFIX}/lib/libswscale.9.dylib
-            ${CMAKE_INSTALL_PREFIX}/lib/libswscale.dylib)
-        list(APPEND INSTALL_DYLIBS ${FFMPEG_DYLIBS})
-    endif()
-    
+        
     if(TLRENDER_USD)
         set(MATERIALX_DYLIBS
             ${CMAKE_INSTALL_PREFIX}/lib/libMaterialXCore.1.39.3.dylib
@@ -292,29 +258,6 @@ else()
 
     set(INSTALL_LIBS)
     
-    if(TLRENDER_FFMPEG)
-        set(FFMPEG_LIBS
-            ${CMAKE_INSTALL_PREFIX}/lib/libavcodec.so
-            ${CMAKE_INSTALL_PREFIX}/lib/libavcodec.so.62
-            ${CMAKE_INSTALL_PREFIX}/lib/libavcodec.so.62.28.100
-            ${CMAKE_INSTALL_PREFIX}/lib/libavdevice.so
-            ${CMAKE_INSTALL_PREFIX}/lib/libavdevice.so.62
-            ${CMAKE_INSTALL_PREFIX}/lib/libavdevice.so.62.3.100
-            ${CMAKE_INSTALL_PREFIX}/lib/libavformat.so
-            ${CMAKE_INSTALL_PREFIX}/lib/libavformat.so.62
-            ${CMAKE_INSTALL_PREFIX}/lib/libavformat.so.62.12.100
-            ${CMAKE_INSTALL_PREFIX}/lib/libavutil.so
-            ${CMAKE_INSTALL_PREFIX}/lib/libavutil.so.60
-            ${CMAKE_INSTALL_PREFIX}/lib/libavutil.so.60.26.100
-            ${CMAKE_INSTALL_PREFIX}/lib/libswresample.so
-            ${CMAKE_INSTALL_PREFIX}/lib/libswresample.so.6
-            ${CMAKE_INSTALL_PREFIX}/lib/libswresample.so.6.3.100
-            ${CMAKE_INSTALL_PREFIX}/lib/libswscale.so
-            ${CMAKE_INSTALL_PREFIX}/lib/libswscale.so.9
-            ${CMAKE_INSTALL_PREFIX}/lib/libswscale.so.9.5.100)
-        list(APPEND INSTALL_LIBS ${FFMPEG_LIBS})
-    endif()
-
     if(TLRENDER_USD)
         set(MATERIALX_LIBS
             ${CMAKE_INSTALL_PREFIX}/lib/libMaterialXCore.so

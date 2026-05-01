@@ -1,0 +1,45 @@
+{
+  "name": "tlrender",
+  "version": "0.19.0",
+  "description": "tlRender is an open source library for building playback and review applications for visual effects, film, and animation.",
+  "builtin-baseline": "80f9bcfa455e875d9c1bf7a7c6692d7e1e481061",
+  "dependencies": [
+    {
+      "name": "ffmpeg",
+      "default-features": false,
+      "features": [
+        "swresample"
+      ]
+    }
+  ],
+  "features": {
+    "ffmpeg-codecs": {
+      "description": "Build with FFmpeg library for decoding and encoding.",
+      "dependencies": [
+        {
+          "name": "ffmpeg",
+          "default-features": false,
+          "features": [
+            "avcodec",
+            "avdevice",
+            "avfilter",
+            "avformat",
+            "swresample",
+            "swscale",
+            "aom",
+            "dav1d",
+            "vpx",
+            "opus",
+            "mp3lame",
+            "openjpeg",
+            "webp",
+            "bzip2",
+            "lzma",
+            "zlib",
+            "iconv"
+          ]
+        }
+      ]
+    }
+  }
+}

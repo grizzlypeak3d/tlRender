@@ -16,6 +16,9 @@ add_definitions(-DTLRENDER_VERSION_PATCH=${TLRENDER_VERSION_PATCH})
 add_definitions(-DTLRENDER_VERSION_DEV="${TLRENDER_VERSION_DEV}")
 add_definitions(-DTLRENDER_VERSION_FULL="${TLRENDER_VERSION_FULL}")
 
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake/Modules")
+include(tlRenderVcpkg)
+
 project(
     tlRender
     VERSION ${TLRENDER_VERSION_MAJOR}.${TLRENDER_VERSION_MINOR}.${TLRENDER_VERSION_PATCH}
@@ -37,8 +40,7 @@ set(TLRENDER_TIFF ON CACHE BOOL "Enable support for TIFF I/O")
 set(TLRENDER_PNG ON CACHE BOOL "Enable support for PNG I/O")
 set(TLRENDER_EXR ON CACHE BOOL "Enable support for EXR I/O")
 set(TLRENDER_FFMPEG ON CACHE BOOL "Enable support for FFmpeg (required for audio)")
-set(TLRENDER_FFMPEG_PLUGIN ON CACHE BOOL "Enable support for FFmpeg I/O")
-set(TLRENDER_FFMPEG_CMD OFF CACHE BOOL "Enable support for FFmpeg I/O with the command line application")
+set(TLRENDER_FFMPEG_PLUGIN ON CACHE BOOL "Enable support for FFmpeg I/O (required for codecs)")
 set(TLRENDER_OIIO ON CACHE BOOL "Enable support for OpenImageIO")
 set(TLRENDER_USD OFF CACHE BOOL "Enable support for USD")
 set(TLRENDER_WMF ${WIN32} CACHE BOOL "Enable support for Windows Media Foundation")
@@ -59,8 +61,6 @@ set(TLRENDER_GPROF OFF CACHE BOOL "Enable gprof code profiling")
 
 #-------------------------------------------------------------------------------
 # Internal configuration
-
-list(PREPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake/Modules)
 
 if(NOT CMAKE_CXX_STANDARD)
     set(CMAKE_CXX_STANDARD 17)
@@ -193,91 +193,11 @@ if(TLRENDER_EXR)
     endif()
 endif()
 if(TLRENDER_FFMPEG)
-    if(WIN32)
-        set(FFmpeg_FOUND TRUE)
-        add_library(FFmpeg::avutil STATIC IMPORTED)
-        set_property(TARGET FFmpeg::avutil PROPERTY
-             IMPORTED_LOCATION "${CMAKE_INSTALL_PREFIX}/lib/avutil.lib")
-        add_library(FFmpeg::avdevice STATIC IMPORTED)
-        set_property(TARGET FFmpeg::avdevice PROPERTY
-             IMPORTED_LOCATION "${CMAKE_INSTALL_PREFIX}/lib/avdevice.lib")
-        add_library(FFmpeg::avformat STATIC IMPORTED)
-        set_property(TARGET FFmpeg::avformat PROPERTY
-             IMPORTED_LOCATION "${CMAKE_INSTALL_PREFIX}/lib/avformat.lib")
-        add_library(FFmpeg::avcodec STATIC IMPORTED)
-        set_property(TARGET FFmpeg::avcodec PROPERTY
-             IMPORTED_LOCATION "${CMAKE_INSTALL_PREFIX}/lib/avcodec.lib")
-        add_library(FFmpeg::swresample STATIC IMPORTED)
-        set_property(TARGET FFmpeg::swresample PROPERTY
-             IMPORTED_LOCATION "${CMAKE_INSTALL_PREFIX}/lib/swresample.lib")
-        add_library(FFmpeg::swscale STATIC IMPORTED)
-        set_property(TARGET FFmpeg::swscale PROPERTY
-             IMPORTED_LOCATION "${CMAKE_INSTALL_PREFIX}/lib/swscale.lib")
-        add_library(FFmpeg::FFmpeg INTERFACE IMPORTED)
-        set_property(TARGET FFmpeg::FFmpeg PROPERTY
-            INTERFACE_LINK_LIBRARIES
-            FFmpeg::avdevice
-            FFmpeg::avformat
-            FFmpeg::avcodec
-            FFmpeg::swresample
-            FFmpeg::swscale
-            FFmpeg::avutil)
-    elseif(APPLE)
-        set(FFmpeg_FOUND TRUE)
-        add_library(FFmpeg::avdevice STATIC IMPORTED)
-        set_property(TARGET FFmpeg::avdevice PROPERTY
-             IMPORTED_LOCATION "${CMAKE_INSTALL_PREFIX}/lib/libavdevice.dylib")
-        add_library(FFmpeg::avformat STATIC IMPORTED)
-        set_property(TARGET FFmpeg::avformat PROPERTY
-             IMPORTED_LOCATION "${CMAKE_INSTALL_PREFIX}/lib/libavformat.dylib")
-        add_library(FFmpeg::avcodec STATIC IMPORTED)
-        set_property(TARGET FFmpeg::avcodec PROPERTY
-             IMPORTED_LOCATION "${CMAKE_INSTALL_PREFIX}/lib/libavcodec.dylib")
-        add_library(FFmpeg::swresample STATIC IMPORTED)
-        set_property(TARGET FFmpeg::swresample PROPERTY
-             IMPORTED_LOCATION "${CMAKE_INSTALL_PREFIX}/lib/libswresample.dylib")
-        add_library(FFmpeg::swscale STATIC IMPORTED)
-        set_property(TARGET FFmpeg::swscale PROPERTY
-             IMPORTED_LOCATION "${CMAKE_INSTALL_PREFIX}/lib/libswscale.dylib")
-        add_library(FFmpeg::avutil STATIC IMPORTED)
-        set_property(TARGET FFmpeg::avutil PROPERTY
-             IMPORTED_LOCATION "${CMAKE_INSTALL_PREFIX}/lib/libavutil.dylib")
-        add_library(FFmpeg::FFmpeg INTERFACE IMPORTED)
-        set_property(TARGET FFmpeg::FFmpeg PROPERTY
-            INTERFACE_LINK_LIBRARIES
-            FFmpeg::avdevice
-            FFmpeg::avformat
-            FFmpeg::avcodec
-            FFmpeg::swresample
-            FFmpeg::swscale
-            FFmpeg::avutil)
-    else()
-        find_package(PkgConfig REQUIRED)
-        pkg_check_modules(
-            swresample REQUIRED IMPORTED_TARGET
-            libswresample)
-        pkg_check_modules(
-            avutil REQUIRED IMPORTED_TARGET
-            libavutil)
-        pkg_check_modules(
-            FFmpeg REQUIRED IMPORTED_TARGET
-            libavdevice
-            libavformat
-            libavcodec
-            libswresample
-            libswscale
-            libavutil)
-        add_library(FFmpeg::FFmpeg ALIAS PkgConfig::FFmpeg)
-        add_library(FFmpeg::swresample ALIAS PkgConfig::swresample)
-        add_library(FFmpeg::avutil ALIAS PkgConfig::avutil)
-    endif()
-    if(FFmpeg_FOUND)
+    include(tlRenderFindFFmpeg)
+    if(FFMPEG_FOUND)
         add_definitions(-DTLRENDER_FFMPEG)
         if(TLRENDER_FFMPEG_PLUGIN)
             add_definitions(-DTLRENDER_FFMPEG_PLUGIN)
-        endif()
-        if(TLRENDER_FFMPEG_CMD)
-            add_definitions(-DTLRENDER_FFMPEG_CMD)
         endif()
     endif()
 endif()

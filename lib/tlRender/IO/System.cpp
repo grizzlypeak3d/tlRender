@@ -5,10 +5,9 @@
 
 #if defined(TLRENDER_FFMPEG_PLUGIN)
 #include <tlRender/IO/FFmpeg.h>
-#endif // TLRENDER_FFMPEG_PLUGIN
-#if defined(TLRENDER_FFMPEG_CMD)
+#else // TLRENDER_FFMPEG_PLUGIN
 #include <tlRender/IO/FFmpegCmd.h>
-#endif // TLRENDER_FFMPEG_CMD
+#endif // TLRENDER_FFMPEG_PLUGIN
 #if defined(TLRENDER_EXR)
 #include <tlRender/IO/EXR.h>
 #endif // TLRENDER_EXR
@@ -60,11 +59,10 @@ namespace tl
 #if defined(TLRENDER_AVF)
             _plugins.push_back(avf::ReadPlugin::create(logSystem));
 #endif // TLRENDER_AVF
-#if defined(TLRENDER_FFMPEG_CMD)
-            _plugins.push_back(ffmpeg_cmd::ReadPlugin::create(logSystem));
-#endif // TLRENDER_FFMPEG_CMD
 #if defined(TLRENDER_FFMPEG_PLUGIN)
             _plugins.push_back(ffmpeg::ReadPlugin::create(logSystem));
+#else // TLRENDER_FFMPEG_PLUGIN
+            _plugins.push_back(ffmpeg_cmd::ReadPlugin::create(logSystem));
 #endif // TLRENDER_FFMPEG_PLUGIN
 #if defined(TLRENDER_USD)
             _plugins.push_back(usd::ReadPlugin::create(logSystem));

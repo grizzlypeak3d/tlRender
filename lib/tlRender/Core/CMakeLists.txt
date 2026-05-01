@@ -31,7 +31,7 @@ if(TLRENDER_SDL3)
     list(APPEND LIBRARIES_PRIVATE SDL3::SDL3)
 endif()
 if(TLRENDER_FFMPEG)
-    list(APPEND LIBRARIES_PRIVATE FFmpeg::swresample FFmpeg::avutil)
+    list(APPEND LIBRARIES_PRIVATE tlRender::FFmpeg)
 endif()
 list(APPEND LIBRARIES_PRIVATE Threads::Threads)
 
