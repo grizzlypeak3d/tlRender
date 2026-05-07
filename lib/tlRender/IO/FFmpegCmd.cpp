@@ -10,10 +10,71 @@
 
 #include <regex>
 
+#if defined(_WIN32)
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif // WIN32_LEAN_AND_MEAN
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif // NOMINMAX
+#include <Windows.h>
+#endif
+
 namespace tl
 {
     namespace ffmpeg_cmd
     {
+#if defined(_WIN32)
+        namespace
+        {
+            std::string toSubprocessArg(const std::string& value)
+            {
+                if (value.empty())
+                {
+                    return value;
+                }
+
+                // subprocess.h uses CreateProcessA on Windows. Convert tlRender's
+                // UTF-8 strings to the active ANSI code page before handing off so
+                // CreateProcessA reconstructs the intended wide command line.
+                const std::wstring wide = ftk::toWide(value);
+                const int size = WideCharToMultiByte(
+                    CP_ACP,
+                    0,
+                    wide.c_str(),
+                    -1,
+                    nullptr,
+                    0,
+                    nullptr,
+                    nullptr);
+                if (size <= 0)
+                {
+                    return value;
+                }
+
+                std::string out(size, 0);
+                const int written = WideCharToMultiByte(
+                    CP_ACP,
+                    0,
+                    wide.c_str(),
+                    -1,
+                    out.data(),
+                    size,
+                    nullptr,
+                    nullptr);
+                if (written <= 0)
+                {
+                    return value;
+                }
+                if (!out.empty() && '\0' == out.back())
+                {
+                    out.pop_back();
+                }
+                return out;
+            }
+        }
+#endif
+
         Options::Options(const IOOptions& value)
         {
             auto i = value.find("FFmpeg/FFmpegPath");
@@ -154,8 +215,17 @@ namespace tl
             _p(new Private)
         {
             FTK_P();
+#if defined(_WIN32)
+            std::vector<std::string> command = cmd;
+            for (auto& i : command)
+            {
+                i = toSubprocessArg(i);
+            }
+#else
+            const auto& command = cmd;
+#endif
             std::vector<const char*> args;
-            for (const auto& i : cmd)
+            for (const auto& i : command)
             {
                 args.push_back(i.c_str());
             }
