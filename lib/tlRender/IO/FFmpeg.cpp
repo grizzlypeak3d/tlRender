@@ -217,6 +217,7 @@ namespace tl
                 }
             }
             //! \bug Why aren't these in the list of input formats?
+            extensions[".m4v"] = FileType::Media;
             extensions[".mxf"] = FileType::Media;
             extensions[".wav"] = FileType::Media;
 
