@@ -27,11 +27,22 @@
 #include <ImfVecAttribute.h>
 
 #include <array>
+#include <thread>
 
 namespace tl
 {
     namespace exr
     {
+        namespace
+        {
+            //! Set the number of threads OpenEXR uses within a single file,
+            //! frames are also read in parallel (see SeqOptions::threadCount).
+            void setThreadCount()
+            {
+                Imf::setGlobalThreadCount(std::thread::hardware_concurrency());
+            }
+        }
+
         TL_ENUM_IMPL(
             Compression,
             "None",
@@ -742,8 +753,7 @@ namespace tl
                 { { ".exr", FileType::Seq } },
                 logSystem);
 
-            // Set the thread count to zero since we multithread frames.
-            Imf::setGlobalThreadCount(0);
+            setThreadCount();
         }
 
         ReadPlugin::ReadPlugin()
@@ -788,8 +798,7 @@ namespace tl
                 { { ".exr", FileType::Seq } },
                 logSystem);
 
-            // Set the thread count to zero since we multithread frames.
-            Imf::setGlobalThreadCount(0);
+            setThreadCount();
         }
 
         WritePlugin::WritePlugin()
