@@ -5,6 +5,8 @@
 
 #include <ftk/Core/Format.h>
 
+#include <cstdlib>
+
 namespace tl
 {
     namespace ffmpeg
@@ -188,7 +190,10 @@ namespace tl
                             "time_reference",
                             ftk::CaseCompare::Insensitive))
                         {
-                            timeReference = OTIO_NS::RationalTime(std::atoi(value.c_str()), sampleRate);
+                            timeReference = OTIO_NS::RationalTime(
+                                static_cast<double>(
+                                    std::strtoll(value.c_str(), nullptr, 10)),
+                                sampleRate);
                         }
                     }
 
