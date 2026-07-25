@@ -108,6 +108,8 @@ namespace tl
         p.compare = ftk::ObservableList<std::shared_ptr<Timeline> >::create();
         p.compareTime = ftk::Observable<CompareTime>::create(CompareTime::Relative);
         p.ioOptions = ftk::Observable<IOOptions>::create();
+        p.mediaReferenceKey = ftk::Observable<std::string>::create(
+            timeline->getMediaReferenceKey());
         p.videoLayer = ftk::Observable<int>::create(0);
         p.compareVideoLayers = ftk::ObservableList<int>::create();
         p.currentVideoFrame = ftk::ObservableList<VideoFrame>::create();
@@ -268,7 +270,16 @@ namespace tl
 
     const IOInfo& Player::getIOInfo() const
     {
-        return _p->ioInfo;
+        // Taken from the timeline rather than the copy made when the player
+        // was created, so that the video information follows the media
+        // reference key.
+        //
+        // The audio information has no need to follow it. The timeline hands
+        // the readers its own audio format to convert to, so every media
+        // reference is read in the format found when the timeline was read,
+        // whichever one is active. The copy kept here is what the audio thread
+        // reads.
+        return _p->timeline->getIOInfo();
     }
 
     double Player::getDefaultSpeed() const
@@ -685,6 +696,12 @@ namespace tl
         FTK_P();
         if (p.compare->setIfChanged(value))
         {
+            // Bring the comparison timelines onto the media reference key that
+            // is already in use.
+            for (const auto& timeline : value)
+            {
+                timeline->setMediaReferenceKey(p.mediaReferenceKey->get());
+            }
             std::unique_lock<std::mutex> lock(p.mutex.mutex);
             p.mutex.state.compare = value;
             p.mutex.clearRequests = true;
@@ -734,6 +751,56 @@ namespace tl
             p.mutex.clearRequests = true;
             p.mutex.clearCache = true;
         }
+    }
+
+    const std::string& Player::getMediaReferenceKey() const
+    {
+        return _p->mediaReferenceKey->get();
+    }
+
+    std::shared_ptr<ftk::IObservable<std::string> > Player::observeMediaReferenceKey() const
+    {
+        return _p->mediaReferenceKey;
+    }
+
+    void Player::setMediaReferenceKey(const std::string& value)
+    {
+        FTK_P();
+        if (value != p.mediaReferenceKey->get())
+        {
+            p.timeline->setMediaReferenceKey(value);
+            for (const auto& timeline : p.compare->get())
+            {
+                timeline->setMediaReferenceKey(value);
+            }
+            {
+                std::unique_lock<std::mutex> lock(p.mutex.mutex);
+                p.mutex.clearRequests = true;
+                p.mutex.clearCache = true;
+            }
+
+            // Notified last, so that an observer asking the timeline what it
+            // is reading sees the new media reference and not the old one.
+            p.mediaReferenceKey->setIfChanged(value);
+        }
+    }
+
+    std::vector<std::string> Player::getMediaReferenceKeys() const
+    {
+        FTK_P();
+        std::set<std::string> keys;
+        for (const auto& key : p.timeline->getMediaReferenceKeys())
+        {
+            keys.insert(key);
+        }
+        for (const auto& timeline : p.compare->get())
+        {
+            for (const auto& key : timeline->getMediaReferenceKeys())
+            {
+                keys.insert(key);
+            }
+        }
+        return std::vector<std::string>(keys.begin(), keys.end());
     }
 
     int Player::getVideoLayer() const

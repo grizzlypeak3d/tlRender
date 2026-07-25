@@ -301,6 +301,32 @@ namespace tl
 
         ///@}
 
+        //! \name Media References
+        ///
+        //! Clips may carry several media references, for example a proxy and a
+        //! full resolution version of the same media, selected by key. The key
+        //! is applied to the timeline and to any comparison timelines.
+        ///@{
+
+        //! Get the media reference key. An empty key, the default, leaves
+        //! every clip on the media reference that OTIO has active.
+        TL_API const std::string& getMediaReferenceKey() const;
+
+        //! Observe the media reference key.
+        TL_API std::shared_ptr<ftk::IObservable<std::string> > observeMediaReferenceKey() const;
+
+        //! Set the media reference key. Clips that have no media reference
+        //! with this key fall back to OTIO_NS::Clip::default_media_key.
+        //!
+        //! The cache is cleared so that the media already read is replaced.
+        TL_API void setMediaReferenceKey(const std::string&);
+
+        //! Get the media reference keys used by the timeline and any
+        //! comparison timelines, sorted and without duplicates.
+        TL_API std::vector<std::string> getMediaReferenceKeys() const;
+
+        ///@}
+
         //! \name Video
         ///@{
 

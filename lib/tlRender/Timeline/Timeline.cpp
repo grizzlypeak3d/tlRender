@@ -28,22 +28,51 @@ namespace tl
         const size_t readCacheMax = 10;
         const std::chrono::milliseconds timeout(5);
 
-        //! Get the OTIO spatial coordinates of a clip. These are optional;
-        //! clips without them are laid out from their image size as before.
-        //! The coordinates are returned as authored, in the OTIO coordinate
-        //! system: unit-less and Y-up.
-        std::optional<ftk::Box2F> getClipBounds(const OTIO_NS::Clip* otioClip)
+        //! Get the OTIO spatial coordinates of a media reference. These are
+        //! optional; media without them is laid out from the image size as
+        //! before. The coordinates are returned as authored, in the OTIO
+        //! coordinate system: unit-less and Y-up.
+        std::optional<ftk::Box2F> getMediaReferenceBounds(
+            const OTIO_NS::MediaReference* otioMediaReference)
         {
             std::optional<ftk::Box2F> out;
-            OTIO_NS::ErrorStatus errorStatus;
-            const auto bounds = otioClip->available_image_bounds(&errorStatus);
-            if (bounds.has_value() && !OTIO_NS::is_error(errorStatus))
+            if (otioMediaReference)
             {
-                const auto& min = bounds.value().min;
-                const auto& max = bounds.value().max;
-                out = ftk::Box2F(
-                    ftk::V2F(min.x, min.y),
-                    ftk::V2F(max.x, max.y));
+                const auto bounds = otioMediaReference->available_image_bounds();
+                if (bounds.has_value())
+                {
+                    const auto& min = bounds.value().min;
+                    const auto& max = bounds.value().max;
+                    out = ftk::Box2F(
+                        ftk::V2F(min.x, min.y),
+                        ftk::V2F(max.x, max.y));
+                }
+            }
+            return out;
+        }
+
+        //! Get the OTIO spatial coordinates of a clip's active media
+        //! reference.
+        std::optional<ftk::Box2F> getClipBounds(const OTIO_NS::Clip* otioClip)
+        {
+            return getMediaReferenceBounds(otioClip->media_reference());
+        }
+
+        //! Get the union of the OTIO spatial coordinates of every media
+        //! reference on a clip. The canvas is built from this rather than from
+        //! the active reference, so that changing the active media reference
+        //! leaves the canvas unchanged.
+        std::optional<ftk::Box2F> getClipBoundsUnion(const OTIO_NS::Clip* otioClip)
+        {
+            std::optional<ftk::Box2F> out;
+            for (const auto& i : otioClip->media_references())
+            {
+                if (const auto bounds = getMediaReferenceBounds(i.second))
+                {
+                    out = out.has_value() ?
+                        ftk::expand(out.value(), bounds.value()) :
+                        bounds.value();
+                }
             }
             return out;
         }
@@ -71,14 +100,51 @@ namespace tl
             return out;
         }
 
-        //! Get a clip's box in image space, before it is placed on the canvas.
+        //! Resolve which media reference a clip should be read from.
+        //!
+        //! A key set for the clip alone takes precedence over the timeline
+        //! wide key. Clips that do not have the requested key fall back to the
+        //! default media key, and then to the media reference OTIO has active.
+        OTIO_NS::MediaReference* resolveMediaReference(
+            const OTIO_NS::Clip* otioClip,
+            const std::string& key,
+            const std::map<const OTIO_NS::Clip*, std::string>& clipKeys)
+        {
+            std::string clipKey = key;
+            const auto i = clipKeys.find(otioClip);
+            if (i != clipKeys.end() && !i->second.empty())
+            {
+                clipKey = i->second;
+            }
+            if (clipKey.empty())
+            {
+                // The common case, where no key has been set. Return early so
+                // that the media reference map is not copied.
+                return otioClip->media_reference();
+            }
+            const auto mediaReferences = otioClip->media_references();
+            auto j = mediaReferences.find(clipKey);
+            if (j == mediaReferences.end())
+            {
+                j = mediaReferences.find(OTIO_NS::Clip::default_media_key);
+            }
+            return j != mediaReferences.end() ?
+                j->second :
+                otioClip->media_reference();
+        }
+
+        //! Place a clip's spatial coordinates into image space.
+        //!
+        //! The bounds are passed in rather than read from the clip, since the
+        //! caller decides whether they describe the media reference being read
+        //! or the union of every reference on the clip.
         //!
         //! With Spatial::Normalize a clip that has no spatial coordinates is
         //! given the reference size, so that clips of differing resolutions
         //! are displayed at the same size. This covers timelines that were not
         //! authored with spatial coordinates at all.
         std::optional<ftk::Box2F> getSpatialBounds(
-            const OTIO_NS::Clip* otioClip,
+            const std::optional<ftk::Box2F>& clipBounds,
             Spatial spatial,
             const ftk::Size2I& normalizeSize,
             double scale)
@@ -88,7 +154,7 @@ namespace tl
             {
                 return out;
             }
-            out = toImageSpace(getClipBounds(otioClip), scale);
+            out = toImageSpace(clipBounds, scale);
             if (!out.has_value() &&
                 Spatial::Normalize == spatial &&
                 normalizeSize.isValid())
@@ -102,7 +168,7 @@ namespace tl
 
         //! Get a clip's box within the timeline canvas.
         std::optional<ftk::Box2F> getCanvasBox(
-            const OTIO_NS::Clip* otioClip,
+            const std::optional<ftk::Box2F>& clipBounds,
             Spatial spatial,
             const ftk::Size2I& normalizeSize,
             double scale,
@@ -110,7 +176,7 @@ namespace tl
         {
             std::optional<ftk::Box2F> out;
             if (const auto bounds = getSpatialBounds(
-                otioClip,
+                clipBounds,
                 spatial,
                 normalizeSize,
                 scale))
@@ -369,50 +435,88 @@ namespace tl
                         arg(otioError.details));
                 }
 
-                for (auto clip : otioTimeline->find_children<OTIO_NS::Clip>())
+                // Map a media reference to the memory it occupies within the
+                // bundle.
+                //
+                // The bundle is missing the media it is playing if the active
+                // reference is not there, so that is an error. An alternate
+                // that is missing only costs the ability to switch to it, so
+                // the timeline is still opened and the reference is recorded
+                // as unavailable. Either way the media is never read from its
+                // path: a bundle is meant to be self contained, and quietly
+                // reading a file from somewhere else would be misleading.
+                const auto mapMediaReference = [&](
+                    OTIO_NS::MediaReference* mediaReference,
+                    bool active)
                 {
-                    if (auto externalReference =
-                        dynamic_cast<OTIO_NS::ExternalReference*>(clip->media_reference()))
+                    if (!mediaReference ||
+                        p.memFiles.find(mediaReference) != p.memFiles.end())
                     {
-                        const std::string mediaFileName = ftk::Path(
-                            decodeURL(externalReference->target_url())).get();
+                        return;
+                    }
 
-                        auto entry = zipReader.find(mediaFileName);
-                        if (!entry.has_value())
-                        {
-                            throw std::runtime_error(ftk::Format(
-                                "Cannot find zip entry: \"{0}\"").arg(mediaFileName));
-                        }
-
-                        p.memFiles[externalReference].push_back(ftk::MemFile(
-                            p.fileIO,
-                            p.fileIO->getMemStart() + entry->offset,
-                            entry->size));
+                    std::vector<std::string> mediaFileNames;
+                    if (auto externalReference =
+                        dynamic_cast<OTIO_NS::ExternalReference*>(mediaReference))
+                    {
+                        mediaFileNames.push_back(ftk::Path(
+                            decodeURL(externalReference->target_url())).get());
                     }
                     else if (auto imageSeqReference =
-                        dynamic_cast<OTIO_NS::ImageSequenceReference*>(clip->media_reference()))
+                        dynamic_cast<OTIO_NS::ImageSequenceReference*>(mediaReference))
                     {
-                        std::vector<ftk::MemFile> mem;
                         for (int number = 0;
                             number < imageSeqReference->number_of_images_in_sequence();
                             ++number)
                         {
-                            const std::string mediaFileName = ftk::Path(
-                                decodeURL(imageSeqReference->target_url_for_image_number(number))).get();
+                            mediaFileNames.push_back(ftk::Path(
+                                decodeURL(imageSeqReference->target_url_for_image_number(number))).get());
+                        }
+                    }
+                    else
+                    {
+                        return;
+                    }
 
-                            auto entry = zipReader.find(mediaFileName);
-                            if (!entry.has_value())
+                    std::vector<ftk::MemFile> mem;
+                    for (const auto& mediaFileName : mediaFileNames)
+                    {
+                        auto entry = zipReader.find(mediaFileName);
+                        if (!entry.has_value())
+                        {
+                            if (active)
                             {
                                 throw std::runtime_error(ftk::Format(
                                     "Cannot find zip entry: \"{0}\"").arg(mediaFileName));
                             }
-
-                            mem.push_back(ftk::MemFile(
-                                p.fileIO,
-                                p.fileIO->getMemStart() + entry->offset,
-                                entry->size));
+                            logSystem->print(
+                                "tl::Timeline",
+                                ftk::Format(
+                                    "Cannot find zip entry: \"{0}\"; this media "
+                                    "reference cannot be used").
+                                arg(mediaFileName),
+                                ftk::LogType::Warning);
+                            p.unavailableMediaReferences.insert(mediaReference);
+                            return;
                         }
-                        p.memFiles[imageSeqReference] = mem;
+
+                        mem.push_back(ftk::MemFile(
+                            p.fileIO,
+                            p.fileIO->getMemStart() + entry->offset,
+                            entry->size));
+                    }
+                    p.memFiles[mediaReference] = mem;
+                };
+
+                // Map every media reference, not only the active one, so that
+                // the active reference can be changed without re-reading the
+                // bundle.
+                for (auto clip : otioTimeline->find_children<OTIO_NS::Clip>())
+                {
+                    const auto* activeReference = clip->media_reference();
+                    for (const auto& i : clip->media_references())
+                    {
+                        mapMediaReference(i.second, i.second == activeReference);
                     }
                 }
             }
@@ -544,6 +648,21 @@ namespace tl
             }
         }
         _getCanvas();
+
+        // Give each media reference the timeline level information, keeping
+        // its own video information and tags. getIOInfo() can then hand back
+        // whichever of these matches the media reference being read.
+        for (auto& i : p.videoInfoByReference)
+        {
+            IOInfo ioInfo = p.ioInfo;
+            ioInfo.video = i.second.video;
+            ioInfo.videoTime = i.second.videoTime;
+            for (const auto& tag : i.second.tags)
+            {
+                ioInfo.tags[tag.first] = tag.second;
+            }
+            i.second = ioInfo;
+        }
 
         logSystem->print(
             ftk::Format("tl::Timeline {0}").arg(this),
@@ -696,6 +815,94 @@ namespace tl
         return i != p.memFiles.end() ? i->second : std::vector<ftk::MemFile>{};
     }
 
+    OTIO_NS::MediaReference* Timeline::Private::mediaReference(
+        const OTIO_NS::Clip* otioClip) const
+    {
+        return resolveMediaReference(
+            otioClip,
+            thread.mediaReferenceKey,
+            thread.clipMediaReferenceKeys);
+    }
+
+    std::vector<std::string> Timeline::getMediaReferenceKeys() const
+    {
+        FTK_P();
+        std::set<std::string> keys;
+        for (const auto& otioClip :
+            p.otioTimeline.value->find_children<OTIO_NS::Clip>())
+        {
+            for (const auto& i : otioClip->media_references())
+            {
+                keys.insert(i.first);
+            }
+        }
+        return std::vector<std::string>(keys.begin(), keys.end());
+    }
+
+    std::string Timeline::getMediaReferenceKey() const
+    {
+        FTK_P();
+        std::unique_lock<std::mutex> lock(p.mutex.mutex);
+        return p.mutex.mediaReferenceKey;
+    }
+
+    void Timeline::setMediaReferenceKey(const std::string& value)
+    {
+        FTK_P();
+        std::unique_lock<std::mutex> lock(p.mutex.mutex);
+        if (value != p.mutex.mediaReferenceKey)
+        {
+            p.mutex.mediaReferenceKey = value;
+            p.mutex.mediaReferenceKeysChanged = true;
+        }
+    }
+
+    std::string Timeline::getMediaReferenceKey(
+        const OTIO_NS::Clip* otioClip) const
+    {
+        FTK_P();
+        std::unique_lock<std::mutex> lock(p.mutex.mutex);
+        const auto i = p.mutex.clipMediaReferenceKeys.find(otioClip);
+        return i != p.mutex.clipMediaReferenceKeys.end() ?
+            i->second :
+            std::string();
+    }
+
+    void Timeline::setMediaReferenceKey(
+        const OTIO_NS::Clip* otioClip,
+        const std::string& value)
+    {
+        FTK_P();
+        std::unique_lock<std::mutex> lock(p.mutex.mutex);
+        if (value.empty())
+        {
+            if (p.mutex.clipMediaReferenceKeys.erase(otioClip) > 0)
+            {
+                p.mutex.mediaReferenceKeysChanged = true;
+            }
+        }
+        else
+        {
+            auto& key = p.mutex.clipMediaReferenceKeys[otioClip];
+            if (value != key)
+            {
+                key = value;
+                p.mutex.mediaReferenceKeysChanged = true;
+            }
+        }
+    }
+
+    OTIO_NS::MediaReference* Timeline::getMediaReference(
+        const OTIO_NS::Clip* otioClip) const
+    {
+        FTK_P();
+        std::unique_lock<std::mutex> lock(p.mutex.mutex);
+        return resolveMediaReference(
+            otioClip,
+            p.mutex.mediaReferenceKey,
+            p.mutex.clipMediaReferenceKeys);
+    }
+
     const OTIO_NS::TimeRange& Timeline::getTimeRange() const
     {
         return _p->timeRange;
@@ -708,7 +915,21 @@ namespace tl
 
     const IOInfo& Timeline::getIOInfo() const
     {
-        return _p->ioInfo;
+        FTK_P();
+        // Follow the media reference being read, so that the information
+        // describes the media on screen rather than the media that happened to
+        // be active when the timeline was read. The entries are fixed once the
+        // timeline has been read, so returning a reference to one is safe.
+        if (p.videoInfoClip)
+        {
+            const auto i = p.videoInfoByReference.find(
+                getMediaReference(p.videoInfoClip));
+            if (i != p.videoInfoByReference.end())
+            {
+                return i->second;
+            }
+        }
+        return p.ioInfo;
     }
 
     std::string Timeline::getReadError() const
@@ -833,9 +1054,24 @@ namespace tl
         const IOOptions& ioOptions)
     {
         FTK_P();
+        return _getRead(p.mediaReference(clip), ioOptions);
+    }
+
+    std::shared_ptr<IRead> Timeline::_getRead(
+        const OTIO_NS::MediaReference* mediaReference,
+        const IOOptions& ioOptions)
+    {
+        FTK_P();
         std::shared_ptr<IRead> out;
+        if (p.unavailableMediaReferences.find(mediaReference) !=
+            p.unavailableMediaReferences.end())
+        {
+            // Named by the bundle but not inside it. Reading it from its path
+            // would be reading a different file than the bundle describes.
+            return out;
+        }
         const auto path = tl::getPath(
-            clip->media_reference(),
+            mediaReference,
             p.path.getDir(),
             p.options.pathOptions);
         const std::string key = getKey(path);
@@ -843,7 +1079,7 @@ namespace tl
         {
             if (auto context = p.context.lock())
             {
-                const auto mem = getMem(clip->media_reference());
+                const auto mem = getMem(mediaReference);
                 IOOptions options = ioOptions;
                 options["SeqIO/DefaultSpeed"] = ftk::Format("{0}").arg(p.timeRange.duration().rate());
                 const auto ioSystem = context->getSystem<ReadSystem>();
@@ -938,6 +1174,45 @@ namespace tl
                     p.ioInfo.video = ioInfo.video;
                     p.ioInfo.videoTime = ioInfo.videoTime;
                     p.ioInfo.tags.insert(ioInfo.tags.begin(), ioInfo.tags.end());
+
+                    // Find the largest resolution among the clip's media
+                    // references, so that the canvas can hold the highest
+                    // resolution one rather than only the reference that is
+                    // active now. The readers opened here stay in the read
+                    // cache, which also makes the first switch faster.
+                    //
+                    // The information reported by getIOInfo() is left as that
+                    // of the active reference, since that is the media being
+                    // played.
+                    p.maxVideoSize = !p.ioInfo.video.empty() ?
+                        p.ioInfo.video[0].size :
+                        ftk::Size2I();
+                    p.videoInfoClip = clip;
+                    for (const auto& i : clip->media_references())
+                    {
+                        if (auto mediaReferenceRead =
+                            _getRead(i.second, p.options.ioOptions))
+                        {
+                            const IOInfo& mediaReferenceInfo =
+                                mediaReferenceRead->getInfo().get();
+
+                            // Kept so that getIOInfo() can report the media
+                            // that is actually being read; completed with the
+                            // timeline level information once it is known.
+                            p.videoInfoByReference[i.second] = mediaReferenceInfo;
+
+                            if (!mediaReferenceInfo.video.empty())
+                            {
+                                const ftk::Size2I& size =
+                                    mediaReferenceInfo.video[0].size;
+                                if (size.w * size.h >
+                                    p.maxVideoSize.w * p.maxVideoSize.h)
+                                {
+                                    p.maxVideoSize = size;
+                                }
+                            }
+                        }
+                    }
                     return true;
                 }
             }
@@ -962,9 +1237,12 @@ namespace tl
         // whole timeline, so the extent is taken from every clip rather than
         // from the clips visible at one time. This keeps the render size
         // stable as playback moves between clips.
-        p.normalizeSize = !p.ioInfo.video.empty() ?
-            p.ioInfo.video[0].size :
-            ftk::Size2I();
+        // Built from the largest media reference resolution rather than from
+        // the reference that is active, so that the canvas does not cap a
+        // switch to a higher resolution reference; see _getVideoInfo().
+        p.normalizeSize = p.maxVideoSize.isValid() ?
+            p.maxVideoSize :
+            (!p.ioInfo.video.empty() ? p.ioInfo.video[0].size : ftk::Size2I());
         const ftk::Size2I& normalizeSize = p.normalizeSize;
         const auto otioClips = p.otioTimeline.value->find_children<OTIO_NS::Clip>();
 
@@ -972,6 +1250,13 @@ namespace tl
         // onto a pixel size. Take it from the first clip that has coordinates,
         // which is not necessarily the first clip in the timeline, together
         // with the resolution the timeline is working at.
+        //
+        // This uses the active media reference rather than the union of all of
+        // them, unlike the canvas below. The coordinates of a clip's
+        // references describe the same area, so any of them gives the same
+        // scale; taking the union here would only matter for a clip whose
+        // references were authored inconsistently, where the active one is the
+        // better guide.
         if (normalizeSize.isValid())
         {
             for (const auto& otioClip : otioClips)
@@ -1003,8 +1288,11 @@ namespace tl
                     arg(authored.value().max.x).
                     arg(authored.value().max.y);
             }
+            // Cover every media reference, not just the active one, so that
+            // changing the active media reference cannot place a clip outside
+            // the canvas.
             if (const auto bounds = getSpatialBounds(
-                otioClip,
+                getClipBoundsUnion(otioClip),
                 p.options.spatial,
                 normalizeSize,
                 p.boundsScale))
@@ -1144,6 +1432,14 @@ namespace tl
                 newAudioRequests.push_back(p.mutex.audioRequests.front());
                 p.mutex.audioRequests.pop_front();
             }
+            // Take a copy of the media reference keys so that the rest of the
+            // traversal can resolve media references without locking.
+            if (p.mutex.mediaReferenceKeysChanged)
+            {
+                p.thread.mediaReferenceKey = p.mutex.mediaReferenceKey;
+                p.thread.clipMediaReferenceKeys = p.mutex.clipMediaReferenceKeys;
+                p.mutex.mediaReferenceKeysChanged = false;
+            }
         }
 
         // Traverse the timeline for new video requests.
@@ -1169,7 +1465,7 @@ namespace tl
                                     {
                                         videoLayerData.image = _readVideo(otioClip, requestTime, request->options);
                                         videoLayerData.bounds = getCanvasBox(
-                                            otioClip,
+                                            getMediaReferenceBounds(p.mediaReference(otioClip)),
                                             p.options.spatial,
                                             p.normalizeSize,
                                             p.boundsScale,
@@ -1190,7 +1486,7 @@ namespace tl
                                             {
                                                 videoLayerData.imageB = _readVideo(otioClipB, requestTime, request->options);
                                                 videoLayerData.boundsB = getCanvasBox(
-                                                    otioClipB,
+                                                    getMediaReferenceBounds(p.mediaReference(otioClipB)),
                                                     p.options.spatial,
                                                     p.normalizeSize,
                                                     p.boundsScale,
@@ -1214,7 +1510,7 @@ namespace tl
                                             {
                                                 videoLayerData.image = _readVideo(otioClipB, requestTime, request->options);
                                                 videoLayerData.bounds = getCanvasBox(
-                                                    otioClipB,
+                                                    getMediaReferenceBounds(p.mediaReference(otioClipB)),
                                                     p.options.spatial,
                                                     p.normalizeSize,
                                                     p.boundsScale,

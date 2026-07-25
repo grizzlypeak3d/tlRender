@@ -12,6 +12,7 @@
 #include <atomic>
 #include <list>
 #include <mutex>
+#include <set>
 #include <thread>
 
 namespace tl
@@ -23,6 +24,12 @@ namespace tl
         std::shared_ptr<ftk::FileIO> fileIO;
         OTIO_NS::SerializableObject::Retainer<OTIO_NS::Timeline> otioTimeline;
         std::map<const OTIO_NS::MediaReference*, std::vector<ftk::MemFile> > memFiles;
+        // Media references named by a bundle but not found inside it. They are
+        // not read from their path, since a bundle is meant to be self
+        // contained and quietly reading a file from somewhere else would be
+        // misleading; reading one of these fails instead. Filled in while the
+        // timeline is read and only read afterwards.
+        std::set<const OTIO_NS::MediaReference*> unavailableMediaReferences;
         ftk::Path path;
         ftk::Path audioPath;
         Options options;
@@ -38,6 +45,13 @@ namespace tl
         size_t readErrorMax = 0;
         OTIO_NS::TimeRange timeRange = invalidTimeRange;
         IOInfo ioInfo;
+        // The clip whose media references provide the video information, and
+        // the information for each of those references. Both are filled in
+        // while the timeline is read and only read afterwards, so that
+        // getIOInfo() can follow the media reference key without any I/O, and
+        // without touching the read cache from the main thread.
+        const OTIO_NS::Clip* videoInfoClip = nullptr;
+        std::map<const OTIO_NS::MediaReference*, IOInfo> videoInfoByReference;
         // The pixels per unit for OTIO spatial coordinates, taken from the
         // first clip that has them. The coordinates are unit-less, so a
         // reference is needed to map them onto a pixel size. Stays 1.0 when no
@@ -53,6 +67,13 @@ namespace tl
         // no spatial coordinates of their own, taken from the first video
         // clip.
         ftk::Size2I normalizeSize;
+        // The largest resolution among the media references of the first video
+        // clip. The canvas is built from this rather than from the resolution
+        // of whichever reference happens to be active when the timeline is
+        // read, so that switching to a higher resolution reference is not
+        // capped by a canvas built for a proxy. Equal to the resolution of the
+        // active reference when a clip has only one.
+        ftk::Size2I maxVideoSize;
         uint64_t requestId = 0;
 
         struct VideoLayerData
@@ -118,6 +139,15 @@ namespace tl
             bool stopped = false;
             std::string readError;
             size_t readErrorCount = 0;
+            // The requested media reference keys, handed to the request
+            // thread. The timeline wide key applies to clips that have no
+            // entry of their own in clipMediaReferenceKeys. An empty key
+            // leaves a clip on the media reference that OTIO has active.
+            // The OTIO timeline itself is never written, so that it can be
+            // read without locking; see Timeline::setMediaReferenceKey().
+            std::string mediaReferenceKey;
+            std::map<const OTIO_NS::Clip*, std::string> clipMediaReferenceKeys;
+            bool mediaReferenceKeysChanged = false;
             std::mutex mutex;
         };
         Mutex mutex;
@@ -134,6 +164,10 @@ namespace tl
             std::thread thread;
             std::atomic<bool> running{ false };
             std::chrono::steady_clock::time_point logTimer;
+            // Copies of the media reference keys, refreshed under the mutex
+            // when the main thread changes them.
+            std::string mediaReferenceKey;
+            std::map<const OTIO_NS::Clip*, std::string> clipMediaReferenceKeys;
         };
         Thread thread;
 
@@ -143,6 +177,10 @@ namespace tl
         // shutdown).
         VideoFrame videoFrame(PendingVideoRequest&);
         AudioFrame audioFrame(PendingAudioRequest&);
+        // Resolve which media reference a clip should be read from, using the
+        // thread-owned key state. Request thread only; the main thread goes
+        // through Timeline::getMediaReference(), which takes the mutex.
+        OTIO_NS::MediaReference* mediaReference(const OTIO_NS::Clip*) const;
         // Aggregate reader and frame errors into the mutex-guarded
         // fields. Called on the request thread before completing a
         // request, so the error state is current by the time a caller's

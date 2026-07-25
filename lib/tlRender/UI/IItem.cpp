@@ -47,6 +47,7 @@ namespace tl
                 inOutDisplay == other.inOutDisplay &&
                 cacheDisplay == other.cacheDisplay &&
                 minimize == other.minimize &&
+                clipColors == other.clipColors &&
                 thumbnails == other.thumbnails &&
                 thumbnailHeight == other.thumbnailHeight &&
                 waveforms == other.waveforms &&
@@ -76,37 +77,38 @@ namespace tl
             return out;
         }
 
-        ftk::Color4F getMarkerColor(const std::string& value)
+        ftk::Color4F toColor(const OTIO_NS::Color& value)
         {
-            const std::map<std::string, ftk::Color4F> colors =
+            return ftk::Color4F(
+                static_cast<float>(value.r()),
+                static_cast<float>(value.g()),
+                static_cast<float>(value.b()),
+                static_cast<float>(value.a()));
+        }
+
+        ftk::Color4F getMarkerColor(const std::optional<OTIO_NS::Color>& value)
+        {
+            // OTIO gives markers green by default, so markers that do not
+            // carry a color of their own keep the appearance they had.
+            return value.has_value() ?
+                toColor(value.value()) :
+                ftk::Color4F(0.F, 1.F, 0.F);
+        }
+
+        ftk::Color4F getItemColor(
+            const OTIO_NS::Item* otioItem,
+            const ftk::Color4F& defaultColor,
+            const DisplayOptions& displayOptions)
+        {
+            ftk::Color4F out = defaultColor;
+            if (displayOptions.clipColors && otioItem)
             {
-                //! \bug The OTIO marker variables are causing undefined
-                //! symbol errors on Linux and macOS.
-                /*{OTIO_NS::Marker::Color::pink, ftk::Color4F(1.F, .752F, .796F)},
-                { OTIO_NS::Marker::Color::red, ftk::Color4F(1.F, 0.F, 0.F) },
-                { OTIO_NS::Marker::Color::orange, ftk::Color4F(1.F, .75F, 0.F) },
-                { OTIO_NS::Marker::Color::yellow, ftk::Color4F(1.F, 1.F, 0.F) },
-                { OTIO_NS::Marker::Color::green, ftk::Color4F(0.F, 1.F, 0.F) },
-                { OTIO_NS::Marker::Color::cyan, ftk::Color4F(0.F, 1.F, 1.F) },
-                { OTIO_NS::Marker::Color::blue, ftk::Color4F(0.F, 0.F, 1.F) },
-                { OTIO_NS::Marker::Color::purple, ftk::Color4F(0.5F, 0.F, .5F) },
-                { OTIO_NS::Marker::Color::magenta, ftk::Color4F(1.F, 0.F, 1.F) },
-                { OTIO_NS::Marker::Color::black, ftk::Color4F(0.F, 0.F, 0.F) },
-                { OTIO_NS::Marker::Color::white, ftk::Color4F(1.F, 1.F, 1.F) }*/
-                { "PINK", ftk::Color4F(1.F, .752F, .796F)},
-                { "RED", ftk::Color4F(1.F, 0.F, 0.F)},
-                { "ORANGE", ftk::Color4F(1.F, .75F, 0.F) },
-                { "YELLOW", ftk::Color4F(1.F, 1.F, 0.F)},
-                { "GREEN", ftk::Color4F(0.F, 1.F, 0.F) },
-                { "CYAN", ftk::Color4F(0.F, 1.F, 1.F)},
-                { "BLUE", ftk::Color4F(0.F, 0.F, 1.F)},
-                { "PURPLE", ftk::Color4F(0.5F, 0.F, .5F)},
-                { "MAGENTA", ftk::Color4F(1.F, 0.F, 1.F)},
-                { "BLACK", ftk::Color4F(0.F, 0.F, 0.F)},
-                { "WHITE", ftk::Color4F(1.F, 1.F, 1.F)}
-            };
-            const auto i = colors.find(value);
-            return i != colors.end() ? i->second : ftk::Color4F();
+                if (const auto color = otioItem->color())
+                {
+                    out = toColor(color.value());
+                }
+            }
+            return out;
         }
 
         DragDropData::DragDropData(

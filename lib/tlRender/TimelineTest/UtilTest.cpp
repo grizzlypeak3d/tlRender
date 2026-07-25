@@ -10,6 +10,7 @@
 #include <ftk/Core/Path.h>
 
 #include <opentimelineio/clip.h>
+#include <opentimelineio/imageSequenceReference.h>
 
 namespace tl
 {
@@ -32,6 +33,28 @@ namespace tl
             _loop();
             _util();
             _audio();
+            _paths();
+        }
+
+        void UtilTest::_paths()
+        {
+            // The base of an image sequence may be written with or without a
+            // trailing separator; OTIO accepts both, so both must give the
+            // same path.
+            const std::string directory = "/tmp";
+            OTIO_NS::SerializableObject::Retainer<OTIO_NS::ImageSequenceReference>
+                withSeparator(new OTIO_NS::ImageSequenceReference(
+                    "seq/", "frame.", ".exr", 1, 1, 24.0, 4));
+            OTIO_NS::SerializableObject::Retainer<OTIO_NS::ImageSequenceReference>
+                withoutSeparator(new OTIO_NS::ImageSequenceReference(
+                    "seq", "frame.", ".exr", 1, 1, 24.0, 4));
+            const ftk::Path a = getPath(
+                withSeparator.value, directory, ftk::PathOptions());
+            const ftk::Path b = getPath(
+                withoutSeparator.value, directory, ftk::PathOptions());
+            _print(ftk::Format("Sequence path: {0}").arg(a.get()));
+            _print(ftk::Format("Sequence path: {0}").arg(b.get()));
+            FTK_ASSERT(a.get() == b.get());
         }
 
         void UtilTest::_enums()

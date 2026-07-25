@@ -16,6 +16,8 @@
 #include <opentimelineio/imageSequenceReference.h>
 #include <opentimelineio/timeline.h>
 
+#include <algorithm>
+
 namespace tl
 {
     namespace timeline_tests
@@ -39,6 +41,7 @@ namespace tl
             _timeline();
             _separateAudio();
             _spatial();
+            _mediaReferences();
         }
 
         void TimelineTest::_spatial()
@@ -437,6 +440,242 @@ namespace tl
                 _error(e.what());
             }
 #endif // TLRENDER_FFMPEGPLUGIN or TLRENDER_FFMPEG_CMD
+        }
+
+        void TimelineTest::_mediaReferences()
+        {
+            // A clip may carry several media references, for example a proxy
+            // and a full resolution version of the same media.
+            //
+            // The first clip of this timeline has a "Proxy" and a "Full"
+            // reference, both authored with the same spatial coordinates, and
+            // is active on "Proxy". The second clip has only a default
+            // reference, at the proxy resolution, and is there to exercise the
+            // fallback.
+            //
+            // The timeline is deliberately active on the proxy, since the
+            // canvas is built from the largest media reference rather than
+            // from the active one; a timeline that opens on a proxy still
+            // renders at the full resolution it can be switched to.
+            const ftk::Size2I smallSize(640, 360);
+            const ftk::Size2I largeSize(1920, 1080);
+            const ftk::Size2I canvasSize(1920, 1080);
+            try
+            {
+                const ftk::Path path(TLRENDER_SAMPLE_DATA, "MultipleMediaRefs.otio");
+                _print(ftk::Format("Path: {0}").arg(path.get()));
+                auto timeline = Timeline::create(_context, path);
+
+                // Every key used anywhere in the timeline is listed, including
+                // the default key of the clip that has a single reference.
+                const auto keys = timeline->getMediaReferenceKeys();
+                FTK_ASSERT(3 == keys.size());
+                FTK_ASSERT(keys.end() != std::find(keys.begin(), keys.end(), "Full"));
+                FTK_ASSERT(keys.end() != std::find(keys.begin(), keys.end(), "Proxy"));
+                FTK_ASSERT(keys.end() != std::find(
+                    keys.begin(), keys.end(), OTIO_NS::Clip::default_media_key));
+
+                // Without a key the clips are read from the media reference
+                // OTIO has active.
+                FTK_ASSERT(timeline->getMediaReferenceKey().empty());
+                std::optional<ftk::Box2F> bounds;
+                {
+                    auto request = timeline->getVideo(OTIO_NS::RationalTime(0.0, 24.0));
+                    const VideoFrame videoFrame = request.future.get();
+                    FTK_ASSERT(!videoFrame.layers.empty());
+                    FTK_ASSERT(videoFrame.layers[0].image);
+                    FTK_ASSERT(smallSize == videoFrame.layers[0].image->getSize());
+                    // The proxy is being read, but the canvas is built for the
+                    // full resolution reference that the clip can be switched
+                    // to, so no resolution is lost by opening on the proxy.
+                    FTK_ASSERT(canvasSize == videoFrame.canvasSize);
+                    bounds = videoFrame.layers[0].bounds;
+                    FTK_ASSERT(bounds.has_value());
+                }
+
+                // Switching to the full resolution reference changes the image
+                // that is read. The canvas and the box the clip occupies
+                // within it are unchanged, which is the point of the feature:
+                // the resolution changes underneath a fixed layout.
+                timeline->setMediaReferenceKey("Full");
+                FTK_ASSERT("Full" == timeline->getMediaReferenceKey());
+                // The reported information follows the media reference being
+                // read, so that it describes what is on screen.
+                FTK_ASSERT(!timeline->getIOInfo().video.empty());
+                FTK_ASSERT(largeSize == timeline->getIOInfo().video[0].size);
+                {
+                    auto request = timeline->getVideo(OTIO_NS::RationalTime(0.0, 24.0));
+                    const VideoFrame videoFrame = request.future.get();
+                    FTK_ASSERT(!videoFrame.layers.empty());
+                    FTK_ASSERT(videoFrame.layers[0].image);
+                    FTK_ASSERT(largeSize == videoFrame.layers[0].image->getSize());
+                    FTK_ASSERT(canvasSize == videoFrame.canvasSize);
+                    FTK_ASSERT(bounds == videoFrame.layers[0].bounds);
+                }
+
+                // The second clip has no reference under this key, so it falls
+                // back to the default media key and is left as it was.
+                {
+                    auto request = timeline->getVideo(OTIO_NS::RationalTime(30.0, 24.0));
+                    const VideoFrame videoFrame = request.future.get();
+                    FTK_ASSERT(!videoFrame.layers.empty());
+                    FTK_ASSERT(videoFrame.layers[0].image);
+                    FTK_ASSERT(smallSize == videoFrame.layers[0].image->getSize());
+                    FTK_ASSERT(canvasSize == videoFrame.canvasSize);
+                }
+
+                // A key set for a single clip overrides the timeline wide key.
+                const auto otioClips =
+                    timeline->getTimeline().value->find_children<OTIO_NS::Clip>();
+                FTK_ASSERT(2 == otioClips.size());
+                timeline->setMediaReferenceKey(otioClips[0], "Proxy");
+                FTK_ASSERT("Proxy" == timeline->getMediaReferenceKey(otioClips[0]));
+                {
+                    auto request = timeline->getVideo(OTIO_NS::RationalTime(0.0, 24.0));
+                    const VideoFrame videoFrame = request.future.get();
+                    FTK_ASSERT(!videoFrame.layers.empty());
+                    FTK_ASSERT(videoFrame.layers[0].image);
+                    FTK_ASSERT(smallSize == videoFrame.layers[0].image->getSize());
+                    FTK_ASSERT(bounds == videoFrame.layers[0].bounds);
+                }
+
+                // Clearing the key for the clip returns it to the timeline
+                // wide key.
+                timeline->setMediaReferenceKey(otioClips[0], std::string());
+                FTK_ASSERT(timeline->getMediaReferenceKey(otioClips[0]).empty());
+                {
+                    auto request = timeline->getVideo(OTIO_NS::RationalTime(0.0, 24.0));
+                    const VideoFrame videoFrame = request.future.get();
+                    FTK_ASSERT(!videoFrame.layers.empty());
+                    FTK_ASSERT(videoFrame.layers[0].image);
+                    FTK_ASSERT(largeSize == videoFrame.layers[0].image->getSize());
+                }
+            }
+            catch (const std::exception& e)
+            {
+                _error(e.what());
+            }
+
+            // The same timeline as a bundle. Every media reference is mapped
+            // to the memory it occupies in the bundle, not just the active
+            // one, so that the active reference can be changed without
+            // re-reading the file.
+            //
+            // Note that nothing here can be read from disk: the media only
+            // exists inside the bundle, and "media/SpatialLarge.png" does not
+            // resolve next to the sample data. Reading it at all proves it
+            // came from the mapped memory.
+            try
+            {
+                const ftk::Path path(TLRENDER_SAMPLE_DATA, "MultipleMediaRefs.otioz");
+                _print(ftk::Format("Path: {0}").arg(path.get()));
+                auto timeline = Timeline::create(_context, path);
+                const auto otioClips =
+                    timeline->getTimeline().value->find_children<OTIO_NS::Clip>();
+                FTK_ASSERT(2 == otioClips.size());
+
+                // Both of the first clip's references are mapped, including
+                // the one that is not active.
+                const auto mediaReferences = otioClips[0]->media_references();
+                FTK_ASSERT(2 == mediaReferences.size());
+                for (const auto& i : mediaReferences)
+                {
+                    FTK_ASSERT(!timeline->getMem(i.second).empty());
+                }
+
+                // The bundle opens on the proxy and switches to the full
+                // resolution reference without re-reading the file.
+                {
+                    auto request = timeline->getVideo(OTIO_NS::RationalTime(0.0, 24.0));
+                    const VideoFrame videoFrame = request.future.get();
+                    FTK_ASSERT(!videoFrame.layers.empty());
+                    FTK_ASSERT(videoFrame.layers[0].image);
+                    FTK_ASSERT(smallSize == videoFrame.layers[0].image->getSize());
+                    FTK_ASSERT(canvasSize == videoFrame.canvasSize);
+                }
+                timeline->setMediaReferenceKey("Full");
+                {
+                    auto request = timeline->getVideo(OTIO_NS::RationalTime(0.0, 24.0));
+                    const VideoFrame videoFrame = request.future.get();
+                    FTK_ASSERT(!videoFrame.layers.empty());
+                    FTK_ASSERT(videoFrame.layers[0].image);
+                    FTK_ASSERT(largeSize == videoFrame.layers[0].image->getSize());
+                    FTK_ASSERT(canvasSize == videoFrame.canvasSize);
+                }
+            }
+            catch (const std::exception& e)
+            {
+                _error(e.what());
+            }
+
+            // A bundle carrying only the active media. It opens, since the
+            // media it is playing is there, but the reference that is missing
+            // cannot be used. It is not read from the file system: the bundle
+            // names the media, so reading a file of that name from somewhere
+            // else would not be the media the bundle describes.
+            try
+            {
+                const ftk::Path path(TLRENDER_SAMPLE_DATA, "MissingMediaRef.otioz");
+                _print(ftk::Format("Path: {0}").arg(path.get()));
+                auto timeline = Timeline::create(_context, path);
+
+                const auto otioClips =
+                    timeline->getTimeline().value->find_children<OTIO_NS::Clip>();
+                const auto mediaReferences = otioClips[0]->media_references();
+                FTK_ASSERT(2 == mediaReferences.size());
+                FTK_ASSERT(!timeline->getMem(mediaReferences.at("Proxy")).empty());
+                FTK_ASSERT(timeline->getMem(mediaReferences.at("Full")).empty());
+
+                // The active reference still reads.
+                {
+                    auto request = timeline->getVideo(OTIO_NS::RationalTime(0.0, 24.0));
+                    const VideoFrame videoFrame = request.future.get();
+                    FTK_ASSERT(!videoFrame.layers.empty());
+                    FTK_ASSERT(videoFrame.layers[0].image);
+                    FTK_ASSERT(smallSize == videoFrame.layers[0].image->getSize());
+                }
+
+                // The missing reference does not. Its path resolves to a file
+                // that exists next to the sample data, so this would give an
+                // image if the media were being taken from the file system.
+                timeline->setMediaReferenceKey("Full");
+                {
+                    auto request = timeline->getVideo(OTIO_NS::RationalTime(0.0, 24.0));
+                    const VideoFrame videoFrame = request.future.get();
+                    FTK_ASSERT(!videoFrame.layers.empty());
+                    FTK_ASSERT(!videoFrame.layers[0].image);
+                }
+            }
+            catch (const std::exception& e)
+            {
+                _error(e.what());
+            }
+
+            // Clips may carry a color, which the timeline widget uses to color
+            // the clip. This checks that the color survives being read, since
+            // the color is optional and clips without one keep the default.
+            try
+            {
+                const ftk::Path path(TLRENDER_SAMPLE_DATA, "ClipColors.otio");
+                _print(ftk::Format("Path: {0}").arg(path.get()));
+                auto timeline = Timeline::create(_context, path);
+                const auto otioClips =
+                    timeline->getTimeline().value->find_children<OTIO_NS::Clip>();
+                FTK_ASSERT(2 == otioClips.size());
+
+                const auto color = otioClips[0]->color();
+                FTK_ASSERT(color.has_value());
+                FTK_ASSERT(0.75 == color.value().r());
+                FTK_ASSERT(0.25 == color.value().g());
+                FTK_ASSERT(0.125 == color.value().b());
+                FTK_ASSERT(1.0 == color.value().a());
+
+                FTK_ASSERT(!otioClips[1]->color().has_value());
+            }
+            catch (const std::exception& e)
+            {
+                _error(e.what());
+            }
         }
     }
 }

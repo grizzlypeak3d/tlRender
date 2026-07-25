@@ -69,6 +69,7 @@ namespace tl
         std::shared_ptr<ftk::ObservableList<std::shared_ptr<Timeline> > > compare;
         std::shared_ptr<ftk::Observable<CompareTime> > compareTime;
         std::shared_ptr<ftk::Observable<IOOptions> > ioOptions;
+        std::shared_ptr<ftk::Observable<std::string> > mediaReferenceKey;
         std::shared_ptr<ftk::Observable<int> > videoLayer;
         std::shared_ptr<ftk::ObservableList<int> > compareVideoLayers;
         std::shared_ptr<ftk::ObservableList<VideoFrame> > currentVideoFrame;

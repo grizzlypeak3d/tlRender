@@ -76,6 +76,10 @@ namespace tl
 
             bool minimize = true;
 
+            //! Color items using the color the OTIO item carries, where it
+            //! has one. Items without a color are unaffected.
+            bool clipColors = true;
+
             bool thumbnails = true;
             int thumbnailHeight = 100;
             bool waveforms = true;
@@ -103,8 +107,22 @@ namespace tl
         //! Get the markers from an item.
         TL_API std::vector<Marker> getMarkers(const OTIO_NS::Item*);
 
-        //! Convert a named marker color.
-        TL_API ftk::Color4F getMarkerColor(const std::string&);
+        //! Convert an OTIO color.
+        //!
+        //! The components are sRGB encoded and range from zero to one, which
+        //! is what the user interface works in, so they are used as they are.
+        TL_API ftk::Color4F toColor(const OTIO_NS::Color&);
+
+        //! Convert a marker color, which is optional; markers without one are
+        //! given the color OTIO uses by default.
+        TL_API ftk::Color4F getMarkerColor(const std::optional<OTIO_NS::Color>&);
+
+        //! Get the color for an item, which is the color the OTIO item carries
+        //! where it has one, and the given default otherwise.
+        TL_API ftk::Color4F getItemColor(
+            const OTIO_NS::Item*,
+            const ftk::Color4F& defaultColor,
+            const DisplayOptions&);
 
         //! Drag and drop data.
         class TL_API_TYPE DragDropData : public ftk::IDragDropData

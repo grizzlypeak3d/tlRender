@@ -43,14 +43,18 @@ namespace tl
             const std::shared_ptr<ItemData>& itemData,
             const std::shared_ptr<IWidget>& parent)
         {
+            // Resolved through the timeline rather than taken from the clip,
+            // so that the item follows the media reference key instead of the
+            // reference the clip was authored with.
+            const auto mediaReference = timeline->getMediaReference(clip.value);
             const auto path = getPath(
-                clip->media_reference(),
+                mediaReference,
                 itemData->dir,
                 itemData->options.pathOptions);
             IBasicItem::_init(
                 context,
                 !clip->name().empty() ? clip->name() : path.getFileName(),
-                ftk::Color4F(.3F, .25F, .4F),
+                getItemColor(clip.value, ftk::Color4F(.3F, .25F, .4F), displayOptions),
                 "tl::ui::AudioClipItem",
                 clip.value,
                 scale,
@@ -61,7 +65,7 @@ namespace tl
             FTK_P();
 
             p.path = path;
-            p.memRead = timeline->getMem(clip->media_reference());
+            p.memRead = timeline->getMem(mediaReference);
             p.thumbnailSystem = context->getSystem<ThumbnailSystem>();
         }
 

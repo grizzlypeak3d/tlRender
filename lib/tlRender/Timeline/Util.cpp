@@ -314,8 +314,16 @@ namespace tl
         }
         else if (auto imageSeqRef = dynamic_cast<const OTIO_NS::ImageSequenceReference*>(ref))
         {
+            // OTIO adds a separator when the base does not end with one, so do
+            // the same. Without this a base written without it gives a path
+            // with the directory and the file name run together.
+            std::string base = imageSeqRef->target_url_base();
+            if (!base.empty() && base.back() != '/' && base.back() != '\\')
+            {
+                base += '/';
+            }
             std::stringstream ss;
-            ss << imageSeqRef->target_url_base() <<
+            ss << base <<
                 imageSeqRef->name_prefix() <<
                 std::setfill('0') << std::setw(imageSeqRef->frame_zero_padding()) <<
                 imageSeqRef->start_frame() <<

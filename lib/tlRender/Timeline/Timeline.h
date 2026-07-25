@@ -115,6 +115,53 @@ namespace tl
         TL_API std::vector<ftk::MemFile> getMem(
             const OTIO_NS::MediaReference*);
 
+        //! \name Media References
+        ///
+        //! Clips may carry several media references, for example a proxy and
+        //! a full resolution version of the same media, and one of them is
+        //! active at a time. Which one is active is tracked here rather than
+        //! written back to the OTIO timeline, so that the timeline can be read
+        //! by the request thread without locking.
+        ///@{
+
+        //! Get the media reference keys used anywhere in the timeline, sorted
+        //! and without duplicates.
+        TL_API std::vector<std::string> getMediaReferenceKeys() const;
+
+        //! Get the media reference key applied to the whole timeline. An empty
+        //! key, the default, leaves every clip on the media reference that
+        //! OTIO has active.
+        TL_API std::string getMediaReferenceKey() const;
+
+        //! Set the media reference key for the whole timeline. Clips that have
+        //! no media reference with this key fall back to
+        //! OTIO_NS::Clip::default_media_key, and then to the media reference
+        //! OTIO has active.
+        //!
+        //! The change applies to media read after it; the caller is
+        //! responsible for discarding anything already read, for example with
+        //! Player::clearCache().
+        TL_API void setMediaReferenceKey(const std::string&);
+
+        //! Get the media reference key applied to the given clip, which may be
+        //! empty. This is the key set for the clip alone, not the timeline
+        //! wide key it falls back to.
+        TL_API std::string getMediaReferenceKey(const OTIO_NS::Clip*) const;
+
+        //! Set the media reference key for a single clip, overriding the
+        //! timeline wide key. An empty key returns the clip to the timeline
+        //! wide key.
+        TL_API void setMediaReferenceKey(
+            const OTIO_NS::Clip*,
+            const std::string&);
+
+        //! Get the media reference a clip is read from, honoring the keys set
+        //! above.
+        TL_API OTIO_NS::MediaReference* getMediaReference(
+            const OTIO_NS::Clip*) const;
+
+        ///@}
+
         //! \name Information
         ///@{
 
@@ -126,6 +173,10 @@ namespace tl
 
         //! Get the I/O information. This information is retrieved from
         //! the first clip in the timeline.
+        //!
+        //! The video information follows the media reference the clip is
+        //! being read from, so that it describes the media on screen rather
+        //! than the media that was active when the timeline was read.
         TL_API const IOInfo& getIOInfo() const;
 
         //! Get the first error encountered while reading, or an empty
@@ -163,6 +214,9 @@ namespace tl
     private:
         std::shared_ptr<IRead> _getRead(
             const OTIO_NS::Clip*,
+            const IOOptions&);
+        std::shared_ptr<IRead> _getRead(
+            const OTIO_NS::MediaReference*,
             const IOOptions&);
         std::future<VideoData> _readVideo(
             const OTIO_NS::Clip*,

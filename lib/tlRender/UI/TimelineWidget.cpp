@@ -58,6 +58,7 @@ namespace tl
 
             std::shared_ptr<ftk::Observer<Playback> > playbackObserver;
             std::shared_ptr<ftk::Observer<OTIO_NS::RationalTime> > currentTimeObserver;
+            std::shared_ptr<ftk::Observer<std::string> > mediaReferenceKeyObserver;
             std::shared_ptr<ftk::Observer<bool> > scrubObserver;
             std::shared_ptr<ftk::Observer<OTIO_NS::RationalTime> > timeScrubObserver;
         };
@@ -139,6 +140,7 @@ namespace tl
             p.playback = Playback::Stop;
             p.playbackObserver.reset();
             p.currentTimeObserver.reset();
+            p.mediaReferenceKeyObserver.reset();
             p.scrollWidget->setWidget(nullptr);
             p.timelineItem.reset();
 
@@ -157,6 +159,18 @@ namespace tl
                     {
                         _p->playback = value;
                     });
+
+                // The clip items take their media from the timeline when they
+                // are created, so they are rebuilt to follow the new media
+                // reference. The items have just been built above, so the
+                // current key is suppressed.
+                p.mediaReferenceKeyObserver = ftk::Observer<std::string>::create(
+                    p.player->observeMediaReferenceKey(),
+                    [this](const std::string&)
+                    {
+                        _timelineUpdate();
+                    },
+                    ftk::ObserverAction::Suppress);
 
                 p.currentTimeObserver = ftk::Observer<OTIO_NS::RationalTime>::create(
                     p.player->observeCurrentTime(),
