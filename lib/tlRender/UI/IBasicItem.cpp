@@ -189,6 +189,14 @@ namespace tl
                 p.draw = Private::DrawData();
                 p.draw->g = getGeometry();
                 p.draw->g2 = ftk::margin(p.draw->g, -(p.size.border * 2));
+                if (p.draw->g2.w() < 1)
+                {
+                    // An item narrower than the border would draw nothing at
+                    // all and show the track behind it, which reads as a gap
+                    // rather than as a very short item. Keep a pixel of it.
+                    p.draw->g2.min.x = p.draw->g.min.x;
+                    p.draw->g2.max.x = p.draw->g.min.x;
+                }
                 p.draw->labelGeometry = ftk::Box2I(
                     p.draw->g2.min.x + p.size.margin,
                     p.draw->g2.min.y + p.size.margin,
