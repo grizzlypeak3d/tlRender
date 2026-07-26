@@ -5,7 +5,7 @@
 
 #include <tlRender/QtWidget/ContainerWidget.h>
 
-#include <tlRender/UI/IItem.h>
+#include <tlRender/UI/ItemOptions.h>
 
 #include <tlRender/Timeline/Player.h>
 

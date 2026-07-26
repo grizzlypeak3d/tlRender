@@ -7,7 +7,8 @@
 #include <tlRender/Timeline/TimeUnits.h>
 #include <tlRender/Timeline/Timeline.h>
 
-#include <ftk/UI/IMouseWidget.h>
+#include <ftk/Core/Color.h>
+#include <ftk/Core/Util.h>
 
 #include <opentimelineio/item.h>
 
@@ -15,8 +16,6 @@ namespace tl
 {
     namespace ui
     {
-        class IItem;
-
         //! Item data.
         struct TL_API_TYPE ItemData
         {
@@ -123,86 +122,6 @@ namespace tl
             const OTIO_NS::Item*,
             const ftk::Color4F& defaultColor,
             const DisplayOptions&);
-
-        //! Drag and drop data.
-        class TL_API_TYPE DragDropData : public ftk::IDragDropData
-        {
-        public:
-            TL_API DragDropData(const std::shared_ptr<IItem>&);
-
-            TL_API virtual ~DragDropData();
-
-            TL_API const std::shared_ptr<IItem>& getItem() const;
-
-        private:
-            std::shared_ptr<IItem> _item;
-        };
-
-        //! Base class for items.
-        class TL_API_TYPE IItem : public ftk::IMouseWidget
-        {
-        protected:
-            void _init(
-                const std::shared_ptr<ftk::Context>&,
-                const std::string& objectName,
-                const OTIO_NS::TimeRange& timeRange,
-                const OTIO_NS::TimeRange& availableRange,
-                const OTIO_NS::TimeRange& trimmedRange,
-                double scale,
-                const ItemOptions&,
-                const DisplayOptions&,
-                const std::shared_ptr<ItemData>&,
-                const std::shared_ptr<ftk::IWidget>& parent = nullptr);
-
-            IItem();
-
-        public:
-            TL_API virtual ~IItem() = 0;
-            
-            //! Get the item time range.
-            TL_API const OTIO_NS::TimeRange& getTimeRange() const;
-
-            //! Set the item scale.
-            TL_API virtual void setScale(double);
-
-            //! Set the item options.
-            TL_API virtual void setOptions(const ItemOptions&);
-
-            //! Set the display options.
-            TL_API virtual void setDisplayOptions(const DisplayOptions&);
-
-            //! Get the selection color role.
-            TL_API ftk::ColorRole getSelectRole() const;
-
-            //! Set the selection color role.
-            TL_API void setSelectRole(ftk::ColorRole);
-
-            //! Convert a position to a time.
-            TL_API OTIO_NS::RationalTime posToTime(float) const;
-
-            //! Convert a time to a position.
-            TL_API int timeToPos(const OTIO_NS::RationalTime&) const;
-
-        protected:
-            static ftk::Box2I _getClipRect(
-                const ftk::Box2I&,
-                double scale);
-
-            std::string _getDurationLabel(const OTIO_NS::RationalTime&);
-
-            virtual void _timeUnitsUpdate();
-
-            OTIO_NS::TimeRange _timeRange = invalidTimeRange;
-            OTIO_NS::TimeRange _availableRange = invalidTimeRange;
-            OTIO_NS::TimeRange _trimmedRange = invalidTimeRange;
-            double _scale = 500.0;
-            ItemOptions _options;
-            DisplayOptions _displayOptions;
-            std::shared_ptr<ItemData> _data;
-
-        private:
-            FTK_PRIVATE();
-        };
 
         //! \name Serialize
         ///@{

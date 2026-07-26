@@ -350,7 +350,7 @@ namespace tl
             {
                 if (p.timelineItem)
                 {
-                    _setItemOptions(p.timelineItem, value);
+                    p.timelineItem->setOptions(value);
                 }
             }
         }
@@ -372,7 +372,7 @@ namespace tl
             {
                 if (p.timelineItem)
                 {
-                    _setDisplayOptions(p.timelineItem, value);
+                    p.timelineItem->setDisplayOptions(value);
                 }
                 _scrollUpdate();
             }
@@ -579,49 +579,7 @@ namespace tl
             FTK_P();
             if (p.timelineItem)
             {
-                _setItemScale(p.timelineItem, p.scale);
-            }
-        }
-
-        void TimelineWidget::_setItemScale(
-            const std::shared_ptr<IWidget>& widget,
-            double value)
-        {
-            if (auto item = std::dynamic_pointer_cast<IItem>(widget))
-            {
-                item->setScale(value);
-            }
-            for (const auto& child : widget->getChildren())
-            {
-                _setItemScale(child, value);
-            }
-        }
-
-        void TimelineWidget::_setItemOptions(
-            const std::shared_ptr<IWidget>& widget,
-            const ItemOptions& value)
-        {
-            if (auto item = std::dynamic_pointer_cast<IItem>(widget))
-            {
-                item->setOptions(value);
-            }
-            for (const auto& child : widget->getChildren())
-            {
-                _setItemOptions(child, value);
-            }
-        }
-
-        void TimelineWidget::_setDisplayOptions(
-            const std::shared_ptr<IWidget>& widget,
-            const DisplayOptions& value)
-        {
-            if (auto item = std::dynamic_pointer_cast<IItem>(widget))
-            {
-                item->setDisplayOptions(value);
-            }
-            for (const auto& child : widget->getChildren())
-            {
-                _setDisplayOptions(child, value);
+                p.timelineItem->setScale(p.scale);
             }
         }
 

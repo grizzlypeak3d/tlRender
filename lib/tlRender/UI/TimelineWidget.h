@@ -171,15 +171,6 @@ namespace tl
             double _getTimelineScaleMax() const;
 
             void _setItemScale();
-            void _setItemScale(
-                const std::shared_ptr<IWidget>&,
-                double);
-            void _setItemOptions(
-                const std::shared_ptr<IWidget>&,
-                const ItemOptions&);
-            void _setDisplayOptions(
-                const std::shared_ptr<IWidget>&,
-                const DisplayOptions&);
 
             void _scrollUpdate();
             void _timelineUpdate();

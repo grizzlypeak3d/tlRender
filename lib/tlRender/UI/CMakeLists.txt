@@ -1,10 +1,7 @@
 set(HEADERS
-    AudioClipItem.h
     FrameToolBar.h
-    GapItem.h
-    IBasicItem.h
-    IItem.h
     Init.h
+    ItemOptions.h
     PlaybackLoopWidget.h
     PlaybackToolBar.h
     ThumbnailSystem.h
@@ -13,19 +10,14 @@ set(HEADERS
     TimeUnitsWidget.h
     TimelineItem.h
     TimelineWidget.h
-    TransitionItem.h
-    VideoClipItem.h
     Viewport.h)
 set(HEADERS_PRIVATE
     TimelineItemPrivate.h)
 
 set(SOURCE
-    AudioClipItem.cpp
     FrameToolBar.cpp
-    GapItem.cpp
-    IBasicItem.cpp
-    IItem.cpp
     Init.cpp
+    ItemOptions.cpp
     PlaybackLoopWidget.cpp
     PlaybackToolBar.cpp
     ThumbnailSystem.cpp
@@ -34,8 +26,6 @@ set(SOURCE
     TimeUnitsWidget.cpp
     TimelineItem.cpp
     TimelineWidget.cpp
-    TransitionItem.cpp
-    VideoClipItem.cpp
     Viewport.cpp)
 
 add_library(tlUI ${HEADERS} ${HEADERS_PRIVATE} ${SOURCE})

@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: BSD-3-Clause
 // Copyright Contributors to the tlRender project.
 
-#include <tlRender/UIPy/IItem.h>
+#include <tlRender/UIPy/ItemOptions.h>
 
-#include <tlRender/UI/IItem.h>
+#include <tlRender/UI/ItemOptions.h>
 
 #include <ftk/Core/Context.h>
 
@@ -16,7 +16,7 @@ namespace tl
 {
     namespace python
     {
-        void iItem(py::module_& m)
+        void itemOptions(py::module_& m)
         {
             using namespace ui;
             

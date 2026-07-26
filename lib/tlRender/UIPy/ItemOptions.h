@@ -11,7 +11,7 @@ namespace tl
 {
     namespace python
     {
-        TL_API void iItem(pybind11::module_&);
+        TL_API void itemOptions(pybind11::module_&);
     }
 }
 
