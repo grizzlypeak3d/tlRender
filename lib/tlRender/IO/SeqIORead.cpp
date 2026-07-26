@@ -219,20 +219,28 @@ namespace tl
                 }
                 const OTIO_NS::RationalTime time = request->time;
                 const IOOptions options = request->options;
+
+                const int64_t memIndex = seq ?
+                    (static_cast<int64_t>(time.value()) - _startFrame) :
+                    0;
+                const ftk::MemFile* mem =
+                    memIndex >= 0 && memIndex < static_cast<int64_t>(_mem.size()) ?
+                    &_mem[memIndex] :
+                    nullptr;
+
+                if (mem)
+                {
+                    ftk::prefetch(mem->p, mem->size);
+                }
+
                 request->future = std::async(
                     std::launch::async,
-                    [this, seq, fileName, time, options]
+                    [this, fileName, mem, time, options]
                     {
                         VideoData out;
                         try
                         {
-                            const int64_t frame = time.value();
-                            const int64_t memIndex = seq ? (frame - _startFrame) : 0;
-                            out = _readVideo(
-                                fileName,
-                                memIndex >= 0 && memIndex < static_cast<int>(_mem.size()) ? &_mem[memIndex] : nullptr,
-                                time,
-                                options);
+                            out = _readVideo(fileName, mem, time, options);
                         }
                         catch (const std::exception&)
                         {
