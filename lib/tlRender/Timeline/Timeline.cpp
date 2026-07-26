@@ -413,7 +413,16 @@ namespace tl
             }
             else if (".otioz" == ext)
             {
-                p.fileIO = ftk::FileIO::create(fileName, ftk::FileMode::Read);
+                // Read as scattered ranges rather than start to finish: opening
+                // reads a local header per media file, and those are spread
+                // across the whole bundle, one before each file's data. Asking
+                // for sequential read ahead makes the operating system fetch
+                // around every one of them and then throw it away.
+                p.fileIO = ftk::FileIO::create(
+                    fileName,
+                    ftk::FileMode::Read,
+                    ftk::FileRead::MMap,
+                    ftk::FileAccess::Random);
 
                 ZipReader zipReader(logSystem);
                 zipReader.open(fileName, p.fileIO->getMemStart(), p.fileIO->getSize());
