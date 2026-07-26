@@ -35,6 +35,7 @@ namespace tl
         ftk::Range<int64_t> getAudioCacheRange(size_t max) const;
         void cacheUpdate();
 
+        bool hasVideo() const;
         bool hasAudio() const;
         void playbackReset(const OTIO_NS::RationalTime&);
         void resetPlaybackTime(const OTIO_NS::RationalTime&);
@@ -56,7 +57,13 @@ namespace tl
         PlayerOptions playerOptions;
         std::shared_ptr<Timeline> timeline;
         OTIO_NS::TimeRange timeRange = invalidTimeRange;
-        IOInfo ioInfo;
+
+        // The audio format of the media, found when the timeline was read. This
+        // is stable across media reference keys, because the timeline hands the
+        // readers its own audio format to convert to, so every reference is read
+        // in the format found when the timeline was read. This is what the audio
+        // thread reads, and is not the audio device format; that is audioInfo.
+        AudioInfo sourceAudioInfo;
 
         std::shared_ptr<ftk::Observable<double> > speed;
         std::shared_ptr<ftk::Observable<double> > speedMult;

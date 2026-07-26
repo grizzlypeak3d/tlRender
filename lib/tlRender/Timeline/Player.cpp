@@ -91,7 +91,7 @@ namespace tl
         p.playerOptions = playerOptions;
         p.timeline = timeline;
         p.timeRange = timeline->getTimeRange();
-        p.ioInfo = timeline->getIOInfo();
+        p.sourceAudioInfo = timeline->getIOInfo().audio;
 
         // Create observables.
         p.speed = ftk::Observable<double>::create(p.timeRange.duration().rate());
@@ -270,15 +270,14 @@ namespace tl
 
     const IOInfo& Player::getIOInfo() const
     {
-        // Taken from the timeline rather than the copy made when the player
-        // was created, so that the video information follows the media
+        // From the timeline, so that the video information follows the media
         // reference key.
         //
         // The audio information has no need to follow it. The timeline hands
         // the readers its own audio format to convert to, so every media
         // reference is read in the format found when the timeline was read,
-        // whichever one is active. The copy kept here is what the audio thread
-        // reads.
+        // whichever one is active. That format is kept as sourceAudioInfo,
+        // which is what the audio thread reads.
         return _p->timeline->getIOInfo();
     }
 
@@ -921,7 +920,7 @@ namespace tl
             {
                 std::unique_lock<std::mutex> lock(p.audioMutex.mutex);
                 start = p.audioMutex.start;
-                t = OTIO_NS::RationalTime(p.audioMutex.frame, p.ioInfo.audio.sampleRate).rescaled_to(1.0).value();
+                t = OTIO_NS::RationalTime(p.audioMutex.frame, p.sourceAudioInfo.sampleRate).rescaled_to(1.0).value();
             }
             else
             {
@@ -1021,7 +1020,7 @@ namespace tl
             p.cacheUpdate();
 
             // Update the current video frame.
-            if (!p.ioInfo.video.empty())
+            if (p.hasVideo())
             {
                 const auto i = p.thread.videoCache.find(p.thread.state.currentTime);
                 if (i != p.thread.videoCache.end())
@@ -1058,7 +1057,7 @@ namespace tl
             }
 
             // Update the current audio frames.
-            if (p.ioInfo.audio.isValid())
+            if (p.sourceAudioInfo.isValid())
             {
                 std::vector<AudioFrame> audioFrameList;
                 {

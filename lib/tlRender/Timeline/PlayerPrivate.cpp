@@ -146,16 +146,24 @@ namespace tl
         }
     }
 
+    bool Player::Private::hasVideo() const
+    {
+        // Asked of the timeline so that it follows the media reference key;
+        // see getVideoCacheMax().
+        return !timeline->getIOInfo().video.empty();
+    }
+
     size_t Player::Private::getVideoCacheMax() const
     {
         // This function returns the approximate number of video frames
         // that can fit in the cache. Note that this doesn't take into
         // account clips with different sizes or multiple tracks.
         size_t byteCount = 0;
+        const IOInfo& videoInfo = timeline->getIOInfo();
         if (thread.state.videoLayer >= 0 &&
-            thread.state.videoLayer < static_cast<int>(ioInfo.video.size()))
+            thread.state.videoLayer < static_cast<int>(videoInfo.video.size()))
         {
-            byteCount += ioInfo.video[thread.state.videoLayer].getByteCount();
+            byteCount += videoInfo.video[thread.state.videoLayer].getByteCount();
 
             // Add byte counts from timelines that are being compared.
             for (size_t i = 0; i < thread.state.compare.size(); ++i)
@@ -171,7 +179,10 @@ namespace tl
                 }
             }
         }
-        return (thread.state.cacheOptions.videoGB * ftk::gigabyte) / byteCount;
+
+        return byteCount > 0 ?
+            ((thread.state.cacheOptions.videoGB * ftk::gigabyte) / byteCount) :
+            0;
     }
 
     size_t Player::Private::getAudioCacheMax() const
@@ -179,8 +190,12 @@ namespace tl
         // This function returns the approximate number seconds of audio
         // that can fit in the cache. Note that this doesn't take into
         // account clips with different sizes or multiple tracks.
-        return (thread.state.cacheOptions.audioGB * ftk::gigabyte) /
-            (ioInfo.audio.sampleRate * ioInfo.audio.getByteCount());
+        const size_t byteCount =
+            sourceAudioInfo.sampleRate * sourceAudioInfo.getByteCount();
+
+        return byteCount > 0 ?
+            ((thread.state.cacheOptions.audioGB * ftk::gigabyte) / byteCount) :
+            0;
     }
 
     OTIO_NS::TimeRange Player::Private::getVideoCacheRange(size_t max) const
@@ -322,7 +337,7 @@ namespace tl
         }
 
         // Fill the video cache.
-        if (!ioInfo.video.empty())
+        if (hasVideo())
         {
             const OTIO_NS::RationalTime inc(1.0, thread.state.currentTime.rate());
             for (OTIO_NS::RationalTime time = videoCacheRange.start_time();
@@ -364,7 +379,7 @@ namespace tl
         }
 
         // Fill the audio cache.
-        if (ioInfo.audio.isValid())
+        if (sourceAudioInfo.isValid())
         {
             for (int64_t seconds = audioCacheRange.min();
                 seconds <= audioCacheRange.max() &&

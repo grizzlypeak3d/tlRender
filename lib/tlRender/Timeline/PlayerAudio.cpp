@@ -132,7 +132,7 @@ namespace tl
     {
         bool out = false;
 #if defined(FTK_SDL2) || defined(FTK_SDL3)
-        out = audioDevices && ioInfo.audio.isValid();
+        out = audioDevices && sourceAudioInfo.isValid();
 #endif // FTK_SDL2
         return out;
     }
@@ -343,7 +343,7 @@ namespace tl
         const size_t outputSamples = len / outputInfo.getByteCount();
         std::memset(outputBuffer, 0, outputSamples * outputInfo.getByteCount());
 
-        const AudioInfo& inputInfo = ioInfo.audio;
+        const AudioInfo& inputInfo = sourceAudioInfo;
         if (state.playback != Playback::Stop && inputInfo.sampleRate > 0)
         {
             // Initialize on reset.
