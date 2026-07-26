@@ -591,14 +591,18 @@ namespace tl
                 !p.scrub->get() &&
                 Private::MouseMode::None == p.mouse.mode)
             {
-                const int pos = p.timelineItem->timeToPos(p.currentTime);
+                ftk::V2I scrollPos = p.scrollWidget->getScrollPos();
+                const OTIO_NS::RationalTime t = p.currentTime - p.timeRange.start_time();
+                const int pos =
+                    getGeometry().min.x -
+                    scrollPos.x +
+                    t.rescaled_to(1.0).value() * p.scale;
+
                 const ftk::Box2I vp = p.scrollWidget->getScrollInfo().viewport;
                 const int margin = vp.w() * marginPercentage;
                 if (pos < (vp.min.x + margin) || pos >(vp.max.x - margin))
                 {
                     const int offset = pos < (vp.min.x + margin) ? (vp.min.x + margin) : (vp.max.x - margin);
-                    const OTIO_NS::RationalTime t = p.currentTime - p.timeRange.start_time();
-                    ftk::V2I scrollPos = p.scrollWidget->getScrollPos();
                     scrollPos.x = getGeometry().min.x - offset + t.rescaled_to(1.0).value() * p.scale;
                     p.scrollWidget->setScrollPos(scrollPos);
                 }
