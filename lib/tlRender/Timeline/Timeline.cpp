@@ -619,7 +619,20 @@ namespace tl
         p.seqCache.setMax(seqCacheMax);
         if (p.options.threaded)
         {
-            p.startReadPool(SeqOptions().threadCount);
+            size_t readThreadCount = SeqOptions().threadCount;
+            {
+                // The one place that decides how many frames are decoded at
+                // once. Note that options.videoRequestMax caps how many
+                // requests are in flight above this, so raising this alone
+                // does nothing once it passes that.
+                const auto i = p.options.ioOptions.find("SeqIO/ThreadCount");
+                if (i != p.options.ioOptions.end())
+                {
+                    std::stringstream ss(i->second);
+                    ss >> readThreadCount;
+                }
+            }
+            p.startReadPool(readThreadCount);
         }
 
         // Get information about the timeline.
@@ -871,6 +884,11 @@ namespace tl
             }
             return out;
         }
+    }
+
+    size_t Timeline::getReadThreadCount() const
+    {
+        return _p->readPool.threads.size();
     }
 
     std::vector<ftk::Path> Timeline::getMediaPaths() const

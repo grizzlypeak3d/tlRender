@@ -116,6 +116,9 @@ namespace tl
         TL_API std::vector<ftk::MemFile> getMem(
             const OTIO_NS::MediaReference*);
 
+        //! Get how many sequence frames the timeline decodes at once.
+        TL_API size_t getReadThreadCount() const;
+
         //! Get the paths of the media in the timeline.
         //!
         //! A bundle's media are byte ranges rather than files on disk, so a

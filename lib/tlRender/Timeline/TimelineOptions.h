@@ -69,7 +69,11 @@ namespace tl
         //! taken without a thread per file.
         bool threaded = true;
 
-        //! Maximum number of video requests.
+        //! Maximum number of video requests in flight.
+        //!
+        //! This caps the sequence decoding threads as well: no more frames
+        //! are decoded at once than there are requests to decode them for,
+        //! whatever "SeqIO/ThreadCount" is set to.
         size_t videoRequestMax = 16;
 
         //! Maximum number of audio requests.
