@@ -116,6 +116,13 @@ namespace tl
         TL_API std::vector<ftk::MemFile> getMem(
             const OTIO_NS::MediaReference*);
 
+        //! Get how many video requests the timeline keeps in flight.
+        //!
+        //! Twice the decoding threads: enough that a thread finishing a frame
+        //! always has another waiting, without queueing work that a seek
+        //! would only throw away.
+        TL_API size_t getVideoRequestMax() const;
+
         //! Get how many sequence frames the timeline decodes at once.
         TL_API size_t getReadThreadCount() const;
 

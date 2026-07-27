@@ -813,6 +813,17 @@ namespace tl
                 FTK_ASSERT(3 == t->getReadThreadCount());
                 auto d = Timeline::create(_context, seqPath);
                 FTK_ASSERT(d->getReadThreadCount() == getDefaultReadThreadCount());
+
+                // How many requests are in flight follows the thread count,
+                // so asking for more decoding threads is not undone by a
+                // separate limit that nothing mentions. This used to stop at
+                // sixteen whatever the thread count said.
+                FTK_ASSERT(6 == t->getVideoRequestMax());
+                Options manyOptions;
+                manyOptions.readThreadCount = 24;
+                auto many = Timeline::create(_context, seqPath, manyOptions);
+                FTK_ASSERT(24 == many->getReadThreadCount());
+                FTK_ASSERT(many->getVideoRequestMax() > 16);
             }
 
             _print("named media read from a bundle");

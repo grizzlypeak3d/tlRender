@@ -39,7 +39,6 @@ namespace tl
             compat == other.compat &&
             threaded == other.threaded &&
             readThreadCount == other.readThreadCount &&
-            videoRequestMax == other.videoRequestMax &&
             audioRequestMax == other.audioRequestMax &&
             requestTimeout == other.requestTimeout &&
             ioOptions == other.ioOptions &&

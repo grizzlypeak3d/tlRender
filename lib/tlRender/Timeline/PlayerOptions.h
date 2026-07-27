@@ -35,7 +35,13 @@ namespace tl
         //! Cache options.
         PlayerCacheOptions cache;
 
-        //! Maximum number of video requests.
+        //! How far ahead the player asks for frames while filling its
+        //! cache.
+        //!
+        //! This is the player expressing demand, not a limit on how much is
+        //! decoded at once; the timeline decides that. Keep it at or above
+        //! the timeline's readThreadCount, or the decoding threads run out
+        //! of work to do.
         size_t videoRequestMax = 16;
 
         //! Maximum number of audio requests.

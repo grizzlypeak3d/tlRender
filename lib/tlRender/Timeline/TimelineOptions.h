@@ -74,17 +74,11 @@ namespace tl
 
         //! How many sequence frames the timeline decodes at once.
         //!
-        //! This is the one place the decoding concurrency is set. Note that
-        //! videoRequestMax caps how many requests are in flight above it, so
-        //! raising this past that does nothing.
+        //! This is the one place the decoding concurrency is set. How many
+        //! video requests are in flight follows from it, so that raising it
+        //! is not silently undone by a separate limit.
         size_t readThreadCount = getDefaultReadThreadCount();
 
-        //! Maximum number of video requests in flight.
-        //!
-        //! This caps the sequence decoding threads as well: no more frames
-        //! are decoded at once than there are requests to decode them for,
-        //! whatever "SeqIO/ThreadCount" is set to.
-        size_t videoRequestMax = 16;
 
         //! Maximum number of audio requests.
         size_t audioRequestMax = 16;

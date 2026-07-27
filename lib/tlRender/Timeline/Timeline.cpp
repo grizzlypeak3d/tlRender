@@ -574,8 +574,8 @@ namespace tl
                 arg(options.imageSeqAudioFileName));
             lines.push_back(ftk::Format("    * Compatability: {0}").
                 arg(options.compat));
-            lines.push_back(ftk::Format("    * Video request max: {0}").
-                arg(options.videoRequestMax));
+            lines.push_back(ftk::Format("    * Read thread count: {0}").
+                arg(options.readThreadCount));
             lines.push_back(ftk::Format("    * Audio request max: {0}").
                 arg(options.audioRequestMax));
             lines.push_back(ftk::Format("    * Request timeout: {0}ms").
@@ -871,6 +871,11 @@ namespace tl
             }
             return out;
         }
+    }
+
+    size_t Timeline::getVideoRequestMax() const
+    {
+        return _p->options.readThreadCount * 2;
     }
 
     size_t Timeline::getReadThreadCount() const
@@ -1636,7 +1641,7 @@ namespace tl
                     arg(p.path.get()).
                     arg(videoRequestsSize).
                     arg(p.thread.videoRequestsInProgress.size()).
-                    arg(p.options.videoRequestMax).
+                    arg(getVideoRequestMax()).
                     arg(audioRequestsSize).
                     arg(p.thread.audioRequestsInProgress.size()).
                     arg(p.options.audioRequestMax));
@@ -1669,7 +1674,8 @@ namespace tl
                         !_p->thread.audioRequestsInProgress.empty();
                 });
             while (!p.mutex.videoRequests.empty() &&
-                (p.thread.videoRequestsInProgress.size() + newVideoRequests.size()) < p.options.videoRequestMax)
+                (p.thread.videoRequestsInProgress.size() + newVideoRequests.size()) <
+                    getVideoRequestMax())
             {
                 newVideoRequests.push_back(p.mutex.videoRequests.front());
                 p.mutex.videoRequests.pop_front();
