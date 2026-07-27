@@ -51,7 +51,11 @@ namespace tl
                 //! Media, for clips. Resolved through the timeline so the item
                 //! follows the media reference key.
                 ftk::Path path;
-                std::vector<ftk::MemFile> memRead;
+                //! The timeline the media lives in. A bundle's media are
+                //! byte ranges rather than files, so a thumbnail is asked for
+                //! by naming the timeline as well as the media, and nothing
+                //! has to carry the byte ranges around.
+                ftk::Path timelinePath;
                 IOOptions ioOptions;
 
                 //! Horizontal placement relative to the timeline origin. This

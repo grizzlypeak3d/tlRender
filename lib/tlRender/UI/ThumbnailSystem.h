@@ -74,10 +74,13 @@ namespace tl
                 const ftk::Path&,
                 const IOOptions& = IOOptions());
 
-            //! Get information.
+            //! Get information about media inside a timeline.
+            //!
+            //! A bundle's media are byte ranges rather than files, so naming
+            //! the timeline as well as the media is what lets them be read.
             TL_API InfoRequest getInfo(
-                const ftk::Path&,
-                const std::vector<ftk::MemFile>&,
+                const ftk::Path& timelinePath,
+                const ftk::Path& mediaPath,
                 const IOOptions& = IOOptions());
 
             //! Get a video thumbnail.
@@ -87,10 +90,10 @@ namespace tl
                 const OTIO_NS::RationalTime& = invalidTime,
                 const IOOptions& = IOOptions());
 
-            //! Get a video thumbnail.
+            //! Get a video thumbnail of media inside a timeline.
             TL_API ThumbnailRequest getThumbnail(
-                const ftk::Path&,
-                const std::vector<ftk::MemFile>&,
+                const ftk::Path& timelinePath,
+                const ftk::Path& mediaPath,
                 int height,
                 const OTIO_NS::RationalTime& = invalidTime,
                 const IOOptions& = IOOptions());
@@ -102,10 +105,10 @@ namespace tl
                 const OTIO_NS::TimeRange& = invalidTimeRange,
                 const IOOptions& = IOOptions());
 
-            //! Get an audio waveform.
+            //! Get an audio waveform of media inside a timeline.
             TL_API WaveformRequest getWaveform(
-                const ftk::Path&,
-                const std::vector<ftk::MemFile>&,
+                const ftk::Path& timelinePath,
+                const ftk::Path& mediaPath,
                 const ftk::Size2I&,
                 const OTIO_NS::TimeRange& = invalidTimeRange,
                 const IOOptions& = IOOptions());

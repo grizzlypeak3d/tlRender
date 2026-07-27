@@ -774,6 +774,32 @@ namespace tl
                 ftk::Path("/nowhere/absent.exr"),
                 OTIO_NS::RationalTime(0.0, 24.0)).valid());
 
+            // A plain file is a timeline of one clip, and its own path names
+            // that clip's media. That is what lets a caller always ask by
+            // (timeline, media) without knowing which it has.
+            {
+                const ftk::Path seqPath(
+                    TLRENDER_SAMPLE_DATA, "Seq/BART_2021-02-07.0001.jpg");
+                auto seqTimeline = Timeline::create(_context, seqPath, options);
+                const auto seqMedia = seqTimeline->getMediaPaths();
+                for (const auto& i : seqMedia)
+                {
+                    _print(ftk::Format("Seq media: {0}").arg(i.get()));
+                }
+                // More than one: the sequence, and the audio file found
+                // beside it. What matters is that the file's own path names
+                // its media.
+                FTK_ASSERT(std::find_if(
+                    seqMedia.begin(),
+                    seqMedia.end(),
+                    [&seqPath](const ftk::Path& i)
+                    {
+                        return i.get() == seqPath.get();
+                    }) != seqMedia.end());
+                IOInfo seqInfo;
+                FTK_ASSERT(seqTimeline->getMediaInfo(seqPath, seqInfo));
+            }
+
             _print("named media read from a bundle");
         }
 }

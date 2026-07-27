@@ -942,6 +942,25 @@ namespace tl
         return out;
     }
 
+    std::future<AudioData> Timeline::readMediaAudio(
+        const ftk::Path& path,
+        const OTIO_NS::TimeRange& timeRange,
+        const IOOptions& options)
+    {
+        FTK_P();
+        std::future<AudioData> out;
+        const IOOptions optionsMerged = merge(options, p.options.ioOptions);
+        if (auto mediaReference = _findMedia(path))
+        {
+            // Audio is never a sequence of stateless files.
+            if (auto read = _getRead(mediaReference, optionsMerged))
+            {
+                out = read->readAudio(timeRange, optionsMerged);
+            }
+        }
+        return out;
+    }
+
     std::vector<std::string> Timeline::getMediaReferenceKeys() const
     {
         FTK_P();

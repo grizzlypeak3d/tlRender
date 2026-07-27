@@ -40,7 +40,11 @@ namespace tl
 
         namespace
         {
-            const size_t ioCacheMax   = 2;
+            // Timelines, which hold no thread now that they are opened
+            // without one, so a file browser listing can keep the ones it is
+            // showing rather than reopening two at a time. Idle entries are
+            // dropped after ioCacheTimeout regardless.
+            const size_t ioCacheMax   = 100;
             const std::chrono::seconds ioCacheTimeout(3);
             const size_t infoCacheMax = 1000;
 
@@ -55,6 +59,37 @@ namespace tl
                     ss << i.first << ":" << i.second << ";";
                 }
                 return ss.str();
+            }
+
+
+            // Every thumbnail is a frame of a timeline. A plain file is a
+            // timeline of one clip, so one path covers files, bundles and
+            // timelines alike, and nothing needs a syntax for naming what is
+            // inside a bundle.
+            std::shared_ptr<Timeline> getTimeline(
+                const std::shared_ptr<ftk::Context>& context,
+                ftk::LRUCache<std::string, std::shared_ptr<Timeline> >& cache,
+                const ftk::Path& path,
+                bool audio)
+            {
+                std::shared_ptr<Timeline> out;
+                if (!cache.get(path.get(), out))
+                {
+                    Options options;
+                    // No thread: the calling thread fills the request, which
+                    // is what makes one timeline per file affordable here.
+                    options.threaded = false;
+                    if (!audio)
+                    {
+                        // Looking for audio beside a sequence costs a
+                        // directory scan, and a video thumbnail has no use
+                        // for what it finds.
+                        options.imageSeqAudio = ImageSeqAudio::None;
+                    }
+                    out = Timeline::create(context, path, options);
+                    cache.add(path.get(), out);
+                }
+                return out;
             }
 
             std::string getThumbnailKey(
@@ -99,7 +134,7 @@ namespace tl
             {
                 uint64_t id = 0;
                 ftk::Path path;
-                std::vector<ftk::MemFile> memoryRead;
+                ftk::Path mediaPath;
                 IOOptions options;
                 std::promise<IOInfo> promise;
             };
@@ -108,7 +143,7 @@ namespace tl
             {
                 uint64_t id = 0;
                 ftk::Path path;
-                std::vector<ftk::MemFile> memoryRead;
+                ftk::Path mediaPath;
                 int height = 0;
                 OTIO_NS::RationalTime time = invalidTime;
                 IOOptions options;
@@ -119,7 +154,7 @@ namespace tl
             {
                 uint64_t id = 0;
                 ftk::Path path;
-                std::vector<ftk::MemFile> memoryRead;
+                ftk::Path mediaPath;
                 ftk::Size2I size;
                 OTIO_NS::TimeRange timeRange = invalidTimeRange;
                 IOOptions options;
@@ -155,6 +190,8 @@ namespace tl
 
             struct InfoThread
             {
+                ftk::LRUCache<std::string, std::shared_ptr<Timeline> > ioCache;
+                std::atomic<bool> ioCacheClear = false;
                 std::condition_variable cv;
                 std::thread thread;
                 std::atomic<bool> running;
@@ -165,7 +202,7 @@ namespace tl
             {
                 std::shared_ptr<gl::Render> render;
                 std::shared_ptr<ftk::gl::OffscreenBuffer> buffer;
-                ftk::LRUCache<std::string, std::shared_ptr<IRead> > ioCache;
+                ftk::LRUCache<std::string, std::shared_ptr<Timeline> > ioCache;
                 std::atomic<bool> ioCacheClear = false;
                 std::condition_variable cv;
                 std::thread thread;
@@ -175,7 +212,7 @@ namespace tl
 
             struct WaveformThread
             {
-                ftk::LRUCache<std::string, std::shared_ptr<IRead> > ioCache;
+                ftk::LRUCache<std::string, std::shared_ptr<Timeline> > ioCache;
                 std::atomic<bool> ioCacheClear = false;
                 std::condition_variable cv;
                 std::thread thread;
@@ -217,6 +254,7 @@ namespace tl
                 });
 
             p.thumbnailMutex.cache.setMax(p.cacheOptions->get().thumbnailMB * ftk::megabyte);
+            p.infoThread.ioCache.setMax(ioCacheMax);
             p.thumbnailThread.ioCache.setMax(ioCacheMax);
             p.thumbnailThread.running = true;
             p.thumbnailThread.thread = std::thread(
@@ -338,12 +376,12 @@ namespace tl
             const ftk::Path& path,
             const IOOptions& options)
         {
-            return getInfo(path, {}, options);
+            return getInfo(path, path, options);
         }
 
         InfoRequest ThumbnailSystem::getInfo(
             const ftk::Path& path,
-            const std::vector<ftk::MemFile>& memoryRead,
+            const ftk::Path& mediaPath,
             const IOOptions& options)
         {
             FTK_P();
@@ -352,7 +390,7 @@ namespace tl
             auto request = std::make_shared<Private::InfoRequest>();
             request->id = p.requestId;
             request->path = path;
-            request->memoryRead = memoryRead;
+            request->mediaPath = mediaPath;
             request->options = options;
 
             const std::string key = getInfoKey(path, options);
@@ -389,12 +427,12 @@ namespace tl
             const OTIO_NS::RationalTime& time,
             const IOOptions& options)
         {
-            return getThumbnail(path, {}, height, time, options);
+            return getThumbnail(path, path, height, time, options);
         }
 
         ThumbnailRequest ThumbnailSystem::getThumbnail(
             const ftk::Path& path,
-            const std::vector<ftk::MemFile>& memoryRead,
+            const ftk::Path& mediaPath,
             int height,
             const OTIO_NS::RationalTime& time,
             const IOOptions& options)
@@ -405,7 +443,7 @@ namespace tl
             auto request = std::make_shared<Private::ThumbnailRequest>();
             request->id = p.requestId;
             request->path = path;
-            request->memoryRead = memoryRead;
+            request->mediaPath = mediaPath;
             request->height = height;
             request->time = time;
             request->options = options;
@@ -455,7 +493,7 @@ namespace tl
 
         WaveformRequest ThumbnailSystem::getWaveform(
             const ftk::Path& path,
-            const std::vector<ftk::MemFile>& memoryRead,
+            const ftk::Path& mediaPath,
             const ftk::Size2I& size,
             const OTIO_NS::TimeRange& timeRange,
             const IOOptions& options)
@@ -466,7 +504,7 @@ namespace tl
             auto request = std::make_shared<Private::WaveformRequest>();
             request->id = p.requestId;
             request->path = path;
-            request->memoryRead = memoryRead;
+            request->mediaPath = mediaPath;
             request->size = size;
             request->timeRange = timeRange;
             request->options = options;
@@ -604,6 +642,8 @@ namespace tl
             // reloaded file is re-opened rather than served from a reader that
             // points at the previous file contents. The ioCache is owned by its
             // worker thread, so it is cleared there rather than under a lock.
+            p.infoThread.ioCacheClear = true;
+            p.infoThread.cv.notify_one();
             p.thumbnailThread.ioCacheClear = true;
             p.thumbnailThread.cv.notify_one();
             p.waveformThread.ioCacheClear = true;
@@ -615,6 +655,10 @@ namespace tl
             FTK_P();
             while (p.infoThread.running)
             {
+                if (p.infoThread.ioCacheClear.exchange(false))
+                {
+                    p.infoThread.ioCache.clear();
+                }
                 std::shared_ptr<Private::InfoRequest> request;
                 {
                     std::unique_lock<std::mutex> lock(p.infoMutex.mutex);
@@ -637,14 +681,10 @@ namespace tl
                     {
                         //std::cout << "info request: " << request->path.get() << std::endl;
                         auto context = p.context.lock();
-                        auto ioSystem = context->getSystem<ReadSystem>();
-                        std::shared_ptr<IRead> read = ioSystem->read(
-                            request->path,
-                            request->memoryRead,
-                            request->options);
-                        if (read)
+                        if (auto timeline = getTimeline(
+                            context, p.infoThread.ioCache, request->path, true))
                         {
-                            info = read->getInfo().get();
+                            timeline->getMediaInfo(request->mediaPath, info);
                         }
                     }
                     catch (const std::exception&)
@@ -700,20 +740,16 @@ namespace tl
                         const std::string& fileName = request->path.get();
                         //std::cout << "thumbnail request: " << fileName << " " <<
                         //    request->time << std::endl;
-                        std::shared_ptr<IRead> read;
                         auto context = p.context.lock();
-                        if (!p.thumbnailThread.ioCache.get(fileName, read))
+                        auto timeline = getTimeline(
+                            context,
+                            p.thumbnailThread.ioCache,
+                            request->path,
+                            false);
+                        IOInfo info;
+                        if (timeline &&
+                            timeline->getMediaInfo(request->mediaPath, info))
                         {
-                            auto ioSystem = context->getSystem<ReadSystem>();
-                            read = ioSystem->read(
-                                request->path,
-                                request->memoryRead,
-                                request->options);
-                            p.thumbnailThread.ioCache.add(fileName, read);
-                        }
-                        if (read)
-                        {
-                            const IOInfo info = read->getInfo().get();
                             ftk::Size2I size;
                             if (!info.video.empty())
                             {
@@ -735,7 +771,8 @@ namespace tl
                                     request->time != invalidTime ?
                                     request->time :
                                     info.videoTime.start_time();
-                                auto videoRequest = read->readVideo(time, request->options);
+                                auto videoRequest = timeline->readMedia(
+                                    request->mediaPath, time, request->options);
                                 if (videoRequest.valid())
                                 {
                                     const auto videoData = videoRequest.get();
@@ -962,27 +999,24 @@ namespace tl
                     try
                     {
                         const std::string& fileName = request->path.get();
-                        std::shared_ptr<IRead> read;
-                        if (!p.waveformThread.ioCache.get(fileName, read))
+                        auto context = p.context.lock();
+                        auto timeline = getTimeline(
+                            context,
+                            p.waveformThread.ioCache,
+                            request->path,
+                            true);
+                        IOInfo info;
+                        if (timeline &&
+                            timeline->getMediaInfo(request->mediaPath, info))
                         {
-                            auto context = p.context.lock();
-                            auto ioSystem = context->getSystem<ReadSystem>();
-                            read = ioSystem->read(
-                                request->path,
-                                request->memoryRead,
-                                request->options);
-                            p.waveformThread.ioCache.add(fileName, read);
-                        }
-                        if (read)
-                        {
-                            const auto info = read->getInfo().get();
                             const OTIO_NS::TimeRange timeRange =
                                 request->timeRange != invalidTimeRange ?
                                 request->timeRange :
                                 OTIO_NS::TimeRange(
                                     OTIO_NS::RationalTime(0.0, 1.0),
                                     OTIO_NS::RationalTime(1.0, 1.0));
-                            auto audioRequest = read->readAudio(timeRange, request->options);
+                            auto audioRequest = timeline->readMediaAudio(
+                                request->mediaPath, timeRange, request->options);
                             if (audioRequest.valid())
                             {
                                 const auto audioData = audioRequest.get();

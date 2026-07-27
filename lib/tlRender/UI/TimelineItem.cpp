@@ -928,7 +928,7 @@ namespace tl
                             mediaReference,
                             _data->dir,
                             _data->options.pathOptions);
-                        item.memRead = timeline->getMem(mediaReference);
+                        item.timelinePath = timeline->getPath();
                         item.label = !clip->name().empty() ?
                             clip->name() :
                             item.path.getFileName();
@@ -1098,8 +1098,8 @@ namespace tl
                         if (!item.infoRequest.future.valid())
                         {
                             item.infoRequest = p.thumbnailSystem->getInfo(
+                                item.timelinePath,
                                 item.path,
-                                item.memRead,
                                 item.ioOptions);
                         }
                         continue;
@@ -1193,8 +1193,8 @@ namespace tl
                 else if (item.thumbnailRequests.find(mediaTime) == item.thumbnailRequests.end())
                 {
                     item.thumbnailRequests[mediaTime] = thumbnailSystem->getThumbnail(
+                        item.timelinePath,
                         item.path,
-                        item.memRead,
                         displayOptions.thumbnailHeight,
                         mediaTime,
                         item.ioOptions);
@@ -1272,8 +1272,8 @@ namespace tl
                 else if (item.waveformRequests.find(mediaRange.start_time()) == item.waveformRequests.end())
                 {
                     item.waveformRequests[mediaRange.start_time()] = thumbnailSystem->getWaveform(
+                        item.timelinePath,
                         item.path,
-                        item.memRead,
                         ftk::Size2I(width, displayOptions.waveformHeight),
                         mediaRange,
                         data.options.ioOptions);

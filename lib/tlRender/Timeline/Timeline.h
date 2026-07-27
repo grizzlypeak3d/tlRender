@@ -135,6 +135,12 @@ namespace tl
             const OTIO_NS::RationalTime&,
             const IOOptions& = IOOptions());
 
+        //! Read audio from one of the media in the timeline.
+        TL_API std::future<AudioData> readMediaAudio(
+            const ftk::Path&,
+            const OTIO_NS::TimeRange&,
+            const IOOptions& = IOOptions());
+
         //! \name Media References
         ///
         //! Clips may carry several media references, for example a proxy and

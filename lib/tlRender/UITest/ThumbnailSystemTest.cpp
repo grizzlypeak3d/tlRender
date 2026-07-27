@@ -58,17 +58,19 @@ namespace tl
                             clip->media_reference(),
                             timeline->getPath().getDir(),
                             ftk::PathOptions());
-                        const auto mem = timeline->getMem(clip->media_reference());
+                        // Named by the timeline it lives in, so that media
+                        // held as byte ranges in a bundle is reachable.
+                        const auto& timelinePath = timeline->getPath();
                         infoRequests.push_back(thumbnailSystem->getInfo(
-                            mediaPath,
-                            mem));
+                            timelinePath,
+                            mediaPath));
                         thumbnailRequests.push_back(thumbnailSystem->getThumbnail(
+                            timelinePath,
                             mediaPath,
-                            mem,
                             100));
                         waveformRequests.push_back(thumbnailSystem->getWaveform(
+                            timelinePath,
                             mediaPath,
-                            mem,
                             ftk::Size2I(200, 100)));
                     }
                 }
@@ -76,14 +78,29 @@ namespace tl
                 {
                     _error(e.what());
                 }
+                // Draining the futures is not enough: media named inside a
+                // bundle has to actually come back, since reaching it is the
+                // whole point of naming the timeline as well.
+                size_t infoCount = 0;
                 for (auto& request : infoRequests)
                 {
                     const auto info = request.future.get();
+                    if (!info.video.empty() || info.audio.channelCount > 0)
+                    {
+                        ++infoCount;
+                    }
                 }
+                FTK_ASSERT(infoRequests.empty() || infoCount > 0);
+                size_t thumbnailCount = 0;
                 for (auto& request : thumbnailRequests)
                 {
                     const auto thumbnail = request.future.get();
+                    if (thumbnail)
+                    {
+                        ++thumbnailCount;
+                    }
                 }
+                FTK_ASSERT(thumbnailRequests.empty() || thumbnailCount > 0);
                 for (auto& request : waveformRequests)
                 {
                     const auto waveform = request.future.get();
