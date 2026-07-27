@@ -727,12 +727,11 @@ namespace tl
                 }
                 if (request)
                 {
+                    // The options belong to the read, not to the timeline
+                    // that is read from: a per clip option such as a camera
+                    // name changes with every request, and dropping the
+                    // timeline for it meant reopening the file each time.
                     ioCacheTimer = std::chrono::steady_clock::now();
-                    if (request->options != ioOptions)
-                    {
-                        p.thumbnailThread.ioCache.clear();
-                        ioOptions = request->options;
-                    }
 
                     std::shared_ptr<ftk::Image> image;
                     try
@@ -748,7 +747,8 @@ namespace tl
                             false);
                         IOInfo info;
                         if (timeline &&
-                            timeline->getMediaInfo(request->mediaPath, info))
+                            timeline->getMediaInfo(
+                                request->mediaPath, info, request->options))
                         {
                             ftk::Size2I size;
                             if (!info.video.empty())
@@ -806,25 +806,29 @@ namespace tl
                                 }
                             }
                         }
-                        else if (
-                            ftk::compare(
-                                ".otio",
-                                request->path.getExt(),
-                                ftk::CaseCompare::Insensitive) ||
-                            ftk::compare(
-                                ".otioz",
-                                request->path.getExt(),
-                                ftk::CaseCompare::Insensitive))
+                        else if (timeline)
                         {
-                            Options timelineOptions;
-                            timelineOptions.ioOptions = request->options;
-                            auto timeline = Timeline::create(
-                                context,
-                                request->path,
-                                timelineOptions);
+                            // The request does not name media inside the
+                            // timeline, so it wants a picture of the timeline
+                            // itself. Use the one already open: creating
+                            // another here read the file again for every
+                            // request, which on a bundle of 25,000 entries
+                            // meant a thumbnail took as long as an open.
+                            if (auto logSystem = context->getLogSystem())
+                            {
+                                logSystem->print("tl::ui::ThumbnailSystem",
+                                    ftk::Format("Media not found in timeline, "
+                                        "using the timeline itself: \"{0}\" "
+                                        "in \"{1}\"").
+                                        arg(request->mediaPath.get()).
+                                        arg(request->path.get()),
+                                    ftk::LogType::Warning);
+                            }
                             const auto info = timeline->getIOInfo();
                             const auto videoData = timeline->getVideo(
-                                timeline->getTimeRange().start_time()).future.get();
+                                request->time != invalidTime ?
+                                    request->time :
+                                    timeline->getTimeRange().start_time()).future.get();
                             ftk::Size2I size;
                             if (!info.video.empty())
                             {
@@ -988,12 +992,11 @@ namespace tl
                 }
                 if (request)
                 {
+                    // The options belong to the read, not to the timeline
+                    // that is read from: a per clip option such as a camera
+                    // name changes with every request, and dropping the
+                    // timeline for it meant reopening the file each time.
                     ioCacheTimer = std::chrono::steady_clock::now();
-                    if (request->options != ioOptions)
-                    {
-                        p.waveformThread.ioCache.clear();
-                        ioOptions = request->options;
-                    }
 
                     std::shared_ptr<ftk::TriMesh2F> mesh;
                     try
@@ -1007,7 +1010,8 @@ namespace tl
                             true);
                         IOInfo info;
                         if (timeline &&
-                            timeline->getMediaInfo(request->mediaPath, info))
+                            timeline->getMediaInfo(
+                                request->mediaPath, info, request->options))
                         {
                             const OTIO_NS::TimeRange timeRange =
                                 request->timeRange != invalidTimeRange ?

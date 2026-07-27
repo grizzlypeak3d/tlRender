@@ -917,12 +917,16 @@ namespace tl
         return i != p.mediaByPath.end() ? i->second : nullptr;
     }
 
-    bool Timeline::getMediaInfo(const ftk::Path& path, IOInfo& out)
+    bool Timeline::getMediaInfo(
+        const ftk::Path& path,
+        IOInfo& out,
+        const IOOptions& options)
     {
         FTK_P();
         if (auto mediaReference = _findMedia(path))
         {
-            return _getIOInfo(mediaReference, p.options.ioOptions, out);
+            return _getIOInfo(
+                mediaReference, merge(options, p.options.ioOptions), out);
         }
         return false;
     }

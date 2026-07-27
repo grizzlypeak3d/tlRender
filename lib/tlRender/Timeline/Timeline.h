@@ -135,7 +135,10 @@ namespace tl
         TL_API std::vector<ftk::Path> getMediaPaths() const;
 
         //! Get the information for one of the media in the timeline.
-        TL_API bool getMediaInfo(const ftk::Path&, IOInfo&);
+        TL_API bool getMediaInfo(
+            const ftk::Path&,
+            IOInfo&,
+            const IOOptions& = IOOptions());
 
         //! Read one frame of one of the media in the timeline.
         //!
