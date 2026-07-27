@@ -96,7 +96,7 @@ namespace tl
                 { "-sequenceThreadCount" },
                 "Number of threads for image sequence I/O.",
                 "Image Sequences",
-                static_cast<int>(SeqOptions().threadCount));
+                static_cast<int>(Options().readThreadCount));
 #if defined(TLRENDER_EXR)
             _cmdLine.exrCompression = ftk::CmdLineOption<exr::Compression>::create(
                 { "-exrCompression" },
@@ -240,6 +240,13 @@ namespace tl
             // Read the timeline.
             Options options;
             options.ioOptions = _getIOOptions();
+            if (_cmdLine.sequenceThreadCount->hasValue())
+            {
+                // A timeline option now: the timeline is what decodes
+                // sequences, so it is what the count applies to.
+                options.readThreadCount =
+                    _cmdLine.sequenceThreadCount->getValue();
+            }
             _timeline = Timeline::create(
                 _context,
                 _cmdLine.input->getValue(),
@@ -403,12 +410,6 @@ namespace tl
                 std::stringstream ss;
                 ss << _cmdLine.sequenceDefaultSpeed->getValue();
                 out["SeqIO/DefaultSpeed"] = ss.str();
-            }
-            if (_cmdLine.sequenceThreadCount->hasValue())
-            {
-                std::stringstream ss;
-                ss << _cmdLine.sequenceThreadCount->getValue();
-                out["SeqIO/ThreadCount"] = ss.str();
             }
 #if defined(TLRENDER_EXR)
             if (_cmdLine.exrCompression->hasValue())
