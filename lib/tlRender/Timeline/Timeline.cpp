@@ -1429,7 +1429,10 @@ namespace tl
                 options["SeqIO/DefaultSpeed"] = ftk::Format("{0}").arg(p.timeRange.duration().rate());
                 const auto ioSystem = context->getSystem<ReadSystem>();
                 out = ioSystem->read(path, mem, options);
-                p.readCache.add(key, out);
+                if (out)
+                {
+                    p.readCache.add(key, out);
+                }
             }
         }
         return out;
@@ -1749,8 +1752,12 @@ namespace tl
             t1 = std::chrono::steady_clock::now();
         }
 
-        // Sleep for a bit.
-        ftk::sleep(timeout, t0, t1);
+        // Sleep for a bit, unless the caller is driving this itself and is
+        // waiting on the very request that just finished.
+        if (p.options.threaded)
+        {
+            ftk::sleep(timeout, t0, t1);
+        }
     }
 
     void Timeline::_requests()
@@ -2076,9 +2083,19 @@ namespace tl
 
     void Timeline::Private::stopReadPool()
     {
+        std::list<ReadPool::Task> dropped;
         {
             std::unique_lock<std::mutex> lock(readPool.mutex);
             readPool.stopped = true;
+            // Whatever has not started decoding is not going to be looked at,
+            // so give the frames back empty rather than making the close wait
+            // for a queue of them.
+            dropped = std::move(readPool.tasks);
+            readPool.tasks.clear();
+        }
+        for (auto& task : dropped)
+        {
+            task.promise.set_value(VideoData());
         }
         readPool.cv.notify_all();
         for (auto& thread : readPool.threads)

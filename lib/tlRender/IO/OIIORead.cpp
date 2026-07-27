@@ -25,11 +25,6 @@ namespace tl
             }
         }
 
-
-
-
-
-
         namespace
         {
             ftk::ImageType fromOIIO(const OIIO::ImageSpec& oiio)
@@ -234,7 +229,6 @@ namespace tl
             }
             return out;
         }
-
 
     }
 }
