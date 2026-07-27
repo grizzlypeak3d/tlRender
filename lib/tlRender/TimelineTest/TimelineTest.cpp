@@ -268,7 +268,13 @@ namespace tl
 #if defined(TLRENDER_FFMPEG_PLUGIN)
                 ftk::Path(TLRENDER_SAMPLE_DATA, "SingleClip.otioz"),
 #endif // TLRENDER_FFMPEG_PLUGIN
-                ftk::Path(TLRENDER_SAMPLE_DATA, "SingleClipSeq.otioz")
+                ftk::Path(TLRENDER_SAMPLE_DATA, "SingleClipSeq.otioz"),
+                // Written to a stream, so every entry carries a data
+                // descriptor between its data and the next header.
+                ftk::Path(TLRENDER_SAMPLE_DATA, "StreamedSeq.otioz"),
+                // Compressed entries between the stored ones, so an entry's
+                // data does not end where the next usable entry begins.
+                ftk::Path(TLRENDER_SAMPLE_DATA, "MixedSeq.otioz")
             };
             for (const auto& path : paths)
             {

@@ -42,7 +42,9 @@ namespace tl
 #if defined(TLRENDER_FFMPEG_PLUGIN)
                 ftk::Path(TLRENDER_SAMPLE_DATA, "SingleClip.otioz"),
 #endif // TLRENDER_FFMPEG_PLUGIN
-                ftk::Path(TLRENDER_SAMPLE_DATA, "SingleClipSeq.otioz")
+                ftk::Path(TLRENDER_SAMPLE_DATA, "SingleClipSeq.otioz"),
+                ftk::Path(TLRENDER_SAMPLE_DATA, "StreamedSeq.otioz"),
+                ftk::Path(TLRENDER_SAMPLE_DATA, "MixedSeq.otioz")
             };
             for (const auto& path : paths)
             {
