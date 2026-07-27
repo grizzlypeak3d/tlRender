@@ -1237,6 +1237,7 @@ namespace tl
             p.path.getDir(),
             p.options.pathOptions);
         const std::string key = getKey(path);
+        std::unique_lock<std::mutex> lock(p.readCacheMutex);
         if (!p.seqCache.get(key, out))
         {
             auto context = p.context.lock();
@@ -1325,6 +1326,7 @@ namespace tl
             p.path.getDir(),
             p.options.pathOptions);
         const std::string key = getKey(path);
+        std::unique_lock<std::mutex> lock(p.readCacheMutex);
         if (!p.readCache.get(key, out))
         {
             if (auto context = p.context.lock())
@@ -2039,6 +2041,7 @@ namespace tl
     {
         size_t count = frameErrorCount;
         std::string error = frameError;
+        std::unique_lock<std::mutex> lock(readCacheMutex);
         for (const auto& read : readCache.getValues())
         {
             if (read)

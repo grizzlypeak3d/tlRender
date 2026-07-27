@@ -45,7 +45,13 @@ namespace tl
             // showing rather than reopening two at a time. Idle entries are
             // dropped after ioCacheTimeout regardless.
             const size_t ioCacheMax   = 100;
-            const std::chrono::seconds ioCacheTimeout(3);
+            // How long a thread holds its open timelines once it goes idle.
+            // The point is to let go of readers, and the decode subprocesses
+            // they keep alive, after a file is closed. It has to be long
+            // compared to how long opening costs: a bundle of 25,000 entries
+            // takes seconds to open, and dropping it between two thumbnails
+            // meant most of the time went into opening it again.
+            const std::chrono::seconds ioCacheTimeout(60);
             const size_t infoCacheMax = 1000;
 
             std::string getInfoKey(
@@ -69,23 +75,20 @@ namespace tl
             std::shared_ptr<Timeline> getTimeline(
                 const std::shared_ptr<ftk::Context>& context,
                 ftk::LRUCache<std::string, std::shared_ptr<Timeline> >& cache,
-                const ftk::Path& path,
-                bool audio)
+                std::mutex& mutex,
+                const ftk::Path& path)
             {
+                // One timeline per file, shared by the three threads rather
+                // than one each. Opening a bundle of 25,000 entries takes
+                // seconds, so opening it three times is three times too
+                // many. The timeline has no thread of its own and guards its
+                // caches, so the threads can read it at once.
+                std::unique_lock<std::mutex> lock(mutex);
                 std::shared_ptr<Timeline> out;
                 if (!cache.get(path.get(), out))
                 {
                     Options options;
-                    // No thread: the calling thread fills the request, which
-                    // is what makes one timeline per file affordable here.
                     options.threaded = false;
-                    if (!audio)
-                    {
-                        // Looking for audio beside a sequence costs a
-                        // directory scan, and a video thumbnail has no use
-                        // for what it finds.
-                        options.imageSeqAudio = ImageSeqAudio::None;
-                    }
                     out = Timeline::create(context, path, options);
                     cache.add(path.get(), out);
                 }
@@ -188,9 +191,12 @@ namespace tl
             };
             WaveformMutex waveformMutex;
 
+            // Shared by the three threads below.
+            ftk::LRUCache<std::string, std::shared_ptr<Timeline> > ioCache;
+            std::mutex ioCacheMutex;
+
             struct InfoThread
             {
-                ftk::LRUCache<std::string, std::shared_ptr<Timeline> > ioCache;
                 std::atomic<bool> ioCacheClear = false;
                 std::condition_variable cv;
                 std::thread thread;
@@ -202,7 +208,6 @@ namespace tl
             {
                 std::shared_ptr<gl::Render> render;
                 std::shared_ptr<ftk::gl::OffscreenBuffer> buffer;
-                ftk::LRUCache<std::string, std::shared_ptr<Timeline> > ioCache;
                 std::atomic<bool> ioCacheClear = false;
                 std::condition_variable cv;
                 std::thread thread;
@@ -212,7 +217,6 @@ namespace tl
 
             struct WaveformThread
             {
-                ftk::LRUCache<std::string, std::shared_ptr<Timeline> > ioCache;
                 std::atomic<bool> ioCacheClear = false;
                 std::condition_variable cv;
                 std::thread thread;
@@ -221,6 +225,17 @@ namespace tl
             WaveformThread waveformThread;
 
             std::shared_ptr<ftk::Timer> logTimer;
+
+            void clearIOCache()
+            {
+                std::unique_lock<std::mutex> lock(ioCacheMutex);
+                ioCache.clear();
+            }
+            size_t ioCacheCount()
+            {
+                std::unique_lock<std::mutex> lock(ioCacheMutex);
+                return ioCache.getCount();
+            }
         };
 
         ThumbnailSystem::ThumbnailSystem(const std::shared_ptr<ftk::Context>& context) :
@@ -254,8 +269,7 @@ namespace tl
                 });
 
             p.thumbnailMutex.cache.setMax(p.cacheOptions->get().thumbnailMB * ftk::megabyte);
-            p.infoThread.ioCache.setMax(ioCacheMax);
-            p.thumbnailThread.ioCache.setMax(ioCacheMax);
+            p.ioCache.setMax(ioCacheMax);
             p.thumbnailThread.running = true;
             p.thumbnailThread.thread = std::thread(
                 [this]
@@ -283,7 +297,7 @@ namespace tl
                 });
 
             p.waveformMutex.cache.setMax(p.cacheOptions->get().waveformMB * ftk::megabyte);
-            p.waveformThread.ioCache.setMax(ioCacheMax);
+            
             p.waveformThread.running = true;
             p.waveformThread.thread = std::thread(
                 [this]
@@ -657,7 +671,7 @@ namespace tl
             {
                 if (p.infoThread.ioCacheClear.exchange(false))
                 {
-                    p.infoThread.ioCache.clear();
+                    p.clearIOCache();
                 }
                 std::shared_ptr<Private::InfoRequest> request;
                 {
@@ -682,7 +696,7 @@ namespace tl
                         //std::cout << "info request: " << request->path.get() << std::endl;
                         auto context = p.context.lock();
                         if (auto timeline = getTimeline(
-                            context, p.infoThread.ioCache, request->path, true))
+                            context, p.ioCache, p.ioCacheMutex, request->path))
                         {
                             timeline->getMediaInfo(request->mediaPath, info);
                         }
@@ -707,7 +721,7 @@ namespace tl
             {
                 if (p.thumbnailThread.ioCacheClear.exchange(false))
                 {
-                    p.thumbnailThread.ioCache.clear();
+                    p.clearIOCache();
                 }
 
                 std::shared_ptr<Private::ThumbnailRequest> request;
@@ -741,10 +755,7 @@ namespace tl
                         //    request->time << std::endl;
                         auto context = p.context.lock();
                         auto timeline = getTimeline(
-                            context,
-                            p.thumbnailThread.ioCache,
-                            request->path,
-                            false);
+                            context, p.ioCache, p.ioCacheMutex, request->path);
                         IOInfo info;
                         if (timeline &&
                             timeline->getMediaInfo(
@@ -883,7 +894,7 @@ namespace tl
                     std::unique_lock<std::mutex> lock(p.thumbnailMutex.mutex);
                     p.thumbnailMutex.cache.add(key, image, image ? image->getByteCount() : 0);
                 }
-                else if (p.thumbnailThread.ioCache.getCount() > 0 &&
+                else if (p.ioCacheCount() > 0 &&
                     std::chrono::steady_clock::now() - ioCacheTimer > ioCacheTimeout)
                 {
                     // Release cached readers (and the decode subprocesses they
@@ -891,7 +902,7 @@ namespace tl
                     // file's IRead lingers until a different file's readers push
                     // it out of the LRU cache, so closing a file leaves its
                     // ffmpeg process running until the next file is opened.
-                    p.thumbnailThread.ioCache.clear();
+                    p.clearIOCache();
                 }
             }
         }
@@ -972,7 +983,7 @@ namespace tl
             {
                 if (p.waveformThread.ioCacheClear.exchange(false))
                 {
-                    p.waveformThread.ioCache.clear();
+                    p.clearIOCache();
                 }
 
                 std::shared_ptr<Private::WaveformRequest> request;
@@ -1004,10 +1015,7 @@ namespace tl
                         const std::string& fileName = request->path.get();
                         auto context = p.context.lock();
                         auto timeline = getTimeline(
-                            context,
-                            p.waveformThread.ioCache,
-                            request->path,
-                            true);
+                            context, p.ioCache, p.ioCacheMutex, request->path);
                         IOInfo info;
                         if (timeline &&
                             timeline->getMediaInfo(
@@ -1049,13 +1057,13 @@ namespace tl
                     std::unique_lock<std::mutex> lock(p.waveformMutex.mutex);
                     p.waveformMutex.cache.add(key, mesh, mesh ? mesh->getByteCount() : 0);
                 }
-                else if (p.waveformThread.ioCache.getCount() > 0 &&
+                else if (p.ioCacheCount() > 0 &&
                     std::chrono::steady_clock::now() - ioCacheTimer > ioCacheTimeout)
                 {
                     // Release cached readers (and the decode subprocesses they
                     // keep alive) once this thread has gone idle; see the note in
                     // _thumbnailRun().
-                    p.waveformThread.ioCache.clear();
+                    p.clearIOCache();
                 }
             }
         }

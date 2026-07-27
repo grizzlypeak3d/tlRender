@@ -35,7 +35,10 @@ namespace tl
         ftk::Path path;
         ftk::Path audioPath;
         Options options;
-        // Owned by the request thread, like the Thread struct below.
+        // Guards the two caches below. They were owned by the request
+        // thread, but a timeline opened without one is read by whichever
+        // thread drives it, and the thumbnail system drives one from three.
+        std::mutex readCacheMutex;
         ftk::LRUCache<std::string, std::shared_ptr<IRead> > readCache;
         // Sequences, which unlike readCache hold no thread and no queue: a
         // decoder is stateless, so what is cached here is only where each
