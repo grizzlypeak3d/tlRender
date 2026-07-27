@@ -56,10 +56,11 @@ namespace tl
 
             std::string getInfoKey(
                 const ftk::Path& path,
+                const ftk::Path& mediaPath,
                 const IOOptions& options)
             {
                 std::stringstream ss;
-                ss << path.get() << ";";
+                ss << path.get() << ";" << mediaPath.get() << ";";
                 for (const auto& i : options)
                 {
                     ss << i.first << ":" << i.second << ";";
@@ -97,12 +98,14 @@ namespace tl
 
             std::string getThumbnailKey(
                 const ftk::Path& path,
+                const ftk::Path& mediaPath,
                 int height,
                 const OTIO_NS::RationalTime& time,
                 const IOOptions& options)
             {
                 std::stringstream ss;
-                ss << path.get() << ";" << height << ";" << time << ";";
+                ss << path.get() << ";" << mediaPath.get() << ";" <<
+                    height << ";" << time << ";";
                 for (const auto& i : options)
                 {
                     ss << i.first << ":" << i.second << ";";
@@ -112,12 +115,14 @@ namespace tl
 
             std::string getWaveformKey(
                 const ftk::Path& path,
+                const ftk::Path& mediaPath,
                 const ftk::Size2I& size,
                 const OTIO_NS::TimeRange& timeRange,
                 const IOOptions& options)
             {
                 std::stringstream ss;
-                ss << path.get() << ";" << size << ";" << timeRange << ";";
+                ss << path.get() << ";" << mediaPath.get() << ";" <<
+                    size << ";" << timeRange << ";";
                 for (const auto& i : options)
                 {
                     ss << i.first << ":" << i.second << ";";
@@ -226,6 +231,21 @@ namespace tl
 
             std::shared_ptr<ftk::Timer> logTimer;
 
+            // When any of the three threads last had work. The cache is
+            // shared, so one thread going quiet must not drop the timelines
+            // another is still using.
+            std::atomic<int64_t> ioCacheActive{ 0 };
+            void ioCacheTouch()
+            {
+                ioCacheActive = std::chrono::steady_clock::now()
+                    .time_since_epoch().count();
+            }
+            bool ioCacheIdle(const std::chrono::seconds& timeout)
+            {
+                const auto last = std::chrono::steady_clock::time_point(
+                    std::chrono::steady_clock::duration(ioCacheActive.load()));
+                return std::chrono::steady_clock::now() - last > timeout;
+            }
             void clearIOCache()
             {
                 std::unique_lock<std::mutex> lock(ioCacheMutex);
@@ -407,7 +427,7 @@ namespace tl
             request->mediaPath = mediaPath;
             request->options = options;
 
-            const std::string key = getInfoKey(path, options);
+            const std::string key = getInfoKey(path, mediaPath, options);
             IOInfo info;
             bool notify = false;
             {
@@ -464,6 +484,7 @@ namespace tl
 
             const std::string key = getThumbnailKey(
                 path,
+                mediaPath,
                 height,
                 time,
                 options);
@@ -525,6 +546,7 @@ namespace tl
 
             const std::string key = getWaveformKey(
                 path,
+                mediaPath,
                 size,
                 timeRange,
                 options);
@@ -690,6 +712,7 @@ namespace tl
                 }
                 if (request)
                 {
+                    p.ioCacheTouch();
                     IOInfo info;
                     try
                     {
@@ -705,7 +728,8 @@ namespace tl
                     {}
                     request->promise.set_value(info);
 
-                    const std::string key = getInfoKey(request->path, request->options);
+                    const std::string key = getInfoKey(
+                        request->path, request->mediaPath, request->options);
                     std::unique_lock<std::mutex> lock(p.infoMutex.mutex);
                     p.infoMutex.cache.add(key, info);
                 }
@@ -716,7 +740,6 @@ namespace tl
         {
             FTK_P();
             tl::IOOptions ioOptions;
-            auto ioCacheTimer = std::chrono::steady_clock::now();
             while (p.thumbnailThread.running)
             {
                 if (p.thumbnailThread.ioCacheClear.exchange(false))
@@ -745,7 +768,7 @@ namespace tl
                     // that is read from: a per clip option such as a camera
                     // name changes with every request, and dropping the
                     // timeline for it meant reopening the file each time.
-                    ioCacheTimer = std::chrono::steady_clock::now();
+                    p.ioCacheTouch();
 
                     std::shared_ptr<ftk::Image> image;
                     try
@@ -888,14 +911,14 @@ namespace tl
 
                     const std::string key = getThumbnailKey(
                         request->path,
+                        request->mediaPath,
                         request->height,
                         request->time,
                         request->options);
                     std::unique_lock<std::mutex> lock(p.thumbnailMutex.mutex);
                     p.thumbnailMutex.cache.add(key, image, image ? image->getByteCount() : 0);
                 }
-                else if (p.ioCacheCount() > 0 &&
-                    std::chrono::steady_clock::now() - ioCacheTimer > ioCacheTimeout)
+                else if (p.ioCacheCount() > 0 && p.ioCacheIdle(ioCacheTimeout))
                 {
                     // Release cached readers (and the decode subprocesses they
                     // keep alive) once this thread has gone idle. Otherwise a
@@ -978,7 +1001,6 @@ namespace tl
         {
             FTK_P();
             tl::IOOptions ioOptions;
-            auto ioCacheTimer = std::chrono::steady_clock::now();
             while (p.waveformThread.running)
             {
                 if (p.waveformThread.ioCacheClear.exchange(false))
@@ -1007,7 +1029,7 @@ namespace tl
                     // that is read from: a per clip option such as a camera
                     // name changes with every request, and dropping the
                     // timeline for it meant reopening the file each time.
-                    ioCacheTimer = std::chrono::steady_clock::now();
+                    p.ioCacheTouch();
 
                     std::shared_ptr<ftk::TriMesh2F> mesh;
                     try
@@ -1051,14 +1073,14 @@ namespace tl
 
                     const std::string key = getWaveformKey(
                         request->path,
+                        request->mediaPath,
                         request->size,
                         request->timeRange,
                         request->options);
                     std::unique_lock<std::mutex> lock(p.waveformMutex.mutex);
                     p.waveformMutex.cache.add(key, mesh, mesh ? mesh->getByteCount() : 0);
                 }
-                else if (p.ioCacheCount() > 0 &&
-                    std::chrono::steady_clock::now() - ioCacheTimer > ioCacheTimeout)
+                else if (p.ioCacheCount() > 0 && p.ioCacheIdle(ioCacheTimeout))
                 {
                     // Release cached readers (and the decode subprocesses they
                     // keep alive) once this thread has gone idle; see the note in
