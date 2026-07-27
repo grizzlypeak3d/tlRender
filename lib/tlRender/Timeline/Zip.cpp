@@ -3,6 +3,7 @@
 
 #include <tlRender/Timeline/ZipPrivate.h>
 
+#include <ftk/Core/FileIO.h>
 #include <ftk/Core/Format.h>
 
 namespace tl
@@ -83,6 +84,11 @@ namespace tl
             throw std::runtime_error(ftk::Format(
                 "Cannot goto first zip entry: \"{0}\"").arg(fileName));
         }
+
+        auto headerIO = ftk::FileIO::create(
+            fileName,
+            ftk::FileMode::Read,
+            ftk::FileRead::Normal);
         while (MZ_OK == err)
         {
             mz_zip_file* fileInfo = nullptr;
@@ -101,7 +107,15 @@ namespace tl
                     throw std::runtime_error(ftk::Format(
                         "Local zip header entry out of bounds: \"{0}\"").arg(fileName));
                 }
-                const uint8_t* hdr = _fileMMap + fileInfo->disk_offset;
+                // Read the local header rather than reaching into the memory
+                // map. There is one of these before every file's data, so they
+                // are spread across the whole bundle, and faulting each one in
+                // costs a page cluster: measured on Windows, 25,000 headers of
+                // thirty bytes each pulled tens of gigabytes from disk and took
+                // minutes. Reading them costs thirty bytes each.
+                uint8_t hdr[zipHeaderSize];
+                headerIO->seek(fileInfo->disk_offset, ftk::SeekMode::Set);
+                headerIO->read(hdr, zipHeaderSize);
                 if (readLE32(hdr) != zipHeaderMagic)
                 {
                     throw std::runtime_error(ftk::Format(
