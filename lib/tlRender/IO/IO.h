@@ -43,6 +43,10 @@ namespace tl
         bool operator != (const IOInfo&) const;
     };
 
+    //! Add the tags describing the video, which are derived from the rest of
+    //! the information rather than read from the file.
+    TL_API void addVideoTags(IOInfo&);
+
     //! Video I/O data.
     struct TL_API_TYPE VideoData
     {

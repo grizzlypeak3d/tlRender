@@ -4,6 +4,7 @@ set(HEADERS
     IOInline.h
     Plugin.h
     Read.h
+    SeqDecode.h
     SeqIO.h
     System.h
     SystemInline.h
@@ -17,6 +18,7 @@ set(SOURCE
     IO.cpp
     Plugin.cpp
     Read.cpp
+    SeqDecode.cpp
     SeqIO.cpp
     SeqIORead.cpp
     SeqIOWrite.cpp

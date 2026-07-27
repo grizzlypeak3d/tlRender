@@ -23,6 +23,7 @@ namespace tl
             void _videoData();
             void _ioSystem();
             void _decode();
+            void _seqDecode();
         };
     }
 }

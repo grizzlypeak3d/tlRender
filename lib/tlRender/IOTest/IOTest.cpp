@@ -3,6 +3,7 @@
 
 #include <tlRender/IOTest/IOTest.h>
 
+#include <tlRender/IO/SeqDecode.h>
 #include <tlRender/IO/System.h>
 
 #include <ftk/Core/Assert.h>
@@ -34,6 +35,7 @@ namespace tl
             _videoData();
             _ioSystem();
             _decode();
+            _seqDecode();
         }
 
         void IOTest::_videoData()
@@ -223,5 +225,122 @@ namespace tl
                 _print(ftk::Format("{0}: decoder matches reader").arg(ext));
             }
         }
-    }
+    
+        void IOTest::_seqDecode()
+        {
+            // A sequence held in memory, which is how a bundle presents one:
+            // the same frames the old reader walks, indexed off the path
+            // number rather than found on disk.
+            auto readSystem = _context->getSystem<ReadSystem>();
+            auto writeSystem = _context->getSystem<WriteSystem>();
+            const ftk::Size2I size(16, 16);
+            const size_t frameCount = 5;
+            // The sequence itself is never on disk: its frames are memory,
+            // so only the one file the bytes come from is written.
+            const ftk::Path path(
+                (_getTempDir() / "IOTestSeq.0001.png").u8string());
+            const ftk::Path srcPath(
+                (_getTempDir() / "IOTestSeqSrc.png").u8string());
+            auto writePlugin = writeSystem->getPlugin(path);
+            auto readPlugin = readSystem->getPlugin(path);
+            if (!writePlugin || !readPlugin)
+            {
+                return;
+            }
+            auto decode = readPlugin->decode();
+            FTK_ASSERT(decode);
+
+            const ftk::ImageInfo imageInfo = writePlugin->getInfo(
+                ftk::ImageInfo(size, ftk::ImageType::RGB_U8));
+            IOInfo writeInfo;
+            writeInfo.video.push_back(imageInfo);
+
+            // Each frame is filled differently, so reading the wrong one
+            // shows up rather than matching by accident.
+            std::vector<std::shared_ptr<ftk::Image> > images;
+            std::vector<std::vector<uint8_t> > bytes(frameCount);
+            std::vector<ftk::MemFile> mem;
+            for (size_t i = 0; i < frameCount; ++i)
+            {
+                auto image = ftk::Image::create(imageInfo);
+                memset(image->getData(), static_cast<int>(17 + i * 40), image->getByteCount());
+                images.push_back(image);
+                // A trailing digit would be read as a frame number and every
+                // frame would overwrite the same file.
+                const std::string name =
+                    std::string("IOTestSeqSrc") +
+                    static_cast<char>('a' + i) + ".png";
+                const ftk::Path framePath((_getTempDir() / name).u8string());
+                writeSystem->write(framePath, writeInfo)->writeVideo(
+                    OTIO_NS::RationalTime(0.0, 24.0), image);
+                auto fileIO = ftk::FileIO::create(framePath.get(), ftk::FileMode::Read);
+                bytes[i].resize(fileIO->getSize());
+                fileIO->read(bytes[i].data(), bytes[i].size());
+                mem.push_back(ftk::MemFile(nullptr, bytes[i].data(), bytes[i].size()));
+            }
+            auto image = images[0];
+
+            IOOptions options;
+            options["SeqIO/DefaultSpeed"] = "24";
+            auto seq = SeqDecode::create(path, mem, decode, options);
+            auto read = readPlugin->read(path, mem, options);
+            const IOInfo seqInfo = seq->getInfo();
+            const IOInfo readInfo = read->getInfo().get();
+
+            // The sequence knows the time range that no single file does.
+            FTK_ASSERT(isValid(seqInfo.videoTime));
+            FTK_ASSERT(seqInfo.videoTime == readInfo.videoTime);
+            FTK_ASSERT(seqInfo.videoTime.duration().value() == frameCount);
+            FTK_ASSERT(seqInfo.video == readInfo.video);
+            FTK_ASSERT(seqInfo.tags == readInfo.tags);
+
+            for (size_t i = 0; i < frameCount; ++i)
+            {
+                const OTIO_NS::RationalTime time(
+                    static_cast<double>(1 + i), 24.0);
+                const VideoData a = seq->readVideo(time);
+                const VideoData b = read->readVideo(time).get();
+                FTK_ASSERT(a.image && b.image);
+                FTK_ASSERT(a.image->getByteCount() == b.image->getByteCount());
+                FTK_ASSERT(0 == memcmp(
+                    a.image->getData(),
+                    b.image->getData(),
+                    b.image->getByteCount()));
+                FTK_ASSERT(0 == memcmp(
+                    a.image->getData(),
+                    images[i]->getData(),
+                    images[i]->getByteCount()));
+            }
+
+            // No thread of its own, so the caller decides where reads run.
+            std::atomic<bool> ok(true);
+            std::vector<std::thread> threads;
+            for (size_t i = 0; i < 8; ++i)
+            {
+                threads.push_back(std::thread(
+                    [seq, &images, frameCount, &ok]
+                    {
+                        for (size_t j = 0; j < frameCount; ++j)
+                        {
+                            const auto v = seq->readVideo(
+                                OTIO_NS::RationalTime(
+                                    static_cast<double>(1 + j), 24.0));
+                            if (!v.image || 0 != memcmp(
+                                v.image->getData(),
+                                images[j]->getData(),
+                                images[j]->getByteCount()))
+                            {
+                                ok = false;
+                            }
+                        }
+                    }));
+            }
+            for (auto& thread : threads)
+            {
+                thread.join();
+            }
+            FTK_ASSERT(ok);
+            _print("sequence decode matches the sequence reader");
+        }
+}
 }
