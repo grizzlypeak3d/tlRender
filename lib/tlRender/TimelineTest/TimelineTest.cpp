@@ -11,6 +11,7 @@
 #include <tlRender/IO/SeqIO.h>
 
 #include <ftk/Core/Assert.h>
+#include <ftk/Core/Context.h>
 
 #include <cstring>
 #include <ftk/Core/Format.h>
@@ -790,9 +791,15 @@ namespace tl
             // A plain file is a timeline of one clip, and its own path names
             // that clip's media. That is what lets a caller always ask by
             // (timeline, media) without knowing which it has.
+            const ftk::Path seqPath(
+                TLRENDER_SAMPLE_DATA, "Seq/BART_2021-02-07.0001.jpg");
+            // Making a timeline out of a plain file needs a plugin that
+            // reads it; a build with no image formats cannot, and asking
+            // throws rather than returning nothing.
+            const bool seqReadable =
+                _context->getSystem<ReadSystem>()->getPlugin(seqPath) != nullptr;
+            if (seqReadable)
             {
-                const ftk::Path seqPath(
-                    TLRENDER_SAMPLE_DATA, "Seq/BART_2021-02-07.0001.jpg");
                 auto seqTimeline = Timeline::create(_context, seqPath, options);
                 const auto seqMedia = seqTimeline->getMediaPaths();
                 for (const auto& i : seqMedia)
@@ -821,14 +828,15 @@ namespace tl
 
             // The decoding thread count is configurable, and is read where
             // the pool is started rather than being a constant.
+            // The bundle rather than the image sequence: what is being
+            // checked is how the options reach the pool, which does not
+            // depend on any format being readable.
             {
-                const ftk::Path seqPath(
-                    TLRENDER_SAMPLE_DATA, "Seq/BART_2021-02-07.0001.jpg");
                 Options threadOptions;
                 threadOptions.readThreadCount = 3;
-                auto t = Timeline::create(_context, seqPath, threadOptions);
+                auto t = Timeline::create(_context, path, threadOptions);
                 FTK_ASSERT(3 == t->getReadThreadCount());
-                auto d = Timeline::create(_context, seqPath);
+                auto d = Timeline::create(_context, path);
                 FTK_ASSERT(d->getReadThreadCount() == getDefaultReadThreadCount());
 
                 // How many requests are in flight follows the thread count,
@@ -838,7 +846,7 @@ namespace tl
                 FTK_ASSERT(6 == t->getVideoRequestMax());
                 Options manyOptions;
                 manyOptions.readThreadCount = 24;
-                auto many = Timeline::create(_context, seqPath, manyOptions);
+                auto many = Timeline::create(_context, path, manyOptions);
                 FTK_ASSERT(24 == many->getReadThreadCount());
                 FTK_ASSERT(many->getVideoRequestMax() > 16);
 
@@ -848,7 +856,7 @@ namespace tl
                 Options zeroOptions;
                 zeroOptions.threaded = false;
                 zeroOptions.readThreadCount = 0;
-                auto zero = Timeline::create(_context, seqPath, zeroOptions);
+                auto zero = Timeline::create(_context, path, zeroOptions);
                 FTK_ASSERT(zero->getVideoRequestMax() > 0);
                 auto zeroRequest = zero->getVideo(
                     zero->getTimeRange().start_time());
