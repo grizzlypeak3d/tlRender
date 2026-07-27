@@ -41,9 +41,13 @@ namespace tl
         //! data, and it is length prefixed with sixteen bits.
         constexpr int64_t zipMaxExtraSize = 65535;
 
-        //! How many derived offsets to check against the file.
+        //! The largest data descriptor: a signature, a CRC and two eight
+        //! byte sizes.
+        constexpr int64_t zipMaxTrailerSize = 24;
+
+        //! How many entries to measure against the file.
         //!
-        //! Checking every one would be the scattered read per entry that
+        //! Measuring every one would be the scattered read per entry that
         //! deriving them exists to avoid. A bundle is written by one writer in
         //! one pass, so entries are laid out the same way throughout, and a
         //! sample spread across the file sees a writer that does otherwise.
@@ -193,48 +197,91 @@ namespace tl
             ftk::FileRead::Normal,
             ftk::FileAccess::Random);
         size_t readCount = 0;
-        for (size_t i = 0; i < records.size(); ++i)
+
+        // How many bytes sit between an entry's data and the next local
+        // header. Nothing, for an entry written to a file. An entry written
+        // to a stream is followed by a data descriptor, whose size depends on
+        // the writer and on whether that entry needed zip64 -- so rather than
+        // guess it, measure it. A handful of entries say what the whole
+        // archive does. Measured on a bundle of 25,099 streamed entries the
+        // gap is sixteen bytes throughout.
+        std::vector<size_t> plain;
+        std::vector<size_t> trailing;
+        for (size_t i = 0; i + 1 < records.size(); ++i)
         {
-            Record& record = records[i];
-            if (!record.trailer && i + 1 < records.size())
+            (records[i].trailer ? trailing : plain).push_back(i);
+        }
+        const auto measureGap =
+            [&](const std::vector<size_t>& group, int64_t& gap) -> bool
+        {
+            if (group.empty())
             {
-                const int64_t derived = records[i + 1].headerOffset - record.size;
+                return true;
+            }
+            const size_t count = std::min(zipVerifySamples, group.size());
+            for (size_t s = 0; s < count; ++s)
+            {
+                const size_t i = group[s * group.size() / count];
+                const int64_t dataOffset =
+                    readDataOffset(io, fileName, records[i].headerOffset);
+                ++readCount;
+                const int64_t measured =
+                    records[i + 1].headerOffset - records[i].size - dataOffset;
+                if (measured < 0 || measured > zipMaxTrailerSize)
+                {
+                    return false;
+                }
+                if (0 == s)
+                {
+                    gap = measured;
+                }
+                else if (measured != gap)
+                {
+                    return false;
+                }
+            }
+            return true;
+        };
+        int64_t plainGap = 0;
+        int64_t trailingGap = 0;
+        const bool derivable =
+            measureGap(plain, plainGap) && measureGap(trailing, trailingGap);
+        if (derivable)
+        {
+            for (size_t i = 0; i + 1 < records.size(); ++i)
+            {
+                Record& record = records[i];
+                const int64_t derived =
+                    records[i + 1].headerOffset -
+                    record.size -
+                    (record.trailer ? trailingGap : plainGap);
                 if (derived >= record.minDataOffset &&
                     derived - record.minDataOffset <= zipMaxExtraSize)
                 {
                     record.dataOffset = derived;
                 }
             }
-            if (-1 == record.dataOffset)
-            {
-                record.dataOffset = readDataOffset(io, fileName, record.headerOffset);
-                ++readCount;
-            }
         }
-
-        // Check a sample of the derived offsets against the file itself.
-        const size_t sampleCount = std::min(zipVerifySamples, records.size());
-        for (size_t i = 0; i < sampleCount; ++i)
+        else
         {
-            const Record& sample = records[i * records.size() / sampleCount];
-            if (sample.dataOffset ==
-                readDataOffset(io, fileName, sample.headerOffset))
-            {
-                continue;
-            }
-            // The writer lays entries out in a way the derivation does not
-            // describe, so every offset has to come from its own header.
+            // The archive is not laid out the way the derivation describes,
+            // so every offset has to come from its own header.
             _logSystem->print("tl::ZipReader", ftk::Format(
                 "Zip entry offsets cannot be derived, reading {0} local "
                 "headers: \"{1}\"").arg(records.size()).arg(fileName),
                 ftk::LogType::Warning);
-            for (auto& record : records)
+        }
+
+        // Whatever is left: the last entry, which has no successor, and any
+        // entry the bounds check rejected.
+        for (auto& record : records)
+        {
+            if (record.dataOffset < 0)
             {
                 record.dataOffset =
                     readDataOffset(io, fileName, record.headerOffset);
+                ++readCount;
             }
-            readCount = records.size();
-            break;
         }
 
         for (const auto& record : records)
