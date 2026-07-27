@@ -5,6 +5,7 @@
 
 #include <tlRender/Timeline/Audio.h>
 #include <tlRender/Timeline/TimelineOptions.h>
+#include <tlRender/IO/SeqDecode.h>
 #include <tlRender/Timeline/Video.h>
 
 #include <tlRender/IO/Read.h>
@@ -212,6 +213,18 @@ namespace tl
         TL_API static size_t getObjectCount();
 
     private:
+        // Get the sequence for a media reference, or null when the format is
+        // not read as a sequence of stateless files: a movie carries a
+        // demuxer position and keeps its own reader.
+        std::shared_ptr<SeqDecode> _getSeqDecode(
+            const OTIO_NS::MediaReference*,
+            const IOOptions&);
+        // Get the information for a media reference from whichever of the two
+        // reads it.
+        bool _getIOInfo(
+            const OTIO_NS::MediaReference*,
+            const IOOptions&,
+            IOInfo&);
         std::shared_ptr<IRead> _getRead(
             const OTIO_NS::Clip*,
             const IOOptions&);

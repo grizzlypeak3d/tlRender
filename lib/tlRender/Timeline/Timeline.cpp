@@ -6,6 +6,7 @@
 #include <tlRender/Timeline/Util.h>
 #include <tlRender/Timeline/ZipPrivate.h>
 
+#include <tlRender/IO/SeqIO.h>
 #include <tlRender/IO/System.h>
 
 #include <tlRender/Core/URL.h>
@@ -25,7 +26,13 @@ namespace tl
 {
     namespace
     {
+        // Readers are expensive to hold: each carries a thread and a request
+        // queue, so only a few can be kept.
         const size_t readCacheMax = 10;
+        // Sequences are not: they hold where the frames are and nothing else.
+        // A timeline with a clip per shot has hundreds, and evicting one only
+        // means reading a header again.
+        const size_t seqCacheMax = 1000;
         const std::chrono::milliseconds timeout(5);
 
         //! Get the OTIO spatial coordinates of a media reference. These are
@@ -609,6 +616,8 @@ namespace tl
         }
         p.options = options;
         p.readCache.setMax(readCacheMax);
+        p.seqCache.setMax(seqCacheMax);
+        p.startReadPool(SeqOptions().threadCount);
 
         // Get information about the timeline.
         p.timeRange = tl::getTimeRange(p.otioTimeline.value);
@@ -728,6 +737,7 @@ namespace tl
         {
             p.thread.thread.join();
         }
+        p.stopReadPool();
 
         --objectCount;
     }
@@ -1058,6 +1068,84 @@ namespace tl
         }
     }
 
+    std::shared_ptr<SeqDecode> Timeline::_getSeqDecode(
+        const OTIO_NS::MediaReference* mediaReference,
+        const IOOptions& ioOptions)
+    {
+        FTK_P();
+        std::shared_ptr<SeqDecode> out;
+        if (p.unavailableMediaReferences.find(mediaReference) !=
+            p.unavailableMediaReferences.end())
+        {
+            return out;
+        }
+        const auto path = tl::getPath(
+            mediaReference,
+            p.path.getDir(),
+            p.options.pathOptions);
+        const std::string key = getKey(path);
+        if (!p.seqCache.get(key, out))
+        {
+            auto context = p.context.lock();
+            if (!context)
+            {
+                return out;
+            }
+            const auto readSystem = context->getSystem<ReadSystem>();
+            const auto plugin = readSystem->getPlugin(path);
+            if (!plugin)
+            {
+                return out;
+            }
+            // Null for a format that has to be read statefully, which leaves
+            // the caller to fall back to a reader.
+            const auto decode = plugin->decode(ioOptions);
+            if (!decode)
+            {
+                return out;
+            }
+            IOOptions options = ioOptions;
+            options["SeqIO/DefaultSpeed"] =
+                ftk::Format("{0}").arg(p.timeRange.duration().rate());
+            try
+            {
+                out = SeqDecode::create(path, getMem(mediaReference), decode, options);
+            }
+            catch (const std::exception& e)
+            {
+                if (auto logSystem = p.logSystem.lock())
+                {
+                    logSystem->print(
+                        "tl::Timeline",
+                        ftk::Format("Cannot read \"{0}\": {1}").
+                            arg(path.get()).arg(e.what()),
+                        ftk::LogType::Error);
+                }
+                return out;
+            }
+            p.seqCache.add(key, out);
+        }
+        return out;
+    }
+
+    bool Timeline::_getIOInfo(
+        const OTIO_NS::MediaReference* mediaReference,
+        const IOOptions& ioOptions,
+        IOInfo& out)
+    {
+        if (auto seq = _getSeqDecode(mediaReference, ioOptions))
+        {
+            out = seq->getInfo();
+            return true;
+        }
+        if (auto read = _getRead(mediaReference, ioOptions))
+        {
+            out = read->getInfo().get();
+            return true;
+        }
+        return false;
+    }
+
     std::shared_ptr<IRead> Timeline::_getRead(
         const OTIO_NS::Clip* clip,
         const IOOptions& ioOptions)
@@ -1108,11 +1196,15 @@ namespace tl
         std::future<VideoData> out;
         IOOptions optionsMerged = merge(options, p.options.ioOptions);
         optionsMerged["USD/CameraName"] = clip->name();
-        auto read = _getRead(clip, optionsMerged);
+        const auto mediaReference = p.mediaReference(clip);
+        // A sequence is decoded on the timeline's pool; anything that has to
+        // be read statefully keeps its own reader.
+        auto seq = _getSeqDecode(mediaReference, optionsMerged);
+        auto read = seq ? nullptr : _getRead(mediaReference, optionsMerged);
         const auto timeRangeOpt = clip->trimmed_range_in_parent();
-        if (read && timeRangeOpt.has_value())
+        if ((seq || read) && timeRangeOpt.has_value())
         {
-            const IOInfo& ioInfo = read->getInfo().get();
+            const IOInfo& ioInfo = seq ? seq->getInfo() : read->getInfo().get();
             OTIO_NS::TimeRange availableRange = clip->available_range();
             OTIO_NS::TimeRange trimmedRange = clip->trimmed_range();
             if (p.options.compat &&
@@ -1130,7 +1222,13 @@ namespace tl
                 timeRangeOpt.value(),
                 trimmedRange,
                 ioInfo.videoTime.duration().rate());
-            out = read->readVideo(mediaTime, optionsMerged);
+            out = seq ?
+                p.submitRead(
+                    [seq, mediaTime, optionsMerged]
+                    {
+                        return seq->readVideo(mediaTime, optionsMerged);
+                    }) :
+                read->readVideo(mediaTime, optionsMerged);
         }
         return out;
     }
@@ -1177,9 +1275,9 @@ namespace tl
             if (auto context = p.context.lock())
             {
                 // The first video clip defines the video information for the timeline.
-                if (auto read = _getRead(clip, p.options.ioOptions))
+                IOInfo ioInfo;
+                if (_getIOInfo(p.mediaReference(clip), p.options.ioOptions, ioInfo))
                 {
-                    const IOInfo& ioInfo = read->getInfo().get();
                     p.ioInfo.video = ioInfo.video;
                     p.ioInfo.videoTime = ioInfo.videoTime;
                     p.ioInfo.tags.insert(ioInfo.tags.begin(), ioInfo.tags.end());
@@ -1199,12 +1297,10 @@ namespace tl
                     p.videoInfoClip = clip;
                     for (const auto& i : clip->media_references())
                     {
-                        if (auto mediaReferenceRead =
-                            _getRead(i.second, p.options.ioOptions))
+                        IOInfo mediaReferenceInfo;
+                        if (_getIOInfo(
+                            i.second, p.options.ioOptions, mediaReferenceInfo))
                         {
-                            const IOInfo& mediaReferenceInfo =
-                                mediaReferenceRead->getInfo().get();
-
                             // Kept so that getIOInfo() can report the media
                             // that is actually being read; completed with the
                             // timeline level information once it is known.
@@ -1684,6 +1780,92 @@ namespace tl
                 request->promise.set_value(frame);
             }
         }
+    }
+
+    void Timeline::Private::startReadPool(size_t threadCount)
+    {
+        readPool.stopped = false;
+        for (size_t i = 0; i < std::max(threadCount, size_t(1)); ++i)
+        {
+            readPool.threads.push_back(std::thread(
+                [this]
+                {
+                    while (true)
+                    {
+                        ReadPool::Task task;
+                        {
+                            std::unique_lock<std::mutex> lock(readPool.mutex);
+                            readPool.cv.wait(
+                                lock,
+                                [this]
+                                {
+                                    return readPool.stopped || !readPool.tasks.empty();
+                                });
+                            if (readPool.tasks.empty())
+                            {
+                                // Stopped and drained.
+                                return;
+                            }
+                            task = std::move(readPool.tasks.front());
+                            readPool.tasks.pop_front();
+                        }
+                        VideoData out;
+                        try
+                        {
+                            out = task.f();
+                        }
+                        catch (const std::exception&)
+                        {
+                            // A frame that cannot be decoded is delivered
+                            // empty, the same as a reader delivered it.
+                        }
+                        task.promise.set_value(out);
+                    }
+                }));
+        }
+    }
+
+    void Timeline::Private::stopReadPool()
+    {
+        {
+            std::unique_lock<std::mutex> lock(readPool.mutex);
+            readPool.stopped = true;
+        }
+        readPool.cv.notify_all();
+        for (auto& thread : readPool.threads)
+        {
+            if (thread.joinable())
+            {
+                thread.join();
+            }
+        }
+        readPool.threads.clear();
+    }
+
+    std::future<VideoData> Timeline::Private::submitRead(
+        std::function<VideoData()> f)
+    {
+        ReadPool::Task task;
+        task.f = std::move(f);
+        auto out = task.promise.get_future();
+        bool queued = false;
+        {
+            std::unique_lock<std::mutex> lock(readPool.mutex);
+            if (!readPool.stopped)
+            {
+                readPool.tasks.push_back(std::move(task));
+                queued = true;
+            }
+        }
+        if (queued)
+        {
+            readPool.cv.notify_one();
+        }
+        else
+        {
+            task.promise.set_value(VideoData());
+        }
+        return out;
     }
 
     void Timeline::Private::updateReadErrors()

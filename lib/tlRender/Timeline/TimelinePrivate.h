@@ -10,6 +10,8 @@
 #include <opentimelineio/clip.h>
 
 #include <atomic>
+#include <functional>
+#include <future>
 #include <list>
 #include <mutex>
 #include <set>
@@ -35,6 +37,11 @@ namespace tl
         Options options;
         // Owned by the request thread, like the Thread struct below.
         ftk::LRUCache<std::string, std::shared_ptr<IRead> > readCache;
+        // Sequences, which unlike readCache hold no thread and no queue: a
+        // decoder is stateless, so what is cached here is only where each
+        // frame lives. Evicting one costs nothing, which is why this holds
+        // far more entries than readCache can afford to.
+        ftk::LRUCache<std::string, std::shared_ptr<SeqDecode> > seqCache;
         // Errors observed while building frames (broken promises caught
         // in videoFrame()/audioFrame()). Owned by the request thread.
         size_t frameErrorCount = 0;
@@ -170,6 +177,32 @@ namespace tl
             std::map<const OTIO_NS::Clip*, std::string> clipMediaReferenceKeys;
         };
         Thread thread;
+
+        // Where sequence frames are decoded. One pool serves every clip in
+        // the timeline rather than a reader thread per clip: with 198 clips
+        // and room for ten readers, a single pass used to create and join a
+        // thread nearly two hundred times.
+        struct ReadPool
+        {
+            struct Task
+            {
+                std::function<VideoData()> f;
+                std::promise<VideoData> promise;
+            };
+            std::vector<std::thread> threads;
+            std::list<Task> tasks;
+            std::condition_variable cv;
+            std::mutex mutex;
+            bool stopped = false;
+        };
+        ReadPool readPool;
+
+        // Start and stop the decoding threads.
+        void startReadPool(size_t threadCount);
+        void stopReadPool();
+        // Decode on the pool. The future carries an empty VideoData if the
+        // decode throws, which is what a reader did with a failed frame.
+        std::future<VideoData> submitRead(std::function<VideoData()>);
 
         // Build a finished frame from a request whose futures are ready.
         // Calling these blocks on the layer futures via get(), so callers
