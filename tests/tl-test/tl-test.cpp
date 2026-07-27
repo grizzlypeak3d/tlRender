@@ -147,18 +147,19 @@ namespace tl
             const auto& cmdLineTests = p.testNames->getList();
             if (!cmdLineTests.empty())
             {
+                // Every test whose name contains the argument, not just the
+                // first: a group name such as "io_tests" is the useful way to
+                // ask for part of the suite.
                 for (const auto& test : cmdLineTests)
                 {
-                    const auto i = std::find_if(
-                        p.tests.begin(),
-                        p.tests.end(),
-                        [test](const std::shared_ptr<ftk::test::ITest>& other)
-                        {
-                            return ftk::contains(other->getName(), test, ftk::CaseCompare::Insensitive);
-                        });
-                    if (i != p.tests.end())
+                    for (const auto& other : p.tests)
                     {
-                        runTests.push_back(*i);
+                        if (ftk::contains(other->getName(), test, ftk::CaseCompare::Insensitive) &&
+                            std::find(runTests.begin(), runTests.end(), other) ==
+                                runTests.end())
+                        {
+                            runTests.push_back(other);
+                        }
                     }
                 }
             }
