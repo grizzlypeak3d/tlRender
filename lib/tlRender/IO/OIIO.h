@@ -10,6 +10,28 @@ namespace tl
     //! OpenImageIO image I/O.
     namespace oiio
     {
+        //! OpenImageIO decoder.
+        class TL_API_TYPE Decode : public IDecode
+        {
+        protected:
+            Decode();
+
+        public:
+            TL_API virtual ~Decode();
+
+            //! Create a new decoder.
+            TL_API static std::shared_ptr<Decode> create();
+
+            TL_API IOInfo getInfo(
+                const std::string& fileName,
+                const ftk::MemFile* = nullptr) override;
+            TL_API VideoData readVideo(
+                const std::string& fileName,
+                const ftk::MemFile*,
+                const OTIO_NS::RationalTime&,
+                const IOOptions& = IOOptions()) override;
+        };
+
         //! OpenImageIO reader.
         class TL_API_TYPE Read : public ISeqRead
         {
@@ -47,6 +69,9 @@ namespace tl
                 const ftk::MemFile*,
                 const OTIO_NS::RationalTime&,
                 const IOOptions&) override;
+
+        private:
+            std::shared_ptr<Decode> _decode;
         };
 
         //! OpenImageIO writer.
@@ -99,6 +124,8 @@ namespace tl
                 const ftk::Path&,
                 const std::vector<ftk::MemFile>&,
                 const IOOptions & = IOOptions()) override;
+            TL_API std::shared_ptr<IDecode> decode(
+                const IOOptions& = IOOptions()) override;
 
             TL_API std::string getPluginInfo(
                 const IOOptions& = IOOptions()) const override;

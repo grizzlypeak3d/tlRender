@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include <tlRender/IO/Decode.h>
 #include <tlRender/IO/Plugin.h>
 
 namespace tl
@@ -77,6 +78,11 @@ namespace tl
             const ftk::Path&,
             const std::vector<ftk::MemFile>&,
             const IOOptions& = IOOptions()) = 0;
+
+        //! Create a decoder, or null when this format has to be read
+        //! statefully.
+        TL_API virtual std::shared_ptr<IDecode> decode(
+            const IOOptions& = IOOptions());
 
     private:
         FTK_PRIVATE();

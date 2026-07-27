@@ -516,12 +516,62 @@ namespace tl
             };
         }
 
+        Decode::Decode()
+        {}
+
+        Decode::~Decode()
+        {}
+
+        std::shared_ptr<Decode> Decode::create()
+        {
+            return std::shared_ptr<Decode>(new Decode);
+        }
+
+        IOInfo Decode::getInfo(
+            const std::string& fileName,
+            const ftk::MemFile* mem)
+        {
+            return File(fileName, mem).getInfo();
+        }
+
+        VideoData Decode::readVideo(
+            const std::string& fileName,
+            const ftk::MemFile* mem,
+            const OTIO_NS::RationalTime& time,
+            const IOOptions& options)
+        {
+            return File(fileName, mem).read(fileName, time, options);
+        }
+
+        double Decode::getSpeed(const IOInfo& info, double defaultSpeed) const
+        {
+            double out = defaultSpeed;
+            const auto i = info.tags.find("FramesPerSecond");
+            if (i != info.tags.end())
+            {
+                // The frames per second attribute is stored as a rational
+                // value: "numerator denominator".
+                std::stringstream ss(i->second);
+                double n = 0.0;
+                double d = 0.0;
+                ss >> n >> d;
+                if (d != 0.0)
+                {
+                    out = n / d;
+                }
+            }
+            return out;
+        }
+
         void Read::_init(
             const ftk::Path& path,
             const std::vector<ftk::MemFile>& mem,
             const IOOptions& options,
             const std::shared_ptr<ftk::LogSystem>& logSystem)
         {
+            // Before the base class, which starts the worker thread; the
+            // first thing that thread does is ask for the information.
+            _decode = Decode::create();
             ISeqRead::_init(path, mem, options, logSystem);
         }
 
@@ -558,22 +608,9 @@ namespace tl
             const std::string& fileName,
             const ftk::MemFile* mem)
         {
-            IOInfo out = File(fileName, mem).getInfo();
-            float speed = _defaultSpeed;
-            const auto i = out.tags.find("FramesPerSecond");
-            if (i != out.tags.end())
-            {
-                // The frames per second attribute is stored as a rational
-                // value: "numerator denominator".
-                std::stringstream ss(i->second);
-                double n = 0.0;
-                double d = 0.0;
-                ss >> n >> d;
-                if (d != 0.0)
-                {
-                    speed = static_cast<float>(n / d);
-                }
-            }
+            IOInfo out = _decode->getInfo(fileName, mem);
+            const float speed = static_cast<float>(
+                _decode->getSpeed(out, _defaultSpeed));
             out.videoTime = OTIO_NS::TimeRange::range_from_start_end_time_inclusive(
                 OTIO_NS::RationalTime(_startFrame, speed),
                 OTIO_NS::RationalTime(_endFrame, speed));
@@ -586,7 +623,7 @@ namespace tl
             const OTIO_NS::RationalTime& time,
             const IOOptions& options)
         {
-            return File(fileName, mem).read(fileName, time, options);
+            return _decode->readVideo(fileName, mem, time, options);
         }
     }
 }

@@ -63,6 +63,11 @@ namespace tl
             return Read::create(path, memory, options, _logSystem.lock());
         }
 
+        std::shared_ptr<IDecode> ReadPlugin::decode(const IOOptions&)
+        {
+            return Decode::create();
+        }
+
         std::string ReadPlugin::getPluginInfo(const IOOptions&) const
         {
             return OIIO_VERSION_STRING;

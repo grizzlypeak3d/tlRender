@@ -22,6 +22,7 @@ namespace tl
         private:
             void _videoData();
             void _ioSystem();
+            void _decode();
         };
     }
 }

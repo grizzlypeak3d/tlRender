@@ -31,6 +31,9 @@ namespace tl
             const IOOptions& options,
             const std::shared_ptr<ftk::LogSystem>& logSystem)
         {
+            // Before the base class, which starts the worker thread; the
+            // first thing that thread does is ask for the information.
+            _decode = Decode::create();
             ISeqRead::_init(path, memory, options, logSystem);
         }
 
@@ -120,7 +123,18 @@ namespace tl
             }
         }
 
-        IOInfo Read::_getInfo(
+        Decode::Decode()
+        {}
+
+        Decode::~Decode()
+        {}
+
+        std::shared_ptr<Decode> Decode::create()
+        {
+            return std::shared_ptr<Decode>(new Decode);
+        }
+
+        IOInfo Decode::getInfo(
             const std::string& fileName,
             const ftk::MemFile* memory)
         {
@@ -175,13 +189,10 @@ namespace tl
                 imageInfo.layout.mirror.y = true;
                 out.video.push_back(imageInfo);
             }
-            out.videoTime = OTIO_NS::TimeRange::range_from_start_end_time_inclusive(
-                OTIO_NS::RationalTime(_startFrame, _defaultSpeed),
-                OTIO_NS::RationalTime(_endFrame, _defaultSpeed));
             return out;
         }
 
-        VideoData Read::_readVideo(
+        VideoData Decode::readVideo(
             const std::string& fileName,
             const ftk::MemFile* memory,
             const OTIO_NS::RationalTime& time,
@@ -258,6 +269,26 @@ namespace tl
                 throw std::runtime_error(ss.str());
             }
             return out;
+        }
+
+        IOInfo Read::_getInfo(
+            const std::string& fileName,
+            const ftk::MemFile* memory)
+        {
+            IOInfo out = _decode->getInfo(fileName, memory);
+            out.videoTime = OTIO_NS::TimeRange::range_from_start_end_time_inclusive(
+                OTIO_NS::RationalTime(_startFrame, _defaultSpeed),
+                OTIO_NS::RationalTime(_endFrame, _defaultSpeed));
+            return out;
+        }
+
+        VideoData Read::_readVideo(
+            const std::string& fileName,
+            const ftk::MemFile* memory,
+            const OTIO_NS::RationalTime& time,
+            const IOOptions& options)
+        {
+            return _decode->readVideo(fileName, memory, time, options);
         }
     }
 }

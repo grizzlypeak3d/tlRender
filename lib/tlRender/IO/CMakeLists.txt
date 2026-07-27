@@ -1,4 +1,5 @@
 set(HEADERS
+    Decode.h
     IO.h
     IOInline.h
     Plugin.h
@@ -12,6 +13,7 @@ set(HEADERS_PRIVATE
     SeqIOReadPrivate.h)
 
 set(SOURCE
+    Decode.cpp
     IO.cpp
     Plugin.cpp
     Read.cpp

@@ -65,4 +65,9 @@ namespace tl
 
     IReadPlugin::~IReadPlugin()
     {}
+
+    std::shared_ptr<IDecode> IReadPlugin::decode(const IOOptions&)
+    {
+        return nullptr;
+    }
 }
