@@ -19,13 +19,24 @@
 
 namespace tl
 {
+    class ZipReader;
+
     struct Timeline::Private
     {
         std::weak_ptr<ftk::Context> context;
         std::weak_ptr<ftk::LogSystem> logSystem;
         std::shared_ptr<ftk::FileIO> fileIO;
         OTIO_NS::SerializableObject::Retainer<OTIO_NS::Timeline> otioTimeline;
-        std::map<const OTIO_NS::MediaReference*, std::vector<ftk::MemFile> > memFiles;
+        // The bundle stays open so that a media reference's byte ranges can
+        // be worked out when it is first read. Doing it for every reference
+        // at open meant generating a file name, decoding it as a URL and
+        // parsing it as a path for all 25,000 frames of a bundle before
+        // anything could be shown.
+        std::shared_ptr<ZipReader> zipReader;
+        std::set<const OTIO_NS::MediaReference*> bundleMediaReferences;
+        std::mutex memFilesMutex;
+        std::map<const OTIO_NS::MediaReference*,
+            std::shared_ptr<std::vector<ftk::MemFile> > > memFiles;
         // Media references named by a bundle but not found inside it. They are
         // not read from their path, since a bundle is meant to be self
         // contained and quietly reading a file from somewhere else would be

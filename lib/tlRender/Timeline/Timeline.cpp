@@ -451,7 +451,8 @@ namespace tl
                     ftk::FileRead::MMap,
                     ftk::FileAccess::Random);
 
-                ZipReader zipReader(logSystem);
+                p.zipReader = std::make_shared<ZipReader>(logSystem);
+                auto& zipReader = *p.zipReader;
                 zipReader.open(fileName, p.fileIO->getSize());
 
                 std::string json = zipReader.readText("content.otio");
@@ -481,67 +482,63 @@ namespace tl
                 // as unavailable. Either way the media is never read from its
                 // path: a bundle is meant to be self contained, and quietly
                 // reading a file from somewhere else would be misleading.
+                // Record which references the bundle holds, and check the
+                // first file of each so that a bundle missing its media is
+                // still reported at open. Working out every frame's byte
+                // range waits until the reference is read: for a bundle of
+                // 25,000 frames that was seconds of URL decoding and path
+                // parsing before anything appeared.
                 const auto mapMediaReference = [&](
                     OTIO_NS::MediaReference* mediaReference,
                     bool active)
                 {
                     if (!mediaReference ||
-                        p.memFiles.find(mediaReference) != p.memFiles.end())
+                        p.bundleMediaReferences.find(mediaReference) !=
+                            p.bundleMediaReferences.end())
                     {
                         return;
                     }
 
-                    std::vector<std::string> mediaFileNames;
+                    std::string first;
                     if (auto externalReference =
                         dynamic_cast<OTIO_NS::ExternalReference*>(mediaReference))
                     {
-                        mediaFileNames.push_back(ftk::Path(
-                            decodeURL(externalReference->target_url())).get());
+                        first = ftk::Path(
+                            decodeURL(externalReference->target_url())).get();
                     }
                     else if (auto imageSeqReference =
                         dynamic_cast<OTIO_NS::ImageSequenceReference*>(mediaReference))
                     {
-                        for (int number = 0;
-                            number < imageSeqReference->number_of_images_in_sequence();
-                            ++number)
+                        if (imageSeqReference->number_of_images_in_sequence() <= 0)
                         {
-                            mediaFileNames.push_back(ftk::Path(
-                                decodeURL(imageSeqReference->target_url_for_image_number(number))).get());
+                            return;
                         }
+                        first = ftk::Path(decodeURL(
+                            imageSeqReference->target_url_for_image_number(0))).get();
                     }
                     else
                     {
                         return;
                     }
 
-                    std::vector<ftk::MemFile> mem;
-                    for (const auto& mediaFileName : mediaFileNames)
+                    if (!zipReader.find(first).has_value())
                     {
-                        auto entry = zipReader.find(mediaFileName);
-                        if (!entry.has_value())
+                        if (active)
                         {
-                            if (active)
-                            {
-                                throw std::runtime_error(ftk::Format(
-                                    "Cannot find zip entry: \"{0}\"").arg(mediaFileName));
-                            }
-                            logSystem->print(
-                                "tl::Timeline",
-                                ftk::Format(
-                                    "Cannot find zip entry: \"{0}\"; this media "
-                                    "reference cannot be used").
-                                arg(mediaFileName),
-                                ftk::LogType::Warning);
-                            p.unavailableMediaReferences.insert(mediaReference);
-                            return;
+                            throw std::runtime_error(ftk::Format(
+                                "Cannot find zip entry: \"{0}\"").arg(first));
                         }
-
-                        mem.push_back(ftk::MemFile(
-                            p.fileIO,
-                            p.fileIO->getMemStart() + entry->offset,
-                            entry->size));
+                        logSystem->print(
+                            "tl::Timeline",
+                            ftk::Format(
+                                "Cannot find zip entry: \"{0}\"; this media "
+                                "reference cannot be used").
+                            arg(first),
+                            ftk::LogType::Warning);
+                        p.unavailableMediaReferences.insert(mediaReference);
+                        return;
                     }
-                    p.memFiles[mediaReference] = mem;
+                    p.bundleMediaReferences.insert(mediaReference);
                 };
 
                 // Map every media reference, not only the active one, so that
@@ -870,8 +867,62 @@ namespace tl
     std::vector<ftk::MemFile> Timeline::getMem(const OTIO_NS::MediaReference* otioRef)
     {
         FTK_P();
+        std::unique_lock<std::mutex> lock(p.memFilesMutex);
         const auto i = p.memFiles.find(otioRef);
-        return i != p.memFiles.end() ? i->second : std::vector<ftk::MemFile>{};
+        if (i != p.memFiles.end())
+        {
+            return *i->second;
+        }
+        if (p.bundleMediaReferences.find(otioRef) ==
+            p.bundleMediaReferences.end())
+        {
+            return std::vector<ftk::MemFile>();
+        }
+
+        // First use of this reference: work out where each of its files lives
+        // inside the bundle.
+        auto out = std::make_shared<std::vector<ftk::MemFile> >();
+        std::vector<std::string> mediaFileNames;
+        if (auto externalReference = dynamic_cast<const OTIO_NS::ExternalReference*>(otioRef))
+        {
+            mediaFileNames.push_back(ftk::Path(
+                decodeURL(externalReference->target_url())).get());
+        }
+        else if (auto imageSeqReference =
+            dynamic_cast<const OTIO_NS::ImageSequenceReference*>(otioRef))
+        {
+            const int count = imageSeqReference->number_of_images_in_sequence();
+            mediaFileNames.reserve(count);
+            for (int number = 0; number < count; ++number)
+            {
+                mediaFileNames.push_back(ftk::Path(decodeURL(
+                    imageSeqReference->target_url_for_image_number(number))).get());
+            }
+        }
+        out->reserve(mediaFileNames.size());
+        for (const auto& mediaFileName : mediaFileNames)
+        {
+            const auto entry = p.zipReader->find(mediaFileName);
+            if (!entry.has_value())
+            {
+                if (auto logSystem = p.logSystem.lock())
+                {
+                    logSystem->print(
+                        "tl::Timeline",
+                        ftk::Format("Cannot find zip entry: \"{0}\"").
+                            arg(mediaFileName),
+                        ftk::LogType::Error);
+                }
+                out->clear();
+                break;
+            }
+            out->push_back(ftk::MemFile(
+                p.fileIO,
+                p.fileIO->getMemStart() + entry->offset,
+                entry->size));
+        }
+        p.memFiles[otioRef] = out;
+        return *out;
     }
 
     OTIO_NS::MediaReference* Timeline::Private::mediaReference(
