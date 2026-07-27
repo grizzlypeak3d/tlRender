@@ -908,14 +908,21 @@ namespace tl
             const auto entry = p.zipReader->find(mediaFileName);
             if (!entry.has_value())
             {
+                // The bundle does not hold this media after all. Mark the
+                // reference unavailable rather than returning nothing: an
+                // empty result reads as "not in a bundle", and the caller
+                // would go on to read the media from its path, which is a
+                // different file than the bundle describes.
                 if (auto logSystem = p.logSystem.lock())
                 {
                     logSystem->print(
                         "tl::Timeline",
-                        ftk::Format("Cannot find zip entry: \"{0}\"").
-                            arg(mediaFileName),
+                        ftk::Format(
+                            "Cannot find zip entry: \"{0}\"; this media "
+                            "reference cannot be used").arg(mediaFileName),
                         ftk::LogType::Error);
                 }
+                p.unavailableMediaReferences.insert(otioRef);
                 out->clear();
                 break;
             }
@@ -1302,8 +1309,7 @@ namespace tl
     {
         FTK_P();
         std::shared_ptr<SeqDecode> out;
-        if (p.unavailableMediaReferences.find(mediaReference) !=
-            p.unavailableMediaReferences.end())
+        if (p.mediaUnavailable(mediaReference))
         {
             return out;
         }
@@ -1338,7 +1344,14 @@ namespace tl
                 ftk::Format("{0}").arg(p.timeRange.duration().rate());
             try
             {
-                out = SeqDecode::create(path, getMem(mediaReference), decode, options);
+                const auto mem = getMem(mediaReference);
+                if (p.mediaUnavailable(mediaReference))
+                {
+                    // Resolving its byte ranges said the bundle does not
+                    // hold it; reading it from its path is not the same file.
+                    return out;
+                }
+                out = SeqDecode::create(path, mem, decode, options);
             }
             catch (const std::exception& e)
             {
@@ -1389,8 +1402,7 @@ namespace tl
     {
         FTK_P();
         std::shared_ptr<IRead> out;
-        if (p.unavailableMediaReferences.find(mediaReference) !=
-            p.unavailableMediaReferences.end())
+        if (p.mediaUnavailable(mediaReference))
         {
             // Named by the bundle but not inside it. Reading it from its path
             // would be reading a different file than the bundle describes.
@@ -1407,6 +1419,10 @@ namespace tl
             if (auto context = p.context.lock())
             {
                 const auto mem = getMem(mediaReference);
+                if (p.mediaUnavailable(mediaReference))
+                {
+                    return out;
+                }
                 IOOptions options = ioOptions;
                 options["SeqIO/DefaultSpeed"] = ftk::Format("{0}").arg(p.timeRange.duration().rate());
                 const auto ioSystem = context->getSystem<ReadSystem>();
@@ -2126,6 +2142,14 @@ namespace tl
                 }
             }
         }
+    }
+
+    bool Timeline::Private::mediaUnavailable(
+        const OTIO_NS::MediaReference* mediaReference)
+    {
+        std::unique_lock<std::mutex> lock(memFilesMutex);
+        return unavailableMediaReferences.find(mediaReference) !=
+            unavailableMediaReferences.end();
     }
 
     void Timeline::Private::abandon(

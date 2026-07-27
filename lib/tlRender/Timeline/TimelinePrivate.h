@@ -43,6 +43,10 @@ namespace tl
         // misleading; reading one of these fails instead. Filled in while the
         // timeline is read and only read afterwards.
         std::set<const OTIO_NS::MediaReference*> unavailableMediaReferences;
+        // Guarded by memFilesMutex once the timeline is running, since a
+        // reference can also turn out to be unavailable when its byte ranges
+        // are worked out on first read.
+        bool mediaUnavailable(const OTIO_NS::MediaReference*);
         ftk::Path path;
         ftk::Path audioPath;
         Options options;
