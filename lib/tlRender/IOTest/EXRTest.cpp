@@ -284,44 +284,87 @@ namespace tl
                 { "OpenEXR/DWACompressionLevel", "100" }
             };
 
+            // These dimensions do not interact: a compression setting
+            // behaves the same on a non-ASCII path, and a pixel type behaves
+            // the same under either channel grouping. Crossing all of them
+            // ran thousands of round trips to cover what sweeping each one
+            // covers, and it dominated how long the suite took.
+            struct Case
+            {
+                std::string fileName;
+                bool memoryIO = false;
+                ftk::Size2I size;
+                ftk::ImageType pixelType = ftk::ImageType::RGBA_F16;
+                std::pair<std::string, std::string> option;
+            };
+            Case base;
+            base.fileName = fileNames[0];
+            base.size = ftk::Size2I(16, 16);
+            base.option = { "OpenEXR/Compression", "ZIP" };
+
+            std::vector<Case> cases;
+            // Every pixel type at every size, from a file and from memory.
+            for (const bool memoryIO : memoryIOList)
+            {
+                for (const auto& size : sizes)
+                {
+                    for (const auto pixelType : ftk::getImageTypeEnums())
+                    {
+                        Case c = base;
+                        c.memoryIO = memoryIO;
+                        c.size = size;
+                        c.pixelType = pixelType;
+                        cases.push_back(c);
+                    }
+                }
+            }
+            // Every option, from a file and from memory.
+            for (const bool memoryIO : memoryIOList)
+            {
+                for (const auto& option : options)
+                {
+                    Case c = base;
+                    c.memoryIO = memoryIO;
+                    c.option = option;
+                    cases.push_back(c);
+                }
+            }
+            // Every path.
             for (const auto& fileName : fileNames)
             {
-                for (const bool memoryIO : memoryIOList)
+                Case c = base;
+                c.fileName = fileName;
+                cases.push_back(c);
+            }
+
+            for (const auto& c : cases)
+            {
+                IOOptions ioOptions;
+                ioOptions[c.option.first] = c.option.second;
+                const auto imageInfo = writePlugin->getInfo(
+                    ftk::ImageInfo(c.size, c.pixelType));
+                if (imageInfo.isValid())
                 {
-                    for (const auto& size : sizes)
+                    ftk::Path path;
                     {
-                        for (const auto pixelType : ftk::getImageTypeEnums())
-                        {
-                            for (const auto& option : options)
-                            {
-                                IOOptions options;
-                                options[option.first] = option.second;
-                                const auto imageInfo = writePlugin->getInfo(ftk::ImageInfo(size, pixelType));
-                                if (imageInfo.isValid())
-                                {
-                                    ftk::Path path;
-                                    {
-                                        std::stringstream ss;
-                                        ss << fileName << ' ' << size << ' ' << pixelType << ".0.exr";
-                                        _print(ss.str());
-                                        path = ftk::Path((_getTempDir() / ss.str()).u8string());
-                                    }
-                                    auto image = ftk::Image::create(imageInfo);
-                                    image->zero();
-                                    image->setTags(tags);
-                                    try
-                                    {
-                                        write(writePlugin, image, path, imageInfo, tags, options);
-                                        read(readPlugin, image, path, memoryIO, tags, options);
-                                        readError(readPlugin, image, path, memoryIO, options);
-                                    }
-                                    catch (const std::exception& e)
-                                    {
-                                        _error(e.what());
-                                    }
-                                }
-                            }
-                        }
+                        std::stringstream ss;
+                        ss << c.fileName << ' ' << c.size << ' ' <<
+                            c.pixelType << ".0.exr";
+                        _print(ss.str());
+                        path = ftk::Path((_getTempDir() / ss.str()).u8string());
+                    }
+                    auto image = ftk::Image::create(imageInfo);
+                    image->zero();
+                    image->setTags(tags);
+                    try
+                    {
+                        write(writePlugin, image, path, imageInfo, tags, ioOptions);
+                        read(readPlugin, image, path, c.memoryIO, tags, ioOptions);
+                        readError(readPlugin, image, path, c.memoryIO, ioOptions);
+                    }
+                    catch (const std::exception& e)
+                    {
+                        _error(e.what());
                     }
                 }
             }

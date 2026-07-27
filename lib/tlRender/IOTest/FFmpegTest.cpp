@@ -177,7 +177,12 @@ namespace tl
             };
             const std::vector<ftk::Size2I> sizes =
             {
-                ftk::Size2I(640, 480),
+                // Large enough to encode as more than one macroblock, which
+                // is what distinguishes this from the small size below.
+                // Every pixel here is encoded and decoded again for each
+                // pixel type and option, so the resolution sets how long
+                // this test takes.
+                ftk::Size2I(160, 120),
                 ftk::Size2I(80, 60),
                 ftk::Size2I(0, 0)
             };
