@@ -20,7 +20,13 @@
 #include <ftk/Core/String.h>
 #include <ftk/Core/Timer.h>
 
+#include <algorithm>
+#include <atomic>
+#include <chrono>
+#include <list>
+#include <mutex>
 #include <sstream>
+#include <thread>
 
 namespace tl
 {
