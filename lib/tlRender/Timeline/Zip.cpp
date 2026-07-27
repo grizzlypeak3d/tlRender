@@ -7,6 +7,7 @@
 #include <ftk/Core/Format.h>
 
 #include <algorithm>
+#include <array>
 #include <vector>
 
 namespace tl
@@ -40,6 +41,21 @@ namespace tl
         //! The extra field is the only unknown between a local header and its
         //! data, and it is length prefixed with sixteen bits.
         constexpr int64_t zipMaxExtraSize = 65535;
+
+        //! The largest size a thirty-two bit field can hold. An entry above
+        //! it needs sixty-four bit sizes, which makes its data descriptor
+        //! eight bytes longer.
+        constexpr int64_t zipMaxU32 = 0xFFFFFFFF;
+
+        //! Entries are grouped by what follows their data, since that is what
+        //! the derivation has to account for.
+        enum Group
+        {
+            GroupNone,      // nothing between the data and the next header
+            GroupTrailer,   // a data descriptor with thirty-two bit sizes
+            GroupTrailer64, // a data descriptor with sixty-four bit sizes
+            GroupCount
+        };
 
         //! The largest data descriptor: a signature, a CRC and two eight
         //! byte sizes.
@@ -136,6 +152,7 @@ namespace tl
             int64_t     minDataOffset = 0;
             bool        trailer = false;
             int64_t     dataOffset = -1;
+            int         group = GroupNone;
         };
         std::vector<Record> records;
         // Where every entry's local header starts, including the entries this
@@ -231,13 +248,18 @@ namespace tl
                 boundaries.begin(), boundaries.end(), headerOffset);
             return i != boundaries.end() ? *i : -1;
         };
-        std::vector<size_t> plain;
-        std::vector<size_t> trailing;
+        // Which descriptor a streamed entry gets follows from its own size,
+        // so group by that rather than hoping a sample lands on the few large
+        // entries in an archive of mostly small ones.
+        std::array<std::vector<size_t>, GroupCount> groups;
         for (size_t i = 0; i < records.size(); ++i)
         {
+            records[i].group = !records[i].trailer ?
+                GroupNone :
+                (records[i].size > zipMaxU32 ? GroupTrailer64 : GroupTrailer);
             if (nextBoundary(records[i].headerOffset) >= 0)
             {
-                (records[i].trailer ? trailing : plain).push_back(i);
+                groups[records[i].group].push_back(i);
             }
         }
         const auto measureGap =
@@ -273,11 +295,11 @@ namespace tl
             }
             return true;
         };
-        int64_t plainGap = 0;
-        int64_t trailingGap = 0;
-        derivable = derivable &&
-            measureGap(plain, plainGap) &&
-            measureGap(trailing, trailingGap);
+        std::array<int64_t, GroupCount> gaps = { 0, 0, 0 };
+        for (int i = 0; i < GroupCount && derivable; ++i)
+        {
+            derivable = measureGap(groups[i], gaps[i]);
+        }
         if (derivable)
         {
             for (size_t i = 0; i < records.size(); ++i)
@@ -288,10 +310,7 @@ namespace tl
                 {
                     continue;
                 }
-                const int64_t derived =
-                    next -
-                    record.size -
-                    (record.trailer ? trailingGap : plainGap);
+                const int64_t derived = next - record.size - gaps[record.group];
                 if (derived >= record.minDataOffset &&
                     derived - record.minDataOffset <= zipMaxExtraSize)
                 {
