@@ -644,6 +644,20 @@ namespace tl
 
         // Get information about the timeline.
         p.timeRange = tl::getTimeRange(p.otioTimeline.value);
+        for (const auto& otioClip :
+            p.otioTimeline.value->find_children<OTIO_NS::Clip>())
+        {
+            for (const auto& i : otioClip->media_references())
+            {
+                if (i.second)
+                {
+                    p.mediaByPath[tl::getPath(
+                        i.second,
+                        p.path.getDir(),
+                        p.options.pathOptions).get()] = i.second;
+                }
+            }
+        }
         for (const auto& i : p.otioTimeline.value->tracks()->children())
         {
             if (auto otioTrack = dynamic_cast<const OTIO_NS::Track*>(i.value))
@@ -873,24 +887,6 @@ namespace tl
     {
         // Every media reference in the timeline, active or not, so that a
         // caller can name one that is not the one currently being played.
-        std::vector<OTIO_NS::MediaReference*> getMediaReferences(
-            const OTIO_NS::Timeline* otioTimeline)
-        {
-            std::vector<OTIO_NS::MediaReference*> out;
-            for (const auto& otioClip :
-                otioTimeline->find_children<OTIO_NS::Clip>())
-            {
-                for (const auto& i : otioClip->media_references())
-                {
-                    if (i.second &&
-                        std::find(out.begin(), out.end(), i.second) == out.end())
-                    {
-                        out.push_back(i.second);
-                    }
-                }
-            }
-            return out;
-        }
     }
 
     size_t Timeline::getVideoRequestMax() const
@@ -907,13 +903,9 @@ namespace tl
     {
         FTK_P();
         std::vector<ftk::Path> out;
-        for (const auto& mediaReference :
-            getMediaReferences(p.otioTimeline.value))
+        for (const auto& i : p.mediaByPath)
         {
-            out.push_back(tl::getPath(
-                mediaReference,
-                p.path.getDir(),
-                p.options.pathOptions));
+            out.push_back(ftk::Path(i.first));
         }
         return out;
     }
@@ -921,19 +913,8 @@ namespace tl
     OTIO_NS::MediaReference* Timeline::_findMedia(const ftk::Path& path)
     {
         FTK_P();
-        for (const auto& mediaReference :
-            getMediaReferences(p.otioTimeline.value))
-        {
-            const auto i = tl::getPath(
-                mediaReference,
-                p.path.getDir(),
-                p.options.pathOptions);
-            if (i.get() == path.get())
-            {
-                return mediaReference;
-            }
-        }
-        return nullptr;
+        const auto i = p.mediaByPath.find(path.get());
+        return i != p.mediaByPath.end() ? i->second : nullptr;
     }
 
     bool Timeline::getMediaInfo(const ftk::Path& path, IOInfo& out)
