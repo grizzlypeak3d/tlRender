@@ -52,7 +52,6 @@ namespace tl
 
     void ZipReader::open(
         const std::string& fileName,
-        const uint8_t* fileMMap,
         size_t fileSize)
     {
         if (_reader)
@@ -62,7 +61,6 @@ namespace tl
         }
 
         _fileName = fileName;
-        _fileMMap = fileMMap;
         _fileSize = fileSize;
 
         _reader.reset(mz_zip_reader_create());
@@ -85,10 +83,15 @@ namespace tl
                 "Cannot goto first zip entry: \"{0}\"").arg(fileName));
         }
 
+        // Thirty bytes at a time, one before each file's data, so the reads are
+        // scattered across the whole bundle. Asking for sequential read ahead
+        // here would fetch a cluster around each one and throw it away, which is
+        // the cost this is avoiding in the first place.
         auto headerIO = ftk::FileIO::create(
             fileName,
             ftk::FileMode::Read,
-            ftk::FileRead::Normal);
+            ftk::FileRead::Normal,
+            ftk::FileAccess::Random);
         while (MZ_OK == err)
         {
             mz_zip_file* fileInfo = nullptr;

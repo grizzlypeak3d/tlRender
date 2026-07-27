@@ -425,7 +425,7 @@ namespace tl
                     ftk::FileAccess::Random);
 
                 ZipReader zipReader(logSystem);
-                zipReader.open(fileName, p.fileIO->getMemStart(), p.fileIO->getSize());
+                zipReader.open(fileName, p.fileIO->getSize());
 
                 std::string json = zipReader.readText("content.otio");
                 otioTimeline = dynamic_cast<OTIO_NS::Timeline*>(

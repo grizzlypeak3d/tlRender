@@ -37,7 +37,6 @@ namespace tl
 
         void open(
             const std::string& fileName,
-            const uint8_t* fileMMap,
             size_t fileSize);
 
         struct Entry { int64_t offset; int64_t size; };
@@ -49,7 +48,6 @@ namespace tl
     private:
         std::shared_ptr<ftk::LogSystem> _logSystem;
         std::string _fileName;
-        const uint8_t* _fileMMap = nullptr;
         size_t _fileSize = 0;
         MZReaderPtr _reader;
         std::map<std::string, Entry> _entries;
