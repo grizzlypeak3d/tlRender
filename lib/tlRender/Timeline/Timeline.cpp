@@ -1196,6 +1196,7 @@ namespace tl
             // caller blocking on the future would have no way to find out
             // that it is never going to resolve; reaching the bound is a bug
             // here rather than a slow read.
+            std::unique_lock<std::mutex> driver(p.driverMutex);
             const auto start = std::chrono::steady_clock::now();
             while (out.future.valid() &&
                 out.future.wait_for(std::chrono::seconds(0)) !=
@@ -1248,6 +1249,7 @@ namespace tl
             // caller blocking on the future would have no way to find out
             // that it is never going to resolve; reaching the bound is a bug
             // here rather than a slow read.
+            std::unique_lock<std::mutex> driver(p.driverMutex);
             const auto start = std::chrono::steady_clock::now();
             while (out.future.valid() &&
                 out.future.wait_for(std::chrono::seconds(0)) !=

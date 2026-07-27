@@ -84,13 +84,30 @@ namespace tl
                 // seconds, so opening it three times is three times too
                 // many. The timeline has no thread of its own and guards its
                 // caches, so the threads can read it at once.
-                std::unique_lock<std::mutex> lock(mutex);
                 std::shared_ptr<Timeline> out;
-                if (!cache.get(path.get(), out))
                 {
-                    Options options;
-                    options.threaded = false;
-                    out = Timeline::create(context, path, options);
+                    std::unique_lock<std::mutex> lock(mutex);
+                    if (cache.get(path.get(), out))
+                    {
+                        return out;
+                    }
+                }
+
+                // Opened without the lock: a bundle takes seconds and a movie
+                // needs a probe, and holding the lock across that would stall
+                // every request for every other file. Two threads opening the
+                // same file at once is cheaper than that, and only one of the
+                // two ends up in the cache.
+                Options options;
+                options.threaded = false;
+                out = Timeline::create(context, path, options);
+                {
+                    std::unique_lock<std::mutex> lock(mutex);
+                    std::shared_ptr<Timeline> other;
+                    if (cache.get(path.get(), other))
+                    {
+                        return other;
+                    }
                     cache.add(path.get(), out);
                 }
                 return out;

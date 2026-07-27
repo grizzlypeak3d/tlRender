@@ -50,6 +50,11 @@ namespace tl
         ftk::Path path;
         ftk::Path audioPath;
         Options options;
+        // Held while a caller drives an unthreaded timeline. _requests()
+        // mutates the thread-owned lists without locking, on the assumption
+        // that one thread runs it; without a thread that is whichever caller
+        // is in getVideo()/getAudio(), and the thumbnail system has three.
+        std::mutex driverMutex;
         // Guards the two caches below. They were owned by the request
         // thread, but a timeline opened without one is read by whichever
         // thread drives it, and the thumbnail system drives one from three.

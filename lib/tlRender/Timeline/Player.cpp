@@ -89,6 +89,14 @@ namespace tl
         }
 
         p.playerOptions = playerOptions;
+        // Asking for fewer frames than the timeline can decode at once leaves
+        // its decoding threads with nothing to do. The default here cannot
+        // know the timeline's thread count, so raise it to match; a caller
+        // that asked for more keeps what it asked for.
+        if (p.playerOptions.videoRequestMax < timeline->getVideoRequestMax())
+        {
+            p.playerOptions.videoRequestMax = timeline->getVideoRequestMax();
+        }
         p.timeline = timeline;
         p.timeRange = timeline->getTimeRange();
         p.sourceAudioInfo = timeline->getIOInfo().audio;
