@@ -617,7 +617,10 @@ namespace tl
         p.options = options;
         p.readCache.setMax(readCacheMax);
         p.seqCache.setMax(seqCacheMax);
-        p.startReadPool(SeqOptions().threadCount);
+        if (p.options.threaded)
+        {
+            p.startReadPool(SeqOptions().threadCount);
+        }
 
         // Get information about the timeline.
         p.timeRange = tl::getTimeRange(p.otioTimeline.value);
@@ -698,17 +701,20 @@ namespace tl
 
         // Create a new thread.
         p.thread.running = true;
-        p.thread.thread = std::thread(
-            [this]
-            {
-                FTK_P();
-                p.thread.logTimer = std::chrono::steady_clock::now();
-                while (p.thread.running)
+        p.thread.logTimer = std::chrono::steady_clock::now();
+        if (p.options.threaded)
+        {
+            p.thread.thread = std::thread(
+                [this]
                 {
-                    _tick();
-                }
-                _finishRequests();
-            });
+                    FTK_P();
+                    while (p.thread.running)
+                    {
+                        _tick();
+                    }
+                    _finishRequests();
+                });
+        }
     }
 
     namespace
@@ -993,6 +999,16 @@ namespace tl
         {
             request->promise.set_value(VideoFrame());
         }
+        if (!p.options.threaded)
+        {
+            // Nothing else is going to run this request.
+            while (out.future.valid() &&
+                out.future.wait_for(std::chrono::seconds(0)) !=
+                    std::future_status::ready)
+            {
+                _tick();
+            }
+        }
         return out;
     }
 
@@ -1025,6 +1041,16 @@ namespace tl
         else
         {
             request->promise.set_value(AudioFrame());
+        }
+        if (!p.options.threaded)
+        {
+            // Nothing else is going to run this request.
+            while (out.future.valid() &&
+                out.future.wait_for(std::chrono::seconds(0)) !=
+                    std::future_status::ready)
+            {
+                _tick();
+            }
         }
         return out;
     }
@@ -1848,6 +1874,19 @@ namespace tl
         ReadPool::Task task;
         task.f = std::move(f);
         auto out = task.promise.get_future();
+        if (readPool.threads.empty())
+        {
+            // No pool: the caller is the worker.
+            VideoData data;
+            try
+            {
+                data = task.f();
+            }
+            catch (const std::exception&)
+            {}
+            task.promise.set_value(data);
+            return out;
+        }
         bool queued = false;
         {
             std::unique_lock<std::mutex> lock(readPool.mutex);

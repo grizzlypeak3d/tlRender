@@ -30,6 +30,7 @@ namespace tl
             imageSeqAudioExts == other.imageSeqAudioExts &&
             imageSeqAudioFileName == other.imageSeqAudioFileName &&
             compat == other.compat &&
+            threaded == other.threaded &&
             videoRequestMax == other.videoRequestMax &&
             audioRequestMax == other.audioRequestMax &&
             requestTimeout == other.requestTimeout &&

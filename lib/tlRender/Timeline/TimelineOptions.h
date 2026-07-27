@@ -60,6 +60,15 @@ namespace tl
         //! to specification.
         bool compat = true;
 
+        //! Run the timeline on its own thread.
+        //!
+        //! When this is false the timeline has no thread and no read pool:
+        //! a request is filled by the call that makes it, and the future it
+        //! returns is already resolved. That is what a caller that only
+        //! wants a frame or two wants, and it is what lets a thumbnail be
+        //! taken without a thread per file.
+        bool threaded = true;
+
         //! Maximum number of video requests.
         size_t videoRequestMax = 16;
 

@@ -9,6 +9,8 @@
 #include <tlRender/IO/System.h>
 
 #include <ftk/Core/Assert.h>
+
+#include <cstring>
 #include <ftk/Core/Format.h>
 
 #include <opentimelineio/clip.h>
@@ -39,6 +41,7 @@ namespace tl
             _transitions();
             _videoData();
             _timeline();
+            _synchronous();
             _separateAudio();
             _spatial();
             _mediaReferences();
@@ -677,5 +680,54 @@ namespace tl
                 _error(e.what());
             }
         }
-    }
+    
+        void TimelineTest::_synchronous()
+        {
+            // A timeline with no thread has to produce what a threaded one
+            // produces; it is the same request path, run by the caller.
+            const ftk::Path path(TLRENDER_SAMPLE_DATA, "SingleClipSeq.otioz");
+            Options options;
+            options.threaded = false;
+            auto sync = Timeline::create(_context, path, options);
+            auto threaded = Timeline::create(_context, path);
+            FTK_ASSERT(sync->getTimeRange() == threaded->getTimeRange());
+            FTK_ASSERT(sync->getIOInfo().video == threaded->getIOInfo().video);
+
+            const size_t frameCount = std::min(
+                static_cast<size_t>(sync->getTimeRange().duration().value()),
+                size_t(5));
+            for (size_t i = 0; i < frameCount; ++i)
+            {
+                const OTIO_NS::RationalTime time(i, 24.0);
+
+                // The future is already resolved when there is no thread.
+                auto request = sync->getVideo(time);
+                FTK_ASSERT(request.future.valid());
+                FTK_ASSERT(request.future.wait_for(std::chrono::seconds(0)) ==
+                    std::future_status::ready);
+                const VideoFrame a = request.future.get();
+
+                auto other = threaded->getVideo(time);
+                const VideoFrame b = other.future.get();
+
+                FTK_ASSERT(a.layers.size() == b.layers.size());
+                for (size_t j = 0; j < a.layers.size(); ++j)
+                {
+                    const auto& imageA = a.layers[j].image;
+                    const auto& imageB = b.layers[j].image;
+                    FTK_ASSERT(!imageA == !imageB);
+                    if (imageA && imageB)
+                    {
+                        FTK_ASSERT(imageA->getSize() == imageB->getSize());
+                        FTK_ASSERT(imageA->getByteCount() == imageB->getByteCount());
+                        FTK_ASSERT(0 == memcmp(
+                            imageA->getData(),
+                            imageB->getData(),
+                            imageB->getByteCount()));
+                    }
+                }
+            }
+            _print("synchronous timeline matches the threaded one");
+        }
+}
 }
