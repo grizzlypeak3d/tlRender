@@ -5,8 +5,36 @@
 
 #include <ftk/Core/LogSystem.h>
 
+#include <mutex>
+#include <vector>
+
+#if defined(_WIN32)
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <windows.h>
+#endif
+
 namespace tl
 {
+    struct IRead::CancellationState
+    {
+        std::shared_ptr<std::atomic_bool> cancelled =
+            std::make_shared<std::atomic_bool>(false);
+#if defined(_WIN32)
+        struct ThreadHandle
+        {
+            DWORD id = 0;
+            HANDLE handle = nullptr;
+        };
+        std::mutex mutex;
+        std::vector<ThreadHandle> threads;
+#endif
+    };
+
     void IRead::_init(
         const ftk::Path& path,
         const std::vector<ftk::MemFile>& mem,
@@ -17,11 +45,96 @@ namespace tl
         _mem = mem;
     }
 
-    IRead::IRead()
+    IRead::IRead() :
+        _cancellation(std::make_shared<CancellationState>())
     {}
 
     IRead::~IRead()
-    {}
+    {
+        cancelIO();
+#if defined(_WIN32)
+        std::lock_guard<std::mutex> lock(_cancellation->mutex);
+        for (const auto& i : _cancellation->threads)
+        {
+            if (i.handle)
+            {
+                CloseHandle(i.handle);
+            }
+        }
+        _cancellation->threads.clear();
+#endif
+    }
+
+    void IRead::cancelIO()
+    {
+        _cancellation->cancelled->store(true, std::memory_order_release);
+#if defined(_WIN32)
+        std::lock_guard<std::mutex> lock(_cancellation->mutex);
+        for (const auto& i : _cancellation->threads)
+        {
+            if (i.handle)
+            {
+                CancelSynchronousIo(i.handle);
+            }
+        }
+#endif
+    }
+
+    bool IRead::isIOCancellationRequested() const
+    {
+        return _cancellation->cancelled->load(std::memory_order_acquire);
+    }
+
+    void IRead::_bindIOCancellation()
+    {
+#if defined(_WIN32)
+        HANDLE duplicate = nullptr;
+        if (!DuplicateHandle(
+            GetCurrentProcess(),
+            GetCurrentThread(),
+            GetCurrentProcess(),
+            &duplicate,
+            0,
+            FALSE,
+            DUPLICATE_SAME_ACCESS))
+        {
+            return;
+        }
+        const DWORD id = GetCurrentThreadId();
+        std::lock_guard<std::mutex> lock(_cancellation->mutex);
+        _cancellation->threads.push_back({ id, duplicate });
+        if (_cancellation->cancelled->load(std::memory_order_acquire))
+        {
+            CancelSynchronousIo(duplicate);
+        }
+#endif
+    }
+
+    void IRead::_unbindIOCancellation()
+    {
+#if defined(_WIN32)
+        const DWORD id = GetCurrentThreadId();
+        std::lock_guard<std::mutex> lock(_cancellation->mutex);
+        for (auto i = _cancellation->threads.begin();
+            i != _cancellation->threads.end(); ++i)
+        {
+            if (i->id == id)
+            {
+                if (i->handle)
+                {
+                    CloseHandle(i->handle);
+                }
+                _cancellation->threads.erase(i);
+                break;
+            }
+        }
+#endif
+    }
+
+    const std::shared_ptr<std::atomic_bool>& IRead::_getIOCancellationFlag() const
+    {
+        return _cancellation->cancelled;
+    }
 
     std::string IRead::getError() const
     {

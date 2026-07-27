@@ -40,6 +40,7 @@ set(SOURCE
     System.cpp
     TimeUnits.cpp
     Timeline.cpp
+    TimelineCancellation.cpp
     TimelineOptions.cpp
     Transition.cpp
     Util.cpp

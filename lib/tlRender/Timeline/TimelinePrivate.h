@@ -96,6 +96,9 @@ namespace tl
         ftk::Path path;
         ftk::Path audioPath;
         Options options;
+        // Present only while timeline metadata is being read. It can own
+        // both the video and audio probes used by the split reader model.
+        std::shared_ptr<TimelineInitCancellation> initCancellation;
         // Held while a caller drives an unthreaded timeline. _requests()
         // mutates the thread-owned lists without locking, on the assumption
         // that one thread runs it; without a thread that is whichever caller

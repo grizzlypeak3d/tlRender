@@ -33,6 +33,7 @@ namespace tl
 
         void IOTest::run()
         {
+            _cancellation();
             _videoData();
             _ioSystem();
             _decode();
@@ -40,6 +41,35 @@ namespace tl
             _missingFrames();
             _seqRange();
             _structural();
+        }
+
+        namespace
+        {
+            class CancellationRead : public IRead
+            {
+            public:
+                std::future<IOInfo> getInfo() override
+                {
+                    std::promise<IOInfo> promise;
+                    promise.set_value(IOInfo());
+                    return promise.get_future();
+                }
+
+                void cancelRequests() override
+                {}
+            };
+        }
+
+        void IOTest::_cancellation()
+        {
+            CancellationRead read;
+            FTK_ASSERT(!read.isIOCancellationRequested());
+            read.cancelIO();
+            FTK_ASSERT(read.isIOCancellationRequested());
+
+            // Cancellation is irreversible and safe to request repeatedly.
+            read.cancelIO();
+            FTK_ASSERT(read.isIOCancellationRequested());
         }
 
         void IOTest::_videoData()

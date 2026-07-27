@@ -22,6 +22,7 @@ namespace tl
             void run() override;
 
         private:
+            void _cancellation();
             void _enums();
             void _options();
             void _util();
