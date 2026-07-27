@@ -35,6 +35,37 @@ namespace tl
                 FTK_ASSERT(options != CompareOptions());
             }
             {
+                CompareOptions options;
+                options.compare = Compare::Tile;
+                options.tileZoomSync = false;
+                options.tileZooms = { 1.0, 2.0 };
+                FTK_ASSERT(1.0 == getTileZoom(options, 0));
+                FTK_ASSERT(2.0 == getTileZoom(options, 1));
+                FTK_ASSERT(1.0 == getTileZoom(options, 2));
+                FTK_ASSERT(
+                    ftk::Box2I(-50, -50, 200, 200) ==
+                    getTileZoomBox(
+                        ftk::Box2I(0, 0, 100, 100),
+                        ftk::Box2I(0, 0, 100, 100),
+                        2.0));
+                FTK_ASSERT(
+                    ftk::Box2I(25, 25, 50, 50) ==
+                    getTileZoomBox(
+                        ftk::Box2I(0, 0, 100, 100),
+                        ftk::Box2I(0, 0, 100, 100),
+                        .5));
+
+                nlohmann::json json = options;
+                const CompareOptions roundTrip = json.get<CompareOptions>();
+                FTK_ASSERT(options == roundTrip);
+
+                json.erase("TileZoomSync");
+                json.erase("TileZooms");
+                const CompareOptions legacy = json.get<CompareOptions>();
+                FTK_ASSERT(legacy.tileZoomSync);
+                FTK_ASSERT(legacy.tileZooms.empty());
+            }
+            {
                 const std::vector<ftk::ImageInfo> infos =
                 {
                     ftk::ImageInfo(1920, 1080, ftk::ImageType::RGBA_U8),

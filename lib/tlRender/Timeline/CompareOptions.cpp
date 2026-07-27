@@ -81,12 +81,41 @@ namespace tl
             wipeCenter == other.wipeCenter &&
             wipeRotation == other.wipeRotation &&
             overlay == other.overlay &&
-            fitToA == other.fitToA;
+            fitToA == other.fitToA &&
+            tileZoomSync == other.tileZoomSync &&
+            tileZooms == other.tileZooms;
     }
 
     bool CompareOptions::operator != (const CompareOptions& other) const
     {
         return !(*this == other);
+    }
+
+    double getTileZoom(const CompareOptions& options, size_t index)
+    {
+        return
+            index < options.tileZooms.size() &&
+            options.tileZooms[index] > 0.0 ?
+            options.tileZooms[index] :
+            1.0;
+    }
+
+    ftk::Box2I getTileZoomBox(
+        const ftk::Box2I& box,
+        const ftk::Box2I& tile,
+        double zoom)
+    {
+        const double value = zoom > 0.0 ? zoom : 1.0;
+        const ftk::V2F center(
+            tile.x() + tile.w() / 2.F,
+            tile.y() + tile.h() / 2.F);
+        const ftk::V2I min(
+            std::lround(center.x + (box.min.x - center.x) * value),
+            std::lround(center.y + (box.min.y - center.y) * value));
+        const ftk::Size2I size(
+            std::lround(box.w() * value),
+            std::lround(box.h() * value));
+        return ftk::Box2I(min, size);
     }
 
     std::vector<ftk::Box2I> getBounds(
@@ -218,6 +247,14 @@ namespace tl
         return out;
     }
 
+    std::vector<ftk::Box2I> getBounds(
+        const CompareOptions& options,
+        const AspectRatioOptions& aspectRatioOptions,
+        const std::vector<VideoFrame>& videoFrame)
+    {
+        return getBounds(options, aspectRatioOptions, getInfos(videoFrame));
+    }
+
     std::vector<ftk::Box2I> getBoxes(
         const CompareOptions& options,
         const AspectRatioOptions& aspectRatioOptions,
@@ -302,6 +339,8 @@ namespace tl
         json["WipeRotation"] = in.wipeRotation;
         json["Overlay"] = in.overlay;
         json["FitToA"] = in.fitToA;
+        json["TileZoomSync"] = in.tileZoomSync;
+        json["TileZooms"] = in.tileZooms;
     }
 
     void from_json(const nlohmann::json& json, CompareOptions& out)
@@ -311,5 +350,13 @@ namespace tl
         json.at("WipeRotation").get_to(out.wipeRotation);
         json.at("Overlay").get_to(out.overlay);
         json.at("FitToA").get_to(out.fitToA);
+        if (json.contains("TileZoomSync"))
+        {
+            json.at("TileZoomSync").get_to(out.tileZoomSync);
+        }
+        if (json.contains("TileZooms"))
+        {
+            json.at("TileZooms").get_to(out.tileZooms);
+        }
     }
 }

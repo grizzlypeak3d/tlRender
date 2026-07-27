@@ -46,16 +46,33 @@ namespace tl
         float    wipeRotation = 0.F;
         float    overlay      = .5F;
         bool     fitToA       = true;
+        bool     tileZoomSync = true;
+        std::vector<double> tileZooms;
 
         TL_API bool operator == (const CompareOptions&) const;
         TL_API bool operator != (const CompareOptions&) const;
     };
+
+    //! Get the zoom for a tile. Missing entries use the neutral zoom.
+    TL_API double getTileZoom(const CompareOptions&, size_t);
+
+    //! Scale a box around the center of its tile.
+    TL_API ftk::Box2I getTileZoomBox(
+        const ftk::Box2I&,
+        const ftk::Box2I& tile,
+        double zoom);
 
     //! Get the bounds for the given compare mode.
     TL_API std::vector<ftk::Box2I> getBounds(
         const CompareOptions&,
         const AspectRatioOptions&,
         const std::vector<ftk::ImageInfo>&);
+
+    //! Get the bounds for the given compare mode.
+    TL_API std::vector<ftk::Box2I> getBounds(
+        const CompareOptions&,
+        const AspectRatioOptions&,
+        const std::vector<VideoFrame>&);
 
     //! Get the boxes for the given compare mode.
     TL_API std::vector<ftk::Box2I> getBoxes(

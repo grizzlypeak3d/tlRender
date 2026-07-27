@@ -141,6 +141,21 @@ namespace tl
             //! Set the view zoom.
             TL_API void setZoom(double, const ftk::V2I& focus = ftk::V2I());
 
+            //! Get the zoom for the active tile.
+            TL_API double getTileZoom() const;
+
+            //! Observe the zoom for the active tile.
+            TL_API std::shared_ptr<ftk::IObservable<double> > observeTileZoom() const;
+
+            //! Set the zoom for the active tile, or all tiles when synchronized.
+            TL_API void setTileZoom(double);
+
+            //! Get whether tile zoom is synchronized.
+            TL_API bool isTileZoomSync() const;
+
+            //! Set whether tile zoom is synchronized.
+            TL_API void setTileZoomSync(bool);
+
             //! Get the view zoom range.
             TL_API const ftk::RangeD& getZoomRange() const;
 
@@ -239,6 +254,7 @@ namespace tl
             ftk::Size2I _getRenderSize() const;
             ftk::V2I _getViewportCenter() const;
             void _frameView();
+            void _updateActiveTile(const ftk::V2I&);
 
             FTK_PRIVATE();
         };
