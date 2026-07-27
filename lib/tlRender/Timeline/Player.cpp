@@ -106,7 +106,9 @@ namespace tl
         p.seek = ftk::Observable<OTIO_NS::RationalTime>::create(p.currentTime->get());
         p.inOutRange = ftk::Observable<OTIO_NS::TimeRange>::create(p.timeRange);
         p.compare = ftk::ObservableList<std::shared_ptr<Timeline> >::create();
+        p.compareInOutRanges = ftk::Observable<std::vector<OTIO_NS::TimeRange> >::create();
         p.compareTime = ftk::Observable<CompareTime>::create(CompareTime::Relative);
+        p.compareTimeOptions = ftk::Observable<CompareTimeOptions>::create();
         p.ioOptions = ftk::Observable<IOOptions>::create();
         p.mediaReferenceKey = ftk::Observable<std::string>::create(
             timeline->getMediaReferenceKey());
@@ -162,6 +164,8 @@ namespace tl
         // Create a new thread.
         p.mutex.state.currentTime = p.currentTime->get();
         p.mutex.state.inOutRange = p.inOutRange->get();
+        p.mutex.state.compareInOutRanges = p.compareInOutRanges->get();
+        p.mutex.state.compareTimeOptions = p.compareTimeOptions->get();
         p.mutex.state.audioOffset = p.audioOffset->get();
         p.mutex.state.cacheOptions = p.cacheOptions->get();
         p.audioMutex.state.speed = p.speed->get() * p.speedMult->get();
@@ -645,6 +649,10 @@ namespace tl
             std::unique_lock<std::mutex> lock(p.mutex.mutex);
             p.mutex.state.inOutRange = tmp;
             p.mutex.clearRequests = true;
+            if (p.compareTimeOptions->get().alignInPoints)
+            {
+                p.mutex.clearCache = true;
+            }
         }
     }
 
@@ -708,6 +716,31 @@ namespace tl
         }
     }
 
+    const std::vector<OTIO_NS::TimeRange>& Player::getCompareInOutRanges() const
+    {
+        return _p->compareInOutRanges->get();
+    }
+
+    std::shared_ptr<ftk::IObservable<std::vector<OTIO_NS::TimeRange> > > Player::observeCompareInOutRanges() const
+    {
+        return _p->compareInOutRanges;
+    }
+
+    void Player::setCompareInOutRanges(const std::vector<OTIO_NS::TimeRange>& value)
+    {
+        FTK_P();
+        if (p.compareInOutRanges->setIfChanged(value))
+        {
+            std::unique_lock<std::mutex> lock(p.mutex.mutex);
+            p.mutex.state.compareInOutRanges = value;
+            p.mutex.clearRequests = true;
+            if (p.compareTimeOptions->get().alignInPoints)
+            {
+                p.mutex.clearCache = true;
+            }
+        }
+    }
+
     CompareTime Player::getCompareTime() const
     {
         return _p->compareTime->get();
@@ -725,6 +758,28 @@ namespace tl
         {
             std::unique_lock<std::mutex> lock(p.mutex.mutex);
             p.mutex.state.compareTime = value;
+            p.mutex.clearRequests = true;
+            p.mutex.clearCache = true;
+        }
+    }
+
+    const CompareTimeOptions& Player::getCompareTimeOptions() const
+    {
+        return _p->compareTimeOptions->get();
+    }
+
+    std::shared_ptr<ftk::IObservable<CompareTimeOptions> > Player::observeCompareTimeOptions() const
+    {
+        return _p->compareTimeOptions;
+    }
+
+    void Player::setCompareTimeOptions(const CompareTimeOptions& value)
+    {
+        FTK_P();
+        if (p.compareTimeOptions->setIfChanged(value))
+        {
+            std::unique_lock<std::mutex> lock(p.mutex.mutex);
+            p.mutex.state.compareTimeOptions = value;
             p.mutex.clearRequests = true;
             p.mutex.clearCache = true;
         }

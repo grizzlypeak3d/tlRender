@@ -224,6 +224,42 @@ namespace tl
             player->resetOutPoint();
             FTK_ASSERT(OTIO_NS::TimeRange(timeRange.start_time(), timeRange.duration()) == inOutRange);
 
+            // Test the comparison time options.
+            std::vector<OTIO_NS::TimeRange> compareInOutRanges;
+            auto compareInOutRangesObserver =
+                ftk::Observer<std::vector<OTIO_NS::TimeRange> >::create(
+                    player->observeCompareInOutRanges(),
+                    [&compareInOutRanges](const std::vector<OTIO_NS::TimeRange>& value)
+                    {
+                        compareInOutRanges = value;
+                    });
+            const std::vector<OTIO_NS::TimeRange> compareInOutRanges2 =
+            {
+                OTIO_NS::TimeRange(
+                    timeRange.start_time(),
+                    OTIO_NS::RationalTime(10.0, rate))
+            };
+            player->setCompareInOutRanges(compareInOutRanges2);
+            FTK_ASSERT(compareInOutRanges2 == player->getCompareInOutRanges());
+            FTK_ASSERT(compareInOutRanges2 == compareInOutRanges);
+
+            CompareTimeOptions compareTimeOptions;
+            auto compareTimeOptionsObserver =
+                ftk::Observer<CompareTimeOptions>::create(
+                    player->observeCompareTimeOptions(),
+                    [&compareTimeOptions](const CompareTimeOptions& value)
+                    {
+                        compareTimeOptions = value;
+                    });
+            CompareTimeOptions compareTimeOptions2;
+            compareTimeOptions2.alignInPoints = true;
+            compareTimeOptions2.frameOffset = 2;
+            player->setCompareTimeOptions(compareTimeOptions2);
+            FTK_ASSERT(compareTimeOptions2 == player->getCompareTimeOptions());
+            FTK_ASSERT(compareTimeOptions2 == compareTimeOptions);
+            player->setCompareInOutRanges({});
+            player->setCompareTimeOptions({});
+
             // Test the I/O options.
             IOOptions ioOptions;
             auto ioOptionsObserver = ftk::Observer<IOOptions>::create(

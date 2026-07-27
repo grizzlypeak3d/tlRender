@@ -107,6 +107,41 @@ namespace tl
                     CompareTime::Relative);
                 FTK_ASSERT(time == OTIO_NS::RationalTime(24.0, 24.0));
             }
+            {
+                CompareTimeOptions options;
+                options.alignInPoints = true;
+                options.frameOffset = 2;
+                FTK_ASSERT(options != CompareTimeOptions());
+                const OTIO_NS::TimeRange sourceRange(
+                    OTIO_NS::RationalTime(0.0, 24.0),
+                    OTIO_NS::RationalTime(240.0, 24.0));
+                const OTIO_NS::TimeRange compareRange(
+                    OTIO_NS::RationalTime(100.0, 24.0),
+                    OTIO_NS::RationalTime(240.0, 24.0));
+                const auto time = getCompareTime(
+                    OTIO_NS::RationalTime(20.0, 24.0),
+                    sourceRange,
+                    compareRange,
+                    CompareTime::Relative,
+                    OTIO_NS::TimeRange(
+                        OTIO_NS::RationalTime(10.0, 24.0),
+                        OTIO_NS::RationalTime(100.0, 24.0)),
+                    OTIO_NS::TimeRange(
+                        OTIO_NS::RationalTime(130.0, 24.0),
+                        OTIO_NS::RationalTime(100.0, 24.0)),
+                    options);
+                FTK_ASSERT(time == OTIO_NS::RationalTime(102.0, 24.0));
+
+                const auto absoluteTime = getCompareTime(
+                    OTIO_NS::RationalTime(20.0, 24.0),
+                    sourceRange,
+                    compareRange,
+                    CompareTime::Absolute,
+                    sourceRange,
+                    compareRange,
+                    options);
+                FTK_ASSERT(absoluteTime == OTIO_NS::RationalTime(20.0, 24.0));
+            }
         }
     }
 }
