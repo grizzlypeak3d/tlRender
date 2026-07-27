@@ -29,6 +29,7 @@ namespace tl
             void _videoData();
             void _timeline();
             void _synchronous();
+            void _media();
             void _timeline(const std::shared_ptr<Timeline>&);
             void _separateAudio();
             void _spatial();

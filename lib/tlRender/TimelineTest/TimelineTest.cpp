@@ -42,6 +42,7 @@ namespace tl
             _videoData();
             _timeline();
             _synchronous();
+            _media();
             _separateAudio();
             _spatial();
             _mediaReferences();
@@ -728,6 +729,52 @@ namespace tl
                 }
             }
             _print("synchronous timeline matches the threaded one");
+        }
+
+        void TimelineTest::_media()
+        {
+            // Reading media named by path out of a bundle, which is what a
+            // thumbnail needs: the frames are byte ranges, so opening the
+            // media path directly would not find a file.
+            const ftk::Path path(TLRENDER_SAMPLE_DATA, "SingleClipSeq.otioz");
+            Options options;
+            options.threaded = false;
+            auto timeline = Timeline::create(_context, path, options);
+
+            const auto mediaPaths = timeline->getMediaPaths();
+            FTK_ASSERT(!mediaPaths.empty());
+            for (const auto& mediaPath : mediaPaths)
+            {
+                _print(ftk::Format("Media: {0}").arg(mediaPath.get()));
+
+                IOInfo info;
+                FTK_ASSERT(timeline->getMediaInfo(mediaPath, info));
+                if (info.video.empty())
+                {
+                    // A bundle carries its audio as media too.
+                    continue;
+                }
+
+                auto future = timeline->readMedia(
+                    mediaPath, info.videoTime.start_time());
+                FTK_ASSERT(future.valid());
+                // No thread, so the read is already done.
+                FTK_ASSERT(future.wait_for(std::chrono::seconds(0)) ==
+                    std::future_status::ready);
+                const VideoData data = future.get();
+                FTK_ASSERT(data.image);
+                FTK_ASSERT(data.image->getSize() == info.video[0].size);
+            }
+
+            // Media that is not in the timeline.
+            IOInfo info;
+            FTK_ASSERT(!timeline->getMediaInfo(
+                ftk::Path("/nowhere/absent.exr"), info));
+            FTK_ASSERT(!timeline->readMedia(
+                ftk::Path("/nowhere/absent.exr"),
+                OTIO_NS::RationalTime(0.0, 24.0)).valid());
+
+            _print("named media read from a bundle");
         }
 }
 }

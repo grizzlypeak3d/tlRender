@@ -116,6 +116,25 @@ namespace tl
         TL_API std::vector<ftk::MemFile> getMem(
             const OTIO_NS::MediaReference*);
 
+        //! Get the paths of the media in the timeline.
+        //!
+        //! A bundle's media are byte ranges rather than files on disk, so a
+        //! caller that wants one of them read cannot open its path. These
+        //! name the media to getMediaInfo() and readMedia() instead, which
+        //! keeps the reading on the side that knows where the bytes are.
+        TL_API std::vector<ftk::Path> getMediaPaths() const;
+
+        //! Get the information for one of the media in the timeline.
+        TL_API bool getMediaInfo(const ftk::Path&, IOInfo&);
+
+        //! Read one frame of one of the media in the timeline.
+        //!
+        //! On a timeline with no thread the future comes back resolved.
+        TL_API std::future<VideoData> readMedia(
+            const ftk::Path&,
+            const OTIO_NS::RationalTime&,
+            const IOOptions& = IOOptions());
+
         //! \name Media References
         ///
         //! Clips may carry several media references, for example a proxy and
@@ -216,6 +235,8 @@ namespace tl
         // Get the sequence for a media reference, or null when the format is
         // not read as a sequence of stateless files: a movie carries a
         // demuxer position and keeps its own reader.
+        // Find a media reference by its resolved path.
+        OTIO_NS::MediaReference* _findMedia(const ftk::Path&);
         std::shared_ptr<SeqDecode> _getSeqDecode(
             const OTIO_NS::MediaReference*,
             const IOOptions&);

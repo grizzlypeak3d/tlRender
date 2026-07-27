@@ -849,6 +849,99 @@ namespace tl
             thread.clipMediaReferenceKeys);
     }
 
+    namespace
+    {
+        // Every media reference in the timeline, active or not, so that a
+        // caller can name one that is not the one currently being played.
+        std::vector<OTIO_NS::MediaReference*> getMediaReferences(
+            const OTIO_NS::Timeline* otioTimeline)
+        {
+            std::vector<OTIO_NS::MediaReference*> out;
+            for (const auto& otioClip :
+                otioTimeline->find_children<OTIO_NS::Clip>())
+            {
+                for (const auto& i : otioClip->media_references())
+                {
+                    if (i.second &&
+                        std::find(out.begin(), out.end(), i.second) == out.end())
+                    {
+                        out.push_back(i.second);
+                    }
+                }
+            }
+            return out;
+        }
+    }
+
+    std::vector<ftk::Path> Timeline::getMediaPaths() const
+    {
+        FTK_P();
+        std::vector<ftk::Path> out;
+        for (const auto& mediaReference :
+            getMediaReferences(p.otioTimeline.value))
+        {
+            out.push_back(tl::getPath(
+                mediaReference,
+                p.path.getDir(),
+                p.options.pathOptions));
+        }
+        return out;
+    }
+
+    OTIO_NS::MediaReference* Timeline::_findMedia(const ftk::Path& path)
+    {
+        FTK_P();
+        for (const auto& mediaReference :
+            getMediaReferences(p.otioTimeline.value))
+        {
+            const auto i = tl::getPath(
+                mediaReference,
+                p.path.getDir(),
+                p.options.pathOptions);
+            if (i.get() == path.get())
+            {
+                return mediaReference;
+            }
+        }
+        return nullptr;
+    }
+
+    bool Timeline::getMediaInfo(const ftk::Path& path, IOInfo& out)
+    {
+        FTK_P();
+        if (auto mediaReference = _findMedia(path))
+        {
+            return _getIOInfo(mediaReference, p.options.ioOptions, out);
+        }
+        return false;
+    }
+
+    std::future<VideoData> Timeline::readMedia(
+        const ftk::Path& path,
+        const OTIO_NS::RationalTime& time,
+        const IOOptions& options)
+    {
+        FTK_P();
+        std::future<VideoData> out;
+        const IOOptions optionsMerged = merge(options, p.options.ioOptions);
+        if (auto mediaReference = _findMedia(path))
+        {
+            if (auto seq = _getSeqDecode(mediaReference, optionsMerged))
+            {
+                out = p.submitRead(
+                    [seq, time, optionsMerged]
+                    {
+                        return seq->readVideo(time, optionsMerged);
+                    });
+            }
+            else if (auto read = _getRead(mediaReference, optionsMerged))
+            {
+                out = read->readVideo(time, optionsMerged);
+            }
+        }
+        return out;
+    }
+
     std::vector<std::string> Timeline::getMediaReferenceKeys() const
     {
         FTK_P();
