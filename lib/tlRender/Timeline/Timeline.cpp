@@ -302,11 +302,31 @@ namespace tl
             }
         }
 
-        // Read the file.
+        // Read the file. A sequence is read by a decoder, which holds no
+        // thread; only a format that has to be read statefully still needs a
+        // reader here.
         auto ioSystem = context->getSystem<ReadSystem>();
-        if (auto read = ioSystem->read(path, options.ioOptions))
+        IOInfo info;
+        bool infoValid = false;
+        if (auto plugin = ioSystem->getPlugin(path))
         {
-            const auto info = read->getInfo().get();
+            if (auto decode = plugin->decode(options.ioOptions))
+            {
+                info = SeqDecode::create(
+                    path, {}, decode, options.ioOptions)->getInfo();
+                infoValid = true;
+            }
+        }
+        if (!infoValid)
+        {
+            if (auto read = ioSystem->read(path, options.ioOptions))
+            {
+                info = read->getInfo().get();
+                infoValid = true;
+            }
+        }
+        if (infoValid)
+        {
             OTIO_NS::RationalTime startTime = invalidTime;
             OTIO_NS::Track* videoTrack = nullptr;
             OTIO_NS::Track* audioTrack = nullptr;
