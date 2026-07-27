@@ -756,7 +756,12 @@ namespace tl
                 _print(ftk::Format("Media: {0}").arg(mediaPath.get()));
 
                 IOInfo info;
-                FTK_ASSERT(timeline->getMediaInfo(mediaPath, info));
+                if (!timeline->getMediaInfo(mediaPath, info))
+                {
+                    // No plugin can read this media; a build without any
+                    // image formats can read none of it.
+                    continue;
+                }
                 if (info.video.empty())
                 {
                     // A bundle carries its audio as media too.
@@ -804,8 +809,14 @@ namespace tl
                     {
                         return i.get() == seqPath.get();
                     }) != seqMedia.end());
+                // Only a build with an image format can read it, but
+                // whichever build this is, saying it read something and
+                // returning nothing would be wrong.
                 IOInfo seqInfo;
-                FTK_ASSERT(seqTimeline->getMediaInfo(seqPath, seqInfo));
+                if (seqTimeline->getMediaInfo(seqPath, seqInfo))
+                {
+                    FTK_ASSERT(!seqInfo.video.empty());
+                }
             }
 
             // The decoding thread count is configurable, and is read where
