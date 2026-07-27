@@ -6,6 +6,9 @@
 #include <ftk/Core/FileIO.h>
 #include <ftk/Core/Format.h>
 
+#include <algorithm>
+#include <vector>
+
 namespace tl
 {
     namespace
@@ -30,6 +33,41 @@ namespace tl
         constexpr size_t zipHeaderNameOffset = 26;
         constexpr size_t zipHeaderExtraLenOffset = 28;
         constexpr size_t zipHeaderSize = 30;
+
+        //! The general purpose flag saying a data descriptor follows the data.
+        constexpr uint16_t zipFlagDataDescriptor = 0x8;
+
+        //! The extra field is the only unknown between a local header and its
+        //! data, and it is length prefixed with sixteen bits.
+        constexpr int64_t zipMaxExtraSize = 65535;
+
+        //! How many derived offsets to check against the file.
+        //!
+        //! Checking every one would be the scattered read per entry that
+        //! deriving them exists to avoid. A bundle is written by one writer in
+        //! one pass, so entries are laid out the same way throughout, and a
+        //! sample spread across the file sees a writer that does otherwise.
+        constexpr size_t zipVerifySamples = 64;
+
+        //! Read a local header to get where an entry's data actually starts.
+        int64_t readDataOffset(
+            const std::shared_ptr<ftk::FileIO>& io,
+            const std::string& fileName,
+            int64_t headerOffset)
+        {
+            uint8_t hdr[zipHeaderSize];
+            io->readAt(hdr, headerOffset, zipHeaderSize);
+            if (readLE32(hdr) != zipHeaderMagic)
+            {
+                throw std::runtime_error(ftk::Format(
+                    "Bad local zip header: \"{0}\"").arg(fileName));
+            }
+            return
+                headerOffset +
+                zipHeaderSize +
+                readLE16(hdr + zipHeaderNameOffset) +
+                readLE16(hdr + zipHeaderExtraLenOffset);
+        }
     }
 
     void ZipReader::MZReaderDeleter::operator()(void* p) const
@@ -83,15 +121,19 @@ namespace tl
                 "Cannot goto first zip entry: \"{0}\"").arg(fileName));
         }
 
-        // Thirty bytes at a time, one before each file's data, so the reads are
-        // scattered across the whole bundle. Asking for sequential read ahead
-        // here would fetch a cluster around each one and throw it away, which is
-        // the cost this is avoiding in the first place.
-        auto headerIO = ftk::FileIO::create(
-            fileName,
-            ftk::FileMode::Read,
-            ftk::FileRead::Normal,
-            ftk::FileAccess::Random);
+        // Collect the central directory, which minizip has already read as one
+        // contiguous region at the end of the file. Nothing here touches the
+        // rest of the bundle.
+        struct Record
+        {
+            std::string name;
+            int64_t     headerOffset = 0;
+            int64_t     size = 0;
+            int64_t     minDataOffset = 0;
+            bool        trailer = false;
+            int64_t     dataOffset = -1;
+        };
+        std::vector<Record> records;
         while (MZ_OK == err)
         {
             mz_zip_file* fileInfo = nullptr;
@@ -110,40 +152,14 @@ namespace tl
                     throw std::runtime_error(ftk::Format(
                         "Local zip header entry out of bounds: \"{0}\"").arg(fileName));
                 }
-                // Read the local header rather than reaching into the memory
-                // map. There is one of these before every file's data, so they
-                // are spread across the whole bundle, and faulting each one in
-                // costs a page cluster: measured on Windows, 25,000 headers of
-                // thirty bytes each pulled tens of gigabytes from disk and took
-                // minutes. Reading them costs thirty bytes each.
-                uint8_t hdr[zipHeaderSize];
-                headerIO->seek(fileInfo->disk_offset, ftk::SeekMode::Set);
-                headerIO->read(hdr, zipHeaderSize);
-                if (readLE32(hdr) != zipHeaderMagic)
-                {
-                    throw std::runtime_error(ftk::Format(
-                        "Bad local zip header: \"{0}\"").arg(fileName));
-                }
-                const uint16_t nameLen = readLE16(hdr + zipHeaderNameOffset);
-                const uint16_t extraLen = readLE16(hdr + zipHeaderExtraLenOffset);
-                const int64_t dataOffset =
-                    fileInfo->disk_offset + zipHeaderSize + nameLen + extraLen;
-
-                if (dataOffset < 0 ||
-                    static_cast<size_t>(dataOffset) > _fileSize ||
-                    fileInfo->uncompressed_size < 0 ||
-                    static_cast<size_t>(fileInfo->uncompressed_size) > _fileSize - dataOffset)
-                {
-                    throw std::runtime_error(ftk::Format(
-                        "Local zip entry out of bounds: \"{0}\"").arg(fileName));
-                }
-                Entry entry{ dataOffset, fileInfo->uncompressed_size };
-                if (!_entries.emplace(fileInfo->filename, entry).second)
-                {
-                    _logSystem->print("tl::ZipReader", ftk::Format(
-                        "Duplicate zip entry, ignoring subsequent: \"{0}\"").arg(fileInfo->filename),
-                        ftk::LogType::Warning);
-                }
+                Record record;
+                record.name          = fileInfo->filename;
+                record.headerOffset  = fileInfo->disk_offset;
+                record.size          = fileInfo->uncompressed_size;
+                record.minDataOffset =
+                    fileInfo->disk_offset + zipHeaderSize + fileInfo->filename_size;
+                record.trailer       = (fileInfo->flag & zipFlagDataDescriptor) != 0;
+                records.push_back(record);
             }
             err = mz_zip_reader_goto_next_entry(_reader.get());
             if (err != MZ_OK && err != MZ_END_OF_LIST)
@@ -152,6 +168,98 @@ namespace tl
                     "Cannot goto next zip entry: \"{0}\"").arg(fileName));
             }
         }
+
+        std::sort(
+            records.begin(),
+            records.end(),
+            [](const Record& a, const Record& b)
+            {
+                return a.headerOffset < b.headerOffset;
+            });
+
+        // Where an entry's data starts is only recorded in its local header,
+        // and those sit one before each file's data, spread across the whole
+        // bundle. Reading them all is what made opening a large bundle take
+        // minutes: measured on Windows, 25,000 headers of thirty bytes each
+        // pulled tens of gigabytes from disk at 0% CPU.
+        //
+        // They do not have to be read. An entry's data ends where the next
+        // entry's local header begins, so the offset follows from the size in
+        // the central directory. That leaves the last entry, and any entry
+        // whose data is followed by a descriptor, to be read.
+        auto io = ftk::FileIO::create(
+            fileName,
+            ftk::FileMode::Read,
+            ftk::FileRead::Normal,
+            ftk::FileAccess::Random);
+        size_t readCount = 0;
+        for (size_t i = 0; i < records.size(); ++i)
+        {
+            Record& record = records[i];
+            if (!record.trailer && i + 1 < records.size())
+            {
+                const int64_t derived = records[i + 1].headerOffset - record.size;
+                if (derived >= record.minDataOffset &&
+                    derived - record.minDataOffset <= zipMaxExtraSize)
+                {
+                    record.dataOffset = derived;
+                }
+            }
+            if (-1 == record.dataOffset)
+            {
+                record.dataOffset = readDataOffset(io, fileName, record.headerOffset);
+                ++readCount;
+            }
+        }
+
+        // Check a sample of the derived offsets against the file itself.
+        const size_t sampleCount = std::min(zipVerifySamples, records.size());
+        for (size_t i = 0; i < sampleCount; ++i)
+        {
+            const Record& sample = records[i * records.size() / sampleCount];
+            if (sample.dataOffset ==
+                readDataOffset(io, fileName, sample.headerOffset))
+            {
+                continue;
+            }
+            // The writer lays entries out in a way the derivation does not
+            // describe, so every offset has to come from its own header.
+            _logSystem->print("tl::ZipReader", ftk::Format(
+                "Zip entry offsets cannot be derived, reading {0} local "
+                "headers: \"{1}\"").arg(records.size()).arg(fileName),
+                ftk::LogType::Warning);
+            for (auto& record : records)
+            {
+                record.dataOffset =
+                    readDataOffset(io, fileName, record.headerOffset);
+            }
+            readCount = records.size();
+            break;
+        }
+
+        for (const auto& record : records)
+        {
+            if (record.dataOffset < 0 ||
+                static_cast<size_t>(record.dataOffset) > _fileSize ||
+                record.size < 0 ||
+                static_cast<size_t>(record.size) > _fileSize - record.dataOffset)
+            {
+                throw std::runtime_error(ftk::Format(
+                    "Local zip entry out of bounds: \"{0}\"").arg(fileName));
+            }
+            Entry entry{ record.dataOffset, record.size };
+            if (!_entries.emplace(record.name, entry).second)
+            {
+                _logSystem->print("tl::ZipReader", ftk::Format(
+                    "Duplicate zip entry, ignoring subsequent: \"{0}\"").arg(record.name),
+                    ftk::LogType::Warning);
+            }
+        }
+
+        _logSystem->print("tl::ZipReader", ftk::Format(
+            "Opened \"{0}\": {1} entries, {2} local headers read").
+            arg(fileName).arg(records.size()).arg(readCount),
+            ftk::LogType::Message);
     }
 
     std::optional<ZipReader::Entry> ZipReader::find(const std::string& name) const
