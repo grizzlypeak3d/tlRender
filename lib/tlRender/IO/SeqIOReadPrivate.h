@@ -17,7 +17,10 @@ namespace tl
     {
         void addTags(IOInfo&);
 
-        size_t threadCount = SeqOptions().threadCount;
+        // This reader is on its way out; what remains of it reads
+        // information rather than streams of frames, so the limit is only
+        // here to bound the queue.
+        size_t threadCount = 4;
 
         IOInfo info;
 

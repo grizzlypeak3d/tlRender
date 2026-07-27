@@ -808,11 +808,11 @@ namespace tl
                 const ftk::Path seqPath(
                     TLRENDER_SAMPLE_DATA, "Seq/BART_2021-02-07.0001.jpg");
                 Options threadOptions;
-                threadOptions.ioOptions["SeqIO/ThreadCount"] = "3";
+                threadOptions.readThreadCount = 3;
                 auto t = Timeline::create(_context, seqPath, threadOptions);
                 FTK_ASSERT(3 == t->getReadThreadCount());
                 auto d = Timeline::create(_context, seqPath);
-                FTK_ASSERT(d->getReadThreadCount() == SeqOptions().threadCount);
+                FTK_ASSERT(d->getReadThreadCount() == getDefaultReadThreadCount());
             }
 
             _print("named media read from a bundle");

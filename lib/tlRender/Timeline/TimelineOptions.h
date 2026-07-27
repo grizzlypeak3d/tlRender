@@ -41,6 +41,9 @@ namespace tl
     };
     TL_ENUM(Spatial);
 
+    //! Get the default number of sequence decoding threads.
+    TL_API size_t getDefaultReadThreadCount();
+
     //! Timeline options.
     struct TL_API_TYPE Options
     {
@@ -68,6 +71,13 @@ namespace tl
         //! wants a frame or two wants, and it is what lets a thumbnail be
         //! taken without a thread per file.
         bool threaded = true;
+
+        //! How many sequence frames the timeline decodes at once.
+        //!
+        //! This is the one place the decoding concurrency is set. Note that
+        //! videoRequestMax caps how many requests are in flight above it, so
+        //! raising this past that does nothing.
+        size_t readThreadCount = getDefaultReadThreadCount();
 
         //! Maximum number of video requests in flight.
         //!

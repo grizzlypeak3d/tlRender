@@ -14,7 +14,6 @@ namespace tl
         SeqOptions();
 
         double defaultSpeed = 24.0;
-        size_t threadCount; // set in the constructor
 
         TL_API bool operator == (const SeqOptions&) const;
         TL_API bool operator != (const SeqOptions&) const;

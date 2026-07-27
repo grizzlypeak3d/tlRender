@@ -42,13 +42,7 @@ namespace tl
             }
         }
 
-        auto i = options.find("SeqIO/ThreadCount");
-        if (i != options.end())
-        {
-            std::stringstream ss(i->second);
-            ss >> p.threadCount;
-        }
-        i = options.find("SeqIO/DefaultSpeed");
+        auto i = options.find("SeqIO/DefaultSpeed");
         if (i != options.end())
         {
             std::stringstream ss(i->second);

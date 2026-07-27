@@ -6,7 +6,9 @@
 #include <ftk/Core/Error.h>
 #include <ftk/Core/String.h>
 
+#include <algorithm>
 #include <sstream>
+#include <thread>
 
 namespace tl
 {
@@ -22,6 +24,11 @@ namespace tl
         "Coordinates",
         "Normalize");
 
+    size_t getDefaultReadThreadCount()
+    {
+        return std::max(1u, std::thread::hardware_concurrency());
+    }
+
     bool Options::operator == (const Options& other) const
     {
         return
@@ -31,6 +38,7 @@ namespace tl
             imageSeqAudioFileName == other.imageSeqAudioFileName &&
             compat == other.compat &&
             threaded == other.threaded &&
+            readThreadCount == other.readThreadCount &&
             videoRequestMax == other.videoRequestMax &&
             audioRequestMax == other.audioRequestMax &&
             requestTimeout == other.requestTimeout &&
