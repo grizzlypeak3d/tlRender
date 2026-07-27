@@ -9,6 +9,11 @@
 namespace tl
 {
     //! Base class for readers.
+    //!
+    //! A reader is stateful -- a movie carries a demuxer position -- which is
+    //! what separates it from a decoder. Video and audio are read by the two
+    //! classes below rather than both by this one: they share nothing but the
+    //! file, and plenty of files have only one of them.
     class TL_API_TYPE IRead : public IIO
     {
     protected:
@@ -52,6 +57,30 @@ namespace tl
         std::vector<ftk::MemFile> _mem;
     };
 
+    //! Base class for video readers.
+    class TL_API_TYPE IVideoRead : public IRead
+    {
+    public:
+        TL_API virtual ~IVideoRead();
+
+        //! Read video data.
+        TL_API virtual std::future<VideoData> readVideo(
+            const OTIO_NS::RationalTime&,
+            const IOOptions& = IOOptions()) = 0;
+    };
+
+    //! Base class for audio readers.
+    class TL_API_TYPE IAudioRead : public IRead
+    {
+    public:
+        TL_API virtual ~IAudioRead();
+
+        //! Read audio data.
+        TL_API virtual std::future<AudioData> readAudio(
+            const OTIO_NS::TimeRange&,
+            const IOOptions& = IOOptions()) = 0;
+    };
+
     //! Base class for read plugins.
     class TL_API_TYPE IReadPlugin : public IIOPlugin
     {
@@ -77,6 +106,30 @@ namespace tl
 
         //! Create a reader for the given path and memory locations, or null.
         TL_API virtual std::shared_ptr<IRead> read(
+            const ftk::Path&,
+            const std::vector<ftk::MemFile>&,
+            const IOOptions& = IOOptions());
+
+        //! Create a video reader for the given path, or null when this
+        //! format has no video or is decoded rather than read.
+        TL_API virtual std::shared_ptr<IVideoRead> videoRead(
+            const ftk::Path&,
+            const IOOptions& = IOOptions());
+
+        //! Create a video reader for the given path and memory locations.
+        TL_API virtual std::shared_ptr<IVideoRead> videoRead(
+            const ftk::Path&,
+            const std::vector<ftk::MemFile>&,
+            const IOOptions& = IOOptions());
+
+        //! Create an audio reader for the given path, or null when this
+        //! format has no audio.
+        TL_API virtual std::shared_ptr<IAudioRead> audioRead(
+            const ftk::Path&,
+            const IOOptions& = IOOptions());
+
+        //! Create an audio reader for the given path and memory locations.
+        TL_API virtual std::shared_ptr<IAudioRead> audioRead(
             const ftk::Path&,
             const std::vector<ftk::MemFile>&,
             const IOOptions& = IOOptions());

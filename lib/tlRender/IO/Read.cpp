@@ -81,6 +81,42 @@ namespace tl
         return nullptr;
     }
 
+    IVideoRead::~IVideoRead()
+    {}
+
+    IAudioRead::~IAudioRead()
+    {}
+
+    std::shared_ptr<IVideoRead> IReadPlugin::videoRead(
+        const ftk::Path& path,
+        const IOOptions& options)
+    {
+        return videoRead(path, {}, options);
+    }
+
+    std::shared_ptr<IVideoRead> IReadPlugin::videoRead(
+        const ftk::Path&,
+        const std::vector<ftk::MemFile>&,
+        const IOOptions&)
+    {
+        return nullptr;
+    }
+
+    std::shared_ptr<IAudioRead> IReadPlugin::audioRead(
+        const ftk::Path& path,
+        const IOOptions& options)
+    {
+        return audioRead(path, {}, options);
+    }
+
+    std::shared_ptr<IAudioRead> IReadPlugin::audioRead(
+        const ftk::Path&,
+        const std::vector<ftk::MemFile>&,
+        const IOOptions&)
+    {
+        return nullptr;
+    }
+
     std::shared_ptr<IDecode> IReadPlugin::decode(const IOOptions&)
     {
         return nullptr;
