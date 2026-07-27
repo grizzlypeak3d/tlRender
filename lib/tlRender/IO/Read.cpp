@@ -66,6 +66,21 @@ namespace tl
     IReadPlugin::~IReadPlugin()
     {}
 
+    std::shared_ptr<IRead> IReadPlugin::read(
+        const ftk::Path&,
+        const IOOptions&)
+    {
+        return nullptr;
+    }
+
+    std::shared_ptr<IRead> IReadPlugin::read(
+        const ftk::Path&,
+        const std::vector<ftk::MemFile>&,
+        const IOOptions&)
+    {
+        return nullptr;
+    }
+
     std::shared_ptr<IDecode> IReadPlugin::decode(const IOOptions&)
     {
         return nullptr;

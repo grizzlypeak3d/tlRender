@@ -32,48 +32,6 @@ namespace tl
                 const IOOptions& = IOOptions()) override;
         };
 
-        //! OpenImageIO reader.
-        class TL_API_TYPE Read : public ISeqRead
-        {
-        protected:
-            void _init(
-                const ftk::Path&,
-                const std::vector<ftk::MemFile>&,
-                const IOOptions&,
-                const std::shared_ptr<ftk::LogSystem>&);
-
-            Read();
-
-        public:
-            TL_API virtual ~Read();
-
-            //! Create a new reader.
-            TL_API static std::shared_ptr<Read> create(
-                const ftk::Path&,
-                const IOOptions&,
-                const std::shared_ptr<ftk::LogSystem>&);
-
-            //! Create a new reader.
-            TL_API static std::shared_ptr<Read> create(
-                const ftk::Path&,
-                const std::vector<ftk::MemFile>&,
-                const IOOptions&,
-                const std::shared_ptr<ftk::LogSystem>&);
-
-        protected:
-            IOInfo _getInfo(
-                const std::string& fileName,
-                const ftk::MemFile*) override;
-            VideoData _readVideo(
-                const std::string& fileName,
-                const ftk::MemFile*,
-                const OTIO_NS::RationalTime&,
-                const IOOptions&) override;
-
-        private:
-            std::shared_ptr<Decode> _decode;
-        };
-
         //! OpenImageIO writer.
         class TL_API_TYPE Write : public ISeqWrite
         {
@@ -117,13 +75,6 @@ namespace tl
             TL_API static std::shared_ptr<ReadPlugin> create(
                 const std::shared_ptr<ftk::LogSystem>&);
 
-            TL_API std::shared_ptr<IRead> read(
-                const ftk::Path&,
-                const IOOptions& = IOOptions()) override;
-            TL_API std::shared_ptr<IRead> read(
-                const ftk::Path&,
-                const std::vector<ftk::MemFile>&,
-                const IOOptions & = IOOptions()) override;
             TL_API std::shared_ptr<IDecode> decode(
                 const IOOptions& = IOOptions()) override;
 

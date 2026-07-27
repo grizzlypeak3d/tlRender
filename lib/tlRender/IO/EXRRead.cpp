@@ -563,67 +563,11 @@ namespace tl
             return out;
         }
 
-        void Read::_init(
-            const ftk::Path& path,
-            const std::vector<ftk::MemFile>& mem,
-            const IOOptions& options,
-            const std::shared_ptr<ftk::LogSystem>& logSystem)
-        {
-            // Before the base class, which starts the worker thread; the
-            // first thing that thread does is ask for the information.
-            _decode = Decode::create();
-            ISeqRead::_init(path, mem, options, logSystem);
-        }
 
-        Read::Read()
-        {}
 
-        Read::~Read()
-        {
-            _finish();
-        }
 
-        std::shared_ptr<Read> Read::create(
-            const ftk::Path& path,
-            const IOOptions& options,
-            const std::shared_ptr<ftk::LogSystem>& logSystem)
-        {
-            auto out = std::shared_ptr<Read>(new Read);
-            out->_init(path, {}, options, logSystem);
-            return out;
-        }
 
-        std::shared_ptr<Read> Read::create(
-            const ftk::Path& path,
-            const std::vector<ftk::MemFile>& mem,
-            const IOOptions& options,
-            const std::shared_ptr<ftk::LogSystem>& logSystem)
-        {
-            auto out = std::shared_ptr<Read>(new Read);
-            out->_init(path, mem, options, logSystem);
-            return out;
-        }
 
-        IOInfo Read::_getInfo(
-            const std::string& fileName,
-            const ftk::MemFile* mem)
-        {
-            IOInfo out = _decode->getInfo(fileName, mem);
-            const float speed = static_cast<float>(
-                _decode->getSpeed(out, _defaultSpeed));
-            out.videoTime = OTIO_NS::TimeRange::range_from_start_end_time_inclusive(
-                OTIO_NS::RationalTime(_startFrame, speed),
-                OTIO_NS::RationalTime(_endFrame, speed));
-            return out;
-        }
 
-        VideoData Read::_readVideo(
-            const std::string& fileName,
-            const ftk::MemFile* mem,
-            const OTIO_NS::RationalTime& time,
-            const IOOptions& options)
-        {
-            return _decode->readVideo(fileName, mem, time, options);
-        }
     }
 }

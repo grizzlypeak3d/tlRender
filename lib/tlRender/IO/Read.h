@@ -68,16 +68,18 @@ namespace tl
     public:
         TL_API virtual ~IReadPlugin() = 0;
 
-        //! Create a reader for the given path.
+        //! Create a reader for the given path, or null when this format is
+        //! decoded rather than read: a sequence of stateless files needs no
+        //! reader, and decode() returns one for it instead.
         TL_API virtual std::shared_ptr<IRead> read(
             const ftk::Path&,
-            const IOOptions& = IOOptions()) = 0;
+            const IOOptions& = IOOptions());
 
-        //! Create a reader for the given path and memory locations.
+        //! Create a reader for the given path and memory locations, or null.
         TL_API virtual std::shared_ptr<IRead> read(
             const ftk::Path&,
             const std::vector<ftk::MemFile>&,
-            const IOOptions& = IOOptions()) = 0;
+            const IOOptions& = IOOptions());
 
         //! Create a decoder, or null when this format has to be read
         //! statefully.

@@ -172,26 +172,20 @@ namespace tl
 
                 const auto viaDecode = decode->readVideo(path.get(), nullptr, time);
                 const auto viaMem = decode->readVideo(path.get(), &memFile, time);
-                auto read = readPlugin->read(path);
-                const auto viaRead = read->readVideo(time).get();
 
-                FTK_ASSERT(viaDecode.image && viaMem.image && viaRead.image);
-                const size_t byteCount = viaRead.image->getByteCount();
+                // There is no reader to compare against any more; the image
+                // that was written is the oracle, and the two decode paths
+                // have to agree with it and with each other.
+                FTK_ASSERT(viaDecode.image && viaMem.image);
+                const size_t byteCount = image->getByteCount();
                 FTK_ASSERT(viaDecode.image->getByteCount() == byteCount);
                 FTK_ASSERT(viaMem.image->getByteCount() == byteCount);
-                FTK_ASSERT(viaDecode.image->getType() == viaRead.image->getType());
-                FTK_ASSERT(viaMem.image->getType() == viaRead.image->getType());
-                FTK_ASSERT(0 == memcmp(
-                    viaDecode.image->getData(), viaRead.image->getData(), byteCount));
-                FTK_ASSERT(0 == memcmp(
-                    viaMem.image->getData(), viaRead.image->getData(), byteCount));
-
-                // The reader delegates to the decoder, so agreeing with it
-                // proves only that the two are wired together. Compare against
-                // what was written, which is what says the decode is right.
-                FTK_ASSERT(byteCount == image->getByteCount());
+                FTK_ASSERT(viaDecode.image->getType() == image->getType());
+                FTK_ASSERT(viaMem.image->getType() == image->getType());
                 FTK_ASSERT(0 == memcmp(
                     viaDecode.image->getData(), image->getData(), byteCount));
+                FTK_ASSERT(0 == memcmp(
+                    viaMem.image->getData(), image->getData(), byteCount));
 
                 // A decoder holds no state, so it can be used from several
                 // threads at once.
@@ -200,7 +194,7 @@ namespace tl
                 for (size_t i = 0; i < 8; ++i)
                 {
                     threads.push_back(std::thread(
-                        [decode, path, &memFile, time, &viaRead, byteCount, &ok]
+                        [decode, path, &memFile, time, image, byteCount, &ok]
                         {
                             for (size_t j = 0; j < 8; ++j)
                             {
@@ -208,7 +202,7 @@ namespace tl
                                     path.get(), &memFile, time);
                                 if (!v.image || 0 != memcmp(
                                     v.image->getData(),
-                                    viaRead.image->getData(),
+                                    image->getData(),
                                     byteCount))
                                 {
                                     ok = false;
@@ -222,7 +216,7 @@ namespace tl
                 }
                 FTK_ASSERT(ok);
 
-                _print(ftk::Format("{0}: decoder matches reader").arg(ext));
+                _print(ftk::Format("{0}: decoder matches what was written").arg(ext));
             }
         }
     
@@ -283,29 +277,19 @@ namespace tl
             IOOptions options;
             options["SeqIO/DefaultSpeed"] = "24";
             auto seq = SeqDecode::create(path, mem, decode, options);
-            auto read = readPlugin->read(path, mem, options);
             const IOInfo seqInfo = seq->getInfo();
-            const IOInfo readInfo = read->getInfo().get();
 
             // The sequence knows the time range that no single file does.
             FTK_ASSERT(isValid(seqInfo.videoTime));
-            FTK_ASSERT(seqInfo.videoTime == readInfo.videoTime);
             FTK_ASSERT(seqInfo.videoTime.duration().value() == frameCount);
-            FTK_ASSERT(seqInfo.video == readInfo.video);
-            FTK_ASSERT(seqInfo.tags == readInfo.tags);
+            FTK_ASSERT(!seqInfo.video.empty());
 
             for (size_t i = 0; i < frameCount; ++i)
             {
                 const OTIO_NS::RationalTime time(
                     static_cast<double>(1 + i), 24.0);
                 const VideoData a = seq->readVideo(time);
-                const VideoData b = read->readVideo(time).get();
-                FTK_ASSERT(a.image && b.image);
-                FTK_ASSERT(a.image->getByteCount() == b.image->getByteCount());
-                FTK_ASSERT(0 == memcmp(
-                    a.image->getData(),
-                    b.image->getData(),
-                    b.image->getByteCount()));
+                FTK_ASSERT(a.image);
                 FTK_ASSERT(0 == memcmp(
                     a.image->getData(),
                     images[i]->getData(),
@@ -340,7 +324,7 @@ namespace tl
                 thread.join();
             }
             FTK_ASSERT(ok);
-            _print("sequence decode matches the sequence reader");
+            _print("sequence decode reads the right frame from memory");
         }
 }
 }

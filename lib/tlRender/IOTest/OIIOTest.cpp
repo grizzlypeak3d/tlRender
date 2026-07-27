@@ -49,22 +49,21 @@ namespace tl
             {
                 std::vector<uint8_t> memoryData;
                 std::vector<ftk::MemFile> memory;
-                std::shared_ptr<IRead> read;
                 if (memoryIO)
                 {
                     auto fileIO = ftk::FileIO::create(path.get(), ftk::FileMode::Read);
                     memoryData.resize(fileIO->getSize());
                     fileIO->read(memoryData.data(), memoryData.size());
                     memory.push_back(ftk::MemFile(nullptr, memoryData.data(), memoryData.size()));
-                    read = plugin->read(path, memory, options);
                 }
-                else
-                {
-                    read = plugin->read(path, options);
-                }
-                const auto ioInfo = read->getInfo().get();
+                // A sequence has no reader: one file is one decode.
+                auto decode = plugin->decode(options);
+                FTK_ASSERT(decode);
+                const ftk::MemFile* mem = !memory.empty() ? &memory[0] : nullptr;
+                const auto ioInfo = decode->getInfo(path.get(), mem);
                 FTK_ASSERT(!ioInfo.video.empty());
-                const auto videoData = read->readVideo(OTIO_NS::RationalTime(0.0, 24.0)).get();
+                const auto videoData = decode->readVideo(
+                    path.get(), mem, OTIO_NS::RationalTime(0.0, 24.0), options);
                 FTK_ASSERT(videoData.image);
                 FTK_ASSERT(videoData.image->getSize() == image->getSize());
                 //! \todo Compare image data.
@@ -96,8 +95,19 @@ namespace tl
                     fileIO->read(memoryData.data(), memoryData.size());
                     memory.push_back(ftk::MemFile(nullptr, memoryData.data(), memoryData.size()));
                 }
-                auto read = plugin->read(path, memory, options);
-                const auto videoData = read->readVideo(OTIO_NS::RationalTime(0.0, 24.0)).get();
+                // The file has been truncated, so this is expected to fail;
+                // a reader swallowed that, a decoder reports it.
+                try
+                {
+                    auto decode = plugin->decode(options);
+                    decode->readVideo(
+                        path.get(),
+                        !memory.empty() ? &memory[0] : nullptr,
+                        OTIO_NS::RationalTime(0.0, 24.0),
+                        options);
+                }
+                catch (const std::exception&)
+                {}
             }
         }
 

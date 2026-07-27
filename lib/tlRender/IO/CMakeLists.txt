@@ -10,8 +10,7 @@ set(HEADERS
     SystemInline.h
     Write.h)
 set(HEADERS_PRIVATE
-    RequestQueuePrivate.h
-    SeqIOReadPrivate.h)
+    RequestQueuePrivate.h)
 
 set(SOURCE
     Decode.cpp
@@ -20,7 +19,6 @@ set(SOURCE
     Read.cpp
     SeqDecode.cpp
     SeqIO.cpp
-    SeqIORead.cpp
     SeqIOWrite.cpp
     System.cpp
     Write.cpp)
