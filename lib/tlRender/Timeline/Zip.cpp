@@ -138,6 +138,14 @@ namespace tl
             int64_t     dataOffset = -1;
         };
         std::vector<Record> records;
+        // Where every entry's local header starts, including the entries this
+        // reader cannot use. An entry's data ends at the next header
+        // whatever kind of entry that is, so leaving out the compressed ones
+        // would put the boundary past them and derive an offset that is
+        // wrong by their size -- small enough, for a small entry, to pass the
+        // bounds check below.
+        std::vector<int64_t> boundaries;
+        bool derivable = true;
         while (MZ_OK == err)
         {
             mz_zip_file* fileInfo = nullptr;
@@ -146,6 +154,17 @@ namespace tl
             {
                 throw std::runtime_error(ftk::Format(
                     "Cannot get zip entry information: \"{0}\"").arg(fileName));
+            }
+            if (fileInfo->disk_offset >= 0 &&
+                static_cast<size_t>(fileInfo->disk_offset) + zipHeaderSize <= _fileSize)
+            {
+                boundaries.push_back(fileInfo->disk_offset);
+            }
+            if (fileInfo->disk_number != 0)
+            {
+                // Split across volumes, so an offset is relative to a disk
+                // rather than to this file.
+                derivable = false;
             }
             if (mz_zip_reader_entry_is_dir(_reader.get()) != MZ_OK &&
                 0 == fileInfo->compression_method)
@@ -205,11 +224,21 @@ namespace tl
         // guess it, measure it. A handful of entries say what the whole
         // archive does. Measured on a bundle of 25,099 streamed entries the
         // gap is sixteen bytes throughout.
+        std::sort(boundaries.begin(), boundaries.end());
+        const auto nextBoundary = [&boundaries](int64_t headerOffset) -> int64_t
+        {
+            const auto i = std::upper_bound(
+                boundaries.begin(), boundaries.end(), headerOffset);
+            return i != boundaries.end() ? *i : -1;
+        };
         std::vector<size_t> plain;
         std::vector<size_t> trailing;
-        for (size_t i = 0; i + 1 < records.size(); ++i)
+        for (size_t i = 0; i < records.size(); ++i)
         {
-            (records[i].trailer ? trailing : plain).push_back(i);
+            if (nextBoundary(records[i].headerOffset) >= 0)
+            {
+                (records[i].trailer ? trailing : plain).push_back(i);
+            }
         }
         const auto measureGap =
             [&](const std::vector<size_t>& group, int64_t& gap) -> bool
@@ -226,7 +255,9 @@ namespace tl
                     readDataOffset(io, fileName, records[i].headerOffset);
                 ++readCount;
                 const int64_t measured =
-                    records[i + 1].headerOffset - records[i].size - dataOffset;
+                    nextBoundary(records[i].headerOffset) -
+                    records[i].size -
+                    dataOffset;
                 if (measured < 0 || measured > zipMaxTrailerSize)
                 {
                     return false;
@@ -244,15 +275,21 @@ namespace tl
         };
         int64_t plainGap = 0;
         int64_t trailingGap = 0;
-        const bool derivable =
-            measureGap(plain, plainGap) && measureGap(trailing, trailingGap);
+        derivable = derivable &&
+            measureGap(plain, plainGap) &&
+            measureGap(trailing, trailingGap);
         if (derivable)
         {
-            for (size_t i = 0; i + 1 < records.size(); ++i)
+            for (size_t i = 0; i < records.size(); ++i)
             {
                 Record& record = records[i];
+                const int64_t next = nextBoundary(record.headerOffset);
+                if (next < 0)
+                {
+                    continue;
+                }
                 const int64_t derived =
-                    records[i + 1].headerOffset -
+                    next -
                     record.size -
                     (record.trailer ? trailingGap : plainGap);
                 if (derived >= record.minDataOffset &&
