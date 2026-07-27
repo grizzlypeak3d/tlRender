@@ -44,7 +44,10 @@ namespace tl
         //! of work to do.
         size_t videoRequestMax = 16;
 
-        //! Maximum number of audio requests.
+        //! How far ahead the player asks for audio while filling its cache.
+        //!
+        //! The player expressing demand, as with videoRequestMax above; the
+        //! timeline decides how much of it is in flight.
         size_t audioRequestMax = 16;
 
         //! Audio buffer frame count.

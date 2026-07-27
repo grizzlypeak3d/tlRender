@@ -34,6 +34,9 @@ namespace tl
         // means reading a header again.
         const size_t seqCacheMax = 1000;
         const std::chrono::milliseconds timeout(5);
+        // How long a timeline without a thread waits for one of its own
+        // requests before giving up on it.
+        const std::chrono::seconds syncRequestTimeout(60);
 
         //! Get the OTIO spatial coordinates of a media reference. These are
         //! optional; media without them is laid out from the image size as
@@ -942,7 +945,10 @@ namespace tl
 
     size_t Timeline::getVideoRequestMax() const
     {
-        return _p->options.readThreadCount * 2;
+        // At least one, whatever the options say. Zero here would not mean
+        // "no limit", it would mean no request is ever picked up, and a
+        // timeline without a thread would wait for one that never came.
+        return std::max(_p->options.readThreadCount, size_t(1)) * 2;
     }
 
     size_t Timeline::getReadThreadCount() const
@@ -1179,11 +1185,20 @@ namespace tl
         }
         if (!p.options.threaded)
         {
-            // Nothing else is going to run this request.
+            // Nothing else is going to run this request. Bounded because a
+            // caller blocking on the future would have no way to find out
+            // that it is never going to resolve; reaching the bound is a bug
+            // here rather than a slow read.
+            const auto start = std::chrono::steady_clock::now();
             while (out.future.valid() &&
                 out.future.wait_for(std::chrono::seconds(0)) !=
                     std::future_status::ready)
             {
+                if (std::chrono::steady_clock::now() - start > syncRequestTimeout)
+                {
+                    p.abandon(request);
+                    break;
+                }
                 _tick();
             }
         }
@@ -1222,11 +1237,20 @@ namespace tl
         }
         if (!p.options.threaded)
         {
-            // Nothing else is going to run this request.
+            // Nothing else is going to run this request. Bounded because a
+            // caller blocking on the future would have no way to find out
+            // that it is never going to resolve; reaching the bound is a bug
+            // here rather than a slow read.
+            const auto start = std::chrono::steady_clock::now();
             while (out.future.valid() &&
                 out.future.wait_for(std::chrono::seconds(0)) !=
                     std::future_status::ready)
             {
+                if (std::chrono::steady_clock::now() - start > syncRequestTimeout)
+                {
+                    p.abandon(request);
+                    break;
+                }
                 _tick();
             }
         }
@@ -2086,6 +2110,58 @@ namespace tl
             task.promise.set_value(VideoData());
         }
         return out;
+    }
+
+    namespace
+    {
+        template<typename T>
+        void eraseRequest(std::list<std::shared_ptr<T> >& list, const T* request)
+        {
+            for (auto i = list.begin(); i != list.end(); ++i)
+            {
+                if (i->get() == request)
+                {
+                    list.erase(i);
+                    return;
+                }
+            }
+        }
+    }
+
+    void Timeline::Private::abandon(
+        const std::shared_ptr<PendingVideoRequest>& request)
+    {
+        if (auto log = logSystem.lock())
+        {
+            log->print("tl::Timeline", ftk::Format(
+                "Video request {0} did not complete: \"{1}\"").
+                arg(request->id).arg(path.get()),
+                ftk::LogType::Error);
+        }
+        {
+            std::unique_lock<std::mutex> lock(mutex.mutex);
+            eraseRequest(mutex.videoRequests, request.get());
+        }
+        eraseRequest(thread.videoRequestsInProgress, request.get());
+        request->promise.set_value(VideoFrame());
+    }
+
+    void Timeline::Private::abandon(
+        const std::shared_ptr<PendingAudioRequest>& request)
+    {
+        if (auto log = logSystem.lock())
+        {
+            log->print("tl::Timeline", ftk::Format(
+                "Audio request {0} did not complete: \"{1}\"").
+                arg(request->id).arg(path.get()),
+                ftk::LogType::Error);
+        }
+        {
+            std::unique_lock<std::mutex> lock(mutex.mutex);
+            eraseRequest(mutex.audioRequests, request.get());
+        }
+        eraseRequest(thread.audioRequestsInProgress, request.get());
+        request->promise.set_value(AudioFrame());
     }
 
     void Timeline::Private::updateReadErrors()

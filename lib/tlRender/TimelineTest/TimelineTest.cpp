@@ -830,6 +830,20 @@ namespace tl
                 auto many = Timeline::create(_context, seqPath, manyOptions);
                 FTK_ASSERT(24 == many->getReadThreadCount());
                 FTK_ASSERT(many->getVideoRequestMax() > 16);
+
+                // Zero threads must not mean zero requests in flight: that
+                // would leave a timeline without a thread waiting for a
+                // request nothing was ever going to pick up.
+                Options zeroOptions;
+                zeroOptions.threaded = false;
+                zeroOptions.readThreadCount = 0;
+                auto zero = Timeline::create(_context, seqPath, zeroOptions);
+                FTK_ASSERT(zero->getVideoRequestMax() > 0);
+                auto zeroRequest = zero->getVideo(
+                    zero->getTimeRange().start_time());
+                FTK_ASSERT(zeroRequest.future.valid());
+                FTK_ASSERT(zeroRequest.future.wait_for(std::chrono::seconds(0)) ==
+                    std::future_status::ready);
             }
 
             _print("named media read from a bundle");

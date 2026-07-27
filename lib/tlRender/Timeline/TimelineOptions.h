@@ -80,7 +80,13 @@ namespace tl
         size_t readThreadCount = getDefaultReadThreadCount();
 
 
-        //! Maximum number of audio requests.
+        //! Maximum number of audio requests in flight.
+        //!
+        //! Unlike video, this does not follow readThreadCount: audio is not
+        //! decoded by the timeline's pool. It comes from a reader that does
+        //! its own threading, so there is no thread count here for it to
+        //! follow and this is the only limit on how much audio is being
+        //! assembled at once.
         size_t audioRequestMax = 16;
 
         //! Request timeout.

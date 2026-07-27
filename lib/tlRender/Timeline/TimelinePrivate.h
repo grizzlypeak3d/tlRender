@@ -222,6 +222,12 @@ namespace tl
         // decode throws, which is what a reader did with a failed frame.
         std::future<VideoData> submitRead(std::function<VideoData()>);
 
+        // Give up on a request that has not resolved, so that a caller
+        // waiting on its future is not left waiting forever. The frame comes
+        // back empty and the reason goes to the log.
+        void abandon(const std::shared_ptr<PendingVideoRequest>&);
+        void abandon(const std::shared_ptr<PendingAudioRequest>&);
+
         // Build a finished frame from a request whose futures are ready.
         // Calling these blocks on the layer futures via get(), so callers
         // must ensure readiness (poll with wait_for, or accept the block at
