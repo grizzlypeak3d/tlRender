@@ -174,6 +174,16 @@ namespace tl
                             p.info.tags[tag.first] = tag.second;
                         }
 
+                        if (!p.info.audio.isValid())
+                        {
+                            // The file has no audio, which most plates do
+                            // not. Stopping the queue makes a request for
+                            // audio come back empty at once, so nothing
+                            // waits on a thread that would have no work.
+                            p.audioCondition.stopQueues();
+                        }
+                        else
+                        {
                         p.audioThread.thread = std::thread(
                             [this, path]
                             {
@@ -204,6 +214,7 @@ namespace tl
                                 // before this thread is spawned.
                                 p.audioCondition.stopQueues();
                             });
+                        }
 
                         _videoThread();
                     }
