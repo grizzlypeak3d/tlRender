@@ -214,6 +214,19 @@ namespace tl
             return _requests.size();
         }
 
+        //! Mark this queue as stopped and cancel its pending requests,
+        //! leaving the other queues on the condition running. Used when
+        //! the worker will never serve this queue -- a file with no audio,
+        //! say -- while it still serves information requests.
+        void stop()
+        {
+            {
+                std::unique_lock<std::mutex> lock(_condition._mutex);
+                _stop();
+            }
+            _cancelStaged();
+        }
+
         //! Cancel the pending requests, completing them with default
         //! constructed results.
         void cancel()

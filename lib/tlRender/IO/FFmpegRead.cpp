@@ -81,7 +81,101 @@ namespace tl
             return static_cast<int64_t>(bufferData->offset);
         }
 
-        void Read::_init(
+        ReadOptions getReadOptions(const IOOptions& options)
+        {
+            ReadOptions out;
+            auto i = options.find("FFmpeg/YUVToRGB");
+            if (i != options.end())
+            {
+                std::stringstream ss(i->second);
+                ss >> out.yuvToRGBConversion;
+            }
+            i = options.find("FFmpeg/HWAccel");
+            if (i != options.end())
+            {
+                std::stringstream ss(i->second);
+                ss >> out.hwAccel;
+            }
+            i = options.find("FFmpeg/AudioChannelCount");
+            if (i != options.end())
+            {
+                std::stringstream ss(i->second);
+                ss >> out.audioConvertInfo.channelCount;
+            }
+            i = options.find("FFmpeg/AudioType");
+            if (i != options.end())
+            {
+                from_string(i->second, out.audioConvertInfo.type);
+            }
+            i = options.find("FFmpeg/AudioSampleRate");
+            if (i != options.end())
+            {
+                std::stringstream ss(i->second);
+                ss >> out.audioConvertInfo.sampleRate;
+            }
+            i = options.find("FFmpeg/ThreadCount");
+            if (i != options.end())
+            {
+                std::stringstream ss(i->second);
+                ss >> out.threadCount;
+            }
+            i = options.find("FFmpeg/RequestTimeout");
+            if (i != options.end())
+            {
+                std::stringstream ss(i->second);
+                ss >> out.requestTimeout;
+            }
+            i = options.find("FFmpeg/VideoBufferSize");
+            if (i != options.end())
+            {
+                std::stringstream ss(i->second);
+                ss >> out.videoBufferSize;
+            }
+            i = options.find("FFmpeg/AudioBufferSize");
+            if (i != options.end())
+            {
+                from_string(i->second, out.audioBufferSize);
+            }
+            return out;
+        }
+
+        int findStream(AVFormatContext* avFormatContext, AVMediaType type)
+        {
+            int out = -1;
+            for (unsigned int i = 0; i < avFormatContext->nb_streams; ++i)
+            {
+                if (type == avFormatContext->streams[i]->codecpar->codec_type &&
+                    AV_DISPOSITION_DEFAULT == avFormatContext->streams[i]->disposition)
+                {
+                    out = i;
+                    break;
+                }
+            }
+            if (-1 == out)
+            {
+                for (unsigned int i = 0; i < avFormatContext->nb_streams; ++i)
+                {
+                    if (type == avFormatContext->streams[i]->codecpar->codec_type)
+                    {
+                        out = i;
+                        break;
+                    }
+                }
+            }
+            return out;
+        }
+
+        namespace
+        {
+            //! The file name to hand to a worker; a path with a protocol is
+            //! opened by FFmpeg itself.
+            std::string getFileName(const ftk::Path& path)
+            {
+                return path.hasProtocol() ? path.get() : path.getFileName(true);
+            }
+        }
+
+        void VideoRead::_init(
             const ftk::Path& path,
             const std::vector<ftk::MemFile>& mem,
             const IOOptions& options,
@@ -90,67 +184,16 @@ namespace tl
             IRead::_init(path, mem, options, logSystem);
             FTK_P();
 
-            auto i = options.find("FFmpeg/YUVToRGB");
-            if (i != options.end())
-            {
-                std::stringstream ss(i->second);
-                ss >> p.options.yuvToRGBConversion;
-            }
-            i = options.find("FFmpeg/HWAccel");
-            if (i != options.end())
-            {
-                std::stringstream ss(i->second);
-                ss >> p.options.hwAccel;
-            }
-            i = options.find("FFmpeg/AudioChannelCount");
-            if (i != options.end())
-            {
-                std::stringstream ss(i->second);
-                ss >> p.options.audioConvertInfo.channelCount;
-            }
-            i = options.find("FFmpeg/AudioType");
-            if (i != options.end())
-            {
-                from_string(i->second, p.options.audioConvertInfo.type);
-            }
-            i = options.find("FFmpeg/AudioSampleRate");
-            if (i != options.end())
-            {
-                std::stringstream ss(i->second);
-                ss >> p.options.audioConvertInfo.sampleRate;
-            }
-            i = options.find("FFmpeg/ThreadCount");
-            if (i != options.end())
-            {
-                std::stringstream ss(i->second);
-                ss >> p.options.threadCount;
-            }
-            i = options.find("FFmpeg/RequestTimeout");
-            if (i != options.end())
-            {
-                std::stringstream ss(i->second);
-                ss >> p.options.requestTimeout;
-            }
-            i = options.find("FFmpeg/VideoBufferSize");
-            if (i != options.end())
-            {
-                std::stringstream ss(i->second);
-                ss >> p.options.videoBufferSize;
-            }
-            i = options.find("FFmpeg/AudioBufferSize");
-            if (i != options.end())
-            {
-                from_string(i->second, p.options.audioBufferSize);
-            }
+            p.options = getReadOptions(options);
 
-            p.videoThread.thread = std::thread(
+            p.thread = std::thread(
                 [this, path]
                 {
                     FTK_P();
                     try
                     {
                         p.readVideo = std::make_shared<ReadVideo>(
-                            path.hasProtocol() ? path.get() : path.getFileName(true),
+                            getFileName(path),
                             _mem,
                             p.options,
                             _logSystem.lock());
@@ -162,137 +205,75 @@ namespace tl
                             p.info.tags = p.readVideo->getTags();
                         }
 
-                        p.readAudio = std::make_shared<ReadAudio>(
-                            path.hasProtocol() ? path.get() : path.getFileName(true),
-                            _mem,
-                            p.info.videoTime.duration().rate(),
-                            p.options);
-                        p.info.audio = p.readAudio->getInfo();
-                        p.info.audioTime = p.readAudio->getTimeRange();
-                        for (const auto& tag : p.readAudio->getTags())
-                        {
-                            p.info.tags[tag.first] = tag.second;
-                        }
-
-                        if (!p.info.audio.isValid())
-                        {
-                            // The file has no audio, which most plates do
-                            // not. Stopping the queue makes a request for
-                            // audio come back empty at once, so nothing
-                            // waits on a thread that would have no work.
-                            p.audioCondition.stopQueues();
-                        }
-                        else
-                        {
-                        p.audioThread.thread = std::thread(
-                            [this, path]
-                            {
-                                FTK_P();
-                                try
-                                {
-                                    _audioThread();
-                                }
-                                catch (const std::exception& e)
-                                {
-                                    if (auto logSystem = _logSystem.lock())
-                                    {
-                                        logSystem->print(
-                                            "tl::ffmpeg::Read",
-                                            e.what(),
-                                            ftk::LogType::Error);
-                                    }
-                                    std::unique_lock<std::mutex> lock(p.errorMutex.mutex);
-                                    ++p.errorMutex.audioCount;
-                                    if (p.errorMutex.error.empty())
-                                    {
-                                        p.errorMutex.error = e.what();
-                                    }
-                                }
-
-                                // The epilogue; the video thread epilogue
-                                // only runs at shutdown or if setup fails
-                                // before this thread is spawned.
-                                p.audioCondition.stopQueues();
-                            });
-                        }
-
-                        _videoThread();
+                        _run();
                     }
                     catch (const std::exception& e)
                     {
                         if (auto logSystem = _logSystem.lock())
                         {
                             logSystem->print(
-                                "tl::ffmpeg::Read",
+                                "tl::ffmpeg::VideoRead",
                                 e.what(),
                                 ftk::LogType::Error);
                         }
                         std::unique_lock<std::mutex> lock(p.errorMutex.mutex);
-                        ++p.errorMutex.videoCount;
+                        ++p.errorMutex.count;
                         if (p.errorMutex.error.empty())
                         {
                             p.errorMutex.error = e.what();
                         }
                     }
 
-                    // The epilogue; the audio queues are included for the
-                    // case where setup fails before the audio thread is
-                    // spawned.
-                    p.videoCondition.stopQueues();
-                    p.audioCondition.stopQueues();
+                    // The epilogue.
+                    p.condition.stopQueues();
                 });
         }
 
-        Read::Read() :
+        VideoRead::VideoRead() :
             _p(new Private)
         {}
 
-        Read::~Read()
+        VideoRead::~VideoRead()
         {
             FTK_P();
 
-            // Stop the conditions and wake the threads so that shutdown
-            // does not have to wait for the request timeout.
-            p.videoCondition.stop();
-            p.audioCondition.stop();
-            if (p.videoThread.thread.joinable())
+            // Stop the condition and wake the thread so that shutdown does
+            // not have to wait for the request timeout.
+            p.condition.stop();
+            if (p.thread.joinable())
             {
-                p.videoThread.thread.join();
-            }
-            if (p.audioThread.thread.joinable())
-            {
-                p.audioThread.thread.join();
+                p.thread.join();
             }
         }
 
-        std::shared_ptr<Read> Read::create(
+        std::shared_ptr<VideoRead> VideoRead::create(
             const ftk::Path& path,
             const IOOptions& options,
             const std::shared_ptr<ftk::LogSystem>& logSystem)
         {
-            auto out = std::shared_ptr<Read>(new Read);
+            auto out = std::shared_ptr<VideoRead>(new VideoRead);
             out->_init(path, {}, options, logSystem);
             return out;
         }
 
-        std::shared_ptr<Read> Read::create(
+        std::shared_ptr<VideoRead> VideoRead::create(
             const ftk::Path& path,
             const std::vector<ftk::MemFile>& mem,
             const IOOptions& options,
             const std::shared_ptr<ftk::LogSystem>& logSystem)
         {
-            auto out = std::shared_ptr<Read>(new Read);
+            auto out = std::shared_ptr<VideoRead>(new VideoRead);
             out->_init(path, mem, options, logSystem);
             return out;
         }
 
-        std::future<IOInfo> Read::getInfo()
+        std::future<IOInfo> VideoRead::getInfo()
         {
             FTK_P();
             return p.infoRequests.push(std::make_shared<Private::InfoRequest>());
         }
 
-        std::future<VideoData> Read::readVideo(
+        std::future<VideoData> VideoRead::readVideo(
             const OTIO_NS::RationalTime& time,
             const IOOptions& options)
         {
@@ -303,47 +284,35 @@ namespace tl
             return p.videoRequests.push(request);
         }
 
-        std::future<AudioData> Read::readAudio(
-            const OTIO_NS::TimeRange& timeRange,
-            const IOOptions& options)
-        {
-            FTK_P();
-            auto request = std::make_shared<Private::AudioRequest>();
-            request->timeRange = timeRange;
-            request->options = merge(options, _options);
-            return p.audioRequests.push(request);
-        }
-
-        void Read::cancelRequests()
+        void VideoRead::cancelRequests()
         {
             FTK_P();
             p.infoRequests.cancel();
             p.videoRequests.cancel();
-            p.audioRequests.cancel();
         }
 
-        std::string Read::getError() const
+        std::string VideoRead::getError() const
         {
             FTK_P();
             std::unique_lock<std::mutex> lock(p.errorMutex.mutex);
             return p.errorMutex.error;
         }
 
-        size_t Read::getErrorCount() const
+        size_t VideoRead::getErrorCount() const
         {
             FTK_P();
             std::unique_lock<std::mutex> lock(p.errorMutex.mutex);
-            return p.errorMutex.videoCount + p.errorMutex.audioCount;
+            return p.errorMutex.count;
         }
 
-        void Read::_videoThread()
+        void VideoRead::_run()
         {
             FTK_P();
-            p.videoThread.currentTime = p.info.videoTime.start_time();
+            p.currentTime = p.info.videoTime.start_time();
             p.readVideo->start();
-            p.videoThread.logTimer = std::chrono::steady_clock::now();
+            p.logTimer = std::chrono::steady_clock::now();
             size_t errorCount = 0;
-            while (p.videoCondition.wait(std::chrono::milliseconds(p.options.requestTimeout)))
+            while (p.condition.wait(std::chrono::milliseconds(p.options.requestTimeout)))
             {
                 // Information requests.
                 for (const auto& request : p.infoRequests.popAll())
@@ -358,17 +327,17 @@ namespace tl
                     PromiseGuard<VideoData> guard(videoRequest->promise);
 
                     // Seek.
-                    if (!videoRequest->time.strictly_equal(p.videoThread.currentTime))
+                    if (!videoRequest->time.strictly_equal(p.currentTime))
                     {
-                        p.videoThread.currentTime = videoRequest->time;
-                        p.readVideo->seek(p.videoThread.currentTime);
+                        p.currentTime = videoRequest->time;
+                        p.readVideo->seek(p.currentTime);
                     }
 
                     // Process.
                     while (
                         p.readVideo->isBufferEmpty() &&
                         p.readVideo->isValid() &&
-                        p.readVideo->process(p.videoThread.currentTime))
+                        p.readVideo->process(p.currentTime))
                         ;
 
                     // Handle the request.
@@ -380,7 +349,7 @@ namespace tl
                     }
                     guard.setValue(std::move(data));
 
-                    p.videoThread.currentTime += OTIO_NS::RationalTime(1.0, p.info.videoTime.duration().rate());
+                    p.currentTime += OTIO_NS::RationalTime(1.0, p.info.videoTime.duration().rate());
                 }
 
                 // Record any new errors from the worker, logging the
@@ -391,7 +360,7 @@ namespace tl
                     errorCount = p.readVideo->getErrorCount();
                     {
                         std::unique_lock<std::mutex> lock(p.errorMutex.mutex);
-                        p.errorMutex.videoCount = errorCount;
+                        p.errorMutex.count = errorCount;
                         if (p.errorMutex.error.empty())
                         {
                             p.errorMutex.error = p.readVideo->getErrorString();
@@ -402,7 +371,7 @@ namespace tl
                         if (auto logSystem = _logSystem.lock())
                         {
                             logSystem->print(
-                                "tl::ffmpeg::Read",
+                                "tl::ffmpeg::VideoRead",
                                 ftk::Format("Errors reading video: \"{0}\": {1}").
                                     arg(_path.get()).
                                     arg(p.readVideo->getErrorString()),
@@ -414,13 +383,13 @@ namespace tl
                 // Logging.
                 /*{
                     const auto now = std::chrono::steady_clock::now();
-                    const std::chrono::duration<float> diff = now - p.videoThread.logTimer;
+                    const std::chrono::duration<float> diff = now - p.logTimer;
                     if (diff.count() > 10.F)
                     {
-                        p.videoThread.logTimer = now;
+                        p.logTimer = now;
                         if (auto logSystem = _logSystem.lock())
                         {
-                            const std::string id = ftk::Format("tl::ffmpeg::Read {0}").arg(this);
+                            const std::string id = ftk::Format("tl::ffmpeg::VideoRead {0}").arg(this);
                             logSystem->print(id, ftk::Format(
                                 "\n"
                                 "    * Path: {0}\n"
@@ -433,16 +402,157 @@ namespace tl
             }
         }
 
-        void Read::_audioThread()
+        void AudioRead::_init(
+            const ftk::Path& path,
+            const std::vector<ftk::MemFile>& mem,
+            const IOOptions& options,
+            const std::shared_ptr<ftk::LogSystem>& logSystem)
+        {
+            IRead::_init(path, mem, options, logSystem);
+            FTK_P();
+
+            p.options = getReadOptions(options);
+
+            p.thread = std::thread(
+                [this, path]
+                {
+                    FTK_P();
+                    try
+                    {
+                        p.readAudio = std::make_shared<ReadAudio>(
+                            getFileName(path),
+                            _mem,
+                            p.options);
+                        p.info.audio = p.readAudio->getInfo();
+                        p.info.audioTime = p.readAudio->getTimeRange();
+                        p.info.tags = p.readAudio->getTags();
+
+                        if (!p.info.audio.isValid())
+                        {
+                            // The file has no audio, which most plates do
+                            // not. Stopping the queue makes a request for
+                            // audio come back empty at once, so nothing
+                            // waits on work that will never be done; the
+                            // thread stays to serve information requests.
+                            p.audioRequests.stop();
+                        }
+
+                        _run();
+                    }
+                    catch (const std::exception& e)
+                    {
+                        if (auto logSystem = _logSystem.lock())
+                        {
+                            logSystem->print(
+                                "tl::ffmpeg::AudioRead",
+                                e.what(),
+                                ftk::LogType::Error);
+                        }
+                        std::unique_lock<std::mutex> lock(p.errorMutex.mutex);
+                        ++p.errorMutex.count;
+                        if (p.errorMutex.error.empty())
+                        {
+                            p.errorMutex.error = e.what();
+                        }
+                    }
+
+                    // The epilogue.
+                    p.condition.stopQueues();
+                });
+        }
+
+        AudioRead::AudioRead() :
+            _p(new Private)
+        {}
+
+        AudioRead::~AudioRead()
         {
             FTK_P();
-            p.audioThread.currentTime = p.info.audioTime.start_time();
+
+            // Stop the condition and wake the thread so that shutdown does
+            // not have to wait for the request timeout.
+            p.condition.stop();
+            if (p.thread.joinable())
+            {
+                p.thread.join();
+            }
+        }
+
+        std::shared_ptr<AudioRead> AudioRead::create(
+            const ftk::Path& path,
+            const IOOptions& options,
+            const std::shared_ptr<ftk::LogSystem>& logSystem)
+        {
+            auto out = std::shared_ptr<AudioRead>(new AudioRead);
+            out->_init(path, {}, options, logSystem);
+            return out;
+        }
+
+        std::shared_ptr<AudioRead> AudioRead::create(
+            const ftk::Path& path,
+            const std::vector<ftk::MemFile>& mem,
+            const IOOptions& options,
+            const std::shared_ptr<ftk::LogSystem>& logSystem)
+        {
+            auto out = std::shared_ptr<AudioRead>(new AudioRead);
+            out->_init(path, mem, options, logSystem);
+            return out;
+        }
+
+        std::future<IOInfo> AudioRead::getInfo()
+        {
+            FTK_P();
+            return p.infoRequests.push(std::make_shared<Private::InfoRequest>());
+        }
+
+        std::future<AudioData> AudioRead::readAudio(
+            const OTIO_NS::TimeRange& timeRange,
+            const IOOptions& options)
+        {
+            FTK_P();
+            auto request = std::make_shared<Private::AudioRequest>();
+            request->timeRange = timeRange;
+            request->options = merge(options, _options);
+            return p.audioRequests.push(request);
+        }
+
+        void AudioRead::cancelRequests()
+        {
+            FTK_P();
+            p.infoRequests.cancel();
+            p.audioRequests.cancel();
+        }
+
+        std::string AudioRead::getError() const
+        {
+            FTK_P();
+            std::unique_lock<std::mutex> lock(p.errorMutex.mutex);
+            return p.errorMutex.error;
+        }
+
+        size_t AudioRead::getErrorCount() const
+        {
+            FTK_P();
+            std::unique_lock<std::mutex> lock(p.errorMutex.mutex);
+            return p.errorMutex.count;
+        }
+
+        void AudioRead::_run()
+        {
+            FTK_P();
+            p.currentTime = p.info.audioTime.start_time();
             p.readAudio->start();
-            p.audioThread.logTimer = std::chrono::steady_clock::now();
+            p.logTimer = std::chrono::steady_clock::now();
             const bool audioValid = p.info.audio.isValid();
             size_t errorCount = 0;
-            while (p.audioCondition.wait(std::chrono::milliseconds(p.options.requestTimeout)))
+            while (p.condition.wait(std::chrono::milliseconds(p.options.requestTimeout)))
             {
+                // Information requests.
+                for (const auto& request : p.infoRequests.popAll())
+                {
+                    request->promise.set_value(p.info);
+                }
+
                 // Audio request. The guard completes the promise if an
                 // exception escapes; see PromiseGuard.
                 if (auto request = p.audioRequests.pop())
@@ -454,17 +564,17 @@ namespace tl
                     if (audioValid)
                     {
                         requestSampleCount = request->timeRange.duration().rescaled_to(p.info.audio.sampleRate).value();
-                        if (!request->timeRange.start_time().strictly_equal(p.audioThread.currentTime))
+                        if (!request->timeRange.start_time().strictly_equal(p.currentTime))
                         {
                             seek = true;
-                            p.audioThread.currentTime = request->timeRange.start_time();
+                            p.currentTime = request->timeRange.start_time();
                         }
                     }
 
                     // Seek.
                     if (seek)
                     {
-                        p.readAudio->seek(p.audioThread.currentTime);
+                        p.readAudio->seek(p.currentTime);
                     }
 
                     // Process.
@@ -478,7 +588,7 @@ namespace tl
                         p.readAudio->getBufferSize() < request->timeRange.duration().rescaled_to(p.info.audio.sampleRate).value() &&
                         p.readAudio->isValid() &&
                         p.readAudio->process(
-                            p.audioThread.currentTime,
+                            p.currentTime,
                             requestSampleCount ?
                             requestSampleCount :
                             p.options.audioBufferSize.rescaled_to(p.info.audio.sampleRate).value()))
@@ -515,7 +625,7 @@ namespace tl
                     }
                     guard.setValue(std::move(audioData));
 
-                    p.audioThread.currentTime += request->timeRange.duration();
+                    p.currentTime += request->timeRange.duration();
                 }
 
                 // Record any new errors from the worker, logging the
@@ -526,7 +636,7 @@ namespace tl
                     errorCount = p.readAudio->getErrorCount();
                     {
                         std::unique_lock<std::mutex> lock(p.errorMutex.mutex);
-                        p.errorMutex.audioCount = errorCount;
+                        p.errorMutex.count = errorCount;
                         if (p.errorMutex.error.empty())
                         {
                             p.errorMutex.error = p.readAudio->getErrorString();
@@ -537,7 +647,7 @@ namespace tl
                         if (auto logSystem = _logSystem.lock())
                         {
                             logSystem->print(
-                                "tl::ffmpeg::Read",
+                                "tl::ffmpeg::AudioRead",
                                 ftk::Format("Errors reading audio: \"{0}\": {1}").
                                     arg(_path.get()).
                                     arg(p.readAudio->getErrorString()),
@@ -549,13 +659,13 @@ namespace tl
                 // Logging.
                 /*{
                     const auto now = std::chrono::steady_clock::now();
-                    const std::chrono::duration<float> diff = now - p.audioThread.logTimer;
+                    const std::chrono::duration<float> diff = now - p.logTimer;
                     if (diff.count() > 10.F)
                     {
-                        p.audioThread.logTimer = now;
+                        p.logTimer = now;
                         if (auto logSystem = _logSystem.lock())
                         {
-                            const std::string id = ftk::Format("tl::ffmpeg::Read {0}").arg(this);
+                            const std::string id = ftk::Format("tl::ffmpeg::AudioRead {0}").arg(this);
                             logSystem->print(id, ftk::Format(
                                 "\n"
                                 "    * Path: {0}\n"
@@ -566,6 +676,117 @@ namespace tl
                     }
                 }*/
             }
+        }
+
+        void Read::_init(
+            const ftk::Path& path,
+            const std::vector<ftk::MemFile>& mem,
+            const IOOptions& options,
+            const std::shared_ptr<ftk::LogSystem>& logSystem)
+        {
+            IRead::_init(path, mem, options, logSystem);
+            FTK_P();
+            p.videoRead = VideoRead::create(path, mem, options, logSystem);
+            p.audioRead = AudioRead::create(path, mem, options, logSystem);
+        }
+
+        Read::Read() :
+            _p(new Private)
+        {}
+
+        Read::~Read()
+        {}
+
+        std::shared_ptr<Read> Read::create(
+            const ftk::Path& path,
+            const IOOptions& options,
+            const std::shared_ptr<ftk::LogSystem>& logSystem)
+        {
+            auto out = std::shared_ptr<Read>(new Read);
+            out->_init(path, {}, options, logSystem);
+            return out;
+        }
+
+        std::shared_ptr<Read> Read::create(
+            const ftk::Path& path,
+            const std::vector<ftk::MemFile>& mem,
+            const IOOptions& options,
+            const std::shared_ptr<ftk::LogSystem>& logSystem)
+        {
+            auto out = std::shared_ptr<Read>(new Read);
+            out->_init(path, mem, options, logSystem);
+            return out;
+        }
+
+        std::future<IOInfo> Read::getInfo()
+        {
+            FTK_P();
+
+            // Both requests go out now so that the two readers work in
+            // parallel, and the merge waits for the caller's get(). Note
+            // that a deferred future never reports ready from wait_for():
+            // that is acceptable only because every caller of getInfo()
+            // blocks on get(), and because this class exists only until
+            // they ask for the half they need.
+            auto videoFuture = p.videoRead->getInfo();
+            auto audioFuture = p.audioRead->getInfo();
+            return std::async(
+                std::launch::deferred,
+                [videoFuture = std::move(videoFuture),
+                 audioFuture = std::move(audioFuture)]() mutable
+                {
+                    IOInfo out = videoFuture.get();
+                    const IOInfo audioInfo = audioFuture.get();
+                    out.audio = audioInfo.audio;
+                    out.audioTime = audioInfo.audioTime;
+                    for (const auto& tag : audioInfo.tags)
+                    {
+                        out.tags[tag.first] = tag.second;
+                    }
+                    return out;
+                });
+        }
+
+        std::future<VideoData> Read::readVideo(
+            const OTIO_NS::RationalTime& time,
+            const IOOptions& options)
+        {
+            FTK_P();
+            // The reader merges in the options given at creation, which
+            // are the same ones this class was given.
+            return p.videoRead->readVideo(time, options);
+        }
+
+        std::future<AudioData> Read::readAudio(
+            const OTIO_NS::TimeRange& timeRange,
+            const IOOptions& options)
+        {
+            FTK_P();
+            return p.audioRead->readAudio(timeRange, options);
+        }
+
+        void Read::cancelRequests()
+        {
+            FTK_P();
+            p.videoRead->cancelRequests();
+            p.audioRead->cancelRequests();
+        }
+
+        std::string Read::getError() const
+        {
+            FTK_P();
+            std::string out = p.videoRead->getError();
+            if (out.empty())
+            {
+                out = p.audioRead->getError();
+            }
+            return out;
+        }
+
+        size_t Read::getErrorCount() const
+        {
+            FTK_P();
+            return p.videoRead->getErrorCount() + p.audioRead->getErrorCount();
         }
     }
 }

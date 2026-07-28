@@ -81,28 +81,9 @@ namespace tl
                         arg(getErrorLabel(r)).
                         arg(fileName));
                 }
-                for (unsigned int i = 0; i < _avFormatContext->nb_streams; ++i)
-                {
-                    //av_dump_format(_avFormatContext, i, fileName.c_str(), 0);
-
-                    if (AVMEDIA_TYPE_VIDEO == _avFormatContext->streams[i]->codecpar->codec_type &&
-                        AV_DISPOSITION_DEFAULT == _avFormatContext->streams[i]->disposition)
-                    {
-                        _avStream = i;
-                        break;
-                    }
-                }
-                if (-1 == _avStream)
-                {
-                    for (unsigned int i = 0; i < _avFormatContext->nb_streams; ++i)
-                    {
-                        if (AVMEDIA_TYPE_VIDEO == _avFormatContext->streams[i]->codecpar->codec_type)
-                        {
-                            _avStream = i;
-                            break;
-                        }
-                    }
-                }
+                //for (unsigned int i = 0; i < _avFormatContext->nb_streams; ++i)
+                //    av_dump_format(_avFormatContext, i, fileName.c_str(), 0);
+                _avStream = findStream(_avFormatContext, AVMEDIA_TYPE_VIDEO);
                 std::string timecode = getTimecodeFromDataStream(_avFormatContext);
                 if (_avStream != -1)
                 {

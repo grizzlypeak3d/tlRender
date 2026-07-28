@@ -14,7 +14,6 @@ namespace tl
         ReadAudio::ReadAudio(
             const std::string& fileName,
             const std::vector<ftk::MemFile>& memory,
-            double videoRate,
             const ReadOptions& options) :
             _fileName(fileName),
             _options(options)
@@ -66,26 +65,25 @@ namespace tl
                 {
                     throw std::runtime_error(ftk::Format("{0}: \"{1}\"").arg(getErrorLabel(r)).arg(fileName));
                 }
-                for (unsigned int i = 0; i < _avFormatContext->nb_streams; ++i)
+                _avStream = findStream(_avFormatContext, AVMEDIA_TYPE_AUDIO);
+
+                // The video rate is needed only to parse the timecode tag
+                // into a start time below, and is read from this reader's own
+                // format context: the audio does not depend on a video reader
+                // existing. A file with no video has no rate to parse the
+                // timecode against.
+                double videoRate = invalidTime.rate();
+                const int avVideoStream = findStream(
+                    _avFormatContext,
+                    AVMEDIA_TYPE_VIDEO);
+                if (avVideoStream != -1)
                 {
-                    if (AVMEDIA_TYPE_AUDIO == _avFormatContext->streams[i]->codecpar->codec_type &&
-                        AV_DISPOSITION_DEFAULT == _avFormatContext->streams[i]->disposition)
-                    {
-                        _avStream = i;
-                        break;
-                    }
+                    videoRate = av_q2d(av_guess_frame_rate(
+                        _avFormatContext,
+                        _avFormatContext->streams[avVideoStream],
+                        nullptr));
                 }
-                if (-1 == _avStream)
-                {
-                    for (unsigned int i = 0; i < _avFormatContext->nb_streams; ++i)
-                    {
-                        if (AVMEDIA_TYPE_AUDIO == _avFormatContext->streams[i]->codecpar->codec_type)
-                        {
-                            _avStream = i;
-                            break;
-                        }
-                    }
-                }
+
                 std::string timecode = getTimecodeFromDataStream(_avFormatContext);
                 if (_avStream != -1)
                 {

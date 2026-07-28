@@ -44,6 +44,7 @@ namespace tl
             _roundTrip();
             _shutdown();
             _stopQueues();
+            _stopQueue();
             _cancel();
             _promiseGuard();
         }
@@ -133,6 +134,45 @@ namespace tl
             FTK_ASSERT(std::future_status::ready ==
                 lateFuture.wait_for(std::chrono::seconds(0)));
             FTK_ASSERT(0 == lateFuture.get());
+        }
+
+        void RequestQueueTest::_stopQueue()
+        {
+            _print("Stop queue");
+            // One queue can be stopped on its own -- an audio queue for a
+            // file with no audio -- while the worker keeps serving the
+            // information queue on the same condition.
+            RequestCondition condition;
+            RequestQueue<IntRequest, int> ints(condition);
+            RequestQueue<StringRequest, std::string> strings(condition);
+            std::thread worker(
+                [&]
+                {
+                    while (condition.wait(std::chrono::milliseconds(5)))
+                    {
+                        for (const auto& request : strings.popAll())
+                        {
+                            request->promise.set_value("info");
+                        }
+                    }
+                    condition.stopQueues();
+                });
+            auto pending = std::make_shared<IntRequest>();
+            pending->in = 5;
+            auto pendingFuture = ints.push(pending);
+            ints.stop();
+            FTK_ASSERT(0 == pendingFuture.get());
+            auto late = std::make_shared<IntRequest>();
+            late->in = 7;
+            auto lateFuture = ints.push(late);
+            FTK_ASSERT(std::future_status::ready ==
+                lateFuture.wait_for(std::chrono::seconds(0)));
+            FTK_ASSERT(0 == lateFuture.get());
+            auto stringRequest = std::make_shared<StringRequest>();
+            auto stringFuture = strings.push(stringRequest);
+            FTK_ASSERT("info" == stringFuture.get());
+            condition.stop();
+            worker.join();
         }
 
         void RequestQueueTest::_cancel()

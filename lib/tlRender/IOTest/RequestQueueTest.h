@@ -23,6 +23,7 @@ namespace tl
             void _roundTrip();
             void _shutdown();
             void _stopQueues();
+            void _stopQueue();
             void _cancel();
             void _promiseGuard();
         };

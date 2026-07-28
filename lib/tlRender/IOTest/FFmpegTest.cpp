@@ -35,6 +35,7 @@ namespace tl
             _convert();
             _io();
             _audio();
+            _split();
         }
 
         namespace
@@ -850,6 +851,140 @@ namespace tl
                         _error("Skip audio: expected empty audio data");
                         FTK_ASSERT(false);
                     }
+                }
+            }
+            catch (const std::exception& e)
+            {
+                _error(e.what());
+            }
+        }
+
+        void FFmpegTest::_split()
+        {
+            // The video and audio readers have to work on their own, each
+            // reporting only its own half of the information: merging the two
+            // is the caller's job. A silent movie is the case worth checking
+            // -- its audio reader has no stream to serve, and a request must
+            // still come back.
+            auto readSystem = _context->getSystem<ReadSystem>();
+            auto readPlugin = readSystem->getPlugin<ffmpeg::ReadPlugin>();
+            auto writeSystem = _context->getSystem<WriteSystem>();
+            auto writePlugin = writeSystem->getPlugin<ffmpeg::WritePlugin>();
+
+            const AudioInfo audioInfo(2, AudioType::S16, 44100);
+            const size_t sampleCount = 44100;
+            const size_t frameCount = 24;
+            const auto imageInfo = writePlugin->getInfo(
+                ftk::ImageInfo(ftk::Size2I(80, 60), ftk::ImageType::RGB_U8));
+            auto image = ftk::Image::create(imageInfo);
+            image->zero();
+            const OTIO_NS::TimeRange videoTime(
+                OTIO_NS::RationalTime(0.0, 24.0),
+                OTIO_NS::RationalTime(static_cast<double>(frameCount), 24.0));
+            const OTIO_NS::TimeRange audioTime(
+                OTIO_NS::RationalTime(0.0, audioInfo.sampleRate),
+                OTIO_NS::RationalTime(
+                    static_cast<double>(sampleCount), audioInfo.sampleRate));
+            IOOptions options;
+            options["FFmpeg/Codec"] = "mjpeg";
+
+            try
+            {
+                _print("_split: video and audio");
+                const ftk::Path path(
+                    (_getTempDir() / "FFmpegSplit.mov").u8string());
+                {
+                    IOInfo info;
+                    info.video.push_back(imageInfo);
+                    info.videoTime = videoTime;
+                    info.audio = audioInfo;
+                    info.audioTime = audioTime;
+                    IOOptions writeOptions = options;
+                    writeOptions["FFmpeg/AudioCodec"] = "pcm_s16le";
+                    auto write = writePlugin->write(path, info, writeOptions);
+                    for (size_t i = 0; i < frameCount; ++i)
+                    {
+                        write->writeVideo(
+                            OTIO_NS::RationalTime(
+                                static_cast<double>(i), 24.0),
+                            image);
+                    }
+                    write->writeAudio(
+                        audioTime,
+                        makeSine(audioInfo, sampleCount, 0));
+                    write->finish();
+                }
+
+                auto videoRead = readPlugin->videoRead(path, options);
+                FTK_ASSERT(videoRead);
+                const auto videoInfo = videoRead->getInfo().get();
+                if (videoInfo.video.empty() || videoInfo.audio.isValid())
+                {
+                    _error("Split: unexpected video reader info");
+                    FTK_ASSERT(false);
+                }
+                const auto videoData = videoRead->readVideo(
+                    videoInfo.videoTime.start_time()).get();
+                if (!videoData.image)
+                {
+                    _error("Split: expected video data");
+                    FTK_ASSERT(false);
+                }
+
+                auto audioRead = readPlugin->audioRead(path, options);
+                FTK_ASSERT(audioRead);
+                const auto audioReadInfo = audioRead->getInfo().get();
+                if (!audioReadInfo.audio.isValid() ||
+                    !audioReadInfo.video.empty())
+                {
+                    _error("Split: unexpected audio reader info");
+                    FTK_ASSERT(false);
+                }
+                const auto audioData = audioRead->readAudio(
+                    OTIO_NS::TimeRange(
+                        audioReadInfo.audioTime.start_time(),
+                        OTIO_NS::RationalTime(
+                            1000.0, audioInfo.sampleRate))).get();
+                if (!audioData.audio ||
+                    audioData.audio->getSampleCount() != 1000)
+                {
+                    _error("Split: expected audio data");
+                    FTK_ASSERT(false);
+                }
+            }
+            catch (const std::exception& e)
+            {
+                _error(e.what());
+            }
+
+            try
+            {
+                _print("_split: silent movie");
+                const ftk::Path path(
+                    (_getTempDir() / "FFmpegSplitSilent.mov").u8string());
+                write(
+                    writePlugin,
+                    image,
+                    path,
+                    imageInfo,
+                    ftk::ImageTags(),
+                    videoTime.duration(),
+                    options);
+
+                auto audioRead = readPlugin->audioRead(path, options);
+                FTK_ASSERT(audioRead);
+                const auto info = audioRead->getInfo().get();
+                if (info.audio.isValid())
+                {
+                    _error("Split: expected no audio");
+                    FTK_ASSERT(false);
+                }
+                auto future = audioRead->readAudio(audioTime);
+                if (future.wait_for(std::chrono::seconds(30)) !=
+                    std::future_status::ready)
+                {
+                    _error("Split: readAudio() timed out");
+                    FTK_ASSERT(false);
                 }
             }
             catch (const std::exception& e)

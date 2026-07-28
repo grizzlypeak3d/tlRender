@@ -27,7 +27,99 @@ namespace tl
         //! Get FFmpeg options.
         TL_API IOOptions getOptions(const Options&);
 
+        //! FFmpeg video reader.
+        //!
+        //! The video and audio readers each own a demuxer; they share
+        //! nothing but the file name.
+        class TL_API_TYPE VideoRead : public IVideoRead
+        {
+        protected:
+            void _init(
+                const ftk::Path&,
+                const std::vector<ftk::MemFile>&,
+                const IOOptions&,
+                const std::shared_ptr<ftk::LogSystem>&);
+
+            VideoRead();
+
+        public:
+            TL_API virtual ~VideoRead();
+
+            //! Create a new reader.
+            TL_API static std::shared_ptr<VideoRead> create(
+                const ftk::Path&,
+                const IOOptions&,
+                const std::shared_ptr<ftk::LogSystem>&);
+
+            //! Create a new reader.
+            TL_API static std::shared_ptr<VideoRead> create(
+                const ftk::Path&,
+                const std::vector<ftk::MemFile>&,
+                const IOOptions&,
+                const std::shared_ptr<ftk::LogSystem>&);
+
+            TL_API std::future<IOInfo> getInfo() override;
+            TL_API std::future<VideoData> readVideo(
+                const OTIO_NS::RationalTime&,
+                const IOOptions& = IOOptions()) override;
+            TL_API void cancelRequests() override;
+
+            TL_API std::string getError() const override;
+            TL_API size_t getErrorCount() const override;
+
+        private:
+            void _run();
+
+            FTK_PRIVATE();
+        };
+
+        //! FFmpeg audio reader.
+        class TL_API_TYPE AudioRead : public IAudioRead
+        {
+        protected:
+            void _init(
+                const ftk::Path&,
+                const std::vector<ftk::MemFile>&,
+                const IOOptions&,
+                const std::shared_ptr<ftk::LogSystem>&);
+
+            AudioRead();
+
+        public:
+            TL_API virtual ~AudioRead();
+
+            //! Create a new reader.
+            TL_API static std::shared_ptr<AudioRead> create(
+                const ftk::Path&,
+                const IOOptions&,
+                const std::shared_ptr<ftk::LogSystem>&);
+
+            //! Create a new reader.
+            TL_API static std::shared_ptr<AudioRead> create(
+                const ftk::Path&,
+                const std::vector<ftk::MemFile>&,
+                const IOOptions&,
+                const std::shared_ptr<ftk::LogSystem>&);
+
+            TL_API std::future<IOInfo> getInfo() override;
+            TL_API std::future<AudioData> readAudio(
+                const OTIO_NS::TimeRange&,
+                const IOOptions& = IOOptions()) override;
+            TL_API void cancelRequests() override;
+
+            TL_API std::string getError() const override;
+            TL_API size_t getErrorCount() const override;
+
+        private:
+            void _run();
+
+            FTK_PRIVATE();
+        };
+
         //! FFmpeg reader.
+        //!
+        //! A video reader and an audio reader presented as one, for callers
+        //! that have not been split yet.
         class TL_API_TYPE Read : public IRead
         {
         protected:
@@ -68,9 +160,6 @@ namespace tl
             TL_API size_t getErrorCount() const override;
 
         private:
-            void _videoThread();
-            void _audioThread();
-
             FTK_PRIVATE();
         };
 
@@ -133,6 +222,22 @@ namespace tl
                 const ftk::Path&,
                 const IOOptions& = IOOptions()) override;
             TL_API std::shared_ptr<IRead> read(
+                const ftk::Path&,
+                const std::vector<ftk::MemFile>&,
+                const IOOptions & = IOOptions()) override;
+
+            TL_API std::shared_ptr<IVideoRead> videoRead(
+                const ftk::Path&,
+                const IOOptions& = IOOptions()) override;
+            TL_API std::shared_ptr<IVideoRead> videoRead(
+                const ftk::Path&,
+                const std::vector<ftk::MemFile>&,
+                const IOOptions & = IOOptions()) override;
+
+            TL_API std::shared_ptr<IAudioRead> audioRead(
+                const ftk::Path&,
+                const IOOptions& = IOOptions()) override;
+            TL_API std::shared_ptr<IAudioRead> audioRead(
                 const ftk::Path&,
                 const std::vector<ftk::MemFile>&,
                 const IOOptions & = IOOptions()) override;

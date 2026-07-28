@@ -51,6 +51,13 @@ namespace tl
             OTIO_NS::RationalTime audioBufferSize = OTIO_NS::RationalTime(2.0, 1.0);
         };
 
+        //! Parse the reader options.
+        ReadOptions getReadOptions(const IOOptions&);
+
+        //! Find the stream of the given type to read, or -1. A stream
+        //! marked as the default is preferred over the first one found.
+        int findStream(AVFormatContext*, AVMediaType);
+
         class ReadVideo
         {
         public:
@@ -126,7 +133,6 @@ namespace tl
             ReadAudio(
                 const std::string& fileName,
                 const std::vector<ftk::MemFile>&,
-                double videoRate,
                 const ReadOptions&);
 
             ~ReadAudio();
@@ -176,19 +182,26 @@ namespace tl
             std::string _errorString;
         };
 
-        struct Read::Private
+        // Errors are recorded by the worker thread and read through
+        // getError()/getErrorCount() from any thread.
+        struct ErrorMutex
+        {
+            std::string error;
+            size_t count = 0;
+            std::mutex mutex;
+        };
+
+        struct VideoRead::Private
         {
             ReadOptions options;
 
             std::shared_ptr<ReadVideo> readVideo;
-            std::shared_ptr<ReadAudio> readAudio;
 
             IOInfo info;
             struct InfoRequest
             {
                 std::promise<IOInfo> promise;
             };
-
             struct VideoRequest
             {
                 OTIO_NS::RationalTime time = invalidTime;
@@ -196,44 +209,52 @@ namespace tl
                 std::promise<VideoData> promise;
             };
             // The info and video queues share one condition so that the
-            // video thread can wait for a request on either.
-            RequestCondition videoCondition;
-            RequestQueue<InfoRequest, IOInfo> infoRequests{ videoCondition };
-            RequestQueue<VideoRequest, VideoData> videoRequests{ videoCondition };
-            struct VideoThread
-            {
-                OTIO_NS::RationalTime currentTime = invalidTime;
-                std::chrono::steady_clock::time_point logTimer;
-                std::thread thread;
-            };
-            VideoThread videoThread;
+            // thread can wait for a request on either.
+            RequestCondition condition;
+            RequestQueue<InfoRequest, IOInfo> infoRequests{ condition };
+            RequestQueue<VideoRequest, VideoData> videoRequests{ condition };
 
+            std::thread thread;
+            // Only accessed from the thread above.
+            OTIO_NS::RationalTime currentTime = invalidTime;
+            std::chrono::steady_clock::time_point logTimer;
+
+            ErrorMutex errorMutex;
+        };
+
+        struct AudioRead::Private
+        {
+            ReadOptions options;
+
+            std::shared_ptr<ReadAudio> readAudio;
+
+            IOInfo info;
+            struct InfoRequest
+            {
+                std::promise<IOInfo> promise;
+            };
             struct AudioRequest
             {
                 OTIO_NS::TimeRange timeRange = invalidTimeRange;
                 IOOptions options;
                 std::promise<AudioData> promise;
             };
-            RequestCondition audioCondition;
-            RequestQueue<AudioRequest, AudioData> audioRequests{ audioCondition };
-            struct AudioThread
-            {
-                OTIO_NS::RationalTime currentTime = invalidTime;
-                std::chrono::steady_clock::time_point logTimer;
-                std::thread thread;
-            };
-            AudioThread audioThread;
+            RequestCondition condition;
+            RequestQueue<InfoRequest, IOInfo> infoRequests{ condition };
+            RequestQueue<AudioRequest, AudioData> audioRequests{ condition };
 
-            // Errors are recorded by the worker threads and read through
-            // getError()/getErrorCount() from any thread.
-            struct ErrorMutex
-            {
-                std::string error;
-                size_t videoCount = 0;
-                size_t audioCount = 0;
-                std::mutex mutex;
-            };
+            std::thread thread;
+            // Only accessed from the thread above.
+            OTIO_NS::RationalTime currentTime = invalidTime;
+            std::chrono::steady_clock::time_point logTimer;
+
             ErrorMutex errorMutex;
+        };
+
+        struct Read::Private
+        {
+            std::shared_ptr<VideoRead> videoRead;
+            std::shared_ptr<AudioRead> audioRead;
         };
     }
 }
