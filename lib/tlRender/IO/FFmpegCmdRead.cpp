@@ -13,7 +13,7 @@ namespace tl
 {
     namespace ffmpeg_cmd
     {
-        struct Read::Private
+        struct VideoRead::Private
         {
             IOInfo info;
 
@@ -29,13 +29,6 @@ namespace tl
                 std::promise<VideoData> promise;
             };
 
-            struct AudioRequest
-            {
-                OTIO_NS::TimeRange timeRange = invalidTimeRange;
-                IOOptions options;
-                std::promise<AudioData> promise;
-            };
-
             struct Mutex
             {
                 std::list<std::shared_ptr<InfoRequest> > infoRequests;
@@ -43,13 +36,6 @@ namespace tl
                 std::mutex mutex;
             };
             Mutex mutex;
-
-            struct AudioMutex
-            {
-                std::list<std::shared_ptr<AudioRequest> > requests;
-                std::mutex mutex;
-            };
-            AudioMutex audioMutex;
 
             struct Thread
             {
@@ -60,8 +46,33 @@ namespace tl
                 std::thread thread;
             };
             Thread thread;
+        };
 
-            struct AudioThread
+        struct AudioRead::Private
+        {
+            IOInfo info;
+
+            struct InfoRequest
+            {
+                std::promise<IOInfo> promise;
+            };
+
+            struct AudioRequest
+            {
+                OTIO_NS::TimeRange timeRange = invalidTimeRange;
+                IOOptions options;
+                std::promise<AudioData> promise;
+            };
+
+            struct Mutex
+            {
+                std::list<std::shared_ptr<InfoRequest> > infoRequests;
+                std::list<std::shared_ptr<AudioRequest> > audioRequests;
+                std::mutex mutex;
+            };
+            Mutex mutex;
+
+            struct Thread
             {
                 OTIO_NS::RationalTime time = invalidTime;
                 std::shared_ptr<Pipe> pipe = nullptr;
@@ -69,10 +80,16 @@ namespace tl
                 std::condition_variable cv;
                 std::thread thread;
             };
-            AudioThread audioThread;
+            Thread thread;
         };
 
-        void Read::_init(
+        struct Read::Private
+        {
+            std::shared_ptr<VideoRead> videoRead;
+            std::shared_ptr<AudioRead> audioRead;
+        };
+
+        void VideoRead::_init(
             const ftk::Path& path,
             const std::vector<ftk::MemFile>& mem,
             const IOOptions& options,
@@ -82,31 +99,19 @@ namespace tl
             FTK_P();
             p.thread.running = true;
             p.thread.thread = std::thread(
-                [this, options]
+                [this, path, options]
                 {
                     FTK_P();
-
-                    // Get the I/O information.
-                    _info(options);
-
-                    // Start the audio thread.
-                    p.audioThread.running = true;
-                    p.audioThread.thread = std::thread(
-                        [this]
-                        {
-                            _audioThread();
-                        });
-
-                    // Start the info/video thread.
-                    _thread();
+                    p.info = getIOInfo(path, options, _logSystem.lock());
+                    _run();
                 });
         }
 
-        Read::Read() :
+        VideoRead::VideoRead() :
             _p(new Private)
         {}
 
-        Read::~Read()
+        VideoRead::~VideoRead()
         {
             FTK_P();
 
@@ -115,13 +120,6 @@ namespace tl
             if (p.thread.thread.joinable())
             {
                 p.thread.thread.join();
-            }
-
-            // Stop the audio thread.
-            p.audioThread.running = false;
-            if (p.audioThread.thread.joinable())
-            {
-                p.audioThread.thread.join();
             }
 
             // Cancel the requests.
@@ -133,34 +131,30 @@ namespace tl
             {
                 request->promise.set_value(VideoData());
             }
-            for (auto& request : p.audioMutex.requests)
-            {
-                request->promise.set_value(AudioData());
-            }
         }
 
-        std::shared_ptr<Read> Read::create(
+        std::shared_ptr<VideoRead> VideoRead::create(
             const ftk::Path& path,
             const IOOptions& options,
             const std::shared_ptr<ftk::LogSystem>& logSystem)
         {
-            auto out = std::shared_ptr<Read>(new Read);
+            auto out = std::shared_ptr<VideoRead>(new VideoRead);
             out->_init(path, {}, options, logSystem);
             return out;
         }
 
-        std::shared_ptr<Read> Read::create(
+        std::shared_ptr<VideoRead> VideoRead::create(
             const ftk::Path& path,
             const std::vector<ftk::MemFile>& mem,
             const IOOptions& options,
             const std::shared_ptr<ftk::LogSystem>& logSystem)
         {
-            auto out = std::shared_ptr<Read>(new Read);
+            auto out = std::shared_ptr<VideoRead>(new VideoRead);
             out->_init(path, mem, options, logSystem);
             return out;
         }
 
-        std::future<IOInfo> Read::getInfo()
+        std::future<IOInfo> VideoRead::getInfo()
         {
             FTK_P();
             auto request = std::make_shared<Private::InfoRequest>();
@@ -172,7 +166,7 @@ namespace tl
             return request->promise.get_future();
         }
 
-        std::future<VideoData> Read::readVideo(
+        std::future<VideoData> VideoRead::readVideo(
             const OTIO_NS::RationalTime& time,
             const IOOptions& options)
         {
@@ -188,36 +182,15 @@ namespace tl
             return request->promise.get_future();
         }
 
-        std::future<AudioData> Read::readAudio(
-            const OTIO_NS::TimeRange& timeRange,
-            const IOOptions& options)
-        {
-            FTK_P();
-            auto request = std::make_shared<Private::AudioRequest>();
-            request->timeRange = timeRange;
-            request->options = options;
-            {
-                std::unique_lock<std::mutex> lock(p.audioMutex.mutex);
-                p.audioMutex.requests.push_back(request);
-            }
-            p.audioThread.cv.notify_one();
-            return request->promise.get_future();
-        }
-
-        void Read::cancelRequests()
+        void VideoRead::cancelRequests()
         {
             FTK_P();
             std::list<std::shared_ptr<Private::InfoRequest> > infoRequests;
             std::list<std::shared_ptr<Private::VideoRequest> > videoRequests;
-            std::list<std::shared_ptr<Private::AudioRequest> > audioRequests;
             {
                 std::unique_lock<std::mutex> lock(p.mutex.mutex);
                 infoRequests = std::move(p.mutex.infoRequests);
                 videoRequests = std::move(p.mutex.videoRequests);
-            }
-            {
-                std::unique_lock<std::mutex> lock(p.audioMutex.mutex);
-                audioRequests = std::move(p.audioMutex.requests);
             }
             for (auto& request : infoRequests)
             {
@@ -227,15 +200,127 @@ namespace tl
             {
                 request->promise.set_value(VideoData());
             }
+        }
+
+        void AudioRead::_init(
+            const ftk::Path& path,
+            const std::vector<ftk::MemFile>& mem,
+            const IOOptions& options,
+            const std::shared_ptr<ftk::LogSystem>& logSystem)
+        {
+            IRead::_init(path, mem, options, logSystem);
+            FTK_P();
+            p.thread.running = true;
+            p.thread.thread = std::thread(
+                [this, path, options]
+                {
+                    FTK_P();
+                    p.info = getIOInfo(path, options, _logSystem.lock());
+                    _run();
+                });
+        }
+
+        AudioRead::AudioRead() :
+            _p(new Private)
+        {}
+
+        AudioRead::~AudioRead()
+        {
+            FTK_P();
+
+            // Stop the thread.
+            p.thread.running = false;
+            if (p.thread.thread.joinable())
+            {
+                p.thread.thread.join();
+            }
+
+            // Cancel the requests.
+            for (auto& request : p.mutex.infoRequests)
+            {
+                request->promise.set_value(IOInfo());
+            }
+            for (auto& request : p.mutex.audioRequests)
+            {
+                request->promise.set_value(AudioData());
+            }
+        }
+
+        std::shared_ptr<AudioRead> AudioRead::create(
+            const ftk::Path& path,
+            const IOOptions& options,
+            const std::shared_ptr<ftk::LogSystem>& logSystem)
+        {
+            auto out = std::shared_ptr<AudioRead>(new AudioRead);
+            out->_init(path, {}, options, logSystem);
+            return out;
+        }
+
+        std::shared_ptr<AudioRead> AudioRead::create(
+            const ftk::Path& path,
+            const std::vector<ftk::MemFile>& mem,
+            const IOOptions& options,
+            const std::shared_ptr<ftk::LogSystem>& logSystem)
+        {
+            auto out = std::shared_ptr<AudioRead>(new AudioRead);
+            out->_init(path, mem, options, logSystem);
+            return out;
+        }
+
+        std::future<IOInfo> AudioRead::getInfo()
+        {
+            FTK_P();
+            auto request = std::make_shared<Private::InfoRequest>();
+            {
+                std::unique_lock<std::mutex> lock(p.mutex.mutex);
+                p.mutex.infoRequests.push_back(request);
+            }
+            p.thread.cv.notify_one();
+            return request->promise.get_future();
+        }
+
+        std::future<AudioData> AudioRead::readAudio(
+            const OTIO_NS::TimeRange& timeRange,
+            const IOOptions& options)
+        {
+            FTK_P();
+            auto request = std::make_shared<Private::AudioRequest>();
+            request->timeRange = timeRange;
+            request->options = options;
+            {
+                std::unique_lock<std::mutex> lock(p.mutex.mutex);
+                p.mutex.audioRequests.push_back(request);
+            }
+            p.thread.cv.notify_one();
+            return request->promise.get_future();
+        }
+
+        void AudioRead::cancelRequests()
+        {
+            FTK_P();
+            std::list<std::shared_ptr<Private::InfoRequest> > infoRequests;
+            std::list<std::shared_ptr<Private::AudioRequest> > audioRequests;
+            {
+                std::unique_lock<std::mutex> lock(p.mutex.mutex);
+                infoRequests = std::move(p.mutex.infoRequests);
+                audioRequests = std::move(p.mutex.audioRequests);
+            }
+            for (auto& request : infoRequests)
+            {
+                request->promise.set_value(IOInfo());
+            }
             for (auto& request : audioRequests)
             {
                 request->promise.set_value(AudioData());
             }
         }
 
-        void Read::_info(const IOOptions& ioOptions)
+        IOInfo getIOInfo(
+            const ftk::Path& path,
+            const IOOptions& ioOptions,
+            const std::shared_ptr<ftk::LogSystem>& logSystem)
         {
-            FTK_P();
+            IOInfo out;
             try
             {
                 // Get audio conversion information.
@@ -270,7 +355,7 @@ namespace tl
                 cmd.push_back("json");
                 cmd.push_back("-show_streams");
                 cmd.push_back("-show_format");
-                cmd.push_back(_path.get());
+                cmd.push_back(path.get());
                 //std::cout << ftk::join(cmd, ' ') << std::endl;
                 nlohmann::json json = nlohmann::json::parse(Pipe(cmd).readAll());
 
@@ -294,7 +379,7 @@ namespace tl
                     {
                         for (const auto& k : j->items())
                         {
-                            p.info.tags[k.key()] = k.value();
+                            out.tags[k.key()] = k.value();
 
                             if (ftk::compare(
                                 k.key(),
@@ -441,50 +526,50 @@ namespace tl
                                     startTime = time.floor();
                                 }
                             }
-                            p.info.videoTime = OTIO_NS::TimeRange(
+                            out.videoTime = OTIO_NS::TimeRange(
                                 startTime,
                                 OTIO_NS::RationalTime(frames, videoRate));
 
-                            p.info.video.push_back(info);
+                            out.video.push_back(info);
 
                             {
                                 std::stringstream ss;
                                 ss << info.size.w << " " << info.size.h;
-                                p.info.tags["Video Resolution"] = ss.str();
+                                out.tags["Video Resolution"] = ss.str();
                             }
                             {
                                 std::stringstream ss;
                                 ss.precision(2);
                                 ss << std::fixed;
                                 ss << info.pixelAspectRatio;
-                                p.info.tags["Video Pixel Aspect Ratio"] = ss.str();
+                                out.tags["Video Pixel Aspect Ratio"] = ss.str();
                             }
                             {
                                 std::stringstream ss;
                                 ss << info.type;
-                                p.info.tags["Video Pixel Type"] = ss.str();
+                                out.tags["Video Pixel Type"] = ss.str();
                             }
                             k = j.find("codec_name");
                             if (k != j.end())
                             {
-                                p.info.tags["Video Codec"] = k->get<std::string>();
+                                out.tags["Video Codec"] = k->get<std::string>();
                             }
                             {
                                 std::stringstream ss;
-                                ss << p.info.videoTime.start_time().to_timecode();
-                                p.info.tags["Video Start Time"] = ss.str();
+                                ss << out.videoTime.start_time().to_timecode();
+                                out.tags["Video Start Time"] = ss.str();
                             }
                             {
                                 std::stringstream ss;
-                                ss << p.info.videoTime.duration().to_timecode();
-                                p.info.tags["Video Duration"] = ss.str();
+                                ss << out.videoTime.duration().to_timecode();
+                                out.tags["Video Duration"] = ss.str();
                             }
                             {
                                 std::stringstream ss;
                                 ss.precision(2);
                                 ss << std::fixed;
                                 ss << videoRate << " FPS";
-                                p.info.tags["Video Speed"] = ss.str();
+                                out.tags["Video Speed"] = ss.str();
                             }
                             break;
                         }
@@ -528,9 +613,9 @@ namespace tl
                                 audioType = audioConvertInfo.type;
                                 sampleRate = audioConvertInfo.sampleRate;
                             }
-                            p.info.audio.channelCount = channelCount;
-                            p.info.audio.type = audioType;
-                            p.info.audio.sampleRate = sampleRate;
+                            out.audio.channelCount = channelCount;
+                            out.audio.type = audioType;
+                            out.audio.sampleRate = sampleRate;
 
                             k = j.find("duration");
                             if (k != j.end())
@@ -558,45 +643,45 @@ namespace tl
                                     sampleRate);
                             }
 
-                            p.info.audioTime = OTIO_NS::TimeRange(
+                            out.audioTime = OTIO_NS::TimeRange(
                                 startTime,
                                 OTIO_NS::RationalTime(duration * sampleRate, sampleRate));
 
                             {
                                 std::stringstream ss;
                                 ss << static_cast<int>(fileChannelCount);
-                                p.info.tags["Audio Channels"] = ss.str();
+                                out.tags["Audio Channels"] = ss.str();
                             }
                             {
                                 std::stringstream ss;
                                 ss << fileAudioType;
-                                p.info.tags["Audio Type"] = ss.str();
+                                out.tags["Audio Type"] = ss.str();
                             }
                             {
                                 std::stringstream ss;
                                 ss.precision(1);
                                 ss << std::fixed;
                                 ss << fileSampleRate / 1000.F << "kHz";
-                                p.info.tags["Audio Sample Rate"] = ss.str();
+                                out.tags["Audio Sample Rate"] = ss.str();
                             }
                             {
                                 std::stringstream ss;
                                 ss.precision(2);
                                 ss << std::fixed;
                                 ss << startTime.rescaled_to(1.0).value() << " seconds";
-                                p.info.tags["Audio Start Time"] = ss.str();
+                                out.tags["Audio Start Time"] = ss.str();
                             }
                             {
                                 std::stringstream ss;
                                 ss.precision(2);
                                 ss << std::fixed;
-                                ss << p.info.audioTime.duration().rescaled_to(1.0).value() << " seconds";
-                                p.info.tags["Audio Duration"] = ss.str();
+                                ss << out.audioTime.duration().rescaled_to(1.0).value() << " seconds";
+                                out.tags["Audio Duration"] = ss.str();
                             }
                             k = j.find("codec_name");
                             if (k != j.end())
                             {
-                                p.info.tags["Audio Codec"] = k->get<std::string>();
+                                out.tags["Audio Codec"] = k->get<std::string>();
                             }
                             break;
                         }
@@ -605,11 +690,18 @@ namespace tl
             }
             catch (const std::exception& e)
             {
-                _logSystem.lock()->print("tl::ffmpeg_cmd::Read", e.what(), ftk::LogType::Error);
+                if (logSystem)
+                {
+                    logSystem->print(
+                        "tl::ffmpeg_cmd::getIOInfo",
+                        e.what(),
+                        ftk::LogType::Error);
+                }
             }
+            return out;
         }
 
-        void Read::_thread()
+        void VideoRead::_run()
         {
             FTK_P();
             p.thread.time = p.info.videoTime.start_time();
@@ -678,7 +770,7 @@ namespace tl
                     }
                     catch (const std::exception& e)
                     {
-                        _logSystem.lock()->print("tl::ffmpeg_cmd::Read", e.what(), ftk::LogType::Error);
+                        _logSystem.lock()->print("tl::ffmpeg_cmd::VideoRead", e.what(), ftk::LogType::Error);
                     }
                 }
 
@@ -700,7 +792,7 @@ namespace tl
                             }
                             catch (const std::exception& e)
                             {
-                                _logSystem.lock()->print("tl::ffmpeg_cmd::Read", e.what(), ftk::LogType::Error);
+                                _logSystem.lock()->print("tl::ffmpeg_cmd::VideoRead", e.what(), ftk::LogType::Error);
                             }
                             if (r < byteCount)
                             {
@@ -721,41 +813,50 @@ namespace tl
             p.thread.pipe.reset();
         }
 
-        void Read::_audioThread()
+        void AudioRead::_run()
         {
             FTK_P();
-            p.audioThread.time = p.info.audioTime.start_time();
+            p.thread.time = p.info.audioTime.start_time();
             IOOptions ioOptions;
-            while (p.audioThread.running)
+            while (p.thread.running)
             {
+                std::list<std::shared_ptr<Private::InfoRequest> > infoRequests;
                 std::shared_ptr<Private::AudioRequest> request;
                 {
-                    std::unique_lock<std::mutex> lock(p.audioMutex.mutex);
-                    if (p.audioThread.cv.wait_for(
+                    std::unique_lock<std::mutex> lock(p.mutex.mutex);
+                    if (p.thread.cv.wait_for(
                         lock,
                         std::chrono::milliseconds(10),
                         [this]
                         {
-                            return !_p->audioMutex.requests.empty();
+                            return
+                                !_p->mutex.infoRequests.empty() ||
+                                !_p->mutex.audioRequests.empty();
                         }))
                     {
-                        if (!p.audioMutex.requests.empty())
+                        infoRequests = std::move(p.mutex.infoRequests);
+                        if (!p.mutex.audioRequests.empty())
                         {
-                            request = p.audioMutex.requests.front();
-                            p.audioMutex.requests.pop_front();
+                            request = p.mutex.audioRequests.front();
+                            p.mutex.audioRequests.pop_front();
                         }
                     }
                 }
 
-                if (request &&
-                    !request->timeRange.start_time().strictly_equal(p.audioThread.time))
+                for (auto& infoRequest : infoRequests)
                 {
-                    p.audioThread.time = request->timeRange.start_time();
-                    p.audioThread.pipe.reset();
+                    infoRequest->promise.set_value(p.info);
                 }
 
                 if (request &&
-                    (!p.audioThread.pipe || request->options != ioOptions))
+                    !request->timeRange.start_time().strictly_equal(p.thread.time))
+                {
+                    p.thread.time = request->timeRange.start_time();
+                    p.thread.pipe.reset();
+                }
+
+                if (request &&
+                    (!p.thread.pipe || request->options != ioOptions))
                 {
                     ioOptions = request->options;
                     try
@@ -766,7 +867,7 @@ namespace tl
                         cmd.push_back("-v");
                         cmd.push_back("quiet");
                         cmd.push_back("-ss");
-                        const double s = (p.audioThread.time - p.info.audioTime.start_time()).to_seconds();
+                        const double s = (p.thread.time - p.info.audioTime.start_time()).to_seconds();
                         cmd.push_back(ftk::Format("{0}").arg(s));
                         cmd.push_back("-i");
                         cmd.push_back(_path.get());
@@ -774,11 +875,11 @@ namespace tl
                         cmd.push_back(fromAudioType(p.info.audio.type));
                         cmd.push_back("pipe:1");
                         //std::cout << ftk::join(cmd, ' ') << std::endl;
-                        p.audioThread.pipe = std::make_shared<Pipe>(cmd);
+                        p.thread.pipe = std::make_shared<Pipe>(cmd);
                     }
                     catch (const std::exception& e)
                     {
-                        _logSystem.lock()->print("tl::ffmpeg_cmd::Read", e.what(), ftk::LogType::Error);
+                        _logSystem.lock()->print("tl::ffmpeg_cmd::AudioRead", e.what(), ftk::LogType::Error);
                     }
                 }
 
@@ -790,32 +891,120 @@ namespace tl
                         p.info.audio,
                         request->timeRange.duration().rescaled_to(1.0).value() * p.info.audio.sampleRate);
                     audio.audio->zero();
-                    if (p.audioThread.pipe)
+                    if (p.thread.pipe)
                     {
                         const size_t byteCount = audio.audio->getByteCount();
                         size_t r = 0;
                         try
                         {
-                            r = p.audioThread.pipe->read(audio.audio->getData(), byteCount);
+                            r = p.thread.pipe->read(audio.audio->getData(), byteCount);
                         }
                         catch (const std::exception& e)
                         {
-                            _logSystem.lock()->print("tl::ffmpeg_cmd::Read", e.what(), ftk::LogType::Error);
+                            _logSystem.lock()->print("tl::ffmpeg_cmd::AudioRead", e.what(), ftk::LogType::Error);
                         }
                         if (r < byteCount)
                         {
                             // End of stream or a read failure: drop the pipe so
                             // the next request re-spawns ffmpeg at the right
                             // time. The remainder stays zero-filled (silence).
-                            p.audioThread.pipe.reset();
+                            p.thread.pipe.reset();
                         }
                     }
                     request->promise.set_value(audio);
-                    p.audioThread.time += request->timeRange.duration();
+                    p.thread.time += request->timeRange.duration();
                 }
             }
 
-            p.audioThread.pipe.reset();
+            p.thread.pipe.reset();
+        }
+        void Read::_init(
+            const ftk::Path& path,
+            const std::vector<ftk::MemFile>& mem,
+            const IOOptions& options,
+            const std::shared_ptr<ftk::LogSystem>& logSystem)
+        {
+            IRead::_init(path, mem, options, logSystem);
+            FTK_P();
+            p.videoRead = VideoRead::create(path, mem, options, logSystem);
+            p.audioRead = AudioRead::create(path, mem, options, logSystem);
+        }
+
+        Read::Read() :
+            _p(new Private)
+        {}
+
+        Read::~Read()
+        {}
+
+        std::shared_ptr<Read> Read::create(
+            const ftk::Path& path,
+            const IOOptions& options,
+            const std::shared_ptr<ftk::LogSystem>& logSystem)
+        {
+            auto out = std::shared_ptr<Read>(new Read);
+            out->_init(path, {}, options, logSystem);
+            return out;
+        }
+
+        std::shared_ptr<Read> Read::create(
+            const ftk::Path& path,
+            const std::vector<ftk::MemFile>& mem,
+            const IOOptions& options,
+            const std::shared_ptr<ftk::LogSystem>& logSystem)
+        {
+            auto out = std::shared_ptr<Read>(new Read);
+            out->_init(path, mem, options, logSystem);
+            return out;
+        }
+
+        std::future<IOInfo> Read::getInfo()
+        {
+            FTK_P();
+
+            // See the comment on ffmpeg::Read::getInfo(): the requests go out
+            // now and the merge waits for the caller's get(), which every
+            // caller of getInfo() does.
+            auto videoFuture = p.videoRead->getInfo();
+            auto audioFuture = p.audioRead->getInfo();
+            return std::async(
+                std::launch::deferred,
+                [videoFuture = std::move(videoFuture),
+                 audioFuture = std::move(audioFuture)]() mutable
+                {
+                    IOInfo out = videoFuture.get();
+                    const IOInfo audioInfo = audioFuture.get();
+                    out.audio = audioInfo.audio;
+                    out.audioTime = audioInfo.audioTime;
+                    for (const auto& tag : audioInfo.tags)
+                    {
+                        out.tags[tag.first] = tag.second;
+                    }
+                    return out;
+                });
+        }
+
+        std::future<VideoData> Read::readVideo(
+            const OTIO_NS::RationalTime& time,
+            const IOOptions& options)
+        {
+            FTK_P();
+            return p.videoRead->readVideo(time, options);
+        }
+
+        std::future<AudioData> Read::readAudio(
+            const OTIO_NS::TimeRange& timeRange,
+            const IOOptions& options)
+        {
+            FTK_P();
+            return p.audioRead->readAudio(timeRange, options);
+        }
+
+        void Read::cancelRequests()
+        {
+            FTK_P();
+            p.videoRead->cancelRequests();
+            p.audioRead->cancelRequests();
         }
     }
 }

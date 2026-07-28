@@ -292,6 +292,36 @@ namespace tl
             return Read::create(path, memory, options, _logSystem.lock());
         }
 
+        std::shared_ptr<IVideoRead> ReadPlugin::videoRead(
+            const ftk::Path& path,
+            const IOOptions& options)
+        {
+            return VideoRead::create(path, options, _logSystem.lock());
+        }
+
+        std::shared_ptr<IVideoRead> ReadPlugin::videoRead(
+            const ftk::Path& path,
+            const std::vector<ftk::MemFile>& memory,
+            const IOOptions& options)
+        {
+            return VideoRead::create(path, memory, options, _logSystem.lock());
+        }
+
+        std::shared_ptr<IAudioRead> ReadPlugin::audioRead(
+            const ftk::Path& path,
+            const IOOptions& options)
+        {
+            return AudioRead::create(path, options, _logSystem.lock());
+        }
+
+        std::shared_ptr<IAudioRead> ReadPlugin::audioRead(
+            const ftk::Path& path,
+            const std::vector<ftk::MemFile>& memory,
+            const IOOptions& options)
+        {
+            return AudioRead::create(path, memory, options, _logSystem.lock());
+        }
+
         std::string ReadPlugin::getPluginInfo(const IOOptions& ioOptions) const
         {
             std::string out;

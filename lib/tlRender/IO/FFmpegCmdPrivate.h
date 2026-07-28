@@ -24,6 +24,14 @@ namespace tl
             FTK_PRIVATE();
         };
 
+        //! Get the information for a file with ffprobe. Both halves of the
+        //! information come from one dump, so each reader keeps the half it
+        //! serves and the tags, which are not separable.
+        IOInfo getIOInfo(
+            const ftk::Path&,
+            const IOOptions&,
+            const std::shared_ptr<ftk::LogSystem>&);
+
         typedef std::pair<int, int> Rational;
 
         Rational toRational(const std::string&);

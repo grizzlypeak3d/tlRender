@@ -47,8 +47,8 @@ namespace tl
         //! Get USD options.
         TL_API IOOptions getOptions(const Options&);
         
-        //! USD reader.
-        class TL_API_TYPE Read : public IRead
+        //! USD video reader. USD has no audio.
+        class TL_API_TYPE VideoRead : public IVideoRead
         {
         protected:
             void _init(
@@ -59,13 +59,13 @@ namespace tl
                 const IOOptions&,
                 const std::shared_ptr<ftk::LogSystem>&);
 
-            Read();
+            VideoRead();
 
         public:
-            TL_API ~Read() override;
+            TL_API ~VideoRead() override;
 
             //! Create a new reader.
-            TL_API static std::shared_ptr<Read> create(
+            TL_API static std::shared_ptr<VideoRead> create(
                 int64_t id,
                 const std::shared_ptr<Render>&,
                 const ftk::Path&,
@@ -75,7 +75,7 @@ namespace tl
             TL_API std::future<IOInfo> getInfo() override;
             TL_API std::future<VideoData> readVideo(
                 const OTIO_NS::RationalTime&,
-                const IOOptions&) override;
+                const IOOptions& = IOOptions()) override;
             TL_API void cancelRequests() override;
 
         private:
@@ -101,6 +101,14 @@ namespace tl
                 const ftk::Path&,
                 const IOOptions& = IOOptions()) override;
             TL_API std::shared_ptr<IRead> read(
+                const ftk::Path&,
+                const std::vector<ftk::MemFile>&,
+                const IOOptions& = IOOptions()) override;
+
+            TL_API std::shared_ptr<IVideoRead> videoRead(
+                const ftk::Path&,
+                const IOOptions& = IOOptions()) override;
+            TL_API std::shared_ptr<IVideoRead> videoRead(
                 const ftk::Path&,
                 const std::vector<ftk::MemFile>&,
                 const IOOptions& = IOOptions()) override;

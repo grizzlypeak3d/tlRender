@@ -7,13 +7,13 @@ namespace tl
 {
     namespace usd
     {        
-        struct Read::Private
+        struct VideoRead::Private
         {
             int64_t id = -1;
             std::shared_ptr<Render> render;
         };
                 
-        void Read::_init(
+        void VideoRead::_init(
             int64_t id,
             const std::shared_ptr<Render>& render,
             const ftk::Path& path,
@@ -27,32 +27,32 @@ namespace tl
             p.render = render;
         }
 
-        Read::Read() :
+        VideoRead::VideoRead() :
             _p(new Private)
         {}
 
-        Read::~Read()
+        VideoRead::~VideoRead()
         {}
 
-        std::shared_ptr<Read> Read::create(
+        std::shared_ptr<VideoRead> VideoRead::create(
             int64_t id,
             const std::shared_ptr<Render>& render,
             const ftk::Path& path,
             const IOOptions& options,
             const std::shared_ptr<ftk::LogSystem>& logSystem)
         {
-            auto out = std::shared_ptr<Read>(new Read);
+            auto out = std::shared_ptr<VideoRead>(new VideoRead);
             out->_init(id, render, path, {}, options, logSystem);
             return out;
         }
 
-        std::future<IOInfo> Read::getInfo()
+        std::future<IOInfo> VideoRead::getInfo()
         {
             FTK_P();
             return p.render->getInfo(p.id, _path, _options);
         }
         
-        std::future<VideoData> Read::readVideo(
+        std::future<VideoData> VideoRead::readVideo(
             const OTIO_NS::RationalTime& time,
             const IOOptions& options)
         {
@@ -60,7 +60,7 @@ namespace tl
             return p.render->render(p.id, _path, time, merge(options, _options));
         }
         
-        void Read::cancelRequests()
+        void VideoRead::cancelRequests()
         {
             FTK_P();
             p.render->cancelRequests(p.id);

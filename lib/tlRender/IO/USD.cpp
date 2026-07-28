@@ -92,19 +92,19 @@ namespace tl
             const ftk::Path& path,
             const IOOptions& options)
         {
-            FTK_P();
-            int64_t id = -1;
-            {
-                std::unique_lock<std::mutex> lock(p.mutex);
-                ++(p.id);
-                id = p.id;
-            }
-            return Read::create(id, p.render, path, options, _logSystem.lock());
+            return videoRead(path, options);
         }
-        
+
         std::shared_ptr<IRead> ReadPlugin::read(
             const ftk::Path& path,
             const std::vector<ftk::MemFile>& memory,
+            const IOOptions& options)
+        {
+            return videoRead(path, memory, options);
+        }
+
+        std::shared_ptr<IVideoRead> ReadPlugin::videoRead(
+            const ftk::Path& path,
             const IOOptions& options)
         {
             FTK_P();
@@ -114,7 +114,17 @@ namespace tl
                 ++(p.id);
                 id = p.id;
             }
-            return Read::create(id, p.render, path, options, _logSystem.lock());
+            return VideoRead::create(id, p.render, path, options, _logSystem.lock());
+        }
+
+        std::shared_ptr<IVideoRead> ReadPlugin::videoRead(
+            const ftk::Path& path,
+            const std::vector<ftk::MemFile>& memory,
+            const IOOptions& options)
+        {
+            // The renderer opens the stage itself; a memory location is not
+            // something it can be handed.
+            return videoRead(path, options);
         }
 
         std::string ReadPlugin::getPluginInfo(const IOOptions&) const
