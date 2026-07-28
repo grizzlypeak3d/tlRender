@@ -796,8 +796,8 @@ namespace tl
                     std::shared_ptr<ftk::Image> image;
                     try
                     {
-                        const std::string& fileName = request->path.get();
-                        //std::cout << "thumbnail request: " << fileName << " " <<
+                        //std::cout << "thumbnail request: " <<
+                        //    request->path.get() << " " <<
                         //    request->time << std::endl;
                         auto context = p.context.lock();
                         auto timeline = getTimeline(
@@ -1057,7 +1057,6 @@ namespace tl
                     std::shared_ptr<ftk::TriMesh2F> mesh;
                     try
                     {
-                        const std::string& fileName = request->path.get();
                         auto context = p.context.lock();
                         auto timeline = getTimeline(
                             context, p.ioCache, p.ioCacheMutex, request->path);
