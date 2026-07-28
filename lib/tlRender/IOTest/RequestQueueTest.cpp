@@ -60,7 +60,7 @@ namespace tl
             std::thread worker(
                 [&]
                 {
-                    while (condition.wait(std::chrono::milliseconds(5)))
+                    while (condition.wait())
                     {
                         for (const auto& request : strings.popAll())
                         {
@@ -88,14 +88,16 @@ namespace tl
         void RequestQueueTest::_shutdown()
         {
             _print("Shutdown");
-            // stop() must wake a waiting worker immediately, without
-            // waiting for the timeout.
+            // stop() must wake a waiting worker. There is no timeout to
+            // fall back on: a worker waits until it is given something to
+            // do or told to stop, so a missed notify hangs here rather
+            // than being papered over by the next poll.
             RequestCondition condition;
             RequestQueue<IntRequest, int> queue(condition);
             std::thread worker(
                 [&]
                 {
-                    while (condition.wait(std::chrono::seconds(60)))
+                    while (condition.wait())
                         ;
                     condition.stopQueues();
                 });
@@ -148,7 +150,7 @@ namespace tl
             std::thread worker(
                 [&]
                 {
-                    while (condition.wait(std::chrono::milliseconds(5)))
+                    while (condition.wait())
                     {
                         for (const auto& request : strings.popAll())
                         {

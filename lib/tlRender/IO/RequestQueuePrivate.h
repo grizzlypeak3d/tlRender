@@ -45,9 +45,14 @@ namespace tl
     //! worker thread. Multiple queues can share one condition so that
     //! the worker can wait for a request on any of them.
     //!
+    //! The worker waits rather than polls: a queue and its condition
+    //! share one mutex, so a request cannot be pushed between the wait
+    //! predicate being tested and the wait beginning, and every path that
+    //! makes the predicate true notifies. An idle worker therefore costs
+    //! nothing, which matters because each cached reader holds one.
+    //!
     //! The lifecycle invariants that this class centralizes:
-    //! * stop() wakes the worker immediately; shutdown never waits for
-    //!   the polling timeout.
+    //! * stop() wakes the worker immediately; shutdown never waits.
     //! * stopQueues() is the worker's epilogue: every registered queue
     //!   is marked stopped, so new requests complete immediately with
     //!   default values, and the pending ones are cancelled. Queues
@@ -59,16 +64,14 @@ namespace tl
         RequestCondition(const RequestCondition&) = delete;
         RequestCondition& operator=(const RequestCondition&) = delete;
 
-        //! Wait until a request is pending on any registered queue, the
-        //! condition is stopped, or the timeout expires. Returns whether
-        //! the condition is still running; the worker thread loops while
-        //! this is true.
-        bool wait(std::chrono::milliseconds timeout)
+        //! Wait until a request is pending on any registered queue or the
+        //! condition is stopped. Returns whether the condition is still
+        //! running; the worker thread loops while this is true.
+        bool wait()
         {
             std::unique_lock<std::mutex> lock(_mutex);
-            _cv.wait_for(
+            _cv.wait(
                 lock,
-                timeout,
                 [this]
                 {
                     bool out = !_running;

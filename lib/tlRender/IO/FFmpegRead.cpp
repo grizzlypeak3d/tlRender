@@ -119,12 +119,6 @@ namespace tl
                 std::stringstream ss(i->second);
                 ss >> out.threadCount;
             }
-            i = options.find("FFmpeg/RequestTimeout");
-            if (i != options.end())
-            {
-                std::stringstream ss(i->second);
-                ss >> out.requestTimeout;
-            }
             i = options.find("FFmpeg/VideoBufferSize");
             if (i != options.end())
             {
@@ -312,7 +306,7 @@ namespace tl
             p.readVideo->start();
             p.logTimer = std::chrono::steady_clock::now();
             size_t errorCount = 0;
-            while (p.condition.wait(std::chrono::milliseconds(p.options.requestTimeout)))
+            while (p.condition.wait())
             {
                 // Information requests.
                 for (const auto& request : p.infoRequests.popAll())
@@ -545,7 +539,7 @@ namespace tl
             p.logTimer = std::chrono::steady_clock::now();
             const bool audioValid = p.info.audio.isValid();
             size_t errorCount = 0;
-            while (p.condition.wait(std::chrono::milliseconds(p.options.requestTimeout)))
+            while (p.condition.wait())
             {
                 // Information requests.
                 for (const auto& request : p.infoRequests.popAll())

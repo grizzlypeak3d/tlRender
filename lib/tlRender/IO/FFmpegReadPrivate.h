@@ -46,7 +46,6 @@ namespace tl
             bool hwAccel = false;
             AudioInfo audioConvertInfo;
             size_t threadCount = Options().threadCount;
-            size_t requestTimeout = 5;
             size_t videoBufferSize = 4;
             OTIO_NS::RationalTime audioBufferSize = OTIO_NS::RationalTime(2.0, 1.0);
         };
