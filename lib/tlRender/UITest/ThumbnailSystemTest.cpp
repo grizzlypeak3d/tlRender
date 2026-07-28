@@ -5,6 +5,8 @@
 
 #include <tlRender/UI/ThumbnailSystem.h>
 
+#include <tlRender/IO/System.h>
+
 #include <tlRender/Timeline/Timeline.h>
 #include <tlRender/Timeline/Util.h>
 
@@ -51,6 +53,7 @@ namespace tl
                 std::vector<ui::InfoRequest> infoRequests;
                 std::vector<ui::ThumbnailRequest> thumbnailRequests;
                 std::vector<ui::WaveformRequest> waveformRequests;
+                bool mediaReadable = false;
                 try
                 {
                     auto timeline = Timeline::create(_context, path);
@@ -63,6 +66,11 @@ namespace tl
                         // Named by the timeline it lives in, so that media
                         // held as byte ranges in a bundle is reachable.
                         const auto& timelinePath = timeline->getPath();
+                        // A bundle opens whatever its media is, so the
+                        // requests can be made either way; only a build with
+                        // the media's format can answer them.
+                        mediaReadable |= _context->getSystem<ReadSystem>()->
+                            getPlugin(mediaPath) != nullptr;
                         infoRequests.push_back(thumbnailSystem->getInfo(
                             timelinePath,
                             mediaPath));
@@ -92,7 +100,7 @@ namespace tl
                         ++infoCount;
                     }
                 }
-                FTK_ASSERT(infoRequests.empty() || infoCount > 0);
+                FTK_ASSERT(!mediaReadable || infoCount > 0);
                 size_t thumbnailCount = 0;
                 for (auto& request : thumbnailRequests)
                 {
@@ -102,7 +110,7 @@ namespace tl
                         ++thumbnailCount;
                     }
                 }
-                FTK_ASSERT(thumbnailRequests.empty() || thumbnailCount > 0);
+                FTK_ASSERT(!mediaReadable || thumbnailCount > 0);
                 for (auto& request : waveformRequests)
                 {
                     const auto waveform = request.future.get();
