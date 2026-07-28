@@ -113,9 +113,6 @@ namespace tl
         //! bound if that ever starts to matter.
         size_t seqCacheMax = 1000;
 
-        //! Request timeout.
-        std::chrono::milliseconds requestTimeout = std::chrono::milliseconds(5);
-
         //! I/O options.
         IOOptions ioOptions;
 

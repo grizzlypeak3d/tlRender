@@ -42,7 +42,6 @@ namespace tl
             audioRequestMax == other.audioRequestMax &&
             readCacheMax == other.readCacheMax &&
             seqCacheMax == other.seqCacheMax &&
-            requestTimeout == other.requestTimeout &&
             ioOptions == other.ioOptions &&
             pathOptions == other.pathOptions;
     }

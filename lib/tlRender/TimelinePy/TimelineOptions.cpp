@@ -33,7 +33,6 @@ namespace tl
                 .def_readwrite("threaded", &Options::threaded)
                 .def_readwrite("readThreadCount", &Options::readThreadCount)
                 .def_readwrite("audioRequestMax", &Options::audioRequestMax)
-                .def_readwrite("requestTimeout", &Options::requestTimeout)
                 .def_readwrite("ioOptions", &Options::ioOptions)
                 .def_readwrite("pathOptions", &Options::pathOptions)
                 .def(pybind11::self == pybind11::self)

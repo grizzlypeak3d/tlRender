@@ -24,6 +24,8 @@
 #include <opentimelineio/timeline.h>
 
 #include <algorithm>
+#include <sstream>
+#include <thread>
 
 namespace tl
 {
@@ -64,6 +66,7 @@ namespace tl
             _media();
             _readers();
             _memLifetime();
+            _shutdown();
             _separateAudio();
             _spatial();
             _mediaReferences();
@@ -585,6 +588,31 @@ namespace tl
             FTK_ASSERT(data.image->getSize() == info.video[0].size);
 
             _print("a decoder outlives the timeline that opened it");
+        }
+
+        void TimelineTest::_shutdown()
+        {
+            _print("Shutdown");
+            // Destroying an idle timeline must wake its thread. The thread
+            // waits for a request rather than polling for one, so a notify
+            // that goes missing is not covered by the next poll: it costs
+            // the whole logging interval, which is what this measures.
+            auto timeline = Timeline::create(
+                _context,
+                ftk::Path(TLRENDER_SAMPLE_DATA, "MultipleClips.otio"));
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            const auto t0 = std::chrono::steady_clock::now();
+            timeline.reset();
+            const auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
+                std::chrono::steady_clock::now() - t0).count();
+            std::stringstream ss;
+            ss << "Shutdown wake: " << elapsed << "ms";
+            _print(ss.str());
+            if (elapsed >= 1000)
+            {
+                _error("Shutdown had to wait for the logging interval");
+                FTK_ASSERT(false);
+            }
         }
 
         void TimelineTest::_separateAudio()

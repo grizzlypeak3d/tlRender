@@ -27,6 +27,10 @@ namespace tl
     namespace
     {
         const std::chrono::milliseconds timeout(5);
+
+        // How often an otherwise idle timeline wakes to log itself, and so
+        // how long it will wait for a request before looking again.
+        const std::chrono::seconds logInterval(10);
         // How long a timeline without a thread waits for one of its own
         // requests before giving up on it.
         const std::chrono::seconds syncRequestTimeout(60);
@@ -617,8 +621,6 @@ namespace tl
                 arg(options.readThreadCount));
             lines.push_back(ftk::Format("    * Audio request max: {0}").
                 arg(options.audioRequestMax));
-            lines.push_back(ftk::Format("    * Request timeout: {0}ms").
-                arg(options.requestTimeout.count()));
             for (const auto& i : options.ioOptions)
             {
                 lines.push_back(ftk::Format("    * AV I/O {0}: {1}").
@@ -801,7 +803,11 @@ namespace tl
                 p.path.get());
         }
 
-        p.thread.running = false;
+        {
+            std::unique_lock<std::mutex> lock(p.mutex.mutex);
+            p.thread.running = false;
+        }
+        p.thread.cv.notify_one();
         if (p.thread.thread.joinable())
         {
             p.thread.thread.join();
@@ -1858,7 +1864,7 @@ namespace tl
         // Logging.
         auto t1 = std::chrono::steady_clock::now();
         const std::chrono::duration<float> diff = t1 - p.thread.logTimer;
-        if (diff.count() > 10.F)
+        if (diff > logInterval)
         {
             p.thread.logTimer = t1;
             if (auto logSystem = p.logSystem.lock())
@@ -1907,10 +1913,11 @@ namespace tl
             std::unique_lock<std::mutex> lock(p.mutex.mutex);
             p.thread.cv.wait_for(
                 lock,
-                p.options.requestTimeout,
+                logInterval,
                 [this]
                 {
                     return
+                        !_p->thread.running ||
                         !_p->mutex.videoRequests.empty() ||
                         !_p->thread.videoRequestsInProgress.empty() ||
                         !_p->mutex.audioRequests.empty() ||
