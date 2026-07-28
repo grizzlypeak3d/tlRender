@@ -31,6 +31,7 @@ namespace tl
             void _synchronous();
             void _media();
             void _readers();
+            void _memLifetime();
             void _timeline(const std::shared_ptr<Timeline>&);
             void _separateAudio();
             void _spatial();

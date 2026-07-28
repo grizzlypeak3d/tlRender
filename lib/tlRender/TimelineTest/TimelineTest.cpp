@@ -9,6 +9,7 @@
 #include <tlRender/IO/System.h>
 
 #include <tlRender/IO/Plugin.h>
+#include <tlRender/IO/SeqDecode.h>
 #include <tlRender/IO/SeqIO.h>
 
 #include <ftk/Core/Assert.h>
@@ -62,6 +63,7 @@ namespace tl
             _synchronous();
             _media();
             _readers();
+            _memLifetime();
             _separateAudio();
             _spatial();
             _mediaReferences();
@@ -531,6 +533,58 @@ namespace tl
                     arg(audioCount));
                 FTK_ASSERT(false);
             }
+        }
+
+        void TimelineTest::_memLifetime()
+        {
+            // A bundle's media is a range of bytes inside the archive, which
+            // is mapped into memory once and read from there.
+            const ftk::Path path(TLRENDER_SAMPLE_DATA, "SingleClipSeq.otioz");
+            Options options;
+            options.threaded = false;
+            auto timeline = Timeline::create(_context, path, options);
+            const auto clips = timeline->getTimeline()->find_clips();
+            FTK_ASSERT(!clips.empty());
+            auto mediaReference = clips[0]->media_reference();
+            const auto mediaPath = getPath(
+                mediaReference,
+                timeline->getPath().getDir(),
+                ftk::PathOptions());
+            const auto plugin =
+                _context->getSystem<ReadSystem>()->getPlugin(mediaPath);
+            if (!plugin)
+            {
+                _print("Skipped: no plugin reads the bundle's media");
+                return;
+            }
+            const auto decode = plugin->decode(IOOptions());
+            FTK_ASSERT(decode);
+
+            auto mem = timeline->getMem(mediaReference);
+            FTK_ASSERT(!mem.empty());
+            auto seq = SeqDecode::create(mediaPath, mem, decode);
+            const IOInfo info = seq->getInfo();
+            FTK_ASSERT(!info.video.empty());
+            const auto time = info.videoTime.start_time();
+            FTK_ASSERT(seq->readVideo(time).image);
+
+            // The decoder was handed the memory the frames live in, and each
+            // of those keeps the mapping open, so nothing it needs belongs to
+            // the timeline any more. Anything that holds readers beyond the
+            // timeline that opened them -- a pool shared between timelines,
+            // say -- rests on exactly this.
+            //
+            // Both of the other holders have to go first or this proves
+            // nothing: the copy here would keep the archive mapped by itself,
+            // which is how the first version of this test passed even with
+            // the decoder's keepalive taken away.
+            mem.clear();
+            timeline.reset();
+            const VideoData data = seq->readVideo(time);
+            FTK_ASSERT(data.image);
+            FTK_ASSERT(data.image->getSize() == info.video[0].size);
+
+            _print("a decoder outlives the timeline that opened it");
         }
 
         void TimelineTest::_separateAudio()
