@@ -34,6 +34,7 @@ namespace tl
         OTIO_NS::TimeRange getVideoCacheRange(size_t max) const;
         ftk::Range<int64_t> getAudioCacheRange(size_t max) const;
         void cacheUpdate();
+        void cacheEvictAndFill();
 
         bool hasVideo() const;
         bool hasAudio() const;
@@ -138,6 +139,24 @@ namespace tl
             std::vector<int> compareVideoLayers;
             double audioOffset = 0.0;
             PlayerCacheOptions cacheOptions;
+
+            bool operator == (const PlaybackState&) const;
+            bool operator != (const PlaybackState&) const;
+        };
+
+        // What the cache eviction and fill depend on. They are idempotent:
+        // the same inputs over the same cache do the same work and reach the
+        // same result, so when this is unchanged there is nothing to redo.
+        // The sizes are what make a completed request, a filled frame or a
+        // cleared cache count as a change.
+        struct CacheKey
+        {
+            PlaybackState state;
+            CacheDir cacheDir = CacheDir::Forward;
+            size_t videoCacheSize = 0;
+            size_t audioCacheSize = 0;
+            size_t videoRequestsSize = 0;
+            size_t audioRequestsSize = 0;
         };
 
         // Shared between the main thread and the cache thread; every field is
@@ -166,6 +185,8 @@ namespace tl
         {
             PlaybackState state;
             CacheDir cacheDir = CacheDir::Forward;
+            CacheKey cacheKey;
+            bool cacheKeyValid = false;
             std::map<OTIO_NS::RationalTime, std::vector<VideoRequest> > videoRequests;
             std::map<OTIO_NS::RationalTime, std::vector<VideoFrame> > videoCache;
             std::map<int64_t, AudioRequest> audioRequests;

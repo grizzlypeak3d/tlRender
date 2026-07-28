@@ -266,10 +266,30 @@ namespace tl
         return out;
     }
 
-    void Player::Private::cacheUpdate()
+    bool Player::Private::PlaybackState::operator == (
+        const PlaybackState& other) const
     {
-        //std::cout << "current time: " << currentTime->get() << std::endl;
+        return
+            playback == other.playback &&
+            currentTime == other.currentTime &&
+            inOutRange == other.inOutRange &&
+            compare == other.compare &&
+            compareTime == other.compareTime &&
+            ioOptions == other.ioOptions &&
+            videoLayer == other.videoLayer &&
+            compareVideoLayers == other.compareVideoLayers &&
+            audioOffset == other.audioOffset &&
+            cacheOptions == other.cacheOptions;
+    }
 
+    bool Player::Private::PlaybackState::operator != (
+        const PlaybackState& other) const
+    {
+        return !(*this == other);
+    }
+
+    void Player::Private::cacheEvictAndFill()
+    {
         const size_t videoCacheMax = getVideoCacheMax();
         const size_t audioCacheMax = getAudioCacheMax();
         const OTIO_NS::TimeRange videoCacheRange = getVideoCacheRange(videoCacheMax);
@@ -405,6 +425,49 @@ namespace tl
             }
             //std::cout << this << " audio requests: " << thread.audioRequests.size() << std::endl;
         }
+    }
+
+    void Player::Private::cacheUpdate()
+    {
+        //std::cout << "current time: " << currentTime->get() << std::endl;
+
+        // Stopped on a filled cache this decides, two hundred times a
+        // second, that there is nothing to do: evicting walks the whole
+        // cache and filling walks the whole range to find that out. The key
+        // holds everything those two read, so an unchanged key means an
+        // unchanged answer. Completing a request or moving the playhead
+        // changes a size or the state, which is what puts the work back.
+        size_t audioCacheSize = 0;
+        {
+            std::unique_lock<std::mutex> lock(audioMutex.mutex);
+            audioCacheSize = audioMutex.cache.size();
+        }
+        // Compared in place rather than into a key: holding the state costs
+        // a copy of its options and layers, which is not worth paying on a
+        // tick that turns out to have nothing to do.
+        const bool changed =
+            !thread.cacheKeyValid ||
+            thread.cacheKey.cacheDir != thread.cacheDir ||
+            thread.cacheKey.videoCacheSize != thread.videoCache.size() ||
+            thread.cacheKey.audioCacheSize != audioCacheSize ||
+            thread.cacheKey.videoRequestsSize != thread.videoRequests.size() ||
+            thread.cacheKey.audioRequestsSize != thread.audioRequests.size() ||
+            thread.cacheKey.state != thread.state;
+        if (changed)
+        {
+            cacheEvictAndFill();
+
+            thread.cacheKey.state = thread.state;
+            thread.cacheKey.cacheDir = thread.cacheDir;
+            thread.cacheKey.videoCacheSize = thread.videoCache.size();
+            {
+                std::unique_lock<std::mutex> lock(audioMutex.mutex);
+                thread.cacheKey.audioCacheSize = audioMutex.cache.size();
+            }
+            thread.cacheKey.videoRequestsSize = thread.videoRequests.size();
+            thread.cacheKey.audioRequestsSize = thread.audioRequests.size();
+            thread.cacheKeyValid = true;
+        }
 
         // Check for finished video.
         auto videoRequestsIt = thread.videoRequests.begin();
@@ -467,6 +530,9 @@ namespace tl
         if (diff.count() > .5F)
         {
             thread.cacheTimer = now;
+
+            const size_t videoCacheMax = getVideoCacheMax();
+            const size_t audioCacheMax = getAudioCacheMax();
 
             std::vector<OTIO_NS::RationalTime> videoCacheFrames;
             for (const auto& i : thread.videoCache)
