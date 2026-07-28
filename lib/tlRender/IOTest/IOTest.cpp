@@ -270,7 +270,7 @@ namespace tl
             for (size_t i = 0; i < 8; ++i)
             {
                 threads.push_back(std::thread(
-                    [seq, &images, &ok]
+                    [seq, &images, frameCount, &ok]
                     {
                         for (size_t j = 0; j < frameCount; ++j)
                         {
