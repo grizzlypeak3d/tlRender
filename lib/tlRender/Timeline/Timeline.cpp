@@ -746,6 +746,15 @@ namespace tl
             i.second = ioInfo;
         }
 
+        // Reading the timeline opened readers, and one of them may already
+        // have failed -- a media path that does not exist fails here. Errors
+        // are otherwise collected as frame requests complete, and a timeline
+        // whose media has no video is never asked for a frame, so without
+        // this getReadError() would stay empty for exactly the media that
+        // failed hardest. Safe to call here: the thread below is not running
+        // yet.
+        p.updateReadErrors();
+
         logSystem->print(
             ftk::Format("tl::Timeline {0}").arg(this),
             ftk::Format(
