@@ -28,6 +28,20 @@ namespace tl
 {
     namespace timeline_tests
     {
+        namespace
+        {
+            // Whether any plugin can read the given sample media. Several of
+            // these tests need real pixels or the resolution behind them, and
+            // a build configured without image formats has neither.
+            bool canRead(
+                const std::shared_ptr<ftk::Context>& context,
+                const std::string& fileName)
+            {
+                return context->getSystem<ReadSystem>()->getPlugin(
+                    ftk::Path(TLRENDER_SAMPLE_DATA, fileName)) != nullptr;
+            }
+        }
+
         TimelineTest::TimelineTest(const std::shared_ptr<ftk::Context>& context) :
             ITest(context, "timeline_tests::TimelineTest")
         {}
@@ -55,6 +69,15 @@ namespace tl
 
         void TimelineTest::_spatial()
         {
+            // Unit-less coordinates are scaled to pixels by the media's own
+            // resolution, so a build that cannot read the media has no scale
+            // to apply and lays out a canvas of a few pixels.
+            if (!canRead(_context, "SpatialLarge.png"))
+            {
+                _print("Skipped: no plugin reads the spatial media");
+                return;
+            }
+
             // The fixtures pair a 1920x1080 clip with a 640x360 one. The
             // expected boxes are what each set of OTIO spatial coordinates
             // works out to in image space, after being scaled from unit-less
@@ -575,6 +598,15 @@ namespace tl
 
         void TimelineTest::_mediaReferences()
         {
+            // Switching between media references is checked by the image that
+            // comes back and the resolution it is laid out at, neither of
+            // which a build without image formats can produce.
+            if (!canRead(_context, "SpatialLarge.png"))
+            {
+                _print("Skipped: no plugin reads the media reference fixtures");
+                return;
+            }
+
             // A clip may carry several media references, for example a proxy
             // and a full resolution version of the same media.
             //
@@ -915,7 +947,7 @@ namespace tl
             // reads it; a build with no image formats cannot, and asking
             // throws rather than returning nothing.
             const bool seqReadable =
-                _context->getSystem<ReadSystem>()->getPlugin(seqPath) != nullptr;
+                canRead(_context, "Seq/BART_2021-02-07.0001.jpg");
             if (seqReadable)
             {
                 auto seqTimeline = Timeline::create(_context, seqPath, options);
