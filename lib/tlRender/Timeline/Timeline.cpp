@@ -905,16 +905,23 @@ namespace tl
     std::vector<ftk::MemFile> Timeline::getMem(const OTIO_NS::MediaReference* otioRef)
     {
         FTK_P();
-        std::unique_lock<std::mutex> lock(p.memFilesMutex);
-        const auto i = p.memFiles.find(otioRef);
-        if (i != p.memFiles.end())
+        return *p.getMem(otioRef);
+    }
+
+    std::shared_ptr<std::vector<ftk::MemFile> > Timeline::Private::getMem(
+        const OTIO_NS::MediaReference* otioRef)
+    {
+        std::unique_lock<std::mutex> lock(memFilesMutex);
+        const auto i = memFiles.find(otioRef);
+        if (i != memFiles.end())
         {
-            return *i->second;
+            return i->second;
         }
-        if (p.bundleMediaReferences.find(otioRef) ==
-            p.bundleMediaReferences.end())
+        if (bundleMediaReferences.find(otioRef) ==
+            bundleMediaReferences.end())
         {
-            return std::vector<ftk::MemFile>();
+            // Not in a bundle: read from its path.
+            return std::make_shared<std::vector<ftk::MemFile> >();
         }
 
         // First use of this reference: work out where each of its files lives
@@ -940,7 +947,7 @@ namespace tl
         out->reserve(mediaFileNames.size());
         for (const auto& mediaFileName : mediaFileNames)
         {
-            const auto entry = p.zipReader->find(mediaFileName);
+            const auto entry = zipReader->find(mediaFileName);
             if (!entry.has_value())
             {
                 // The bundle does not hold this media after all. Mark the
@@ -948,26 +955,26 @@ namespace tl
                 // empty result reads as "not in a bundle", and the caller
                 // would go on to read the media from its path, which is a
                 // different file than the bundle describes.
-                if (auto logSystem = p.logSystem.lock())
+                if (auto log = logSystem.lock())
                 {
-                    logSystem->print(
+                    log->print(
                         "tl::Timeline",
                         ftk::Format(
                             "Cannot find zip entry: \"{0}\"; this media "
                             "reference cannot be used").arg(mediaFileName),
                         ftk::LogType::Error);
                 }
-                p.unavailableMediaReferences.insert(otioRef);
+                unavailableMediaReferences.insert(otioRef);
                 out->clear();
                 break;
             }
             out->push_back(ftk::MemFile(
-                p.fileIO,
-                p.fileIO->getMemStart() + entry->offset,
+                fileIO,
+                fileIO->getMemStart() + entry->offset,
                 entry->size));
         }
-        p.memFiles[otioRef] = out;
-        return *out;
+        memFiles[otioRef] = out;
+        return out;
     }
 
     OTIO_NS::MediaReference* Timeline::Private::mediaReference(
@@ -1342,71 +1349,100 @@ namespace tl
         }
     }
 
+    template<typename T>
+    std::shared_ptr<T> Timeline::Private::getCached(
+        ftk::LRUCache<std::string, std::shared_ptr<T> >& cache,
+        const OTIO_NS::MediaReference* mediaReference,
+        const IOOptions& ioOptions,
+        const std::function<std::shared_ptr<T>(
+            const std::shared_ptr<ftk::Context>&,
+            const ftk::Path&,
+            const std::vector<ftk::MemFile>&,
+            const IOOptions&)>& create)
+    {
+        std::shared_ptr<T> out;
+        if (mediaUnavailable(mediaReference))
+        {
+            // Named by the bundle but not inside it. Reading it from its
+            // path would be reading a different file than the bundle
+            // describes.
+            return out;
+        }
+        const auto mediaPath = tl::getPath(
+            mediaReference,
+            path.getDir(),
+            options.pathOptions);
+        const std::string key = getKey(mediaPath);
+        std::unique_lock<std::mutex> lock(readCacheMutex);
+        if (!cache.get(key, out))
+        {
+            auto context = this->context.lock();
+            if (!context)
+            {
+                return out;
+            }
+            try
+            {
+                const auto mem = getMem(mediaReference);
+                if (mediaUnavailable(mediaReference))
+                {
+                    // Resolving its byte ranges said the bundle does not
+                    // hold it; reading it from its path is not the same
+                    // file.
+                    return out;
+                }
+                IOOptions readOptions = ioOptions;
+                readOptions["SeqIO/DefaultSpeed"] =
+                    ftk::Format("{0}").arg(timeRange.duration().rate());
+                out = create(context, mediaPath, *mem, readOptions);
+            }
+            catch (const std::exception& e)
+            {
+                if (auto log = logSystem.lock())
+                {
+                    log->print(
+                        "tl::Timeline",
+                        ftk::Format("Cannot read \"{0}\": {1}").
+                            arg(mediaPath.get()).arg(e.what()),
+                        ftk::LogType::Error);
+                }
+                return std::shared_ptr<T>();
+            }
+            if (out)
+            {
+                cache.add(key, out);
+            }
+        }
+        return out;
+    }
+
     std::shared_ptr<SeqDecode> Timeline::_getSeqDecode(
         const OTIO_NS::MediaReference* mediaReference,
         const IOOptions& ioOptions)
     {
         FTK_P();
-        std::shared_ptr<SeqDecode> out;
-        if (p.mediaUnavailable(mediaReference))
-        {
-            return out;
-        }
-        const auto path = tl::getPath(
+        return p.getCached<SeqDecode>(
+            p.seqCache,
             mediaReference,
-            p.path.getDir(),
-            p.options.pathOptions);
-        const std::string key = getKey(path);
-        std::unique_lock<std::mutex> lock(p.readCacheMutex);
-        if (!p.seqCache.get(key, out))
-        {
-            auto context = p.context.lock();
-            if (!context)
+            ioOptions,
+            [](const std::shared_ptr<ftk::Context>& context,
+                const ftk::Path& path,
+                const std::vector<ftk::MemFile>& mem,
+                const IOOptions& options)
             {
-                return out;
-            }
-            const auto readSystem = context->getSystem<ReadSystem>();
-            const auto plugin = readSystem->getPlugin(path);
-            if (!plugin)
-            {
-                return out;
-            }
-            // Null for a format that has to be read statefully, which leaves
-            // the caller to fall back to a reader.
-            const auto decode = plugin->decode(ioOptions);
-            if (!decode)
-            {
-                return out;
-            }
-            IOOptions options = ioOptions;
-            options["SeqIO/DefaultSpeed"] =
-                ftk::Format("{0}").arg(p.timeRange.duration().rate());
-            try
-            {
-                const auto mem = getMem(mediaReference);
-                if (p.mediaUnavailable(mediaReference))
+                std::shared_ptr<SeqDecode> out;
+                const auto readSystem = context->getSystem<ReadSystem>();
+                if (const auto plugin = readSystem->getPlugin(path))
                 {
-                    // Resolving its byte ranges said the bundle does not
-                    // hold it; reading it from its path is not the same file.
-                    return out;
-                }
-                out = SeqDecode::create(path, mem, decode, options);
-            }
-            catch (const std::exception& e)
-            {
-                if (auto logSystem = p.logSystem.lock())
-                {
-                    logSystem->print(
-                        "tl::Timeline",
-                        ftk::Format("Cannot read \"{0}\": {1}").
-                            arg(path.get()).arg(e.what()),
-                        ftk::LogType::Error);
+                    // Null for a format that has to be read statefully,
+                    // which leaves the caller to fall back to a reader.
+                    if (const auto decode = plugin->decode(options))
+                    {
+                        out = SeqDecode::create(path, mem, decode, options);
+                    }
                 }
                 return out;
-            }
-            p.seqCache.add(key, out);
-        }
-        return out;
+            });
     }
 
     bool Timeline::_getVideoIOInfo(
@@ -1496,39 +1532,18 @@ namespace tl
         const IOOptions& ioOptions)
     {
         FTK_P();
-        std::shared_ptr<IVideoRead> out;
-        if (p.mediaUnavailable(mediaReference))
-        {
-            // Named by the bundle but not inside it. Reading it from its path
-            // would be reading a different file than the bundle describes.
-            return out;
-        }
-        const auto path = tl::getPath(
+        return p.getCached<IVideoRead>(
+            p.videoReadCache,
             mediaReference,
-            p.path.getDir(),
-            p.options.pathOptions);
-        const std::string key = getKey(path);
-        std::unique_lock<std::mutex> lock(p.readCacheMutex);
-        if (!p.videoReadCache.get(key, out))
-        {
-            if (auto context = p.context.lock())
+            ioOptions,
+            [](const std::shared_ptr<ftk::Context>& context,
+                const ftk::Path& path,
+                const std::vector<ftk::MemFile>& mem,
+                const IOOptions& options)
             {
-                const auto mem = getMem(mediaReference);
-                if (p.mediaUnavailable(mediaReference))
-                {
-                    return out;
-                }
-                IOOptions options = ioOptions;
-                options["SeqIO/DefaultSpeed"] = ftk::Format("{0}").arg(p.timeRange.duration().rate());
-                const auto ioSystem = context->getSystem<ReadSystem>();
-                out = ioSystem->videoRead(path, mem, options);
-                if (out)
-                {
-                    p.videoReadCache.add(key, out);
-                }
-            }
-        }
-        return out;
+                return context->getSystem<ReadSystem>()->videoRead(
+                    path, mem, options);
+            });
     }
 
     std::shared_ptr<IAudioRead> Timeline::_getAudioRead(
@@ -1544,38 +1559,18 @@ namespace tl
         const IOOptions& ioOptions)
     {
         FTK_P();
-        std::shared_ptr<IAudioRead> out;
-        if (p.mediaUnavailable(mediaReference))
-        {
-            // See the comment in _getVideoRead().
-            return out;
-        }
-        const auto path = tl::getPath(
+        return p.getCached<IAudioRead>(
+            p.audioReadCache,
             mediaReference,
-            p.path.getDir(),
-            p.options.pathOptions);
-        const std::string key = getKey(path);
-        std::unique_lock<std::mutex> lock(p.readCacheMutex);
-        if (!p.audioReadCache.get(key, out))
-        {
-            if (auto context = p.context.lock())
+            ioOptions,
+            [](const std::shared_ptr<ftk::Context>& context,
+                const ftk::Path& path,
+                const std::vector<ftk::MemFile>& mem,
+                const IOOptions& options)
             {
-                const auto mem = getMem(mediaReference);
-                if (p.mediaUnavailable(mediaReference))
-                {
-                    return out;
-                }
-                IOOptions options = ioOptions;
-                options["SeqIO/DefaultSpeed"] = ftk::Format("{0}").arg(p.timeRange.duration().rate());
-                const auto ioSystem = context->getSystem<ReadSystem>();
-                out = ioSystem->audioRead(path, mem, options);
-                if (out)
-                {
-                    p.audioReadCache.add(key, out);
-                }
-            }
-        }
-        return out;
+                return context->getSystem<ReadSystem>()->audioRead(
+                    path, mem, options);
+            });
     }
 
     std::future<VideoData> Timeline::_readVideo(

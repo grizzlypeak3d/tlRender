@@ -50,6 +50,28 @@ namespace tl
         // reference can also turn out to be unavailable when its byte ranges
         // are worked out on first read.
         bool mediaUnavailable(const OTIO_NS::MediaReference*);
+        // Where a media reference's files live inside the bundle, worked out
+        // on first use. Shared rather than copied: inside a bundle a
+        // sequence reference carries a byte range per frame, and a long one
+        // is not a vector to hand out by value.
+        std::shared_ptr<std::vector<ftk::MemFile> > getMem(
+            const OTIO_NS::MediaReference*);
+
+        // Look up the reader or decoder for a media reference, creating one
+        // on a miss. The three caches differ only in what they hold and how
+        // an entry is made; the availability checks either side of resolving
+        // the byte ranges, the key and the lock are the same for all of
+        // them, and were easy to get subtly wrong three times over.
+        template<typename T>
+        std::shared_ptr<T> getCached(
+            ftk::LRUCache<std::string, std::shared_ptr<T> >&,
+            const OTIO_NS::MediaReference*,
+            const IOOptions&,
+            const std::function<std::shared_ptr<T>(
+                const std::shared_ptr<ftk::Context>&,
+                const ftk::Path&,
+                const std::vector<ftk::MemFile>&,
+                const IOOptions&)>&);
         ftk::Path path;
         ftk::Path audioPath;
         Options options;
