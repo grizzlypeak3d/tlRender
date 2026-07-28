@@ -89,6 +89,30 @@ namespace tl
         //! assembled at once.
         size_t audioRequestMax = 16;
 
+        //! Maximum number of stateful readers held per half.
+        //!
+        //! Video and audio are cached separately, so this many of each: a
+        //! movie with sound occupies one entry in both. That is the same
+        //! budget as before the halves were split apart, when a single
+        //! reader for such a movie ran a thread for each of them anyway.
+        //!
+        //! What it bounds is decoder state and threads, not parallelism --
+        //! readThreadCount is the knob for that. Its right value follows
+        //! from how many distinct references a timeline plays across, which
+        //! is a property of the timeline rather than of the machine.
+        size_t readCacheMax = 10;
+
+        //! Maximum number of image sequences held.
+        //!
+        //! Far larger than readCacheMax because a sequence holds no thread
+        //! and no queue: only where each frame lives, so evicting one costs
+        //! a header read. A timeline with a clip per shot has hundreds.
+        //!
+        //! Note that inside a bundle an entry carries a byte range per
+        //! frame, so a long sequence is not free; a count is the wrong
+        //! bound if that ever starts to matter.
+        size_t seqCacheMax = 1000;
+
         //! Request timeout.
         std::chrono::milliseconds requestTimeout = std::chrono::milliseconds(5);
 

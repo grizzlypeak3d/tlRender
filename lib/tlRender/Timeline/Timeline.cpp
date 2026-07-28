@@ -26,13 +26,6 @@ namespace tl
 {
     namespace
     {
-        // Readers are expensive to hold: each carries a thread and a request
-        // queue, so only a few can be kept.
-        const size_t readCacheMax = 10;
-        // Sequences are not: they hold where the frames are and nothing else.
-        // A timeline with a clip per shot has hundreds, and evicting one only
-        // means reading a header again.
-        const size_t seqCacheMax = 1000;
         const std::chrono::milliseconds timeout(5);
         // How long a timeline without a thread waits for one of its own
         // requests before giving up on it.
@@ -661,9 +654,9 @@ namespace tl
             {}
         }
         p.options = options;
-        p.videoReadCache.setMax(readCacheMax);
-        p.audioReadCache.setMax(readCacheMax);
-        p.seqCache.setMax(seqCacheMax);
+        p.videoReadCache.setMax(p.options.readCacheMax);
+        p.audioReadCache.setMax(p.options.readCacheMax);
+        p.seqCache.setMax(p.options.seqCacheMax);
         if (p.options.threaded)
         {
             p.startReadPool(p.options.readThreadCount);

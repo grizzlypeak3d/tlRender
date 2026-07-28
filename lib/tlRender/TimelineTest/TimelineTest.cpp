@@ -250,6 +250,16 @@ namespace tl
             a.imageSeqAudio = ImageSeqAudio::FileName;
             FTK_ASSERT(a == a);
             FTK_ASSERT(a != Options());
+
+            // The cache sizes are options rather than constants so that a
+            // caller can ask for what it needs; comparing them is what keeps
+            // a timeline from being reused with somebody else's sizes.
+            Options cache;
+            cache.readCacheMax = 1;
+            FTK_ASSERT(cache != Options());
+            Options seq;
+            seq.seqCacheMax = 1;
+            FTK_ASSERT(seq != Options());
         }
 
         void TimelineTest::_util()
