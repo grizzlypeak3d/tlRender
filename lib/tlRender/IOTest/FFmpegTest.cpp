@@ -72,18 +72,18 @@ namespace tl
             {
                 std::vector<uint8_t> memoryData;
                 std::vector<ftk::MemFile> memory;
-                std::shared_ptr<IRead> read;
+                std::shared_ptr<IVideoRead> read;
                 if (memoryIO)
                 {
                     auto fileIO = ftk::FileIO::create(path.get(), ftk::FileMode::Read);
                     memoryData.resize(fileIO->getSize());
                     fileIO->read(memoryData.data(), memoryData.size());
                     memory.push_back(ftk::MemFile(nullptr, memoryData.data(), memoryData.size()));
-                    read = plugin->read(path, memory, options);
+                    read = plugin->videoRead(path, memory, options);
                 }
                 else
                 {
-                    read = plugin->read(path, options);
+                    read = plugin->videoRead(path, options);
                 }
                 const auto ioInfo = read->getInfo().get();
                 FTK_ASSERT(!ioInfo.video.empty());
@@ -128,7 +128,7 @@ namespace tl
                     fileIO->read(memoryData.data(), memoryData.size());
                     memory.push_back(ftk::MemFile(nullptr, memoryData.data(), memoryData.size()));
                 }
-                auto read = plugin->read(path, memory, options);
+                auto read = plugin->videoRead(path, memory, options);
                 // This previously hung on truncated files (suspected cause:
                 // the avIOBufferSeek() whence/return bug, since fixed). Use
                 // a watchdog rather than a bare get() so a regression fails
@@ -364,7 +364,7 @@ namespace tl
 
                 IOOptions readOptions;
                 readOptions["FFmpeg/YUVToRGB"] = "1";
-                auto read = readPlugin->read(path, readOptions);
+                auto read = readPlugin->videoRead(path, readOptions);
                 const auto ioInfo = read->getInfo().get();
                 FTK_ASSERT(!ioInfo.video.empty());
                 const auto videoData =
@@ -524,7 +524,7 @@ namespace tl
                 options["FFmpeg/AudioCodec"] = "pcm_s16le";
                 writeMovie(path, options);
 
-                auto read = readPlugin->read(path);
+                auto read = readPlugin->audioRead(path);
                 const auto ioInfo = read->getInfo().get();
                 if (!ioInfo.audio.isValid() ||
                     ioInfo.audio.channelCount != audioInfo.channelCount ||
@@ -675,7 +675,7 @@ namespace tl
                 options["FFmpeg/Codec"] = "mjpeg";
                 writeMovie(path, options);
 
-                auto read = readPlugin->read(path);
+                auto read = readPlugin->audioRead(path);
                 const auto ioInfo = read->getInfo().get();
                 if (!ioInfo.audio.isValid() ||
                     ioInfo.audio.channelCount != audioInfo.channelCount ||
@@ -817,14 +817,14 @@ namespace tl
                 options["FFmpeg/Codec"] = "mjpeg";
                 writeMovie(path, options);
 
-                auto read = readPlugin->read(path);
-                const auto ioInfo = read->getInfo().get();
-                if (ioInfo.video.empty())
+                auto videoRead = readPlugin->videoRead(path);
+                if (videoRead->getInfo().get().video.empty())
                 {
                     _error("Skip audio: expected video");
                     FTK_ASSERT(false);
                 }
-                if (ioInfo.audio.isValid())
+                auto audioRead = readPlugin->audioRead(path);
+                if (audioRead->getInfo().get().audio.isValid())
                 {
                     _error("Skip audio: expected no audio");
                     FTK_ASSERT(false);
@@ -833,7 +833,7 @@ namespace tl
                 // A readAudio() request on a file without an audio stream
                 // must complete with empty data rather than hanging or
                 // hitting undefined behavior in the sample rate math.
-                auto audioFuture = read->readAudio(
+                auto audioFuture = audioRead->readAudio(
                     OTIO_NS::TimeRange(
                         OTIO_NS::RationalTime(0.0, 44100.0),
                         OTIO_NS::RationalTime(44100.0, 44100.0)));

@@ -179,33 +179,6 @@ namespace tl
         }
     }
 
-    std::shared_ptr<IRead> ReadSystem::read(
-        const ftk::Path& path,
-        const IOOptions& options)
-    {
-        return createRead<IRead>(
-            _plugins,
-            path,
-            [&](const std::shared_ptr<IReadPlugin>& plugin)
-            {
-                return plugin->read(path, options);
-            });
-    }
-
-    std::shared_ptr<IRead> ReadSystem::read(
-        const ftk::Path& path,
-        const std::vector<ftk::MemFile>& memory,
-        const IOOptions& options)
-    {
-        return createRead<IRead>(
-            _plugins,
-            path,
-            [&](const std::shared_ptr<IReadPlugin>& plugin)
-            {
-                return plugin->read(path, memory, options);
-            });
-    }
-
     std::shared_ptr<IVideoRead> ReadSystem::videoRead(
         const ftk::Path& path,
         const IOOptions& options)

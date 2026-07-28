@@ -69,17 +69,6 @@ namespace tl
 
         namespace
         {
-            class DummyReadPlugin : public IReadPlugin
-            {
-            public:
-                std::shared_ptr<IRead> read(
-                    const ftk::Path&,
-                    const IOOptions& = IOOptions()) override
-                {
-                    return nullptr;
-                }
-            };
-
             class DummyWritePlugin : public IWritePlugin
             {
             public:
@@ -113,7 +102,8 @@ namespace tl
                     _print(ss.str());
                 }
             }
-            FTK_ASSERT(!readSystem->read(ftk::Path()));
+            FTK_ASSERT(!readSystem->videoRead(ftk::Path()));
+            FTK_ASSERT(!readSystem->audioRead(ftk::Path()));
             auto writeSystem = _context->getSystem<WriteSystem>();
             FTK_ASSERT(!writeSystem->write(ftk::Path(), IOInfo()));
         }

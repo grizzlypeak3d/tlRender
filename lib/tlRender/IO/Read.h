@@ -11,9 +11,9 @@ namespace tl
     //! Base class for readers.
     //!
     //! A reader is stateful -- a movie carries a demuxer position -- which is
-    //! what separates it from a decoder. Video and audio are read by the two
-    //! classes below rather than both by this one: they share nothing but the
-    //! file, and plenty of files have only one of them.
+    //! what separates it from a decoder. What it reads is video or audio, one
+    //! of the two classes below: they share nothing but the file, and plenty
+    //! of files have only one of them.
     class TL_API_TYPE IRead : public IIO
     {
     protected:
@@ -30,16 +30,6 @@ namespace tl
 
         //! Get the information.
         TL_API virtual std::future<IOInfo> getInfo() = 0;
-
-        //! Read video data.
-        TL_API virtual std::future<VideoData> readVideo(
-            const OTIO_NS::RationalTime&,
-            const IOOptions& = IOOptions());
-
-        //! Read audio data.
-        TL_API virtual std::future<AudioData> readAudio(
-            const OTIO_NS::TimeRange&,
-            const IOOptions& = IOOptions());
 
         //! Cancel pending requests.
         TL_API virtual void cancelRequests() = 0;
@@ -97,21 +87,10 @@ namespace tl
     public:
         TL_API virtual ~IReadPlugin() = 0;
 
-        //! Create a reader for the given path, or null when this format is
-        //! decoded rather than read: a sequence of stateless files needs no
-        //! reader, and decode() returns one for it instead.
-        TL_API virtual std::shared_ptr<IRead> read(
-            const ftk::Path&,
-            const IOOptions& = IOOptions());
-
-        //! Create a reader for the given path and memory locations, or null.
-        TL_API virtual std::shared_ptr<IRead> read(
-            const ftk::Path&,
-            const std::vector<ftk::MemFile>&,
-            const IOOptions& = IOOptions());
-
         //! Create a video reader for the given path, or null when this
-        //! format has no video or is decoded rather than read.
+        //! format has no video, or is decoded rather than read: a sequence
+        //! of stateless files needs no reader, and decode() returns one for
+        //! it instead.
         TL_API virtual std::shared_ptr<IVideoRead> videoRead(
             const ftk::Path&,
             const IOOptions& = IOOptions());

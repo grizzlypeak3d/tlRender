@@ -51,17 +51,6 @@ namespace tl
         //! Get the file type for the given extension.
         TL_API FileType getFileType(const std::string&) const;
 
-        //! Create a reader for the given path.
-        TL_API std::shared_ptr<IRead> read(
-            const ftk::Path&,
-            const IOOptions& = IOOptions());
-
-        //! Create a reader for the given path and memory locations.
-        TL_API std::shared_ptr<IRead> read(
-            const ftk::Path&,
-            const std::vector<ftk::MemFile>&,
-            const IOOptions& = IOOptions());
-
         //! Create a video reader for the given path, or null when the format
         //! has no video or is decoded rather than read.
         TL_API std::shared_ptr<IVideoRead> videoRead(

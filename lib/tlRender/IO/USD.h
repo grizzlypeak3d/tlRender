@@ -97,14 +97,6 @@ namespace tl
             TL_API static std::shared_ptr<ReadPlugin> create(
                 const std::shared_ptr<ftk::LogSystem>&);
             
-            TL_API std::shared_ptr<IRead> read(
-                const ftk::Path&,
-                const IOOptions& = IOOptions()) override;
-            TL_API std::shared_ptr<IRead> read(
-                const ftk::Path&,
-                const std::vector<ftk::MemFile>&,
-                const IOOptions& = IOOptions()) override;
-
             TL_API std::shared_ptr<IVideoRead> videoRead(
                 const ftk::Path&,
                 const IOOptions& = IOOptions()) override;

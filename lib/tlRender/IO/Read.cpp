@@ -33,19 +33,11 @@ namespace tl
         return 0;
     }
 
-    std::future<VideoData> IRead::readVideo(
-        const OTIO_NS::RationalTime&,
-        const IOOptions&)
-    {
-        return std::future<VideoData>();
-    }
+    IVideoRead::~IVideoRead()
+    {}
 
-    std::future<AudioData> IRead::readAudio(
-        const OTIO_NS::TimeRange&,
-        const IOOptions&)
-    {
-        return std::future<AudioData>();
-    }
+    IAudioRead::~IAudioRead()
+    {}
 
     struct IReadPlugin::Private
     {
@@ -64,27 +56,6 @@ namespace tl
     {}
 
     IReadPlugin::~IReadPlugin()
-    {}
-
-    std::shared_ptr<IRead> IReadPlugin::read(
-        const ftk::Path&,
-        const IOOptions&)
-    {
-        return nullptr;
-    }
-
-    std::shared_ptr<IRead> IReadPlugin::read(
-        const ftk::Path&,
-        const std::vector<ftk::MemFile>&,
-        const IOOptions&)
-    {
-        return nullptr;
-    }
-
-    IVideoRead::~IVideoRead()
-    {}
-
-    IAudioRead::~IAudioRead()
     {}
 
     std::shared_ptr<IVideoRead> IReadPlugin::videoRead(

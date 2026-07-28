@@ -945,9 +945,9 @@ namespace tl
                 {
                     // Release cached readers (and the decode subprocesses they
                     // keep alive) once this thread has gone idle. Otherwise a
-                    // file's IRead lingers until a different file's readers push
-                    // it out of the LRU cache, so closing a file leaves its
-                    // ffmpeg process running until the next file is opened.
+                    // file's readers linger until a different file's readers
+                    // push them out of the LRU caches, so closing a file leaves
+                    // its ffmpeg process running until the next file is opened.
                     p.clearIOCache();
                 }
             }

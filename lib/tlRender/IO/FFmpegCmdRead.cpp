@@ -83,12 +83,6 @@ namespace tl
             Thread thread;
         };
 
-        struct Read::Private
-        {
-            std::shared_ptr<VideoRead> videoRead;
-            std::shared_ptr<AudioRead> audioRead;
-        };
-
         void VideoRead::_init(
             const ftk::Path& path,
             const std::vector<ftk::MemFile>& mem,
@@ -917,87 +911,6 @@ namespace tl
             }
 
             p.thread.pipe.reset();
-        }
-        void Read::_init(
-            const ftk::Path& path,
-            const std::vector<ftk::MemFile>& mem,
-            const IOOptions& options,
-            const std::shared_ptr<ftk::LogSystem>& logSystem)
-        {
-            IRead::_init(path, mem, options, logSystem);
-            FTK_P();
-            p.videoRead = VideoRead::create(path, mem, options, logSystem);
-            p.audioRead = AudioRead::create(path, mem, options, logSystem);
-        }
-
-        Read::Read() :
-            _p(new Private)
-        {}
-
-        Read::~Read()
-        {}
-
-        std::shared_ptr<Read> Read::create(
-            const ftk::Path& path,
-            const IOOptions& options,
-            const std::shared_ptr<ftk::LogSystem>& logSystem)
-        {
-            auto out = std::shared_ptr<Read>(new Read);
-            out->_init(path, {}, options, logSystem);
-            return out;
-        }
-
-        std::shared_ptr<Read> Read::create(
-            const ftk::Path& path,
-            const std::vector<ftk::MemFile>& mem,
-            const IOOptions& options,
-            const std::shared_ptr<ftk::LogSystem>& logSystem)
-        {
-            auto out = std::shared_ptr<Read>(new Read);
-            out->_init(path, mem, options, logSystem);
-            return out;
-        }
-
-        std::future<IOInfo> Read::getInfo()
-        {
-            FTK_P();
-
-            // See the comment on ffmpeg::Read::getInfo(): the requests go out
-            // now and the merge waits for the caller's get(), which every
-            // caller of getInfo() does.
-            auto videoFuture = p.videoRead->getInfo();
-            auto audioFuture = p.audioRead->getInfo();
-            return std::async(
-                std::launch::deferred,
-                [videoFuture = std::move(videoFuture),
-                 audioFuture = std::move(audioFuture)]() mutable
-                {
-                    const IOInfo videoInfo = videoFuture.get();
-                    return merge(videoInfo, audioFuture.get());
-                });
-        }
-
-        std::future<VideoData> Read::readVideo(
-            const OTIO_NS::RationalTime& time,
-            const IOOptions& options)
-        {
-            FTK_P();
-            return p.videoRead->readVideo(time, options);
-        }
-
-        std::future<AudioData> Read::readAudio(
-            const OTIO_NS::TimeRange& timeRange,
-            const IOOptions& options)
-        {
-            FTK_P();
-            return p.audioRead->readAudio(timeRange, options);
-        }
-
-        void Read::cancelRequests()
-        {
-            FTK_P();
-            p.videoRead->cancelRequests();
-            p.audioRead->cancelRequests();
         }
     }
 }

@@ -250,11 +250,5 @@ namespace tl
 
             ErrorMutex errorMutex;
         };
-
-        struct Read::Private
-        {
-            std::shared_ptr<VideoRead> videoRead;
-            std::shared_ptr<AudioRead> audioRead;
-        };
     }
 }
