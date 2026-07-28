@@ -8,6 +8,7 @@
 
 #include <tlRender/IO/System.h>
 
+#include <tlRender/IO/Plugin.h>
 #include <tlRender/IO/SeqIO.h>
 
 #include <ftk/Core/Assert.h>
@@ -46,6 +47,7 @@ namespace tl
             _timeline();
             _synchronous();
             _media();
+            _readers();
             _separateAudio();
             _spatial();
             _mediaReferences();
@@ -380,6 +382,122 @@ namespace tl
                 ids.push_back(i.id);
             }
             timeline->cancelRequests(ids);
+        }
+
+        void TimelineTest::_readers()
+        {
+            // What the split of the readers is for: a movie with no audio
+            // costs one reader, not two. The count is of live I/O objects,
+            // so it goes up by one per reader the timeline holds.
+            auto writeSystem = _context->getSystem<WriteSystem>();
+            auto readSystem = _context->getSystem<ReadSystem>();
+            const ftk::Path silentPath(
+                (_getTempDir() / "TimelineSilent.mov").u8string());
+            const ftk::Path audioPath(
+                (_getTempDir() / "TimelineAudio.mov").u8string());
+            auto writePlugin = writeSystem->getPlugin(silentPath);
+            if (!writePlugin || !readSystem->getPlugin(silentPath))
+            {
+                // A build with no movie plugin cannot write one or read it
+                // back.
+                return;
+            }
+
+            // Named codecs, since the container default is not in every
+            // FFmpeg build; a plugin that does not know these options
+            // ignores them.
+            IOOptions writeOptions;
+            writeOptions["FFmpeg/Codec"] = "mjpeg";
+            writeOptions["FFmpeg/AudioCodec"] = "pcm_s16le";
+
+            const size_t frameCount = 24;
+            const AudioInfo audioInfo(2, AudioType::S16, 44100);
+            const OTIO_NS::TimeRange videoTime(
+                OTIO_NS::RationalTime(0.0, 24.0),
+                OTIO_NS::RationalTime(static_cast<double>(frameCount), 24.0));
+            const ftk::ImageInfo imageInfo = writePlugin->getInfo(
+                ftk::ImageInfo(ftk::Size2I(80, 60), ftk::ImageType::RGB_U8),
+                writeOptions);
+            auto image = ftk::Image::create(imageInfo);
+            image->zero();
+            const auto writeMovie = [&](const ftk::Path& path, bool audio)
+            {
+                IOInfo info;
+                info.video.push_back(imageInfo);
+                info.videoTime = videoTime;
+                if (audio)
+                {
+                    info.audio = audioInfo;
+                    info.audioTime = OTIO_NS::TimeRange(
+                        OTIO_NS::RationalTime(0.0, audioInfo.sampleRate),
+                        OTIO_NS::RationalTime(
+                            static_cast<double>(audioInfo.sampleRate),
+                            audioInfo.sampleRate));
+                }
+                auto write = writePlugin->write(path, info, writeOptions);
+                for (size_t i = 0; i < frameCount; ++i)
+                {
+                    write->writeVideo(
+                        OTIO_NS::RationalTime(static_cast<double>(i), 24.0),
+                        image);
+                }
+                if (audio)
+                {
+                    auto samples = Audio::create(
+                        audioInfo, audioInfo.sampleRate);
+                    samples->zero();
+                    write->writeAudio(info.audioTime, samples);
+                }
+                write->finish();
+            };
+            try
+            {
+                writeMovie(silentPath, false);
+                writeMovie(audioPath, true);
+            }
+            catch (const std::exception& e)
+            {
+                // The build has a movie plugin that cannot write this; there
+                // is nothing to count.
+                _print(ftk::Format("Cannot write a movie: {0}").arg(e.what()));
+                return;
+            }
+
+            Options options;
+            options.threaded = false;
+            const auto readerCount = [&](const ftk::Path& path)
+            {
+                const size_t before = IIO::getObjectCount();
+                auto timeline = Timeline::create(_context, path, options);
+                // Read a frame as well: a reader the timeline only needs to
+                // play would be created here rather than at open.
+                auto future = timeline->readMedia(
+                    path, timeline->getTimeRange().start_time());
+                if (future.valid())
+                {
+                    future.get();
+                }
+                return IIO::getObjectCount() - before;
+            };
+
+            const size_t silentCount = readerCount(silentPath);
+            _print(ftk::Format("Silent movie readers: {0}").arg(silentCount));
+            if (silentCount != 1)
+            {
+                _error(ftk::Format(
+                    "A movie with no audio should cost one reader, not {0}").
+                    arg(silentCount));
+                FTK_ASSERT(false);
+            }
+            const size_t audioCount = readerCount(audioPath);
+            _print(ftk::Format("Movie with audio readers: {0}").arg(audioCount));
+            if (audioCount != 2)
+            {
+                _error(ftk::Format(
+                    "A movie with audio should cost two readers, not {0}").
+                    arg(audioCount));
+                FTK_ASSERT(false);
+            }
         }
 
         void TimelineTest::_separateAudio()

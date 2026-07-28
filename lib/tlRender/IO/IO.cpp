@@ -96,6 +96,18 @@ namespace tl
         return out;
     }
 
+    IOInfo merge(const IOInfo& video, const IOInfo& audio)
+    {
+        IOInfo out = video;
+        out.audio = audio.audio;
+        out.audioTime = audio.audioTime;
+        for (const auto& tag : audio.tags)
+        {
+            out.tags[tag.first] = tag.second;
+        }
+        return out;
+    }
+
     void addVideoTags(IOInfo& info)
     {
         if (!info.video.empty())

@@ -62,6 +62,30 @@ namespace tl
             const std::vector<ftk::MemFile>&,
             const IOOptions& = IOOptions());
 
+        //! Create a video reader for the given path, or null when the format
+        //! has no video or is decoded rather than read.
+        TL_API std::shared_ptr<IVideoRead> videoRead(
+            const ftk::Path&,
+            const IOOptions& = IOOptions());
+
+        //! Create a video reader for the given path and memory locations.
+        TL_API std::shared_ptr<IVideoRead> videoRead(
+            const ftk::Path&,
+            const std::vector<ftk::MemFile>&,
+            const IOOptions& = IOOptions());
+
+        //! Create an audio reader for the given path, or null when the
+        //! format has no audio.
+        TL_API std::shared_ptr<IAudioRead> audioRead(
+            const ftk::Path&,
+            const IOOptions& = IOOptions());
+
+        //! Create an audio reader for the given path and memory locations.
+        TL_API std::shared_ptr<IAudioRead> audioRead(
+            const ftk::Path&,
+            const std::vector<ftk::MemFile>&,
+            const IOOptions& = IOOptions());
+
     private:
         std::vector<std::shared_ptr<IReadPlugin> > _plugins;
 

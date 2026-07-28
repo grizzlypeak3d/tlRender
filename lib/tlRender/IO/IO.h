@@ -47,6 +47,11 @@ namespace tl
     //! the information rather than read from the file.
     TL_API void addVideoTags(IOInfo&);
 
+    //! Merge the video half of the information with the audio half. Video
+    //! and audio come from separate readers; this is how the two halves are
+    //! put back together.
+    TL_API IOInfo merge(const IOInfo& video, const IOInfo& audio);
+
     //! Video I/O data.
     struct TL_API_TYPE VideoData
     {

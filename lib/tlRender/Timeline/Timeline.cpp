@@ -322,10 +322,36 @@ namespace tl
         }
         if (!infoValid)
         {
-            if (auto read = ioSystem->read(path, options.ioOptions))
+            // Which tracks this file gets depends on both halves, so both are
+            // read and merged here. The readers are temporary: what the
+            // timeline goes on to read is decided by the tracks below.
+            auto videoRead = ioSystem->videoRead(path, options.ioOptions);
+            auto audioRead = ioSystem->audioRead(path, options.ioOptions);
+            std::future<IOInfo> videoFuture;
+            std::future<IOInfo> audioFuture;
+            if (videoRead)
             {
-                info = read->getInfo().get();
+                videoFuture = videoRead->getInfo();
+            }
+            if (audioRead)
+            {
+                audioFuture = audioRead->getInfo();
+            }
+            IOInfo videoInfo;
+            if (videoFuture.valid())
+            {
+                videoInfo = videoFuture.get();
                 infoValid = true;
+            }
+            IOInfo audioInfo;
+            if (audioFuture.valid())
+            {
+                audioInfo = audioFuture.get();
+                infoValid = true;
+            }
+            if (infoValid)
+            {
+                info = merge(videoInfo, audioInfo);
             }
         }
         if (infoValid)
@@ -366,7 +392,7 @@ namespace tl
             // Read the separate audio if provided.
             if (!audioPath.isEmpty())
             {
-                if (auto audioRead = ioSystem->read(audioPath, options.ioOptions))
+                if (auto audioRead = ioSystem->audioRead(audioPath, options.ioOptions))
                 {
                     const auto audioInfo = audioRead->getInfo().get();
 
@@ -635,7 +661,8 @@ namespace tl
             {}
         }
         p.options = options;
-        p.readCache.setMax(readCacheMax);
+        p.videoReadCache.setMax(readCacheMax);
+        p.audioReadCache.setMax(readCacheMax);
         p.seqCache.setMax(seqCacheMax);
         if (p.options.threaded)
         {
@@ -1015,9 +1042,9 @@ namespace tl
                         return seq->readVideo(time, optionsMerged);
                     });
             }
-            else if (auto read = _getRead(mediaReference, optionsMerged))
+            else if (auto videoRead = _getVideoRead(mediaReference, optionsMerged))
             {
-                out = read->readVideo(time, optionsMerged);
+                out = videoRead->readVideo(time, optionsMerged);
             }
         }
         return out;
@@ -1034,9 +1061,9 @@ namespace tl
         if (auto mediaReference = _findMedia(path))
         {
             // Audio is never a sequence of stateless files.
-            if (auto read = _getRead(mediaReference, optionsMerged))
+            if (auto audioRead = _getAudioRead(mediaReference, optionsMerged))
             {
-                out = read->readAudio(timeRange, optionsMerged);
+                out = audioRead->readAudio(timeRange, optionsMerged);
             }
         }
         return out;
@@ -1374,6 +1401,38 @@ namespace tl
         return out;
     }
 
+    bool Timeline::_getVideoIOInfo(
+        const OTIO_NS::MediaReference* mediaReference,
+        const IOOptions& ioOptions,
+        IOInfo& out)
+    {
+        if (auto seq = _getSeqDecode(mediaReference, ioOptions))
+        {
+            out = seq->getInfo();
+            return true;
+        }
+        if (auto videoRead = _getVideoRead(mediaReference, ioOptions))
+        {
+            out = videoRead->getInfo().get();
+            return true;
+        }
+        return false;
+    }
+
+    bool Timeline::_getAudioIOInfo(
+        const OTIO_NS::MediaReference* mediaReference,
+        const IOOptions& ioOptions,
+        IOInfo& out)
+    {
+        // Audio is never a sequence of stateless files.
+        if (auto audioRead = _getAudioRead(mediaReference, ioOptions))
+        {
+            out = audioRead->getInfo().get();
+            return true;
+        }
+        return false;
+    }
+
     bool Timeline::_getIOInfo(
         const OTIO_NS::MediaReference* mediaReference,
         const IOOptions& ioOptions,
@@ -1384,28 +1443,52 @@ namespace tl
             out = seq->getInfo();
             return true;
         }
-        if (auto read = _getRead(mediaReference, ioOptions))
+        // Both requests go out before either is waited on, so that the two
+        // readers open the file at the same time.
+        auto videoRead = _getVideoRead(mediaReference, ioOptions);
+        auto audioRead = _getAudioRead(mediaReference, ioOptions);
+        std::future<IOInfo> videoFuture;
+        std::future<IOInfo> audioFuture;
+        if (videoRead)
         {
-            out = read->getInfo().get();
-            return true;
+            videoFuture = videoRead->getInfo();
         }
-        return false;
+        if (audioRead)
+        {
+            audioFuture = audioRead->getInfo();
+        }
+        if (!videoFuture.valid() && !audioFuture.valid())
+        {
+            return false;
+        }
+        IOInfo videoInfo;
+        if (videoFuture.valid())
+        {
+            videoInfo = videoFuture.get();
+        }
+        IOInfo audioInfo;
+        if (audioFuture.valid())
+        {
+            audioInfo = audioFuture.get();
+        }
+        out = merge(videoInfo, audioInfo);
+        return true;
     }
 
-    std::shared_ptr<IRead> Timeline::_getRead(
+    std::shared_ptr<IVideoRead> Timeline::_getVideoRead(
         const OTIO_NS::Clip* clip,
         const IOOptions& ioOptions)
     {
         FTK_P();
-        return _getRead(p.mediaReference(clip), ioOptions);
+        return _getVideoRead(p.mediaReference(clip), ioOptions);
     }
 
-    std::shared_ptr<IRead> Timeline::_getRead(
+    std::shared_ptr<IVideoRead> Timeline::_getVideoRead(
         const OTIO_NS::MediaReference* mediaReference,
         const IOOptions& ioOptions)
     {
         FTK_P();
-        std::shared_ptr<IRead> out;
+        std::shared_ptr<IVideoRead> out;
         if (p.mediaUnavailable(mediaReference))
         {
             // Named by the bundle but not inside it. Reading it from its path
@@ -1418,7 +1501,7 @@ namespace tl
             p.options.pathOptions);
         const std::string key = getKey(path);
         std::unique_lock<std::mutex> lock(p.readCacheMutex);
-        if (!p.readCache.get(key, out))
+        if (!p.videoReadCache.get(key, out))
         {
             if (auto context = p.context.lock())
             {
@@ -1430,10 +1513,57 @@ namespace tl
                 IOOptions options = ioOptions;
                 options["SeqIO/DefaultSpeed"] = ftk::Format("{0}").arg(p.timeRange.duration().rate());
                 const auto ioSystem = context->getSystem<ReadSystem>();
-                out = ioSystem->read(path, mem, options);
+                out = ioSystem->videoRead(path, mem, options);
                 if (out)
                 {
-                    p.readCache.add(key, out);
+                    p.videoReadCache.add(key, out);
+                }
+            }
+        }
+        return out;
+    }
+
+    std::shared_ptr<IAudioRead> Timeline::_getAudioRead(
+        const OTIO_NS::Clip* clip,
+        const IOOptions& ioOptions)
+    {
+        FTK_P();
+        return _getAudioRead(p.mediaReference(clip), ioOptions);
+    }
+
+    std::shared_ptr<IAudioRead> Timeline::_getAudioRead(
+        const OTIO_NS::MediaReference* mediaReference,
+        const IOOptions& ioOptions)
+    {
+        FTK_P();
+        std::shared_ptr<IAudioRead> out;
+        if (p.mediaUnavailable(mediaReference))
+        {
+            // See the comment in _getVideoRead().
+            return out;
+        }
+        const auto path = tl::getPath(
+            mediaReference,
+            p.path.getDir(),
+            p.options.pathOptions);
+        const std::string key = getKey(path);
+        std::unique_lock<std::mutex> lock(p.readCacheMutex);
+        if (!p.audioReadCache.get(key, out))
+        {
+            if (auto context = p.context.lock())
+            {
+                const auto mem = getMem(mediaReference);
+                if (p.mediaUnavailable(mediaReference))
+                {
+                    return out;
+                }
+                IOOptions options = ioOptions;
+                options["SeqIO/DefaultSpeed"] = ftk::Format("{0}").arg(p.timeRange.duration().rate());
+                const auto ioSystem = context->getSystem<ReadSystem>();
+                out = ioSystem->audioRead(path, mem, options);
+                if (out)
+                {
+                    p.audioReadCache.add(key, out);
                 }
             }
         }
@@ -1453,7 +1583,7 @@ namespace tl
         // A sequence is decoded on the timeline's pool; anything that has to
         // be read statefully keeps its own reader.
         auto seq = _getSeqDecode(mediaReference, optionsMerged);
-        auto read = seq ? nullptr : _getRead(mediaReference, optionsMerged);
+        auto read = seq ? nullptr : _getVideoRead(mediaReference, optionsMerged);
         const auto timeRangeOpt = clip->trimmed_range_in_parent();
         if ((seq || read) && timeRangeOpt.has_value())
         {
@@ -1494,7 +1624,7 @@ namespace tl
         FTK_P();
         std::future<AudioData> out;
         IOOptions optionsMerged = merge(options, p.options.ioOptions);
-        auto read = _getRead(clip, optionsMerged);
+        auto read = _getAudioRead(clip, optionsMerged);
         const auto timeRangeOpt = clip->trimmed_range_in_parent();
         if (read && timeRangeOpt.has_value())
         {
@@ -1529,7 +1659,8 @@ namespace tl
             {
                 // The first video clip defines the video information for the timeline.
                 IOInfo ioInfo;
-                if (_getIOInfo(p.mediaReference(clip), p.options.ioOptions, ioInfo))
+                if (_getVideoIOInfo(
+                    p.mediaReference(clip), p.options.ioOptions, ioInfo))
                 {
                     p.ioInfo.video = ioInfo.video;
                     p.ioInfo.videoTime = ioInfo.videoTime;
@@ -1551,7 +1682,7 @@ namespace tl
                     for (const auto& i : clip->media_references())
                     {
                         IOInfo mediaReferenceInfo;
-                        if (_getIOInfo(
+                        if (_getVideoIOInfo(
                             i.second, p.options.ioOptions, mediaReferenceInfo))
                         {
                             // Kept so that getIOInfo() can report the media
@@ -1685,9 +1816,10 @@ namespace tl
             if (auto context = p.context.lock())
             {
                 // The first audio clip defines the audio information for the timeline.
-                if (auto read = _getRead(clip, p.options.ioOptions))
+                IOInfo ioInfo;
+                if (_getAudioIOInfo(
+                    p.mediaReference(clip), p.options.ioOptions, ioInfo))
                 {
-                    const IOInfo& ioInfo = read->getInfo().get();
                     p.ioInfo.audio = ioInfo.audio;
                     p.ioInfo.audioTime = ioInfo.audioTime;
                     p.ioInfo.tags.insert(ioInfo.tags.begin(), ioInfo.tags.end());
@@ -2214,17 +2346,22 @@ namespace tl
         size_t count = frameErrorCount;
         std::string error = frameError;
         std::unique_lock<std::mutex> lock(readCacheMutex);
-        for (const auto& read : readCache.getValues())
+        const auto readErrors = [&count, &error](const auto& reads)
         {
-            if (read)
+            for (const auto& read : reads)
             {
-                count += read->getErrorCount();
-                if (error.empty())
+                if (read)
                 {
-                    error = read->getError();
+                    count += read->getErrorCount();
+                    if (error.empty())
+                    {
+                        error = read->getError();
+                    }
                 }
             }
-        }
+        };
+        readErrors(videoReadCache.getValues());
+        readErrors(audioReadCache.getValues());
         readErrorMax = std::max(readErrorMax, count);
         {
             std::unique_lock<std::mutex> lock(mutex.mutex);

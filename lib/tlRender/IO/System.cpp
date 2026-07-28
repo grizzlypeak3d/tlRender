@@ -143,32 +143,53 @@ namespace tl
         return out;
     }
 
+    namespace
+    {
+        // Hand the path to the first plugin that claims its extension. If
+        // that plugin throws, keep trying the others and report the last
+        // error only when none of them produced a reader.
+        template<typename T, typename Create>
+        std::shared_ptr<T> createRead(
+            const std::vector<std::shared_ptr<IReadPlugin> >& plugins,
+            const ftk::Path& path,
+            Create&& create)
+        {
+            const std::string ext = ftk::toLower(path.getExt());
+            std::string err;
+            for (const auto& i : plugins)
+            {
+                try
+                {
+                    const auto& exts = i->getExts();
+                    if (exts.find(ext) != exts.end())
+                    {
+                        return create(i);
+                    }
+                }
+                catch (const std::exception& e)
+                {
+                    err = e.what();
+                }
+            }
+            if (!err.empty())
+            {
+                throw std::runtime_error(err);
+            }
+            return nullptr;
+        }
+    }
+
     std::shared_ptr<IRead> ReadSystem::read(
         const ftk::Path& path,
         const IOOptions& options)
     {
-        const std::string ext = ftk::toLower(path.getExt());
-        std::string err;
-        for (const auto& i : _plugins)
-        {
-            try
+        return createRead<IRead>(
+            _plugins,
+            path,
+            [&](const std::shared_ptr<IReadPlugin>& plugin)
             {
-                const auto& exts = i->getExts();
-                if (exts.find(ext) != exts.end())
-                {
-                    return i->read(path, options);
-                }
-            }
-            catch(const std::exception& e)
-            {
-                err = e.what();
-            }
-        }
-        if (!err.empty())
-        {
-            throw std::runtime_error(err);
-        }
-        return nullptr;
+                return plugin->read(path, options);
+            });
     }
 
     std::shared_ptr<IRead> ReadSystem::read(
@@ -176,28 +197,67 @@ namespace tl
         const std::vector<ftk::MemFile>& memory,
         const IOOptions& options)
     {
-        const std::string ext = ftk::toLower(path.getExt());
-        std::string err;
-        for (const auto& i : _plugins)
-        {
-            try
+        return createRead<IRead>(
+            _plugins,
+            path,
+            [&](const std::shared_ptr<IReadPlugin>& plugin)
             {
-                const auto& exts = i->getExts();
-                if (exts.find(ext) != exts.end())
-                {
-                    return i->read(path, memory, options);
-                }
-            }
-            catch(const std::exception& e)
+                return plugin->read(path, memory, options);
+            });
+    }
+
+    std::shared_ptr<IVideoRead> ReadSystem::videoRead(
+        const ftk::Path& path,
+        const IOOptions& options)
+    {
+        return createRead<IVideoRead>(
+            _plugins,
+            path,
+            [&](const std::shared_ptr<IReadPlugin>& plugin)
             {
-                err = e.what();
-            }
-        }
-        if (!err.empty())
-        {
-            throw std::runtime_error(err);
-        }
-        return nullptr;
+                return plugin->videoRead(path, options);
+            });
+    }
+
+    std::shared_ptr<IVideoRead> ReadSystem::videoRead(
+        const ftk::Path& path,
+        const std::vector<ftk::MemFile>& memory,
+        const IOOptions& options)
+    {
+        return createRead<IVideoRead>(
+            _plugins,
+            path,
+            [&](const std::shared_ptr<IReadPlugin>& plugin)
+            {
+                return plugin->videoRead(path, memory, options);
+            });
+    }
+
+    std::shared_ptr<IAudioRead> ReadSystem::audioRead(
+        const ftk::Path& path,
+        const IOOptions& options)
+    {
+        return createRead<IAudioRead>(
+            _plugins,
+            path,
+            [&](const std::shared_ptr<IReadPlugin>& plugin)
+            {
+                return plugin->audioRead(path, options);
+            });
+    }
+
+    std::shared_ptr<IAudioRead> ReadSystem::audioRead(
+        const ftk::Path& path,
+        const std::vector<ftk::MemFile>& memory,
+        const IOOptions& options)
+    {
+        return createRead<IAudioRead>(
+            _plugins,
+            path,
+            [&](const std::shared_ptr<IReadPlugin>& plugin)
+            {
+                return plugin->audioRead(path, memory, options);
+            });
     }
 
     struct WriteSystem::Private

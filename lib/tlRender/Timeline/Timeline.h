@@ -251,24 +251,43 @@ namespace tl
         TL_API static size_t getObjectCount();
 
     private:
+        // Find a media reference by its resolved path.
+        OTIO_NS::MediaReference* _findMedia(const ftk::Path&);
         // Get the sequence for a media reference, or null when the format is
         // not read as a sequence of stateless files: a movie carries a
         // demuxer position and keeps its own reader.
-        // Find a media reference by its resolved path.
-        OTIO_NS::MediaReference* _findMedia(const ftk::Path&);
         std::shared_ptr<SeqDecode> _getSeqDecode(
             const OTIO_NS::MediaReference*,
             const IOOptions&);
-        // Get the information for a media reference from whichever of the two
-        // reads it.
+        // Get one half of the information for a media reference, from
+        // whichever of the decoder or the reader provides it.
+        bool _getVideoIOInfo(
+            const OTIO_NS::MediaReference*,
+            const IOOptions&,
+            IOInfo&);
+        bool _getAudioIOInfo(
+            const OTIO_NS::MediaReference*,
+            const IOOptions&,
+            IOInfo&);
+        // Get both halves, merged. Callers that want only one half should ask
+        // for it: asking for both opens both readers.
         bool _getIOInfo(
             const OTIO_NS::MediaReference*,
             const IOOptions&,
             IOInfo&);
-        std::shared_ptr<IRead> _getRead(
+        // Get the reader for one half of a media reference. Video and audio
+        // are separate readers and separately cached, so a reference that is
+        // read for only one of them costs only that one.
+        std::shared_ptr<IVideoRead> _getVideoRead(
             const OTIO_NS::Clip*,
             const IOOptions&);
-        std::shared_ptr<IRead> _getRead(
+        std::shared_ptr<IVideoRead> _getVideoRead(
+            const OTIO_NS::MediaReference*,
+            const IOOptions&);
+        std::shared_ptr<IAudioRead> _getAudioRead(
+            const OTIO_NS::Clip*,
+            const IOOptions&);
+        std::shared_ptr<IAudioRead> _getAudioRead(
             const OTIO_NS::MediaReference*,
             const IOOptions&);
         std::future<VideoData> _readVideo(

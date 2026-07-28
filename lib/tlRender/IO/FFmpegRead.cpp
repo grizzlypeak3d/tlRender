@@ -735,15 +735,8 @@ namespace tl
                 [videoFuture = std::move(videoFuture),
                  audioFuture = std::move(audioFuture)]() mutable
                 {
-                    IOInfo out = videoFuture.get();
-                    const IOInfo audioInfo = audioFuture.get();
-                    out.audio = audioInfo.audio;
-                    out.audioTime = audioInfo.audioTime;
-                    for (const auto& tag : audioInfo.tags)
-                    {
-                        out.tags[tag.first] = tag.second;
-                    }
-                    return out;
+                    const IOInfo videoInfo = videoFuture.get();
+                    return merge(videoInfo, audioFuture.get());
                 });
         }
 

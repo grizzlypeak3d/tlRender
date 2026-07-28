@@ -59,11 +59,15 @@ namespace tl
         // thread, but a timeline opened without one is read by whichever
         // thread drives it, and the thumbnail system drives one from three.
         std::mutex readCacheMutex;
-        ftk::LRUCache<std::string, std::shared_ptr<IRead> > readCache;
-        // Sequences, which unlike readCache hold no thread and no queue: a
-        // decoder is stateless, so what is cached here is only where each
-        // frame lives. Evicting one costs nothing, which is why this holds
-        // far more entries than readCache can afford to.
+        // Video and audio are read by separate readers, cached separately so
+        // that a reference read for only one of them -- a silent plate, a
+        // bundle's .wav -- costs only that one.
+        ftk::LRUCache<std::string, std::shared_ptr<IVideoRead> > videoReadCache;
+        ftk::LRUCache<std::string, std::shared_ptr<IAudioRead> > audioReadCache;
+        // Sequences, which unlike the read caches hold no thread and no
+        // queue: a decoder is stateless, so what is cached here is only where
+        // each frame lives. Evicting one costs nothing, which is why this
+        // holds far more entries than the read caches can afford to.
         ftk::LRUCache<std::string, std::shared_ptr<SeqDecode> > seqCache;
         // Errors observed while building frames (broken promises caught
         // in videoFrame()/audioFrame()). Owned by the request thread.
