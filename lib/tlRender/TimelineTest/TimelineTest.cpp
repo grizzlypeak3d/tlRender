@@ -959,13 +959,14 @@ namespace tl
                 // More than one: the sequence, and the audio file found
                 // beside it. What matters is that the file's own path names
                 // its media.
-                FTK_ASSERT(std::find_if(
+                const auto j = std::find_if(
                     seqMedia.begin(),
                     seqMedia.end(),
                     [&seqPath](const ftk::Path& i)
                     {
                         return i.get() == seqPath.get();
-                    }) != seqMedia.end());
+                    });
+                FTK_ASSERT(j != seqMedia.end());
                 // Only a build with an image format can read it, but
                 // whichever build this is, saying it read something and
                 // returning nothing would be wrong.

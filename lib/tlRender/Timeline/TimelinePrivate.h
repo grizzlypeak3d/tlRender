@@ -34,6 +34,9 @@ namespace tl
         // anything could be shown.
         std::shared_ptr<ZipReader> zipReader;
         std::set<const OTIO_NS::MediaReference*> bundleMediaReferences;
+        // Always the inner of the two locks: creating a reader holds
+        // readCacheMutex and then asks getMem()/mediaUnavailable() where the
+        // media lives. Nothing guarded here may reach back for readCacheMutex.
         std::mutex memFilesMutex;
         std::map<const OTIO_NS::MediaReference*,
             std::shared_ptr<std::vector<ftk::MemFile> > > memFiles;
@@ -55,9 +58,11 @@ namespace tl
         // that one thread runs it; without a thread that is whichever caller
         // is in getVideo()/getAudio(), and the thumbnail system has three.
         std::mutex driverMutex;
-        // Guards the two caches below. They were owned by the request
+        // Guards the three caches below. They were owned by the request
         // thread, but a timeline opened without one is read by whichever
         // thread drives it, and the thumbnail system drives one from three.
+        //
+        // Always the outer of the two locks; see memFilesMutex.
         std::mutex readCacheMutex;
         // Video and audio are read by separate readers, cached separately so
         // that a reference read for only one of them -- a silent plate, a

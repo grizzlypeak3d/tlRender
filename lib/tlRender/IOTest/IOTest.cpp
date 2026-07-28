@@ -67,28 +67,6 @@ namespace tl
             }
         }
 
-        namespace
-        {
-            class DummyWritePlugin : public IWritePlugin
-            {
-            public:
-                ftk::ImageInfo getInfo(
-                    const ftk::ImageInfo&,
-                    const IOOptions& = IOOptions()) const override
-                {
-                    return ftk::ImageInfo();
-                }
-
-                std::shared_ptr<IWrite> write(
-                    const ftk::Path&,
-                    const IOInfo&,
-                    const IOOptions& = IOOptions()) override
-                {
-                    return nullptr;
-                }
-            };
-        }
-
         void IOTest::_ioSystem()
         {
             auto readSystem = _context->getSystem<ReadSystem>();
