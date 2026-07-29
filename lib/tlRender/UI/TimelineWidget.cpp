@@ -443,12 +443,15 @@ namespace tl
         void TimelineWidget::mousePressEvent(ftk::MouseClickEvent& event)
         {
             FTK_P();
-            event.accept = true;
             p.mouse.press = event.pos;
             if (p.itemOptions->get().inputEnabled &&
                 p.scrollBinding.first == event.button &&
                 checkKeyModifier(p.scrollBinding.second, event.modifiers))
             {
+                // Only claim the button when it is bound to scrolling.
+                // Accepting a button we do nothing with would deny it to
+                // everything else, including a context menu.
+                event.accept = true;
                 p.mouse.mode = Private::MouseMode::Scroll;
                 p.mouse.scrollPos = p.scrollWidget->getScrollPos();
             }

@@ -884,9 +884,6 @@ namespace tl
             FTK_P();
             if (p.inputEnabled)
             {
-                event.accept = true;
-                takeKeyFocus();
-
                 const ftk::Box2I& g = getGeometry();
                 p.mouse.pos = event.pos - g.min;
                 p.mouse.press = p.mouse.pos;
@@ -905,6 +902,16 @@ namespace tl
                 else
                 {
                     p.mouse.mode = Private::MouseMode::None;
+                }
+
+                // Only claim the button when it is bound to something.
+                // Accepting a button we do nothing with would deny it to
+                // everything else, including a context menu. Derived
+                // classes with their own bindings accept in addition.
+                if (p.mouse.mode != Private::MouseMode::None)
+                {
+                    event.accept = true;
+                    takeKeyFocus();
                 }
             }
         }
