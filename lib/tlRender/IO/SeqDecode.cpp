@@ -6,7 +6,9 @@
 #include <tlRender/IO/SeqIO.h>
 
 #include <ftk/Core/Format.h>
+#include <ftk/Core/Math.h>
 
+#include <algorithm>
 #include <filesystem>
 #include <sstream>
 #include <stdexcept>
@@ -52,11 +54,52 @@ namespace tl
             ss >> defaultSpeed;
         }
 
+        // Skipping needs the frames up front, since it decides how long the
+        // sequence is. That is a snapshot: frames rendered after this are
+        // picked up by reopening, unlike the other policies where they simply
+        // appear. Nothing else here looks on disk at open.
+        if (!num.empty() && MissingFrames::Skip == getMissingFrames(options))
+        {
+            if (!_mem.empty())
+            {
+                for (size_t i = 0; i < _mem.size(); ++i)
+                {
+                    if (_mem[i].p)
+                    {
+                        _skip.push_back(_startFrame + static_cast<int64_t>(i));
+                    }
+                }
+            }
+            else
+            {
+                for (int64_t frame : ftk::toFrames(
+                    ftk::findSeq(_path, _path.getOptions())))
+                {
+                    if (frame >= _startFrame && frame <= _endFrame)
+                    {
+                        _skip.push_back(frame);
+                    }
+                }
+            }
+        }
+
         _info = _probeInfo();
         const double speed = _decode->getSpeed(_info, defaultSpeed);
-        _info.videoTime = OTIO_NS::TimeRange::range_from_start_end_time_inclusive(
-            OTIO_NS::RationalTime(_startFrame, speed),
-            OTIO_NS::RationalTime(_endFrame, speed));
+        if (!_skip.empty())
+        {
+            // As many frames as there are, starting where the first one does,
+            // so that a sequence with no gaps reads the same either way.
+            _info.videoTime = OTIO_NS::TimeRange(
+                OTIO_NS::RationalTime(_skip.front(), speed),
+                OTIO_NS::RationalTime(
+                    static_cast<double>(_skip.size()), speed));
+        }
+        else
+        {
+            _info.videoTime = OTIO_NS::TimeRange::range_from_start_end_time_inclusive(
+                OTIO_NS::RationalTime(_startFrame, speed),
+                OTIO_NS::RationalTime(_endFrame, speed));
+        }
         addVideoTags(_info);
     }
 
@@ -85,6 +128,39 @@ namespace tl
     const IOInfo& SeqDecode::getInfo() const
     {
         return _info;
+    }
+
+    int64_t SeqDecode::getFrame(const OTIO_NS::RationalTime& time) const
+    {
+        int64_t out = static_cast<int64_t>(time.value());
+        if (!_skip.empty())
+        {
+            const int64_t i = out - _skip.front();
+            out = _skip[ftk::clamp(
+                i,
+                static_cast<int64_t>(0),
+                static_cast<int64_t>(_skip.size()) - 1)];
+        }
+        return out;
+    }
+
+    OTIO_NS::RationalTime SeqDecode::getTime(int64_t frame) const
+    {
+        int64_t out = frame;
+        if (!_skip.empty())
+        {
+            // The nearest frame at or before, so that the frame shown and the
+            // frame landed on are the same one, as they are for Hold. Snapping
+            // to whichever is nearest would go backwards for one frame typed
+            // and forwards for the next.
+            const auto i = std::upper_bound(_skip.begin(), _skip.end(), frame);
+            const size_t index = i == _skip.begin() ?
+                0 :
+                static_cast<size_t>((i - _skip.begin()) - 1);
+            out = _skip.front() + static_cast<int64_t>(index);
+        }
+        return OTIO_NS::RationalTime(
+            static_cast<double>(out), _info.videoTime.duration().rate());
     }
 
     IOInfo SeqDecode::_probeInfo() const
@@ -200,7 +276,7 @@ namespace tl
         // caller that says nothing still gets what the media asked for.
         const MissingFrames missingFrames = getMissingFrames(merged);
         const bool seq = !_path.getNum().empty();
-        const int64_t frame = static_cast<int64_t>(time.value());
+        const int64_t frame = getFrame(time);
 
         if (!_mem.empty())
         {

@@ -10,13 +10,20 @@ namespace tl
 {
     //! What to show for a frame a sequence does not have.
     //!
-    //! These match OTIO's image sequence reference policies, which is where
-    //! the value comes from when the sequence is described by a timeline.
+    //! The first three match OTIO's image sequence reference policies, which is
+    //! where the value comes from when the sequence is described by a timeline.
+    //!
+    //! Skip is not one of them, and is different in kind: the others leave the
+    //! sequence its length and decide what fills a gap, while Skip shortens it
+    //! to the frames that are there. That makes it structural -- it is settled
+    //! when the sequence is opened, not per read, and changing it means opening
+    //! the file again.
     enum class TL_API_TYPE MissingFrames
     {
         Error,  //!< The frame does not read.
         Hold,   //!< Repeat the nearest frame before it.
         Black,  //!< A blank frame.
+        Skip,   //!< Leave it out; only the frames that are there play.
 
         Count,
         First = Error

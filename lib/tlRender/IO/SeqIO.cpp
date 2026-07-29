@@ -13,7 +13,8 @@ namespace tl
         MissingFrames,
         "Error",
         "Hold",
-        "Black");
+        "Black",
+        "Skip");
 
     SeqOptions::SeqOptions()
     {}

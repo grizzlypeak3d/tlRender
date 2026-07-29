@@ -39,6 +39,7 @@ namespace tl
             _seqDecode();
             _missingFrames();
             _seqRange();
+            _skip();
         }
 
         void IOTest::_videoData()
@@ -513,5 +514,100 @@ namespace tl
 
             _print("a sequence opens over a range wider than its frames");
         }
-}
+
+        void IOTest::_skip()
+        {
+            // Skipping leaves out the frames that are not there, so a render
+            // part way through plays as the frames it has rather than mostly
+            // gaps. The sequence is as long as the frames it has, and the time
+            // it is read at is a position in that list.
+            auto readSystem = _context->getSystem<ReadSystem>();
+            auto writeSystem = _context->getSystem<WriteSystem>();
+            const ftk::Size2I size(16, 16);
+            const ftk::Path path(
+                (_getTempDir() / "IOTestSkip.0001.png").u8string());
+            auto writePlugin = writeSystem->getPlugin(path);
+            auto readPlugin = readSystem->getPlugin(path);
+            if (!writePlugin || !readPlugin)
+            {
+                return;
+            }
+            auto decode = readPlugin->decode();
+            FTK_ASSERT(decode);
+
+            IOInfo writeInfo;
+            writeInfo.video.push_back(writePlugin->getInfo(
+                ftk::ImageInfo(size, ftk::ImageType::RGB_U8)));
+
+            // Every fifth frame, which is what a render in progress looks like.
+            const std::vector<int64_t> frames = { 1, 6, 11, 16 };
+            std::map<int64_t, std::shared_ptr<ftk::Image> > images;
+            {
+                auto write = writeSystem->write(path, writeInfo);
+                for (int64_t frame : frames)
+                {
+                    auto image = ftk::Image::create(writeInfo.video[0]);
+                    memset(
+                        image->getData(),
+                        static_cast<int>(17 + frame * 13),
+                        image->getByteCount());
+                    images[frame] = image;
+                    write->writeVideo(
+                        OTIO_NS::RationalTime(static_cast<double>(frame), 24.0),
+                        image);
+                }
+            }
+
+            ftk::Path seqPath(path);
+            seqPath.setFrames(ftk::RangeI64(1, 20));
+            IOOptions options;
+            options["SeqIO/DefaultSpeed"] = "24";
+            options["SeqIO/MissingFrames"] = to_string(MissingFrames::Skip);
+            auto seq = SeqDecode::create(seqPath, {}, decode, options);
+
+            // Four frames long, not twenty.
+            const IOInfo info = seq->getInfo();
+            FTK_ASSERT(4 == info.videoTime.duration().value());
+            FTK_ASSERT(1 == info.videoTime.start_time().value());
+
+            // Each position reads the frame it stands for, and says which
+            // frame number that is.
+            for (size_t i = 0; i < frames.size(); ++i)
+            {
+                const OTIO_NS::RationalTime time(
+                    static_cast<double>(1 + i), 24.0);
+                FTK_ASSERT(frames[i] == seq->getFrame(time));
+                const VideoData v = seq->readVideo(time);
+                FTK_ASSERT(v.image);
+                FTK_ASSERT(0 == memcmp(
+                    v.image->getData(),
+                    images[frames[i]]->getData(),
+                    images[frames[i]]->getByteCount()));
+            }
+
+            // A frame number typed in snaps down to the one at or before it,
+            // so the frame shown and the frame landed on are the same.
+            const std::vector<std::pair<int64_t, int64_t> > snap =
+            {
+                { 1, 1 }, { 6, 6 }, { 16, 16 },
+                { 3, 1 },           // between 1 and 6
+                { 10, 6 },          // just before 11
+                { 20, 16 },         // past the last one there
+                { 0, 1 }            // before the first, so up to it
+            };
+            for (const auto& i : snap)
+            {
+                FTK_ASSERT(i.second == seq->getFrame(seq->getTime(i.first)));
+            }
+
+            // Without skipping the same sequence is its full length and the
+            // time is the frame number.
+            options["SeqIO/MissingFrames"] = to_string(MissingFrames::Black);
+            auto whole = SeqDecode::create(seqPath, {}, decode, options);
+            FTK_ASSERT(20 == whole->getInfo().videoTime.duration().value());
+            FTK_ASSERT(11 == whole->getFrame(OTIO_NS::RationalTime(11.0, 24.0)));
+
+            _print("skipped frames are left out of the sequence");
+        }
+    }
 }
