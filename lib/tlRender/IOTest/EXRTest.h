@@ -23,6 +23,7 @@ namespace tl
             void _enums();
             void _util();
             void _io();
+            void _partial();
         };
     }
 }
