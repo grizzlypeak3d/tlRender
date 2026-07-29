@@ -210,7 +210,7 @@ namespace tl
                     &errorStatus);
             }
             const bool valid =
-                tmp != invalidTime &&
+                isValid(tmp) &&
                 !opentime::is_error(errorStatus);
             if (valid)
             {

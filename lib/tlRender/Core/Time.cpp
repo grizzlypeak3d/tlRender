@@ -31,7 +31,7 @@ namespace tl
     std::vector<OTIO_NS::TimeRange> seconds(const OTIO_NS::TimeRange& value)
     {
         std::vector<OTIO_NS::TimeRange> out;
-        if (value != invalidTimeRange)
+        if (isValid(value))
         {
             const OTIO_NS::TimeRange seconds(
                 value.start_time().rescaled_to(1.0),

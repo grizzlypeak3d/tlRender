@@ -341,6 +341,40 @@ namespace tl
         return out;
     }
 
+    MissingFrames fromOTIO(
+        OTIO_NS::ImageSequenceReference::MissingFramePolicy value)
+    {
+        MissingFrames out = MissingFrames::Error;
+        switch (value)
+        {
+        case OTIO_NS::ImageSequenceReference::MissingFramePolicy::hold:
+            out = MissingFrames::Hold;
+            break;
+        case OTIO_NS::ImageSequenceReference::MissingFramePolicy::black:
+            out = MissingFrames::Black;
+            break;
+        default: break;
+        }
+        return out;
+    }
+
+    OTIO_NS::ImageSequenceReference::MissingFramePolicy toOTIO(
+        MissingFrames value)
+    {
+        auto out = OTIO_NS::ImageSequenceReference::MissingFramePolicy::error;
+        switch (value)
+        {
+        case MissingFrames::Hold:
+            out = OTIO_NS::ImageSequenceReference::MissingFramePolicy::hold;
+            break;
+        case MissingFrames::Black:
+            out = OTIO_NS::ImageSequenceReference::MissingFramePolicy::black;
+            break;
+        default: break;
+        }
+        return out;
+    }
+
     OTIO_NS::RationalTime toVideoMediaTime(
         const OTIO_NS::RationalTime& time,
         const OTIO_NS::TimeRange& trimmedRangeInParent,

@@ -15,7 +15,12 @@
 #include <ftk/Core/Assert.h>
 #include <ftk/Core/Context.h>
 #include <ftk/Core/Format.h>
+#include <algorithm>
+#include <filesystem>
+
+#include <ftk/Core/Image.h>
 #include <ftk/Core/Path.h>
+#include <ftk/Core/String.h>
 
 namespace tl
 {
@@ -32,6 +37,7 @@ namespace tl
 
         void ThumbnailSystemTest::run()
         {
+            _gapSeq();
             auto thumbnailSystem = _context->getSystem<ui::ThumbnailSystem>();
             const std::vector<ftk::Path> paths =
             {
@@ -116,6 +122,115 @@ namespace tl
                     const auto waveform = request.future.get();
                 }
             }
+        }
+
+        namespace
+        {
+            ftk::Path mediaPathFor(const std::shared_ptr<Timeline>& timeline)
+            {
+                return getPath(
+                    timeline->getTimeline()->find_clips()[0]->media_reference(),
+                    timeline->getPath().getDir(),
+                    ftk::PathOptions());
+            }
+        }
+
+        void ThumbnailSystemTest::_gapSeq()
+        {
+            // A sequence with a gap, opened over a range wider than the
+            // frames on disk. Which times give a thumbnail has to match which
+            // frames are actually there.
+            auto readSystem = _context->getSystem<ReadSystem>();
+            auto writeSystem = _context->getSystem<WriteSystem>();
+            const ftk::Path path(
+                (_getTempDir() / "ThumbGap.0001.png").u8string());
+            auto writePlugin = writeSystem->getPlugin(path);
+            if (!writePlugin || !readSystem->getPlugin(path))
+            {
+                return;
+            }
+            IOInfo writeInfo;
+            writeInfo.video.push_back(writePlugin->getInfo(
+                ftk::ImageInfo(ftk::Size2I(16, 16), ftk::ImageType::RGB_U8)));
+            const std::vector<int64_t> onDisk = { 1, 2, 3, 5 };
+            {
+                auto write = writeSystem->write(path, writeInfo);
+                for (int64_t frame : onDisk)
+                {
+                    write->writeVideo(
+                        OTIO_NS::RationalTime(static_cast<double>(frame), 24.0),
+                        ftk::Image::create(writeInfo.video[0]));
+                }
+            }
+
+            ftk::Path wide(path);
+            wide.setFrames(ftk::RangeI64(1, 25));
+            Options options;
+            options.seqExpand = false;
+            auto timeline = Timeline::create(_context, wide, options);
+            FTK_ASSERT(25 == timeline->getTimeRange().duration().value());
+
+            auto thumbnailSystem = _context->getSystem<ui::ThumbnailSystem>();
+            const auto mediaPath = mediaPathFor(timeline);
+
+            // Which frames readMedia gives an image for, which is the call
+            // the thumbnail system makes. Splits a fault in the read from one
+            // in the thumbnail cache above it.
+            {
+                std::vector<std::string> direct;
+                for (int64_t frame = 1; frame <= 25; ++frame)
+                {
+                    auto r = timeline->readMedia(
+                        mediaPath,
+                        OTIO_NS::RationalTime(static_cast<double>(frame), 24.0));
+                    bool image = false;
+                    try
+                    {
+                        image = r.valid() && r.get().image != nullptr;
+                    }
+                    catch (const std::exception&)
+                    {}
+                    if (image)
+                    {
+                        direct.push_back(ftk::Format("{0}").arg(frame).str());
+                    }
+                }
+                _print("readMedia images: " + ftk::join(direct, ','));
+            }
+
+            std::vector<ui::ThumbnailRequest> requests;
+            for (int64_t frame = 1; frame <= 25; ++frame)
+            {
+                requests.push_back(thumbnailSystem->getThumbnail(
+                    timeline->getPath(),
+                    mediaPath,
+                    16,
+                    OTIO_NS::RationalTime(static_cast<double>(frame), 24.0)));
+            }
+            std::vector<int64_t> withImage;
+            for (size_t i = 0; i < requests.size(); ++i)
+            {
+                if (requests[i].future.get())
+                {
+                    withImage.push_back(static_cast<int64_t>(i) + 1);
+                }
+            }
+            _print("Thumbnails for frames: " + ftk::join(
+                [&withImage]
+                {
+                    std::vector<std::string> out;
+                    for (int64_t i : withImage)
+                    {
+                        out.push_back(ftk::Format("{0}").arg(i).str());
+                    }
+                    return out;
+                }(), ','));
+
+            // Frame 24 is the one to watch: at 24fps it is one second, and
+            // so is the invalidTime constant of -1/-1. Comparing times
+            // rescales them, so a request for it once read as "no time given"
+            // and came back with the first frame.
+            FTK_ASSERT(onDisk == withImage);
         }
     }
 }

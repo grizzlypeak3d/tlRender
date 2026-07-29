@@ -36,6 +36,7 @@ namespace tl
             spatial == other.spatial &&
             imageSeqAudioExts == other.imageSeqAudioExts &&
             imageSeqAudioFileName == other.imageSeqAudioFileName &&
+            seqExpand == other.seqExpand &&
             compat == other.compat &&
             threaded == other.threaded &&
             readThreadCount == other.readThreadCount &&

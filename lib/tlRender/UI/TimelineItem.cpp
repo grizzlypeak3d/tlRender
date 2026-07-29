@@ -1728,7 +1728,7 @@ namespace tl
             const ftk::DrawEvent& event)
         {
             FTK_P();
-            if (_timeRange != invalidTimeRange)
+            if (isValid(_timeRange))
             {
                 const ftk::Box2I& g = getGeometry();
                 const double rate = _timeRange.duration().rate();
@@ -1762,7 +1762,7 @@ namespace tl
             const ftk::DrawEvent& event)
         {
             FTK_P();
-            if (_timeRange != invalidTimeRange)
+            if (isValid(_timeRange))
             {
                 const ftk::Box2I& g = getGeometry();
                 const int w = getSizeHint().w;

@@ -8,12 +8,28 @@
 
 namespace tl
 {
+    //! What to show for a frame a sequence does not have.
+    //!
+    //! These match OTIO's image sequence reference policies, which is where
+    //! the value comes from when the sequence is described by a timeline.
+    enum class TL_API_TYPE MissingFrames
+    {
+        Error,  //!< The frame does not read.
+        Hold,   //!< Repeat the nearest frame before it.
+        Black,  //!< A blank frame.
+
+        Count,
+        First = Error
+    };
+    FTK_ENUM(MissingFrames);
+
     //! Sequence I/O options.
     struct TL_API_TYPE SeqOptions
     {
         SeqOptions();
 
-        double defaultSpeed = 24.0;
+        double        defaultSpeed  = 24.0;
+        MissingFrames missingFrames = MissingFrames::Error;
 
         TL_API bool operator == (const SeqOptions&) const;
         TL_API bool operator != (const SeqOptions&) const;
@@ -21,6 +37,9 @@ namespace tl
 
     //! Get sequence I/O options.
     TL_API IOOptions getOptions(const SeqOptions&);
+
+    //! Get the missing frame policy from the options.
+    TL_API MissingFrames getMissingFrames(const IOOptions&);
 
     //! Base class for image sequence writers.
     class TL_API_TYPE ISeqWrite : public IWrite

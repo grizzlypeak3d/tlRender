@@ -108,7 +108,7 @@ namespace tl
         p.playback = ftk::Observable<Playback>::create(Playback::Stop);
         p.loop = ftk::Observable<Loop>::create(Loop::Loop);
         p.currentTime = ftk::Observable<OTIO_NS::RationalTime>::create(
-            playerOptions.currentTime != invalidTime ?
+            isValid(playerOptions.currentTime) ?
             playerOptions.currentTime :
             p.timeRange.start_time());
         p.seek = ftk::Observable<OTIO_NS::RationalTime>::create(p.currentTime->get());

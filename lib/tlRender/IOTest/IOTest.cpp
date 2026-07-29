@@ -14,6 +14,7 @@
 
 #include <atomic>
 #include <cstring>
+#include <map>
 #include <sstream>
 #include <thread>
 
@@ -36,6 +37,8 @@ namespace tl
             _ioSystem();
             _decode();
             _seqDecode();
+            _missingFrames();
+            _seqRange();
         }
 
         void IOTest::_videoData()
@@ -293,6 +296,222 @@ namespace tl
             }
             FTK_ASSERT(ok);
             _print("sequence decode reads the right frame from memory");
+        }
+
+        void IOTest::_missingFrames()
+        {
+            // A sequence on disk with a gap in it, read under each of the
+            // policies. Frames are found by reading them, so this covers the
+            // path a render in progress actually takes.
+            auto readSystem = _context->getSystem<ReadSystem>();
+            auto writeSystem = _context->getSystem<WriteSystem>();
+            const ftk::Size2I size(16, 16);
+            const ftk::Path path(
+                (_getTempDir() / "IOTestGap.0001.png").u8string());
+            auto writePlugin = writeSystem->getPlugin(path);
+            auto readPlugin = readSystem->getPlugin(path);
+            if (!writePlugin || !readPlugin)
+            {
+                return;
+            }
+            auto decode = readPlugin->decode();
+            FTK_ASSERT(decode);
+
+            const ftk::ImageInfo imageInfo = writePlugin->getInfo(
+                ftk::ImageInfo(size, ftk::ImageType::RGB_U8));
+            IOInfo writeInfo;
+            writeInfo.video.push_back(imageInfo);
+
+            // Frames 1, 2 and 5 exist; 3 and 4 do not. Each is filled
+            // differently so that holding the wrong one shows up.
+            const std::vector<int64_t> frames = { 1, 2, 5 };
+            std::map<int64_t, std::shared_ptr<ftk::Image> > images;
+            {
+                // A sequence writer names each file from the time it is given,
+                // so writing the gap is a matter of not asking for those two.
+                auto write = writeSystem->write(path, writeInfo);
+                for (int64_t frame : frames)
+                {
+                    auto image = ftk::Image::create(imageInfo);
+                    memset(
+                        image->getData(),
+                        static_cast<int>(17 + frame * 40),
+                        image->getByteCount());
+                    images[frame] = image;
+                    write->writeVideo(
+                        OTIO_NS::RationalTime(static_cast<double>(frame), 24.0),
+                        image);
+                }
+            }
+
+            ftk::Path seqPath(path);
+            seqPath.setFrames(ftk::RangeI64(1, 5));
+
+            const auto readFrame = [&](MissingFrames policy, int64_t frame)
+                {
+                    IOOptions options;
+                    options["SeqIO/DefaultSpeed"] = "24";
+                    options["SeqIO/MissingFrames"] = to_string(policy);
+                    auto seq = SeqDecode::create(seqPath, {}, decode, options);
+                    return seq->readVideo(
+                        OTIO_NS::RationalTime(static_cast<double>(frame), 24.0));
+                };
+
+            // A frame that is there reads the same under every policy.
+            for (auto policy : getMissingFramesEnums())
+            {
+                const VideoData v = readFrame(policy, 2);
+                FTK_ASSERT(v.image);
+                FTK_ASSERT(0 == memcmp(
+                    v.image->getData(),
+                    images[2]->getData(),
+                    images[2]->getByteCount()));
+            }
+
+            // Error: the read fails, as it did before there was a policy.
+            {
+                bool threw = false;
+                try
+                {
+                    readFrame(MissingFrames::Error, 3);
+                }
+                catch (const std::exception&)
+                {
+                    threw = true;
+                }
+                FTK_ASSERT(threw);
+            }
+
+            // Hold: both frames of the gap give frame 2, the last one before
+            // it, and the time is still the time that was asked for.
+            for (int64_t frame : { 3, 4 })
+            {
+                const VideoData v = readFrame(MissingFrames::Hold, frame);
+                FTK_ASSERT(v.image);
+                FTK_ASSERT(v.time.value() == frame);
+                FTK_ASSERT(0 == memcmp(
+                    v.image->getData(),
+                    images[2]->getData(),
+                    images[2]->getByteCount()));
+            }
+
+            // Black: a blank frame of the right size and type.
+            {
+                const VideoData v = readFrame(MissingFrames::Black, 3);
+                FTK_ASSERT(v.image);
+                FTK_ASSERT(v.image->getSize() == size);
+                std::vector<uint8_t> zero(v.image->getByteCount(), 0);
+                FTK_ASSERT(0 == memcmp(
+                    v.image->getData(), zero.data(), zero.size()));
+            }
+
+            // A frame that is there but half written is missing as far as
+            // this is concerned, which is what a frame still being rendered
+            // looks like. Truncating 5 and 2 means holding from 5 has to walk
+            // past two frames that are not there and one that will not read
+            // before it reaches frame 1.
+            for (int64_t frame : { 2, 5 })
+            {
+                const std::string fileName = seqPath.getFrame(frame, true);
+                std::vector<uint8_t> bytes;
+                {
+                    auto fileIO = ftk::FileIO::create(
+                        fileName, ftk::FileMode::Read);
+                    bytes.resize(fileIO->getSize() / 2);
+                    fileIO->read(bytes.data(), bytes.size());
+                }
+                auto fileIO = ftk::FileIO::create(
+                    fileName, ftk::FileMode::Write);
+                fileIO->write(bytes.data(), bytes.size());
+            }
+            {
+                bool threw = false;
+                try
+                {
+                    readFrame(MissingFrames::Error, 5);
+                }
+                catch (const std::exception&)
+                {
+                    threw = true;
+                }
+                FTK_ASSERT(threw);
+
+                const VideoData black = readFrame(MissingFrames::Black, 5);
+                FTK_ASSERT(black.image);
+
+                const VideoData hold = readFrame(MissingFrames::Hold, 5);
+                FTK_ASSERT(hold.image);
+                FTK_ASSERT(0 == memcmp(
+                    hold.image->getData(),
+                    images[1]->getData(),
+                    images[1]->getByteCount()));
+            }
+
+            _print("missing frames follow the policy");
+        }
+
+        void IOTest::_seqRange()
+        {
+            // A sequence opened over a range wider than the frames that
+            // exist, which is how a render in progress is watched: the range
+            // is the one the shot is meant to be, not the one reached so far.
+            auto readSystem = _context->getSystem<ReadSystem>();
+            auto writeSystem = _context->getSystem<WriteSystem>();
+            const ftk::Size2I size(16, 16);
+            const ftk::Path path(
+                (_getTempDir() / "IOTestWide.0001.png").u8string());
+            auto writePlugin = writeSystem->getPlugin(path);
+            auto readPlugin = readSystem->getPlugin(path);
+            if (!writePlugin || !readPlugin)
+            {
+                return;
+            }
+            auto decode = readPlugin->decode();
+            FTK_ASSERT(decode);
+
+            IOInfo writeInfo;
+            writeInfo.video.push_back(writePlugin->getInfo(
+                ftk::ImageInfo(size, ftk::ImageType::RGB_U8)));
+
+            // Only frames 50 and 51 have been rendered, so the frame the path
+            // names is not there.
+            {
+                auto write = writeSystem->write(path, writeInfo);
+                for (int64_t frame : { 50, 51 })
+                {
+                    write->writeVideo(
+                        OTIO_NS::RationalTime(static_cast<double>(frame), 24.0),
+                        ftk::Image::create(writeInfo.video[0]));
+                }
+            }
+
+            ftk::Path seqPath(path);
+            seqPath.setFrames(ftk::RangeI64(1, 60));
+
+            IOOptions options;
+            options["SeqIO/DefaultSpeed"] = "24";
+            options["SeqIO/MissingFrames"] = to_string(MissingFrames::Black);
+            auto seq = SeqDecode::create(seqPath, {}, decode, options);
+
+            // Opening works, and the range is the one that was asked for
+            // rather than the frames that happen to be there.
+            const IOInfo seqInfo = seq->getInfo();
+            FTK_ASSERT(!seqInfo.video.empty());
+            FTK_ASSERT(seqInfo.video[0].size == size);
+            FTK_ASSERT(60 == seqInfo.videoTime.duration().value());
+            FTK_ASSERT(1 == seqInfo.videoTime.start_time().value());
+
+            // A frame that has been rendered reads; one that has not follows
+            // the policy.
+            const VideoData rendered = seq->readVideo(
+                OTIO_NS::RationalTime(50.0, 24.0));
+            FTK_ASSERT(rendered.image);
+            const VideoData pending = seq->readVideo(
+                OTIO_NS::RationalTime(10.0, 24.0));
+            FTK_ASSERT(pending.image);
+            FTK_ASSERT(pending.image->getSize() == size);
+
+            _print("a sequence opens over a range wider than its frames");
         }
 }
 }

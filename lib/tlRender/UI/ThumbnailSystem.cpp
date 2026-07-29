@@ -824,8 +824,14 @@ namespace tl
                                         size,
                                         ftk::gl::TextureType::RGBA_U8);
                                 }
+                                // isValid(), not a comparison against
+                                // invalidTime: that constant is -1/-1, which
+                                // is one second, and comparing times rescales
+                                // them. Every request at one second -- frame
+                                // 24 at 24fps -- would read as "no time given"
+                                // and quietly return the first frame instead.
                                 const OTIO_NS::RationalTime time =
-                                    request->time != invalidTime ?
+                                    isValid(request->time) ?
                                     request->time :
                                     info.videoTime.start_time();
                                 auto videoRequest = timeline->readMedia(
@@ -883,7 +889,7 @@ namespace tl
                             }
                             const auto info = timeline->getIOInfo();
                             const auto videoData = timeline->getVideo(
-                                request->time != invalidTime ?
+                                isValid(request->time) ?
                                     request->time :
                                     timeline->getTimeRange().start_time()).future.get();
                             ftk::Size2I size;
@@ -1066,7 +1072,7 @@ namespace tl
                                 request->mediaPath, info, request->options))
                         {
                             const OTIO_NS::TimeRange timeRange =
-                                request->timeRange != invalidTimeRange ?
+                                isValid(request->timeRange) ?
                                 request->timeRange :
                                 OTIO_NS::TimeRange(
                                     OTIO_NS::RationalTime(0.0, 1.0),

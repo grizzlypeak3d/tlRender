@@ -7,6 +7,7 @@
 
 #include <ftk/Core/FileIO.h>
 
+#include <opentimelineio/imageSequenceReference.h>
 #include <opentimelineio/mediaReference.h>
 #include <opentimelineio/timeline.h>
 
@@ -87,6 +88,14 @@ namespace tl
         const OTIO_NS::MediaReference*,
         const std::string& directory,
         ftk::PathOptions);
+
+    //! Convert from an OTIO missing frame policy.
+    TL_API MissingFrames fromOTIO(
+        OTIO_NS::ImageSequenceReference::MissingFramePolicy);
+
+    //! Convert to an OTIO missing frame policy.
+    TL_API OTIO_NS::ImageSequenceReference::MissingFramePolicy toOTIO(
+        MissingFrames);
 
     //! Transform track time to video media time.
     TL_API OTIO_NS::RationalTime toVideoMediaTime(

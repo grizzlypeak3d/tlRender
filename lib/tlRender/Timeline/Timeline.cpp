@@ -283,7 +283,7 @@ namespace tl
             seqExts.begin(),
             seqExts.end(),
             ftk::toLower(path.getExt())) != seqExts.end();
-        if (hasSeqExt)
+        if (hasSeqExt && options.seqExpand)
         {
             path = ftk::expandSeq(path, options.pathOptions);
         }
@@ -372,7 +372,11 @@ namespace tl
                         info.videoTime.start_time().value(),
                         1,
                         info.videoTime.duration().rate(),
-                        path.getPad());
+                        path.getPad(),
+                        // A file opened directly has no reference to say what
+                        // to do about frames it is missing, so it takes the
+                        // options the timeline was opened with.
+                        toOTIO(getMissingFrames(options.ioOptions)));
                     mediaReference->set_available_range(info.videoTime);
                     videoClip->set_media_reference(mediaReference);
                 }
@@ -926,52 +930,95 @@ namespace tl
 
         // First use of this reference: work out where each of its files lives
         // inside the bundle.
+        //
+        // A sequence member is placed at its offset from the first frame
+        // rather than packed against the previous one, so that the result is
+        // indexed by frame number. Packing them would misplace every frame
+        // after a gap, and every frame at all when the step is greater than
+        // one.
         auto out = std::make_shared<std::vector<ftk::MemFile> >();
-        std::vector<std::string> mediaFileNames;
+        std::vector<std::pair<size_t, std::string> > mediaFileNames;
         if (auto externalReference = dynamic_cast<const OTIO_NS::ExternalReference*>(otioRef))
         {
-            mediaFileNames.push_back(ftk::Path(
-                decodeURL(externalReference->target_url())).get());
+            mediaFileNames.push_back(std::make_pair(
+                size_t(0),
+                ftk::Path(decodeURL(externalReference->target_url())).get()));
         }
         else if (auto imageSeqReference =
             dynamic_cast<const OTIO_NS::ImageSequenceReference*>(otioRef))
         {
             const int count = imageSeqReference->number_of_images_in_sequence();
+            const size_t step = std::max(imageSeqReference->frame_step(), 1);
             mediaFileNames.reserve(count);
             for (int number = 0; number < count; ++number)
             {
-                mediaFileNames.push_back(ftk::Path(decodeURL(
-                    imageSeqReference->target_url_for_image_number(number))).get());
+                mediaFileNames.push_back(std::make_pair(
+                    number * step,
+                    ftk::Path(decodeURL(
+                        imageSeqReference->target_url_for_image_number(number))).get()));
             }
         }
-        out->reserve(mediaFileNames.size());
+        if (!mediaFileNames.empty())
+        {
+            out->resize(mediaFileNames.back().first + 1);
+        }
+        size_t found = 0;
+        std::string missing;
+        size_t missingCount = 0;
         for (const auto& mediaFileName : mediaFileNames)
         {
-            const auto entry = zipReader->find(mediaFileName);
+            const auto entry = zipReader->find(mediaFileName.second);
             if (!entry.has_value())
             {
-                // The bundle does not hold this media after all. Mark the
-                // reference unavailable rather than returning nothing: an
-                // empty result reads as "not in a bundle", and the caller
-                // would go on to read the media from its path, which is a
-                // different file than the bundle describes.
-                if (auto log = logSystem.lock())
+                // A sequence member the bundle does not hold is a missing
+                // frame, which the sequence decoder deals with. Leave its slot
+                // empty and carry on.
+                ++missingCount;
+                if (missing.empty())
                 {
-                    log->print(
-                        "tl::Timeline",
-                        ftk::Format(
-                            "Cannot find zip entry: \"{0}\"; this media "
-                            "reference cannot be used").arg(mediaFileName),
-                        ftk::LogType::Error);
+                    missing = mediaFileName.second;
                 }
-                unavailableMediaReferences.insert(otioRef);
-                out->clear();
-                break;
+                continue;
             }
-            out->push_back(ftk::MemFile(
+            (*out)[mediaFileName.first] = ftk::MemFile(
                 fileIO,
                 fileIO->getMemStart() + entry->offset,
-                entry->size));
+                entry->size);
+            ++found;
+        }
+        if (0 == found)
+        {
+            // The bundle holds none of this media. Mark the reference
+            // unavailable rather than returning nothing: an empty result reads
+            // as "not in a bundle", and the caller would go on to read the
+            // media from its path, which is a different file than the bundle
+            // describes.
+            if (auto log = logSystem.lock())
+            {
+                log->print(
+                    "tl::Timeline",
+                    ftk::Format(
+                        "Cannot find zip entry: \"{0}\"; this media "
+                        "reference cannot be used").arg(missing),
+                    ftk::LogType::Error);
+            }
+            unavailableMediaReferences.insert(otioRef);
+            out->clear();
+        }
+        else if (missingCount > 0)
+        {
+            if (auto log = logSystem.lock())
+            {
+                log->print(
+                    "tl::Timeline",
+                    ftk::Format(
+                        "Bundle is missing {0} of {1} sequence frames, "
+                        "starting with \"{2}\"").
+                        arg(missingCount).
+                        arg(mediaFileNames.size()).
+                        arg(missing),
+                    ftk::LogType::Warning);
+            }
         }
         memFiles[otioRef] = out;
         return out;
@@ -1394,6 +1441,17 @@ namespace tl
                 IOOptions readOptions = ioOptions;
                 readOptions["SeqIO/DefaultSpeed"] =
                     ftk::Format("{0}").arg(timeRange.duration().rate());
+                if (auto imageSeqReference =
+                    dynamic_cast<const OTIO_NS::ImageSequenceReference*>(mediaReference))
+                {
+                    // The reference says what to do about frames it does not
+                    // have, and it is more specific than the options the
+                    // timeline was opened with. A reference this timeline
+                    // built for a file opened directly carries those options
+                    // already.
+                    readOptions["SeqIO/MissingFrames"] = to_string(
+                        fromOTIO(imageSeqReference->missing_frame_policy()));
+                }
                 out = create(context, mediaPath, *mem, readOptions);
             }
             catch (const std::exception& e)
@@ -2203,17 +2261,18 @@ namespace tl
                             task = std::move(readPool.tasks.front());
                             readPool.tasks.pop_front();
                         }
-                        VideoData out;
                         try
                         {
-                            out = task.f();
+                            task.promise.set_value(task.f());
                         }
                         catch (const std::exception&)
                         {
-                            // A frame that cannot be decoded is delivered
-                            // empty, the same as a reader delivered it.
+                            // Passed on rather than delivered empty: the
+                            // frame still comes out blank, since videoFrame()
+                            // catches this and carries on, but it is counted
+                            // and logged instead of going by in silence.
+                            task.promise.set_exception(std::current_exception());
                         }
-                        task.promise.set_value(out);
                     }
                 }));
         }
@@ -2255,14 +2314,14 @@ namespace tl
         if (readPool.threads.empty())
         {
             // No pool: the caller is the worker.
-            VideoData data;
             try
             {
-                data = task.f();
+                task.promise.set_value(task.f());
             }
             catch (const std::exception&)
-            {}
-            task.promise.set_value(data);
+            {
+                task.promise.set_exception(std::current_exception());
+            }
             return out;
         }
         bool queued = false;

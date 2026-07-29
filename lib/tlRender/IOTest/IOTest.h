@@ -24,6 +24,8 @@ namespace tl
             void _ioSystem();
             void _decode();
             void _seqDecode();
+            void _missingFrames();
+            void _seqRange();
         };
     }
 }

@@ -612,7 +612,7 @@ namespace tl
         double timelineSpeed)
     {
         const OTIO_NS::RationalTime clockTime = currentTime->get();
-        if (clockTime == invalidTime)
+        if (!isValid(clockTime))
         {
             return;
         }
@@ -632,7 +632,7 @@ namespace tl
         }
 
         // Count each distinct frame actually shown since the baseline.
-        if (presentedTime != invalidTime && presentedTime != droppedPresentedLast)
+        if (isValid(presentedTime) && presentedTime != droppedPresentedLast)
         {
             droppedPresentedLast = presentedTime;
             ++droppedShownCount;
