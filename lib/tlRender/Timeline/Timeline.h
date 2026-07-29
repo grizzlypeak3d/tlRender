@@ -17,6 +17,7 @@
 #include <opentimelineio/mediaReference.h>
 
 #include <future>
+#include <optional>
 
 namespace ftk
 {
@@ -140,6 +141,30 @@ namespace tl
             IOInfo&,
             const IOOptions& = IOOptions());
 
+        //! \name Media Frame Numbers
+        //!
+        //! A timeline time is not a frame number. A clip can be trimmed, so
+        //! that its first frame is not the media's first frame, and a sequence
+        //! read with frames skipped is only as long as the frames it has.
+        //! These convert between the two using the clip at the given time,
+        //! which is the clip the caller is looking at.
+        ///@{
+
+        //! The frame number the media gives to a timeline time.
+        TL_API std::optional<int64_t> getMediaFrame(
+            const OTIO_NS::RationalTime&);
+
+        //! The timeline time that reads the given media frame number, taking
+        //! the clip from the given time.
+        //!
+        //! A frame the media does not have snaps as the media requires, so
+        //! there is always an answer for a clip that was found.
+        TL_API std::optional<OTIO_NS::RationalTime> getMediaFrameTime(
+            const OTIO_NS::RationalTime&,
+            int64_t frame);
+
+        ///@}
+
         //! Read one frame of one of the media in the timeline.
         //!
         //! On a timeline with no thread the future comes back resolved.
@@ -251,6 +276,17 @@ namespace tl
         TL_API static size_t getObjectCount();
 
     private:
+        //! What is needed to convert between timeline time and media time for
+        //! the clip at a time.
+        struct MediaAt
+        {
+            std::shared_ptr<SeqDecode> seq;
+            OTIO_NS::TimeRange rangeInParent = invalidTimeRange;
+            OTIO_NS::TimeRange trimmedRange = invalidTimeRange;
+            double rate = 0.0;
+        };
+        std::optional<MediaAt> _mediaAt(const OTIO_NS::RationalTime&);
+
         // Find a media reference by its resolved path.
         OTIO_NS::MediaReference* _findMedia(const ftk::Path&);
         // Get the sequence for a media reference, or null when the format is

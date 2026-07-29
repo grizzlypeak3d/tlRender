@@ -1086,6 +1086,125 @@ namespace tl
         return false;
     }
 
+    std::optional<Timeline::MediaAt> Timeline::_mediaAt(
+        const OTIO_NS::RationalTime& time)
+    {
+        FTK_P();
+        std::optional<MediaAt> out;
+        if (!p.otioTimeline)
+        {
+            return out;
+        }
+        // The same walk the request thread makes: the timeline's own start is
+        // taken off, and the first enabled video track holding that time wins.
+        const OTIO_NS::RationalTime trackTime = time - p.timeRange.start_time();
+        for (const auto& otioTrack : p.otioTimeline->video_tracks())
+        {
+            if (!otioTrack->enabled())
+            {
+                continue;
+            }
+            for (const auto& otioChild : otioTrack->children())
+            {
+                auto otioClip = dynamic_cast<const OTIO_NS::Clip*>(otioChild.value);
+                if (!otioClip)
+                {
+                    continue;
+                }
+                OTIO_NS::ErrorStatus errorStatus;
+                const auto rangeInParent =
+                    otioClip->trimmed_range_in_parent(&errorStatus);
+                if (!rangeInParent.has_value() ||
+                    !rangeInParent.value().contains(trackTime))
+                {
+                    continue;
+                }
+
+                const IOOptions optionsMerged = p.options.ioOptions;
+                auto mediaReference = p.mediaReference(otioClip);
+                MediaAt mediaAt;
+                mediaAt.seq = _getSeqDecode(mediaReference, optionsMerged);
+                IOInfo ioInfo;
+                if (mediaAt.seq)
+                {
+                    ioInfo = mediaAt.seq->getInfo();
+                }
+                else if (auto read = _getVideoRead(mediaReference, optionsMerged))
+                {
+                    ioInfo = read->getInfo().get();
+                }
+                else
+                {
+                    continue;
+                }
+
+                OTIO_NS::TimeRange trimmedRange = otioClip->trimmed_range();
+                const OTIO_NS::TimeRange availableRange = otioClip->available_range();
+                if (p.options.compat &&
+                    availableRange.start_time() > ioInfo.videoTime.start_time())
+                {
+                    // The same compensation _readVideo() makes, so that both
+                    // agree on which media time a timeline time means.
+                    trimmedRange = OTIO_NS::TimeRange(
+                        trimmedRange.start_time() - availableRange.start_time(),
+                        trimmedRange.duration());
+                }
+                mediaAt.rangeInParent = rangeInParent.value();
+                mediaAt.trimmedRange = trimmedRange;
+                mediaAt.rate = ioInfo.videoTime.duration().rate();
+                out = mediaAt;
+                return out;
+            }
+        }
+        return out;
+    }
+
+    std::optional<int64_t> Timeline::getMediaFrame(
+        const OTIO_NS::RationalTime& time)
+    {
+        FTK_P();
+        std::optional<int64_t> out;
+        if (const auto mediaAt = _mediaAt(time))
+        {
+            const OTIO_NS::RationalTime mediaTime = toVideoMediaTime(
+                time - p.timeRange.start_time(),
+                mediaAt->rangeInParent,
+                mediaAt->trimmedRange,
+                mediaAt->rate);
+            out = mediaAt->seq ?
+                mediaAt->seq->getFrame(mediaTime) :
+                static_cast<int64_t>(mediaTime.value());
+        }
+        return out;
+    }
+
+    std::optional<OTIO_NS::RationalTime> Timeline::getMediaFrameTime(
+        const OTIO_NS::RationalTime& time,
+        int64_t frame)
+    {
+        FTK_P();
+        std::optional<OTIO_NS::RationalTime> out;
+        if (const auto mediaAt = _mediaAt(time))
+        {
+            // The media decides which of its frames this is; a sequence with
+            // frames skipped snaps to one it has.
+            const OTIO_NS::RationalTime mediaTime = mediaAt->seq ?
+                mediaAt->seq->getTime(frame) :
+                OTIO_NS::RationalTime(
+                    static_cast<double>(frame), mediaAt->rate);
+
+            // The inverse of toVideoMediaTime(), with the timeline's own start
+            // put back on.
+            out = (mediaTime
+                - mediaAt->trimmedRange.start_time()
+                + mediaAt->rangeInParent.start_time()
+                + p.timeRange.start_time()).
+                rescaled_to(mediaAt->rangeInParent.duration().rate()).
+                round();
+        }
+        return out;
+    }
+
     std::future<VideoData> Timeline::readMedia(
         const ftk::Path& path,
         const OTIO_NS::RationalTime& time,
@@ -1449,8 +1568,17 @@ namespace tl
                     // timeline was opened with. A reference this timeline
                     // built for a file opened directly carries those options
                     // already.
-                    readOptions["SeqIO/MissingFrames"] = to_string(
-                        fromOTIO(imageSeqReference->missing_frame_policy()));
+                    //
+                    // Except Skip, which a reference cannot say: it is written
+                    // as hold, so taking the policy back from the reference
+                    // would turn skipping off and leave the sequence read at
+                    // its full length while the timeline was built at the
+                    // shortened one.
+                    if (MissingFrames::Skip != getMissingFrames(ioOptions))
+                    {
+                        readOptions["SeqIO/MissingFrames"] = to_string(
+                            fromOTIO(imageSeqReference->missing_frame_policy()));
+                    }
                 }
                 out = create(context, mediaPath, *mem, readOptions);
             }

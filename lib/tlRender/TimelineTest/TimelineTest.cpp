@@ -1009,13 +1009,14 @@ namespace tl
                     // how a render in progress is opened. Nothing on disk
                     // changes; the timeline is simply the length the sequence
                     // is meant to be.
+                    std::shared_ptr<Timeline> wideTimeline;
                     {
                         ftk::Path wide(path);
                         wide.setFrames(ftk::RangeI64(1, 100));
                         Options wideOptions;
                         wideOptions.ioOptions["SeqIO/MissingFrames"] =
                             to_string(MissingFrames::Black);
-                        auto wideTimeline = Timeline::create(
+                        wideTimeline = Timeline::create(
                             _context, wide, wideOptions);
                         const auto timeRange = wideTimeline->getTimeRange();
                         FTK_ASSERT(100 == timeRange.duration().value());
@@ -1048,6 +1049,68 @@ namespace tl
                         auto expanded = Timeline::create(_context, one);
                         FTK_ASSERT(
                             expanded->getTimeRange().duration().value() > 1);
+                    }
+
+                    // Skipping shortens the timeline to the frames that are
+                    // there, and the frame numbers have to survive that: the
+                    // whole point is watching a render whose frames you can
+                    // still name.
+                    {
+                        ftk::Path skipPath(path);
+                        skipPath.setFrames(ftk::RangeI64(1, 6));
+                        Options skipOptions;
+                        skipOptions.seqExpand = false;
+                        skipOptions.ioOptions["SeqIO/MissingFrames"] =
+                            to_string(MissingFrames::Skip);
+                        auto skipTimeline = Timeline::create(
+                            _context, skipPath, skipOptions);
+
+                        // Frames 1 and 2 are on disk, so two frames long.
+                        const auto timeRange = skipTimeline->getTimeRange();
+                        FTK_ASSERT(2 == timeRange.duration().value());
+
+                        // Each position says which frame it stands for, and
+                        // reads it.
+                        for (double t : { 1.0, 2.0 })
+                        {
+                            const OTIO_NS::RationalTime time(t, 24.0);
+                            const auto frame = skipTimeline->getMediaFrame(time);
+                            FTK_ASSERT(frame.has_value());
+                            FTK_ASSERT(static_cast<int64_t>(t) == frame.value());
+                            auto request = skipTimeline->getVideo(time);
+                            FTK_ASSERT(request.future.get().layers[0].image);
+                        }
+
+                        // And the way back, which is what typing a frame
+                        // number into the counter needs.
+                        for (int64_t f : { 1, 2 })
+                        {
+                            const auto time = skipTimeline->getMediaFrameTime(
+                                OTIO_NS::RationalTime(1.0, 24.0), f);
+                            FTK_ASSERT(time.has_value());
+                            const auto back =
+                                skipTimeline->getMediaFrame(time.value());
+                            FTK_ASSERT(back.has_value());
+                            FTK_ASSERT(f == back.value());
+                        }
+
+                        // A frame that is not there snaps down rather than
+                        // refusing.
+                        const auto snapped = skipTimeline->getMediaFrameTime(
+                            OTIO_NS::RationalTime(1.0, 24.0), 5);
+                        FTK_ASSERT(snapped.has_value());
+                        const auto snappedFrame =
+                            skipTimeline->getMediaFrame(snapped.value());
+                        FTK_ASSERT(snappedFrame.has_value());
+                        FTK_ASSERT(2 == snappedFrame.value());
+                    }
+
+                    // Without skipping a timeline time is the frame number.
+                    {
+                        const auto frame = wideTimeline->getMediaFrame(
+                            OTIO_NS::RationalTime(80.0, 24.0));
+                        FTK_ASSERT(frame.has_value());
+                        FTK_ASSERT(80 == frame.value());
                     }
 
                     // Holding is not an error: the policy dealt with it.
