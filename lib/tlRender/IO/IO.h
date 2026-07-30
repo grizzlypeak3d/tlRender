@@ -27,14 +27,14 @@ namespace tl
         //! Video layer information.
         std::vector<ftk::ImageInfo> video;
 
-        //! Video time range.
-        OTIO_NS::TimeRange videoTime = invalidTimeRange;
+        //! Video time range, unset when there is no video.
+        std::optional<OTIO_NS::TimeRange> videoTime;
 
         //! Audio information.
         AudioInfo audio;
 
-        //! Audio time range.
-        OTIO_NS::TimeRange audioTime = invalidTimeRange;
+        //! Audio time range, unset when there is no audio.
+        std::optional<OTIO_NS::TimeRange> audioTime;
 
         //! Metadata tags.
         ftk::ImageTags tags;
@@ -61,7 +61,7 @@ namespace tl
             uint16_t layer,
             const std::shared_ptr<ftk::Image>&);
 
-        OTIO_NS::RationalTime       time = invalidTime;
+        OTIO_NS::RationalTime       time;
         uint16_t                    layer = 0;
         std::shared_ptr<ftk::Image> image;
 
@@ -78,7 +78,7 @@ namespace tl
             const OTIO_NS::RationalTime&,
             const std::shared_ptr<Audio>&);
 
-        OTIO_NS::RationalTime  time = invalidTime;
+        OTIO_NS::RationalTime  time;
         std::shared_ptr<Audio> audio;
 
         bool operator == (const AudioData&) const;

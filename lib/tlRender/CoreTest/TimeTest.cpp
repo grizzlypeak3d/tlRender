@@ -34,26 +34,6 @@ namespace tl
         void TimeTest::_otime()
         {
             {
-                std::stringstream ss;
-                ss << "Invalid time: " << OTIO_NS::RationalTime(invalidTime);
-                _print(ss.str());
-            }
-            {
-                std::stringstream ss;
-                ss << "Invalid time range: " << OTIO_NS::TimeRange(invalidTimeRange);
-                _print(ss.str());
-            }
-            {
-                FTK_ASSERT(!isValid(invalidTime));
-                FTK_ASSERT(isValid(OTIO_NS::RationalTime(24.0, 24.0)));
-            }
-            {
-                FTK_ASSERT(!isValid(invalidTimeRange));
-                FTK_ASSERT(isValid(OTIO_NS::TimeRange(
-                    OTIO_NS::RationalTime(0.0, 24.0),
-                    OTIO_NS::RationalTime(24.0, 24.0))));
-            }
-            {
                 const OTIO_NS::TimeRange a(
                     OTIO_NS::RationalTime(24.0, 24.0),
                     OTIO_NS::RationalTime(24.0, 24.0));
@@ -61,8 +41,38 @@ namespace tl
                 const OTIO_NS::TimeRange b(
                     OTIO_NS::RationalTime(1.0, 1.0),
                     OTIO_NS::RationalTime(1.0, 1.0));
+                // The rescaling "==" is what compareExact() exists to avoid,
+                // and what makes an unset time unsafe to spell as a value.
                 FTK_ASSERT(a == b);
                 FTK_ASSERT(!compareExact(a, b));
+            }
+            {
+                // The same for optional times, where either side may be unset.
+                const std::optional<OTIO_NS::RationalTime> a(
+                    OTIO_NS::RationalTime(24.0, 24.0));
+                const std::optional<OTIO_NS::RationalTime> b(
+                    OTIO_NS::RationalTime(1.0, 1.0));
+                const std::optional<OTIO_NS::RationalTime> unset;
+                FTK_ASSERT(compareExact(a, a));
+                FTK_ASSERT(a == b);
+                FTK_ASSERT(!compareExact(a, b));
+                FTK_ASSERT(compareExact(unset, unset));
+                FTK_ASSERT(!compareExact(a, unset));
+                FTK_ASSERT(!compareExact(unset, a));
+            }
+            {
+                const std::optional<OTIO_NS::TimeRange> a(OTIO_NS::TimeRange(
+                    OTIO_NS::RationalTime(24.0, 24.0),
+                    OTIO_NS::RationalTime(24.0, 24.0)));
+                const std::optional<OTIO_NS::TimeRange> b(OTIO_NS::TimeRange(
+                    OTIO_NS::RationalTime(1.0, 1.0),
+                    OTIO_NS::RationalTime(1.0, 1.0)));
+                const std::optional<OTIO_NS::TimeRange> unset;
+                FTK_ASSERT(compareExact(a, a));
+                FTK_ASSERT(a == b);
+                FTK_ASSERT(!compareExact(a, b));
+                FTK_ASSERT(compareExact(unset, unset));
+                FTK_ASSERT(!compareExact(a, unset));
             }
         }
         
@@ -76,7 +86,11 @@ namespace tl
                 };
                 const std::vector<Data> data =
                 {
-                    Data({ invalidTimeRange, {} }),
+                    Data({
+                        OTIO_NS::TimeRange(
+                            OTIO_NS::RationalTime(-1.0, -1.0),
+                            OTIO_NS::RationalTime(-1.0, -1.0)),
+                        {} }),
                     Data({
                         OTIO_NS::TimeRange(
                             OTIO_NS::RationalTime(0.0, 24.0),
@@ -124,7 +138,11 @@ namespace tl
                 };
                 const std::vector<Data> data =
                 {
-                    Data({invalidTimeRange, {}}),
+                    Data({
+                        OTIO_NS::TimeRange(
+                            OTIO_NS::RationalTime(-1.0, -1.0),
+                            OTIO_NS::RationalTime(-1.0, -1.0)),
+                        {}}),
                     Data({
                         OTIO_NS::TimeRange(
                             OTIO_NS::RationalTime(0.0, 24.0),
@@ -312,14 +330,14 @@ namespace tl
             {
                 const auto t = OTIO_NS::RationalTime(1.0, 24.0);
                 const std::string s = opentime::OPENTIME_VERSION_NS::to_string(t);
-                OTIO_NS::RationalTime t2 = invalidTime;
+                OTIO_NS::RationalTime t2;
                 from_string(s, t2);
                 FTK_ASSERT(t == t2);
             }
             {
                 const auto t = OTIO_NS::TimeRange(OTIO_NS::RationalTime(0.0, 24.0), OTIO_NS::RationalTime(1.0, 24.0));
                 const std::string s = opentime::OPENTIME_VERSION_NS::to_string(t);
-                OTIO_NS::TimeRange t2 = invalidTimeRange;
+                OTIO_NS::TimeRange t2;
                 from_string(s, t2);
                 FTK_ASSERT(t == t2);
             }
@@ -327,7 +345,7 @@ namespace tl
                 const OTIO_NS::RationalTime t(1.0, 24.0);
                 nlohmann::json json;
                 to_json(json, t);
-                OTIO_NS::RationalTime t2 = invalidTime;
+                OTIO_NS::RationalTime t2;
                 from_json(json, t2);
                 FTK_ASSERT(t == t2);
             }
@@ -335,7 +353,7 @@ namespace tl
                 const auto t = OTIO_NS::TimeRange(OTIO_NS::RationalTime(0.0, 24.0), OTIO_NS::RationalTime(1.0, 24.0));
                 nlohmann::json json;
                 to_json(json, t);
-                OTIO_NS::TimeRange t2 = invalidTimeRange;
+                OTIO_NS::TimeRange t2;
                 from_json(json, t2);
                 FTK_ASSERT(t == t2);
             }

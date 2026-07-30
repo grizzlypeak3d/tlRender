@@ -226,10 +226,10 @@ namespace tl
                     return out;
                 }(), ','));
 
-            // Frame 24 is the one to watch: at 24fps it is one second, and
-            // so is the invalidTime constant of -1/-1. Comparing times
-            // rescales them, so a request for it once read as "no time given"
-            // and came back with the first frame.
+            // Frame 24 is the one to watch: at 24fps it is one second, which
+            // is what the old unset-time marker of -1/-1 was worth. Comparing
+            // times rescales them, so a request for it once read as "no time
+            // given" and came back with the first frame.
             FTK_ASSERT(onDisk == withImage);
         }
     }

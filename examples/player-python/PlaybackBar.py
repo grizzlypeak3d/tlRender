@@ -97,8 +97,8 @@ class Widget(ftk.IWidget):
                 player.observeSpeed,
                 lambda value: selfWeak()._speedUpdate(value))
         else:
-            self._currentTimeEdit.value = tl.invalidTime
-            self._durationLabel.value = tl.invalidTime
+            self._currentTimeEdit.value = None
+            self._durationLabel.value = None
             self._speedEdit.value = 1.0
             self._currentTimeObserver = None
             self._speedObserver = None

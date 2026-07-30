@@ -27,11 +27,14 @@ namespace tl
     };
     TL_ENUM(TimeUnits);
 
-    //! Convert a time value to text.
-    TL_API std::string timeToText(const OTIO_NS::RationalTime&, TimeUnits);
+    //! Convert a time value to text. An unset time gives the placeholder
+    //! text for the units, so a widget with no value still reads as a time.
+    TL_API std::string timeToText(
+        const std::optional<OTIO_NS::RationalTime>&,
+        TimeUnits);
 
-    //! Convert text to a time value.
-    TL_API OTIO_NS::RationalTime textToTime(
+    //! Convert text to a time value. Unset when the text does not parse.
+    TL_API std::optional<OTIO_NS::RationalTime> textToTime(
         const std::string&     text,
         double                 rate,
         TimeUnits              units,
@@ -59,8 +62,10 @@ namespace tl
         //! Observe when the time units are changed.
         TL_API std::shared_ptr<ftk::IObservable<bool> > observeTimeUnitsChanged() const;
 
-        //! Get a time label in the current time units.
-        TL_API virtual std::string getLabel(const OTIO_NS::RationalTime&) const = 0;
+        //! Get a time label in the current time units. An unset time gives
+        //! the placeholder text for the units.
+        TL_API virtual std::string getLabel(
+            const std::optional<OTIO_NS::RationalTime>&) const = 0;
 
     protected:
         std::shared_ptr<ftk::Observable<bool> > _timeUnitsChanged;
@@ -92,7 +97,8 @@ namespace tl
         //! Set the time units.
         TL_API void setTimeUnits(TimeUnits);
 
-        TL_API std::string getLabel(const OTIO_NS::RationalTime&) const override;
+        TL_API std::string getLabel(
+            const std::optional<OTIO_NS::RationalTime>&) const override;
 
     private:
         FTK_PRIVATE();

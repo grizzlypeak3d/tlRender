@@ -76,7 +76,7 @@ namespace tl
             {
                 int64_t id = -1;
                 ftk::Path path;
-                OTIO_NS::RationalTime time = invalidTime;
+                OTIO_NS::RationalTime time;
                 IOOptions options;
                 std::promise<VideoData> promise;
             };

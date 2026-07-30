@@ -16,7 +16,7 @@ namespace tl
     {
         struct TimeSpinBox::Private
         {
-            OTIO_NS::RationalTime value = invalidTime;
+            std::optional<OTIO_NS::RationalTime> value;
             TimeUnits timeUnits = TimeUnits::Timecode;
             QRegularExpressionValidator* validator = nullptr;
             qt::TimeObject* timeObject = nullptr;
@@ -72,7 +72,7 @@ namespace tl
             updateGeometry();
         }
 
-        const OTIO_NS::RationalTime& TimeSpinBox::value() const
+        const std::optional<OTIO_NS::RationalTime>& TimeSpinBox::value() const
         {
             return _p->value;
         }
@@ -85,8 +85,11 @@ namespace tl
         void TimeSpinBox::stepBy(int steps)
         {
             FTK_P();
-            p.value += OTIO_NS::RationalTime(steps, p.value.rate());
-            Q_EMIT valueChanged(p.value);
+            // Nothing to step from when the box has no value.
+            if (!p.value.has_value())
+                return;
+            p.value = *p.value + OTIO_NS::RationalTime(steps, p.value->rate());
+            Q_EMIT valueChanged(*p.value);
             _textUpdate();
         }
 
@@ -95,14 +98,16 @@ namespace tl
             return QValidator::Acceptable;
         }
 
-        void TimeSpinBox::setValue(const OTIO_NS::RationalTime& value)
+        void TimeSpinBox::setValue(const std::optional<OTIO_NS::RationalTime>& value)
         {
             FTK_P();
-            if (value.value() == p.value.value() &&
-                value.rate() == p.value.rate())
+            if (compareExact(value, p.value))
                 return;
             p.value = value;
-            Q_EMIT valueChanged(p.value);
+            if (p.value.has_value())
+            {
+                Q_EMIT valueChanged(*p.value);
+            }
             _textUpdate();
         }
 
@@ -141,16 +146,22 @@ namespace tl
         void TimeSpinBox::_lineEditCallback()
         {
             FTK_P();
+            // Without a value there is no rate to read the text at, so
+            // there is nothing to parse it into.
+            if (!p.value.has_value())
+                return;
             opentime::ErrorStatus errorStatus;
-            const OTIO_NS::RationalTime time = textToTime(
+            const std::optional<OTIO_NS::RationalTime> time = textToTime(
                 lineEdit()->text().toUtf8().data(),
-                p.value.rate(),
+                p.value->rate(),
                 p.timeUnits,
                 &errorStatus);
-            if (!opentime::is_error(errorStatus) && time != p.value)
+            if (!opentime::is_error(errorStatus) &&
+                time.has_value() &&
+                *time != *p.value)
             {
                 p.value = time;
-                Q_EMIT valueChanged(p.value);
+                Q_EMIT valueChanged(*p.value);
             }
             _textUpdate();
         }

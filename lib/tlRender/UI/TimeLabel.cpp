@@ -16,7 +16,7 @@ namespace tl
         struct TimeLabel::Private
         {
             std::shared_ptr<TimeUnitsModel> timeUnitsModel;
-            OTIO_NS::RationalTime value = invalidTime;
+            std::optional<OTIO_NS::RationalTime> value;
             std::string text;
             std::string format;
             ftk::SizeRole marginRole = ftk::SizeRole::None;
@@ -90,15 +90,15 @@ namespace tl
             return _p->timeUnitsModel;
         }
 
-        const OTIO_NS::RationalTime& TimeLabel::getValue() const
+        const std::optional<OTIO_NS::RationalTime>& TimeLabel::getValue() const
         {
             return _p->value;
         }
 
-        void TimeLabel::setValue(const OTIO_NS::RationalTime& value)
+        void TimeLabel::setValue(const std::optional<OTIO_NS::RationalTime>& value)
         {
             FTK_P();
-            if (value.strictly_equal(p.value))
+            if (compareExact(value, p.value))
                 return;
             p.value = value;
             _textUpdate();

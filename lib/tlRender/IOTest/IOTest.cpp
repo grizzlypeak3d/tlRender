@@ -46,7 +46,6 @@ namespace tl
         {
             {
                 const VideoData v;
-                FTK_ASSERT(!isValid(v.time));
                 FTK_ASSERT(!v.image);
             }
             {
@@ -140,7 +139,7 @@ namespace tl
 
                 // One file says nothing about the sequence it is part of, so
                 // the decoder leaves the time range alone.
-                FTK_ASSERT(!isValid(decodeInfo.videoTime));
+                FTK_ASSERT(!decodeInfo.videoTime.has_value());
 
                 const auto viaDecode = decode->readVideo(path.get(), nullptr, time);
                 const auto viaMem = decode->readVideo(path.get(), &memFile, time);
@@ -252,8 +251,8 @@ namespace tl
             const IOInfo seqInfo = seq->getInfo();
 
             // The sequence knows the time range that no single file does.
-            FTK_ASSERT(isValid(seqInfo.videoTime));
-            FTK_ASSERT(seqInfo.videoTime.duration().value() == frameCount);
+            FTK_ASSERT(seqInfo.videoTime.has_value());
+            FTK_ASSERT(seqInfo.videoTime->duration().value() == frameCount);
             FTK_ASSERT(!seqInfo.video.empty());
 
             for (size_t i = 0; i < frameCount; ++i)
@@ -499,8 +498,8 @@ namespace tl
             const IOInfo seqInfo = seq->getInfo();
             FTK_ASSERT(!seqInfo.video.empty());
             FTK_ASSERT(seqInfo.video[0].size == size);
-            FTK_ASSERT(60 == seqInfo.videoTime.duration().value());
-            FTK_ASSERT(1 == seqInfo.videoTime.start_time().value());
+            FTK_ASSERT(60 == seqInfo.videoTime->duration().value());
+            FTK_ASSERT(1 == seqInfo.videoTime->start_time().value());
 
             // A frame that has been rendered reads; one that has not follows
             // the policy.
@@ -574,8 +573,8 @@ namespace tl
                 // The whole range asked for, not the four frames that are
                 // there: shortening it is the timeline's job.
                 const IOInfo info = seq->getInfo();
-                FTK_ASSERT(20 == info.videoTime.duration().value());
-                FTK_ASSERT(1 == info.videoTime.start_time().value());
+                FTK_ASSERT(20 == info.videoTime->duration().value());
+                FTK_ASSERT(1 == info.videoTime->start_time().value());
 
                 // A frame that is there reads at its own number.
                 for (int64_t frame : frames)

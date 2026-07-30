@@ -244,7 +244,7 @@ namespace tl
             p.thumbnailSystem = context->getSystem<ThumbnailSystem>();
 
             p.scrub = ftk::Observable<bool>::create(false);
-            p.timeScrub = ftk::Observable<OTIO_NS::RationalTime>::create(invalidTime);
+            p.timeScrub = ftk::Observable<std::optional<OTIO_NS::RationalTime> >::create();
 
             _itemsInit(context);
             _itemsScaleUpdate();
@@ -316,7 +316,7 @@ namespace tl
             return _p->scrub;
         }
 
-        std::shared_ptr<ftk::IObservable<OTIO_NS::RationalTime> > TimelineItem::observeTimeScrub() const
+        std::shared_ptr<ftk::IObservable<std::optional<OTIO_NS::RationalTime> > > TimelineItem::observeTimeScrub() const
         {
             return _p->timeScrub;
         }
@@ -606,7 +606,7 @@ namespace tl
                         if (k->second.future.valid() &&
                             k->second.future.wait_for(std::chrono::seconds(0)) == std::future_status::ready)
                         {
-                            item.thumbnails[k->second.time] = k->second.future.get();
+                            item.thumbnails[*k->second.time] = k->second.future.get();
                             k = item.thumbnailRequests.erase(k);
                             drawUpdate = true;
                         }
@@ -622,7 +622,7 @@ namespace tl
                         if (l->second.future.valid() &&
                             l->second.future.wait_for(std::chrono::seconds(0)) == std::future_status::ready)
                         {
-                            item.waveforms[l->second.timeRange.start_time()] = l->second.future.get();
+                            item.waveforms[l->second.timeRange->start_time()] = l->second.future.get();
                             l = item.waveformRequests.erase(l);
                             drawUpdate = true;
                         }
@@ -753,7 +753,10 @@ namespace tl
 
         OTIO_NS::RationalTime TimelineItem::posToTime(float value) const
         {
-            OTIO_NS::RationalTime out = invalidTime;
+            // Before the widget is laid out there is no position to read,
+            // so the start of the range stands in: it is inside the range,
+            // which everything downstream assumes.
+            OTIO_NS::RationalTime out = _timeRange.start_time();
             const ftk::Box2I& g = getGeometry();
             if (g.w() > 0)
             {
@@ -1184,12 +1187,14 @@ namespace tl
         {
             item.media.clear();
             const int thumbnailWidth = getThumbnailWidth(item, displayOptions);
-            if (thumbnailWidth <= 0 || item.ioInfo->video.empty())
+            if (thumbnailWidth <= 0 ||
+                item.ioInfo->video.empty() ||
+                !item.ioInfo->videoTime.has_value())
                 return;
 
             OTIO_NS::TimeRange trimmedRange = item.trimmedRange;
             if (data.options.compat &&
-                item.availableRange.start_time() > item.ioInfo->videoTime.start_time())
+                item.availableRange.start_time() > item.ioInfo->videoTime->start_time())
             {
                 //! \bug If the available range is greater than the media time,
                 //! assume the media time is wrong (e.g., Picchu) and
@@ -1241,7 +1246,7 @@ namespace tl
                     time,
                     item.timeRange,
                     trimmedRange,
-                    item.ioInfo->videoTime.duration().rate());
+                    item.ioInfo->videoTime->duration().rate());
 
                 Item::Media media;
                 media.x = x;
@@ -1279,13 +1284,14 @@ namespace tl
 
             OTIO_NS::TimeRange trimmedRange = item.trimmedRange;
             if (data.options.compat &&
-                trimmedRange.start_time() < item.ioInfo->audioTime.start_time())
+                item.ioInfo->audioTime.has_value() &&
+                trimmedRange.start_time() < item.ioInfo->audioTime->start_time())
             {
                 //! \bug If the trimmed range is less than the media time,
                 //! assume the media time is wrong (e.g., ALab trailer) and
                 //! compensate for it.
                 trimmedRange = OTIO_NS::TimeRange(
-                    item.ioInfo->audioTime.start_time() + trimmedRange.start_time(),
+                    item.ioInfo->audioTime->start_time() + trimmedRange.start_time(),
                     trimmedRange.duration());
             }
 
@@ -1641,8 +1647,8 @@ namespace tl
             const ftk::DrawEvent& event)
         {
             FTK_P();
-            if (!compareExact(_p->inOutRange, invalidTimeRange) &&
-                !compareExact(_p->inOutRange, _timeRange))
+            if (_p->inOutRange.has_value() &&
+                !compareExact(*_p->inOutRange, _timeRange))
             {
                 const ftk::Box2I& g = getGeometry();
                 const ftk::Color4F color(.4F, .5F, .9F);
@@ -1652,8 +1658,8 @@ namespace tl
                 {
                 case InOutDisplay::InsideRange:
                 {
-                    const int x0 = timeToPos(_p->inOutRange.start_time());
-                    const int x1 = timeToPos(_p->inOutRange.end_time_exclusive());
+                    const int x0 = timeToPos(_p->inOutRange->start_time());
+                    const int x1 = timeToPos(_p->inOutRange->end_time_exclusive());
                     const ftk::Box2I box(
                         x0,
                         p.size.scrollArea.min.y +
@@ -1666,7 +1672,7 @@ namespace tl
                 case InOutDisplay::OutsideRange:
                 {
                     int x0 = timeToPos(_timeRange.start_time());
-                    int x1 = timeToPos(_p->inOutRange.start_time());
+                    int x1 = timeToPos(_p->inOutRange->start_time());
                     ftk::Box2I box(
                         x0,
                         p.size.scrollArea.min.y +
@@ -1674,7 +1680,7 @@ namespace tl
                         x1 - x0 + 1,
                         h);
                     event.render->drawRect(box, color);
-                    x0 = timeToPos(_p->inOutRange.end_time_exclusive());
+                    x0 = timeToPos(_p->inOutRange->end_time_exclusive());
                     x1 = timeToPos(_timeRange.end_time_exclusive());
                     box = ftk::Box2I(
                         x0,
@@ -1798,7 +1804,7 @@ namespace tl
             const ftk::DrawEvent& event)
         {
             FTK_P();
-            if (isValid(_timeRange))
+            if (_timeRange.duration().value() > 0.0)
             {
                 const ftk::Box2I& g = getGeometry();
                 const double rate = _timeRange.duration().rate();
@@ -1833,7 +1839,7 @@ namespace tl
             const ftk::DrawEvent& event)
         {
             FTK_P();
-            if (isValid(_timeRange))
+            if (_timeRange.duration().value() > 0.0)
             {
                 const ftk::Box2I& g = getGeometry();
                 const int w = getSizeHint().w;
@@ -1903,10 +1909,10 @@ namespace tl
 
             const ftk::Box2I& g = getGeometry();
 
-            if (!p.currentTime.is_invalid_time())
+            if (p.currentTime.has_value())
             {
                 const ftk::V2I pos(
-                    timeToPos(p.currentTime),
+                    timeToPos(*p.currentTime),
                     p.size.scrollArea.min.y +
                     g.min.y);
 
@@ -1918,7 +1924,7 @@ namespace tl
                         g.h()),
                     event.style->getColorRole(ftk::ColorRole::Red));
 
-                const std::string label = _timeLabel(p.currentTime);
+                const std::string label = _timeLabel(*p.currentTime);
                 ftk::V2I labelPos(
                     pos.x + p.size.border * 2 + p.size.margin,
                     pos.y + p.size.margin);

@@ -29,8 +29,8 @@ namespace tl
                 void setPlayer(const QSharedPointer<qt::PlayerObject>&);
 
             private:
-                void _currentTimeUpdate(const OTIO_NS::RationalTime&);
-                void _durationUpdate(const OTIO_NS::RationalTime&);
+                void _currentTimeUpdate(const std::optional<OTIO_NS::RationalTime>&);
+                void _durationUpdate(const std::optional<OTIO_NS::RationalTime>&);
                 void _playbackUpdate(Playback);
 
                 QSharedPointer<qt::PlayerObject> _player;

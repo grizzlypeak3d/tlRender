@@ -130,8 +130,8 @@ namespace tl
                     else
                     {
                         _loopWidget->setLoop(Loop::Loop);
-                        _currentTimeEdit->setValue(invalidTime);
-                        _durationLabel->setValue(invalidTime);
+                        _currentTimeEdit->setValue(std::nullopt);
+                        _durationLabel->setValue(std::nullopt);
                         _actualSpeedLabel->setText("0");
 
                         _loopObserver.reset();

@@ -17,24 +17,26 @@ namespace tl
         "Seconds",
         "Timecode");
 
-    std::string timeToText(const OTIO_NS::RationalTime& time, TimeUnits units)
+    std::string timeToText(
+        const std::optional<OTIO_NS::RationalTime>& time,
+        TimeUnits units)
     {
         std::string out;
         switch (units)
         {
         case TimeUnits::Frames:
             out = ftk::Format("{0}").
-                arg(isValid(time) ? time.to_frames() : 0);
+                arg(time.has_value() ? time->to_frames() : 0);
             break;
         case TimeUnits::Seconds:
             out = ftk::Format("{0}").
-                arg(isValid(time) ? time.to_seconds() : 0.0, 2);
+                arg(time.has_value() ? time->to_seconds() : 0.0, 2);
             break;
         case TimeUnits::Timecode:
         {
-            if (isValid(time))
+            if (time.has_value())
             {
-                out = time.to_timecode();
+                out = time->to_timecode();
             }
             if (out.empty())
             {
@@ -47,31 +49,53 @@ namespace tl
         return out;
     }
 
-    OTIO_NS::RationalTime textToTime(
+    std::optional<OTIO_NS::RationalTime> textToTime(
         const std::string& text,
         double rate,
         TimeUnits units,
         opentime::ErrorStatus* errorStatus)
     {
-        OTIO_NS::RationalTime out = invalidTime;
+        std::optional<OTIO_NS::RationalTime> out;
+        // Whether the whole string was a number, which atoi() and atof() do
+        // not say: they answer 0 for text that is not one at all, so "abc"
+        // used to read as frame zero.
+        const auto consumed =
+            [&text](const char* end)
+            {
+                return
+                    end != text.c_str() &&
+                    end == text.c_str() + text.size();
+            };
         switch (units)
         {
         case TimeUnits::Frames:
         {
-            const int value = std::atoi(text.c_str());
-            out = OTIO_NS::RationalTime::from_frames(value, rate);
+            char* end = nullptr;
+            const long value = std::strtol(text.c_str(), &end, 10);
+            if (consumed(end))
+            {
+                out = OTIO_NS::RationalTime::from_frames(value, rate);
+            }
             break;
         }
         case TimeUnits::Seconds:
         {
-            const double value = std::atof(text.c_str());
-            out = OTIO_NS::RationalTime::from_seconds(value).rescaled_to(rate);
+            char* end = nullptr;
+            const double value = std::strtod(text.c_str(), &end);
+            if (consumed(end))
+            {
+                out = OTIO_NS::RationalTime::from_seconds(value).rescaled_to(rate);
+            }
             break;
         }
         case TimeUnits::Timecode:
             out = OTIO_NS::RationalTime::from_timecode(text, rate, errorStatus);
             break;
         default: break;
+        }
+        if (out.has_value() && out->is_invalid_time())
+        {
+            out.reset();
         }
         return out;
     }
@@ -175,7 +199,8 @@ namespace tl
         }
     }
 
-    std::string TimeUnitsModel::getLabel(const OTIO_NS::RationalTime& value) const
+    std::string TimeUnitsModel::getLabel(
+        const std::optional<OTIO_NS::RationalTime>& value) const
     {
         return timeToText(value, _p->timeUnits->get());
     }

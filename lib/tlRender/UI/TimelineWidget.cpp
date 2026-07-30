@@ -28,13 +28,13 @@ namespace tl
             float mouseWheelScale = 1.1F;
             std::shared_ptr<ftk::Observable<bool> > stopOnScrub;
             std::shared_ptr<ftk::Observable<bool> > scrub;
-            std::shared_ptr<ftk::Observable<OTIO_NS::RationalTime> > timeScrub;
+            std::shared_ptr<ftk::Observable<std::optional<OTIO_NS::RationalTime> > > timeScrub;
             std::vector<int> frameMarkers;
             std::shared_ptr<ftk::Observable<ItemOptions> > itemOptions;
             std::shared_ptr<ftk::Observable<DisplayOptions> > displayOptions;
-            OTIO_NS::TimeRange timeRange = invalidTimeRange;
+            OTIO_NS::TimeRange timeRange;
             Playback playback = Playback::Stop;
-            OTIO_NS::RationalTime currentTime = invalidTime;
+            OTIO_NS::RationalTime currentTime;
             double scale = 500.0;
             bool sizeInit = true;
             float displayScale = 0.F;
@@ -60,7 +60,7 @@ namespace tl
             std::shared_ptr<ftk::Observer<OTIO_NS::RationalTime> > currentTimeObserver;
             std::shared_ptr<ftk::Observer<std::string> > mediaReferenceKeyObserver;
             std::shared_ptr<ftk::Observer<bool> > scrubObserver;
-            std::shared_ptr<ftk::Observer<OTIO_NS::RationalTime> > timeScrubObserver;
+            std::shared_ptr<ftk::Observer<std::optional<OTIO_NS::RationalTime> > > timeScrubObserver;
         };
 
         void TimelineWidget::_init(
@@ -81,7 +81,7 @@ namespace tl
             p.autoScroll = ftk::Observable<bool>::create(true);
             p.stopOnScrub = ftk::Observable<bool>::create(true);
             p.scrub = ftk::Observable<bool>::create(false);
-            p.timeScrub = ftk::Observable<OTIO_NS::RationalTime>::create(invalidTime);
+            p.timeScrub = ftk::Observable<std::optional<OTIO_NS::RationalTime> >::create();
             p.itemOptions = ftk::Observable<ItemOptions>::create();
             p.displayOptions = ftk::Observable<DisplayOptions>::create();
 
@@ -136,7 +136,7 @@ namespace tl
             if (player == p.player)
                 return;
 
-            p.timeRange = invalidTimeRange;
+            p.timeRange = OTIO_NS::TimeRange();
             p.playback = Playback::Stop;
             p.playbackObserver.reset();
             p.currentTimeObserver.reset();
@@ -335,7 +335,7 @@ namespace tl
             return _p->scrub;
         }
 
-        std::shared_ptr<ftk::IObservable<OTIO_NS::RationalTime> > TimelineWidget::observeTimeScrub() const
+        std::shared_ptr<ftk::IObservable<std::optional<OTIO_NS::RationalTime> > > TimelineWidget::observeTimeScrub() const
         {
             return _p->timeScrub;
         }
@@ -677,9 +677,9 @@ namespace tl
                             _scrollUpdate();
                         });
 
-                    p.timeScrubObserver = ftk::Observer<OTIO_NS::RationalTime>::create(
+                    p.timeScrubObserver = ftk::Observer<std::optional<OTIO_NS::RationalTime> >::create(
                         p.timelineItem->observeTimeScrub(),
-                        [this](const OTIO_NS::RationalTime& value)
+                        [this](const std::optional<OTIO_NS::RationalTime>& value)
                         {
                             _p->timeScrub->setIfChanged(value);
                         });

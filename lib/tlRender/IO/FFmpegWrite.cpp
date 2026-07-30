@@ -58,7 +58,7 @@ namespace tl
             FTK_P();
 
             p.fileName = path.get();
-            if (info.video.empty())
+            if (info.video.empty() || !info.videoTime.has_value())
             {
                 throw std::runtime_error(ftk::Format("No video: \"{0}\"").arg(p.fileName));
             }
@@ -103,7 +103,7 @@ namespace tl
             p.avCodecContext->height = videoInfo.size.h;
             p.avCodecContext->sample_aspect_ratio = AVRational({ 1, 1 });
             p.avCodecContext->pix_fmt = avCodec->pix_fmts[0];
-            const auto rational = toRational(info.videoTime.duration().rate());
+            const auto rational = toRational(info.videoTime->duration().rate());
             p.avCodecContext->time_base = { rational.second, rational.first };
             p.avCodecContext->framerate = { rational.first, rational.second };
             p.avCodecContext->profile = avProfile;
@@ -618,7 +618,7 @@ namespace tl
 
             const auto timeRational = toRational(time.rate());
             p.avFrame->pts = av_rescale_q(
-                (time - _info.videoTime.start_time()).value(),
+                (time - _info.videoTime->start_time()).value(),
                 { timeRational.second, timeRational.first },
                 p.avVideoStream->time_base);
             _encodeVideo(p.avFrame);

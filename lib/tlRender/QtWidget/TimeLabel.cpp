@@ -14,7 +14,7 @@ namespace tl
     {
         struct TimeLabel::Private
         {
-            OTIO_NS::RationalTime value = invalidTime;
+            std::optional<OTIO_NS::RationalTime> value;
             TimeUnits timeUnits = TimeUnits::Timecode;
             QLabel* label = nullptr;
             qt::TimeObject* timeObject = nullptr;
@@ -69,7 +69,7 @@ namespace tl
             updateGeometry();
         }
 
-        const OTIO_NS::RationalTime& TimeLabel::value() const
+        const std::optional<OTIO_NS::RationalTime>& TimeLabel::value() const
         {
             return _p->value;
         }
@@ -79,11 +79,10 @@ namespace tl
             return _p->timeUnits;
         }
 
-        void TimeLabel::setValue(const OTIO_NS::RationalTime& value)
+        void TimeLabel::setValue(const std::optional<OTIO_NS::RationalTime>& value)
         {
             FTK_P();
-            if (value.value() == p.value.value() &&
-                value.rate() == p.value.rate())
+            if (compareExact(value, p.value))
                 return;
             p.value = value;
             _textUpdate();
