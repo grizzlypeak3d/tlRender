@@ -1287,8 +1287,11 @@ namespace tl
         {
             return out;
         }
-        // The same walk the request thread makes: the timeline's own start is
+        // The same lookup the request thread makes: the timeline's own start is
         // taken off, and the first enabled video track holding that time wins.
+        // Bisected rather than walked, because this is asked for the playhead
+        // and for every ruler label that is drawn, and a sequence built out of
+        // the runs of frames it has can be in a great many pieces.
         const OTIO_NS::RationalTime trackTime = time - p.timeRange.start_time();
         for (const auto& otioTrack : p.otioTimeline->video_tracks())
         {
@@ -1296,16 +1299,15 @@ namespace tl
             {
                 continue;
             }
-            for (const auto& otioChild : otioTrack->children())
+            for (const auto& otioChild :
+                p.getTrackChildrenAt(otioTrack, trackTime))
             {
-                auto otioClip = dynamic_cast<const OTIO_NS::Clip*>(otioChild.value);
+                auto otioClip = dynamic_cast<const OTIO_NS::Clip*>(otioChild);
                 if (!otioClip)
                 {
                     continue;
                 }
-                OTIO_NS::ErrorStatus errorStatus;
-                const auto rangeInParent =
-                    otioClip->trimmed_range_in_parent(&errorStatus);
+                const auto rangeInParent = p.getTrimmedRangeInParent(otioClip);
                 if (!rangeInParent.has_value() ||
                     !rangeInParent.value().contains(trackTime))
                 {
@@ -1378,6 +1380,9 @@ namespace tl
             {
                 continue;
             }
+            // Every clip, not just the one at some time: this is for finding
+            // which clip holds a frame that was asked for by number. The ranges
+            // still come from the index rather than from OTIO.
             for (const auto& otioChild : otioTrack->children())
             {
                 auto otioClip = dynamic_cast<const OTIO_NS::Clip*>(otioChild.value);
@@ -1385,9 +1390,7 @@ namespace tl
                 {
                     continue;
                 }
-                OTIO_NS::ErrorStatus errorStatus;
-                const auto rangeInParent =
-                    otioClip->trimmed_range_in_parent(&errorStatus);
+                const auto rangeInParent = p.getTrimmedRangeInParent(otioClip);
                 if (!rangeInParent.has_value())
                 {
                     continue;
