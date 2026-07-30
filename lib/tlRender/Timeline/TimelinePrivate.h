@@ -38,6 +38,16 @@ namespace tl
         // done in a single pass per track; the OTIO timeline is never
         // written, so this can be read without locking.
         std::map<const OTIO_NS::Composable*, OTIO_NS::TimeRange> trimmedRangeInParent;
+        // The items of each track in time order. Only one item can cover a
+        // given time, but _requests() used to walk and cast every child of
+        // every track to find it, which kept a hundred thousand clips from
+        // reaching the first frame even once the ranges above were cached.
+        struct TrackItem
+        {
+            OTIO_NS::Item* item = nullptr;
+            OTIO_NS::TimeRange range;
+        };
+        std::map<const OTIO_NS::Track*, std::vector<TrackItem> > trackItems;
         // The bundle stays open so that a media reference's byte ranges can
         // be worked out when it is first read. Doing it for every reference
         // at open meant generating a file name, decoding it as a URL and
@@ -295,6 +305,13 @@ namespace tl
         //! item nested below a track, falls back to asking OTIO.
         std::optional<OTIO_NS::TimeRange> getTrimmedRangeInParent(
             const OTIO_NS::Composable*) const;
+
+        //! Get the children of a track that can cover the given time, found by
+        //! bisecting trackItems. A track that was not indexed gives back all
+        //! of its children, so the caller still sees everything it used to.
+        std::vector<OTIO_NS::Composable*> getTrackChildrenAt(
+            const OTIO_NS::Track*,
+            const OTIO_NS::RationalTime&) const;
         // Aggregate reader and frame errors into the mutex-guarded
         // fields. Called on the request thread before completing a
         // request, so the error state is current by the time a caller's

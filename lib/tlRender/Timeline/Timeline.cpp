@@ -675,13 +675,25 @@ namespace tl
             {
                 continue;
             }
+            auto& trackItems = p.trackItems[otioTrack];
             for (const auto& i : ranges)
             {
                 if (const auto trimmed = otioTrack->trim_child_range(i.second))
                 {
                     p.trimmedRangeInParent[i.first] = trimmed.value();
+                    if (auto otioItem = dynamic_cast<OTIO_NS::Item*>(i.first))
+                    {
+                        trackItems.push_back({ otioItem, trimmed.value() });
+                    }
                 }
             }
+            std::sort(
+                trackItems.begin(),
+                trackItems.end(),
+                [](const Private::TrackItem& a, const Private::TrackItem& b)
+                {
+                    return a.range.start_time() < b.range.start_time();
+                });
         }
         for (const auto& otioClip :
             p.otioTimeline.value->find_children<OTIO_NS::Clip>())
@@ -1017,6 +1029,40 @@ namespace tl
             return otioItem->trimmed_range_in_parent();
         }
         return std::nullopt;
+    }
+
+    std::vector<OTIO_NS::Composable*> Timeline::Private::getTrackChildrenAt(
+        const OTIO_NS::Track* otioTrack,
+        const OTIO_NS::RationalTime& time) const
+    {
+        std::vector<OTIO_NS::Composable*> out;
+        const auto i = trackItems.find(otioTrack);
+        if (i == trackItems.end())
+        {
+            for (const auto& otioChild : otioTrack->children())
+            {
+                out.push_back(otioChild.value);
+            }
+            return out;
+        }
+        const auto& items = i->second;
+        auto j = std::upper_bound(
+            items.begin(),
+            items.end(),
+            time,
+            [](const OTIO_NS::RationalTime& value, const TrackItem& item)
+            {
+                return value < item.range.start_time();
+            });
+        if (j != items.begin())
+        {
+            --j;
+            if (j->range.contains(time))
+            {
+                out.push_back(j->item);
+            }
+        }
+        return out;
     }
 
     namespace
@@ -1981,9 +2027,13 @@ namespace tl
             {
                 if (otioTrack->enabled())
                 {
-                    for (const auto& otioChild : otioTrack->children())
+                    // Only the item covering the requested time can add a
+                    // layer, so bisect for it rather than asking every child of
+                    // the track.
+                    for (const auto& otioChild : p.getTrackChildrenAt(
+                        otioTrack, request->time - p.timeRange.start_time()))
                     {
-                        if (auto otioItem = dynamic_cast<OTIO_NS::Item*>(otioChild.value))
+                        if (auto otioItem = dynamic_cast<OTIO_NS::Item*>(otioChild))
                         {
                             const auto requestTime = request->time - p.timeRange.start_time();
                             OTIO_NS::ErrorStatus errorStatus;
