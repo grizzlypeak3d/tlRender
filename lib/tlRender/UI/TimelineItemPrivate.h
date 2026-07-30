@@ -235,6 +235,9 @@ namespace tl
                 const ItemData&);
 
             void cancelRequests(Item&);
+            //! Take an item's request ids without cancelling them, so that a
+            //! whole timeline's worth can be cancelled in one call.
+            void takeRequests(Item&, std::vector<uint64_t>&);
         };
     }
 }

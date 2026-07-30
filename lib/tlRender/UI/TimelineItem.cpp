@@ -182,6 +182,17 @@ namespace tl
         void TimelineItem::Private::cancelRequests(Item& item)
         {
             std::vector<uint64_t> ids;
+            takeRequests(item, ids);
+            if (!ids.empty())
+            {
+                thumbnailSystem->cancelRequests(ids);
+            }
+        }
+
+        void TimelineItem::Private::takeRequests(
+            Item& item,
+            std::vector<uint64_t>& ids)
+        {
             if (item.infoRequest.future.valid())
             {
                 ids.push_back(item.infoRequest.id);
@@ -197,10 +208,6 @@ namespace tl
                 ids.push_back(i.second.id);
             }
             item.waveformRequests.clear();
-            if (!ids.empty())
-            {
-                thumbnailSystem->cancelRequests(ids);
-            }
         }
 
         void TimelineItem::_init(
@@ -1310,15 +1317,23 @@ namespace tl
         void TimelineItem::_cancelRequests()
         {
             FTK_P();
+            // One cancellation for the whole timeline: cancelling per item cost
+            // a walk of every pending request each time, which on a hundred
+            // thousand clips took longer than the rest of shutdown.
+            std::vector<uint64_t> ids;
             for (auto& track : p.tracks)
             {
                 for (auto& item : track.items)
                 {
-                    p.cancelRequests(item);
+                    p.takeRequests(item, ids);
                     item.thumbnails.clear();
                     item.waveforms.clear();
                     item.media.clear();
                 }
+            }
+            if (!ids.empty())
+            {
+                p.thumbnailSystem->cancelRequests(ids);
             }
             p.active.assign(p.tracks.size(), Private::Range());
             p.activePrev = p.active;

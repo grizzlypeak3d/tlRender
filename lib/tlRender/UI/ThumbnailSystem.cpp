@@ -25,6 +25,7 @@
 #include <chrono>
 #include <list>
 #include <mutex>
+#include <set>
 #include <sstream>
 #include <thread>
 
@@ -605,13 +606,16 @@ namespace tl
         void ThumbnailSystem::cancelRequests(const std::vector<uint64_t>& ids)
         {
             FTK_P();
+            // Looked up as a set: this is called with the requests of a whole
+            // timeline's worth of items, and searching the list of ids for each
+            // pending request made cancelling cost the product of the two.
+            const std::set<uint64_t> idSet(ids.begin(), ids.end());
             {
                 std::unique_lock<std::mutex> lock(p.infoMutex.mutex);
                 auto i = p.infoMutex.requests.begin();
                 while (i != p.infoMutex.requests.end())
                 {
-                    const auto j = std::find(ids.begin(), ids.end(), (*i)->id);
-                    if (j != ids.end())
+                    if (idSet.find((*i)->id) != idSet.end())
                     {
                         i = p.infoMutex.requests.erase(i);
                     }
@@ -626,8 +630,7 @@ namespace tl
                 auto i = p.thumbnailMutex.requests.begin();
                 while (i != p.thumbnailMutex.requests.end())
                 {
-                    const auto j = std::find(ids.begin(), ids.end(), (*i)->id);
-                    if (j != ids.end())
+                    if (idSet.find((*i)->id) != idSet.end())
                     {
                         i = p.thumbnailMutex.requests.erase(i);
                     }
@@ -642,8 +645,7 @@ namespace tl
                 auto i = p.waveformMutex.requests.begin();
                 while (i != p.waveformMutex.requests.end())
                 {
-                    const auto j = std::find(ids.begin(), ids.end(), (*i)->id);
-                    if (j != ids.end())
+                    if (idSet.find((*i)->id) != idSet.end())
                     {
                         i = p.waveformMutex.requests.erase(i);
                     }
