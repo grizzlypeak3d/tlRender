@@ -56,18 +56,36 @@ namespace tl
         opentime::ErrorStatus* errorStatus)
     {
         std::optional<OTIO_NS::RationalTime> out;
+        // Whether the whole string was a number, which atoi() and atof() do
+        // not say: they answer 0 for text that is not one at all, so "abc"
+        // used to read as frame zero.
+        const auto consumed =
+            [&text](const char* end)
+            {
+                return
+                    end != text.c_str() &&
+                    end == text.c_str() + text.size();
+            };
         switch (units)
         {
         case TimeUnits::Frames:
         {
-            const int value = std::atoi(text.c_str());
-            out = OTIO_NS::RationalTime::from_frames(value, rate);
+            char* end = nullptr;
+            const long value = std::strtol(text.c_str(), &end, 10);
+            if (consumed(end))
+            {
+                out = OTIO_NS::RationalTime::from_frames(value, rate);
+            }
             break;
         }
         case TimeUnits::Seconds:
         {
-            const double value = std::atof(text.c_str());
-            out = OTIO_NS::RationalTime::from_seconds(value).rescaled_to(rate);
+            char* end = nullptr;
+            const double value = std::strtod(text.c_str(), &end);
+            if (consumed(end))
+            {
+                out = OTIO_NS::RationalTime::from_seconds(value).rescaled_to(rate);
+            }
             break;
         }
         case TimeUnits::Timecode:
