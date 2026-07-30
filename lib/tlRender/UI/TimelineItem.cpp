@@ -898,6 +898,25 @@ namespace tl
                 track.durationLabel->setMarginRole(ftk::SizeRole::MarginInside);
                 track.durationLabel->setEnabled(otioTrack->enabled());
 
+                // OTIO works out an item's range in its track by summing the
+                // duration of every preceding sibling, so asking each child
+                // for its own range makes building the items quadratic: twenty
+                // thousand clips took seconds and a hundred thousand never
+                // finished. One pass gives the same answer for all of them.
+                std::map<const OTIO_NS::Composable*, OTIO_NS::TimeRange> childRanges;
+                {
+                    OTIO_NS::ErrorStatus errorStatus;
+                    for (const auto& i :
+                        otioTrack->range_of_all_children(&errorStatus))
+                    {
+                        if (const auto trimmed =
+                            otioTrack->trim_child_range(i.second))
+                        {
+                            childRanges[i.first] = trimmed.value();
+                        }
+                    }
+                }
+
                 for (const auto& trackChild : otioTrack->children())
                 {
                     Private::Item item;
@@ -950,8 +969,13 @@ namespace tl
                     if (!otioItem)
                         continue;
 
-                    const auto timeRangeOpt = otioItem->trimmed_range_in_parent();
-                    if (timeRangeOpt.has_value())
+                    const auto childRange = childRanges.find(otioItem);
+                    if (childRange != childRanges.end())
+                    {
+                        item.timeRange = childRange->second;
+                    }
+                    else if (const auto timeRangeOpt =
+                        otioItem->trimmed_range_in_parent())
                     {
                         item.timeRange = timeRangeOpt.value();
                     }
