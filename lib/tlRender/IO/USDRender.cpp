@@ -579,13 +579,13 @@ namespace tl
                 {
                     ioOptions = request->options;
                 }
-                auto i = ioOptions.find("USD/StageCacheCount");
-                if (i != ioOptions.end())
+                if (auto i = ioOptions.find("USD/StageCacheCount");
+                    i != ioOptions.end())
                 {
                     stageCacheCount = std::atoll(i->second.c_str());
                 }
-                i = ioOptions.find("USD/DiskCacheGB");
-                if (i != ioOptions.end())
+                if (auto i = ioOptions.find("USD/DiskCacheGB");
+                    i != ioOptions.end())
                 {
                     diskCacheByteCount = std::atoi(i->second.c_str()) * ftk::gigabyte;
                 }
@@ -629,14 +629,14 @@ namespace tl
                 }
 
                 // Handle information requests.
-                i = ioOptions.find("USD/RenderWidth");
-                if (i != ioOptions.end())
+                if (auto i = ioOptions.find("USD/RenderWidth");
+                    i != ioOptions.end())
                 {
                     renderWidth = std::atoi(i->second.c_str());
                 }
                 std::string cameraName;
-                i = ioOptions.find("USD/CameraName");
-                if (i != ioOptions.end())
+                if (auto i = ioOptions.find("USD/CameraName");
+                    i != ioOptions.end())
                 {
                     cameraName = i->second;
                 }
@@ -769,40 +769,40 @@ namespace tl
                             //std::cout << fileName << " timeCode: " << timeCode << std::endl;
 
                             // Get options.
-                            i = ioOptions.find("USD/RenderWidth");
-                            if (i != ioOptions.end())
+                            if (auto i = ioOptions.find("USD/RenderWidth");
+                                i != ioOptions.end())
                             {
                                 renderWidth = std::atoi(i->second.c_str());
                             }
                             float complexity = 1.F;
-                            i = ioOptions.find("USD/Complexity");
-                            if (i != ioOptions.end())
+                            if (auto i = ioOptions.find("USD/Complexity");
+                                i != ioOptions.end())
                             {
                                 complexity = std::atof(i->second.c_str());
                             }
                             DrawMode drawMode = DrawMode::ShadedSmooth;
-                            i = ioOptions.find("USD/DrawMode");
-                            if (i != ioOptions.end())
+                            if (auto i = ioOptions.find("USD/DrawMode");
+                                i != ioOptions.end())
                             {
                                 from_string(i->second, drawMode);
                             }
                             bool enableLighting = true;
-                            i = ioOptions.find("USD/EnableLighting");
-                            if (i != ioOptions.end())
+                            if (auto i = ioOptions.find("USD/EnableLighting");
+                                i != ioOptions.end())
                             {
                                 enableLighting = std::atoi(i->second.c_str());
                             }
                             bool sRGB = true;
-                            i = ioOptions.find("USD/sRGB");
-                            if (i != ioOptions.end())
+                            if (auto i = ioOptions.find("USD/sRGB");
+                                i != ioOptions.end())
                             {
                                 sRGB = std::atoi(i->second.c_str());
                             }
 
                             // Setup the camera.
                             std::string cameraName;
-                            i = ioOptions.find("USD/CameraName");
-                            if (i != ioOptions.end())
+                            if (auto i = ioOptions.find("USD/CameraName");
+                                i != ioOptions.end())
                             {
                                 cameraName = i->second;
                             }

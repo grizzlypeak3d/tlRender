@@ -84,49 +84,46 @@ namespace tl
         ReadOptions getReadOptions(const IOOptions& options)
         {
             ReadOptions out;
-            auto i = options.find("FFmpeg/YUVToRGB");
-            if (i != options.end())
+            if (auto i = options.find("FFmpeg/YUVToRGB"); i != options.end())
             {
                 std::stringstream ss(i->second);
                 ss >> out.yuvToRGBConversion;
             }
-            i = options.find("FFmpeg/HWAccel");
-            if (i != options.end())
+            if (auto i = options.find("FFmpeg/HWAccel"); i != options.end())
             {
                 std::stringstream ss(i->second);
                 ss >> out.hwAccel;
             }
-            i = options.find("FFmpeg/AudioChannelCount");
-            if (i != options.end())
+            if (auto i = options.find("FFmpeg/AudioChannelCount");
+                i != options.end())
             {
                 std::stringstream ss(i->second);
                 ss >> out.audioConvertInfo.channelCount;
             }
-            i = options.find("FFmpeg/AudioType");
-            if (i != options.end())
+            if (auto i = options.find("FFmpeg/AudioType"); i != options.end())
             {
                 from_string(i->second, out.audioConvertInfo.type);
             }
-            i = options.find("FFmpeg/AudioSampleRate");
-            if (i != options.end())
+            if (auto i = options.find("FFmpeg/AudioSampleRate");
+                i != options.end())
             {
                 std::stringstream ss(i->second);
                 ss >> out.audioConvertInfo.sampleRate;
             }
-            i = options.find("FFmpeg/ThreadCount");
-            if (i != options.end())
+            if (auto i = options.find("FFmpeg/ThreadCount");
+                i != options.end())
             {
                 std::stringstream ss(i->second);
                 ss >> out.threadCount;
             }
-            i = options.find("FFmpeg/VideoBufferSize");
-            if (i != options.end())
+            if (auto i = options.find("FFmpeg/VideoBufferSize");
+                i != options.end())
             {
                 std::stringstream ss(i->second);
                 ss >> out.videoBufferSize;
             }
-            i = options.find("FFmpeg/AudioBufferSize");
-            if (i != options.end())
+            if (auto i = options.find("FFmpeg/AudioBufferSize");
+                i != options.end())
             {
                 from_string(i->second, out.audioBufferSize);
             }

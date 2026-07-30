@@ -320,19 +320,19 @@ namespace tl
                 // Get audio conversion information.
                 AudioInfo audioConvertInfo;
                 {
-                    auto i = ioOptions.find("FFmpeg/AudioChannelCount");
-                    if (i != ioOptions.end())
+                    if (auto i = ioOptions.find("FFmpeg/AudioChannelCount");
+                        i != ioOptions.end())
                     {
                         std::stringstream ss(i->second);
                         ss >> audioConvertInfo.channelCount;
                     }
-                    i = ioOptions.find("FFmpeg/AudioType");
-                    if (i != ioOptions.end())
+                    if (auto i = ioOptions.find("FFmpeg/AudioType");
+                        i != ioOptions.end())
                     {
                         from_string(i->second, audioConvertInfo.type);
                     }
-                    i = ioOptions.find("FFmpeg/AudioSampleRate");
-                    if (i != ioOptions.end())
+                    if (auto i = ioOptions.find("FFmpeg/AudioSampleRate");
+                        i != ioOptions.end())
                     {
                         std::stringstream ss(i->second);
                         ss >> audioConvertInfo.sampleRate;
@@ -357,19 +357,17 @@ namespace tl
                 double duration = 0.0;
                 std::string timecode;
                 std::string timeReference;
-                auto i = json.find("format");
-                if (i != json.end())
+                if (auto i = json.find("format"); i != json.end())
                 {
                     // Check for a duration.
-                    auto j = i.value().find("duration");
-                    if (j != i.value().end())
+                    if (auto j = i.value().find("duration");
+                        j != i.value().end())
                     {
                         duration = atoi(j->get<std::string>().c_str());
                     }
 
                     // Get the metadata tags.
-                    j = i.value().find("tags");
-                    if (j != i.value().end())
+                    if (auto j = i.value().find("tags"); j != i.value().end())
                     {
                         for (const auto& k : j->items())
                         {
@@ -394,8 +392,7 @@ namespace tl
                 }
 
                 // Parse stream information.
-                i = json.find("streams");
-                if (i != json.end())
+                if (auto i = json.find("streams"); i != json.end())
                 {
                     // Find the first data stream.
                     for (const auto& j : i.value())

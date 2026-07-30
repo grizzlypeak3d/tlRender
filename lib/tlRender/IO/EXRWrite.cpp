@@ -20,13 +20,13 @@ namespace tl
         {
             ISeqWrite::_init(path, info, options, logSystem);
 
-            auto i = options.find("OpenEXR/Compression");
-            if (i != options.end())
+            if (auto i = options.find("OpenEXR/Compression");
+                i != options.end())
             {
                 from_string(i->second, _compression);
             }
-            i = options.find("OpenEXR/DWACompressionLevel");
-            if (i != options.end())
+            if (auto i = options.find("OpenEXR/DWACompressionLevel");
+                i != options.end())
             {
                 std::stringstream ss(i->second);
                 ss >> _dwaCompressionLevel;

@@ -394,8 +394,8 @@ namespace tl
                     // current-audio-frame display.
                     for (int64_t s : { seconds - 1, seconds, seconds + 1 })
                     {
-                        const auto j = audioMutex.cache.find(s);
-                        if (j != audioMutex.cache.end())
+                        if (const auto j = audioMutex.cache.find(s);
+                            j != audioMutex.cache.end())
                         {
                             audioFrameList.push_back(j->second);
                         }

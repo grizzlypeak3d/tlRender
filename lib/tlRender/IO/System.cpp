@@ -132,8 +132,7 @@ namespace tl
             for (auto fileType : { FileType::Media, FileType::Seq })
             {
                 const auto& exts = plugin->getExts(static_cast<int>(fileType));
-                const auto i = exts.find(lower);
-                if (i != exts.end())
+                if (const auto i = exts.find(lower); i != exts.end())
                 {
                     out = fileType;
                     break;
@@ -332,8 +331,7 @@ namespace tl
             for (auto fileType : { FileType::Media, FileType::Seq })
             {
                 const auto& exts = plugin->getExts(static_cast<int>(fileType));
-                const auto i = exts.find(lower);
-                if (i != exts.end())
+                if (const auto i = exts.find(lower); i != exts.end())
                 {
                     out = fileType;
                     break;

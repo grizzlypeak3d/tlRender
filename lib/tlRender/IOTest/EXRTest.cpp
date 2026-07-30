@@ -131,8 +131,7 @@ namespace tl
                 const auto frameTags = videoData.image->getTags();
                 for (const auto& j : frameTags)
                 {
-                    const auto k = tags.find(j.first);
-                    if (k != tags.end())
+                    if (const auto k = tags.find(j.first); k != tags.end())
                     {
                         FTK_ASSERT(k->second == j.second);
                     }

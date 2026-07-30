@@ -110,14 +110,14 @@ namespace tl
             }
             if ("openexr" == format)
             {
-                auto i = options.find("OpenEXR/Compression");
-                if (i != options.end())
+                if (auto i = options.find("OpenEXR/Compression");
+                    i != options.end())
                 {
                     std::string compression = i->second;
                     if ("dwaa" == compression || "dwab" == compression)
                     {
-                        i = options.find("OpenEXR/DWACompressionLevel");
-                        if (i != options.end())
+                        if (auto i = options.find("OpenEXR/DWACompressionLevel");
+                            i != options.end())
                         {
                             compression += ":" + i->second;
                         }

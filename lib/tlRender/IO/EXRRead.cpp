@@ -406,8 +406,8 @@ namespace tl
                 {
                     VideoData out;
                     int layer = 0;
-                    const auto i = options.find("Layer");
-                    if (i != options.end())
+                    if (const auto i = options.find("Layer");
+                        i != options.end())
                     {
                         layer = std::min(
                             std::atoi(i->second.c_str()),
@@ -624,8 +624,8 @@ namespace tl
         double Decode::getSpeed(const IOInfo& info, double defaultSpeed) const
         {
             double out = defaultSpeed;
-            const auto i = info.tags.find("FramesPerSecond");
-            if (i != info.tags.end())
+            if (const auto i = info.tags.find("FramesPerSecond");
+                i != info.tags.end())
             {
                 // The frames per second attribute is stored as a rational
                 // value: "numerator denominator".

@@ -29,8 +29,8 @@ namespace tl
 
         FTK_P();
 
-        const auto i = options.find("SeqIO/DefaultSpeed");
-        if (i != options.end())
+        if (const auto i = options.find("SeqIO/DefaultSpeed");
+            i != options.end())
         {
             std::stringstream ss(i->second);
             ss >> p.defaultSpeed;

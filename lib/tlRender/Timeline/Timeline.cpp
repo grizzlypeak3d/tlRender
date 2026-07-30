@@ -752,19 +752,17 @@ namespace tl
         }
 
         p.otioTimeline = otioTimeline;
-        const auto i = otioTimeline->metadata().find("tlRender");
-        if (i != otioTimeline->metadata().end())
+        if (const auto i = otioTimeline->metadata().find("tlRender");
+            i != otioTimeline->metadata().end())
         {
             try
             {
                 const auto dict = std::any_cast<OTIO_NS::AnyDictionary>(i->second);
-                auto j = dict.find("path");
-                if (j != dict.end())
+                if (auto j = dict.find("path"); j != dict.end())
                 {
                     p.path = ftk::Path(std::any_cast<std::string>(j->second));
                 }
-                j = dict.find("audioPath");
-                if (j != dict.end())
+                if (auto j = dict.find("audioPath"); j != dict.end())
                 {
                     p.audioPath = ftk::Path(std::any_cast<std::string>(j->second));
                 }
@@ -1061,8 +1059,7 @@ namespace tl
         const OTIO_NS::MediaReference* otioRef)
     {
         std::unique_lock<std::mutex> lock(memFilesMutex);
-        const auto i = memFiles.find(otioRef);
-        if (i != memFiles.end())
+        if (const auto i = memFiles.find(otioRef); i != memFiles.end())
         {
             return i->second;
         }
@@ -1182,8 +1179,8 @@ namespace tl
         Timeline::Private::getTrimmedRangeInParent(
             const OTIO_NS::Composable* otioComposable) const
     {
-        const auto i = trimmedRangeInParent.find(otioComposable);
-        if (i != trimmedRangeInParent.end())
+        if (const auto i = trimmedRangeInParent.find(otioComposable);
+            i != trimmedRangeInParent.end())
         {
             return i->second;
         }

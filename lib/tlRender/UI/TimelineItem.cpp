@@ -990,8 +990,8 @@ namespace tl
                     if (!otioItem)
                         continue;
 
-                    const auto childRange = childRanges.find(otioItem);
-                    if (childRange != childRanges.end())
+                    if (const auto childRange = childRanges.find(otioItem);
+                        childRange != childRanges.end())
                     {
                         item.timeRange = childRange->second;
                     }
@@ -1251,8 +1251,8 @@ namespace tl
                 Item::Media media;
                 media.x = x;
                 media.w = thumbnailWidth;
-                const auto i = item.thumbnails.find(mediaTime);
-                if (i != item.thumbnails.end())
+                if (const auto i = item.thumbnails.find(mediaTime);
+                    i != item.thumbnails.end())
                 {
                     media.image = i->second;
                     thumbnails[mediaTime] = i->second;
@@ -1331,8 +1331,8 @@ namespace tl
                 Item::Media media;
                 media.x = x;
                 media.w = width;
-                const auto i = item.waveforms.find(mediaRange.start_time());
-                if (i != item.waveforms.end())
+                if (const auto i = item.waveforms.find(mediaRange.start_time());
+                    i != item.waveforms.end())
                 {
                     media.mesh = i->second;
                     waveforms[mediaRange.start_time()] = i->second;

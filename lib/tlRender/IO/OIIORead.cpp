@@ -177,8 +177,7 @@ namespace tl
 
             // Find the layer.
             int layer = 0;
-            const auto i = options.find("Layer");
-            if (i != options.end())
+            if (const auto i = options.find("Layer"); i != options.end())
             {
                 layer = std::atoi(i->second.c_str());
             }

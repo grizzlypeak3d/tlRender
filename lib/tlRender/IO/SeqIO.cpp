@@ -50,8 +50,7 @@ namespace tl
     MissingFrames getMissingFrames(const IOOptions& value)
     {
         MissingFrames out = SeqOptions().missingFrames;
-        const auto i = value.find("SeqIO/MissingFrames");
-        if (i != value.end())
+        if (const auto i = value.find("SeqIO/MissingFrames"); i != value.end())
         {
             from_string(i->second, out);
         }
@@ -70,8 +69,7 @@ namespace tl
         // Added later than the rest, so settings written by an earlier version
         // do not carry it. Insisting on it would throw away every other
         // sequence setting along with it.
-        const auto i = json.find("MissingFrames");
-        if (i != json.end())
+        if (const auto i = json.find("MissingFrames"); i != json.end())
         {
             from_string(i->get<std::string>(), value.missingFrames);
         }

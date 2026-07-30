@@ -1030,8 +1030,8 @@ namespace tl
             // Update the current video frame.
             if (p.hasVideo())
             {
-                const auto i = p.thread.videoCache.find(p.thread.state.currentTime);
-                if (i != p.thread.videoCache.end())
+                if (const auto i = p.thread.videoCache.find(p.thread.state.currentTime);
+                    i != p.thread.videoCache.end())
                 {
                     std::unique_lock<std::mutex> lock(p.mutex.mutex);
                     p.mutex.currentVideoFrame = i->second;
@@ -1075,8 +1075,8 @@ namespace tl
                     std::unique_lock<std::mutex> lock(p.audioMutex.mutex);
                     for (int64_t s : { seconds - 1, seconds, seconds + 1 })
                     {
-                        const auto i = p.audioMutex.cache.find(s);
-                        if (i != p.audioMutex.cache.end())
+                        if (const auto i = p.audioMutex.cache.find(s);
+                            i != p.audioMutex.cache.end())
                         {
                             audioFrameList.push_back(i->second);
                         }

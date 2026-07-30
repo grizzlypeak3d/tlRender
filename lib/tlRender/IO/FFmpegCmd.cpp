@@ -17,14 +17,12 @@ namespace tl
     {
         Options::Options(const IOOptions& value)
         {
-            auto i = value.find("FFmpeg/FFmpegPath");
-            if (i != value.end())
+            if (auto i = value.find("FFmpeg/FFmpegPath"); i != value.end())
             {
                 std::stringstream ss(i->second);
                 ss >> ffmpegPath;
             }
-            i = value.find("FFmpeg/FFprobePath");
-            if (i != value.end())
+            if (auto i = value.find("FFmpeg/FFprobePath"); i != value.end())
             {
                 std::stringstream ss(i->second);
                 ss >> ffprobePath;
