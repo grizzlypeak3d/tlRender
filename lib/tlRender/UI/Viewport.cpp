@@ -35,6 +35,8 @@ namespace tl
             std::shared_ptr<ftk::Observable<double> > zoom;
             ftk::RangeD zoomRange = ftk::RangeD(0.01, 512.0);
             std::shared_ptr<ftk::Observable<std::pair<ftk::V2I, double> > > viewPosZoom;
+            std::shared_ptr<ftk::Observable<double> > tileZoom;
+            size_t activeTile = 0;
             std::shared_ptr<ftk::Observable<bool> > frameView;
             std::shared_ptr<ftk::Observable<bool> > framed;
             std::shared_ptr<ftk::Observable<double> > fps;
@@ -109,6 +111,7 @@ namespace tl
             p.zoom = ftk::Observable<double>::create(1.0);
             p.viewPosZoom = ftk::Observable<std::pair<ftk::V2I, double> >::create(
                 std::make_pair(ftk::V2I(), 1.0));
+            p.tileZoom = ftk::Observable<double>::create(1.0);
             p.frameView = ftk::Observable<bool>::create(true);
             p.framed = ftk::Observable<bool>::create(false);
             p.fps = ftk::Observable<double>::create(0.0);
@@ -146,6 +149,7 @@ namespace tl
             FTK_P();
             if (p.compareOptions->setIfChanged(value))
             {
+                p.tileZoom->setIfChanged(tl::getTileZoom(value, p.activeTile));
                 p.doRender = true;
                 setDrawUpdate();
             }
@@ -337,6 +341,12 @@ namespace tl
                     {
                         FTK_P();
                         p.videoFrame = value;
+                        if (p.activeTile >= p.videoFrame.size())
+                        {
+                            p.activeTile = 0;
+                        }
+                        p.tileZoom->setIfChanged(
+                            tl::getTileZoom(p.compareOptions->get(), p.activeTile));
 
                         if (p.fpsData.has_value())
                         {
@@ -432,6 +442,60 @@ namespace tl
             setViewPosAndZoom(pos, zoomClamped);
         }
 
+        double Viewport::getTileZoom() const
+        {
+            return _p->tileZoom->get();
+        }
+
+        std::shared_ptr<ftk::IObservable<double> > Viewport::observeTileZoom() const
+        {
+            return _p->tileZoom;
+        }
+
+        void Viewport::setTileZoom(double value)
+        {
+            FTK_P();
+            const double zoom = ftk::clamp(value, p.zoomRange.min(), p.zoomRange.max());
+            CompareOptions options = p.compareOptions->get();
+            const size_t count = std::max<size_t>(
+                1,
+                std::max(p.videoFrame.size(), p.activeTile + 1));
+            if (options.tileZoomSync)
+            {
+                options.tileZooms.assign(count, zoom);
+            }
+            else
+            {
+                options.tileZooms.resize(count, 1.0);
+                options.tileZooms[p.activeTile] = zoom;
+            }
+            setCompareOptions(options);
+        }
+
+        bool Viewport::isTileZoomSync() const
+        {
+            return _p->compareOptions->get().tileZoomSync;
+        }
+
+        void Viewport::setTileZoomSync(bool value)
+        {
+            FTK_P();
+            CompareOptions options = p.compareOptions->get();
+            if (value != options.tileZoomSync)
+            {
+                if (value)
+                {
+                    const double zoom = tl::getTileZoom(options, p.activeTile);
+                    const size_t count = std::max<size_t>(
+                        1,
+                        std::max(p.videoFrame.size(), p.activeTile + 1));
+                    options.tileZooms.assign(count, zoom);
+                }
+                options.tileZoomSync = value;
+                setCompareOptions(options);
+            }
+        }
+
         bool Viewport::hasFrameView() const
         {
             return _p->frameView->get();
@@ -480,21 +544,42 @@ namespace tl
         void Viewport::resetZoom()
         {
             FTK_P();
-            setZoom(1.F, _getViewportCenter());
+            if (Compare::Tile == p.compareOptions->get().compare)
+            {
+                setTileZoom(1.0);
+            }
+            else
+            {
+                setZoom(1.F, _getViewportCenter());
+            }
         }
 
         void Viewport::zoomIn()
         {
             FTK_P();
-            setZoom(
-                p.zoom->get() * 2.0,
-                p.mouse.inside ? p.mouse.pos : _getViewportCenter());
+            if (Compare::Tile == p.compareOptions->get().compare)
+            {
+                setTileZoom(p.tileZoom->get() * 2.0);
+            }
+            else
+            {
+                setZoom(
+                    p.zoom->get() * 2.0,
+                    p.mouse.inside ? p.mouse.pos : _getViewportCenter());
+            }
         }
 
         void Viewport::zoomOut()
         {
             FTK_P();
-            setZoom(p.zoom->get() / 2.0, _getViewportCenter());
+            if (Compare::Tile == p.compareOptions->get().compare)
+            {
+                setTileZoom(p.tileZoom->get() / 2.0);
+            }
+            else
+            {
+                setZoom(p.zoom->get() / 2.0, _getViewportCenter());
+            }
         }
 
         const ftk::RangeD& Viewport::getZoomRange() const
@@ -829,6 +914,7 @@ namespace tl
 
                 const ftk::Box2I& g = getGeometry();
                 p.mouse.pos = event.pos - g.min;
+                _updateActiveTile(p.mouse.pos);
 
                 switch (p.mouse.mode)
                 {
@@ -887,6 +973,7 @@ namespace tl
                 const ftk::Box2I& g = getGeometry();
                 p.mouse.pos = event.pos - g.min;
                 p.mouse.press = p.mouse.pos;
+                _updateActiveTile(p.mouse.pos);
 
                 if (p.panBinding.first == event.button &&
                     ftk::checkKeyModifier(p.panBinding.second, event.modifiers))
@@ -934,13 +1021,24 @@ namespace tl
 
                     const ftk::Box2I& g = getGeometry();
                     p.mouse.pos = event.pos - g.min;
+                    _updateActiveTile(p.mouse.pos);
 
-                    const double zoom = p.zoom->get();
+                    const bool tile =
+                        Compare::Tile == p.compareOptions->get().compare;
+                    const double zoom =
+                        tile ? p.tileZoom->get() : p.zoom->get();
                     const double newZoom =
                         event.value.y > 0 ?
                         zoom * p.mouseWheelScale :
                         zoom / p.mouseWheelScale;
-                    setZoom(newZoom, p.mouse.pos);
+                    if (tile)
+                    {
+                        setTileZoom(newZoom);
+                    }
+                    else
+                    {
+                        setZoom(newZoom, p.mouse.pos);
+                    }
                 }
                 else if (event.modifiers & static_cast<int>(ftk::KeyModifier::Control))
                 {
@@ -962,6 +1060,7 @@ namespace tl
             {
                 const ftk::Box2I& g = getGeometry();
                 p.mouse.pos = event.pos - g.min;
+                _updateActiveTile(p.mouse.pos);
 
                 if (0 == event.modifiers)
                 {
@@ -969,17 +1068,38 @@ namespace tl
                     {
                     case ftk::Key::_0:
                         event.accept = true;
-                        setZoom(1.0, p.mouse.pos);
+                        if (Compare::Tile == p.compareOptions->get().compare)
+                        {
+                            setTileZoom(1.0);
+                        }
+                        else
+                        {
+                            setZoom(1.0, p.mouse.pos);
+                        }
                         break;
 
                     case ftk::Key::Equals:
                         event.accept = true;
-                        setZoom(p.zoom->get() * 2.0, p.mouse.pos);
+                        if (Compare::Tile == p.compareOptions->get().compare)
+                        {
+                            setTileZoom(p.tileZoom->get() * 2.0);
+                        }
+                        else
+                        {
+                            setZoom(p.zoom->get() * 2.0, p.mouse.pos);
+                        }
                         break;
 
                     case ftk::Key::Minus:
                         event.accept = true;
-                        setZoom(p.zoom->get() / 2.0, p.mouse.pos);
+                        if (Compare::Tile == p.compareOptions->get().compare)
+                        {
+                            setTileZoom(p.tileZoom->get() / 2.0);
+                        }
+                        else
+                        {
+                            setZoom(p.zoom->get() / 2.0, p.mouse.pos);
+                        }
                         break;
 
                     case ftk::Key::Backspace:
@@ -996,6 +1116,41 @@ namespace tl
         void Viewport::keyReleaseEvent(ftk::KeyEvent& event)
         {
             event.accept = true;
+        }
+
+        void Viewport::_updateActiveTile(const ftk::V2I& widgetPos)
+        {
+            FTK_P();
+            const auto& options = p.compareOptions->get();
+            if (Compare::Tile != options.compare || p.videoFrame.empty())
+            {
+                return;
+            }
+
+            const ftk::V2I& viewPos = p.viewPos->get();
+            const double zoom = p.zoom->get();
+            const ftk::V2I renderPos(
+                std::lround((widgetPos.x - viewPos.x) / zoom),
+                std::lround((widgetPos.y - viewPos.y) / zoom));
+            const auto& displayOptions = p.displayOptions->get();
+            const auto bounds = getBounds(
+                options,
+                !displayOptions.empty() ?
+                    displayOptions.front().aspectRatio :
+                    AspectRatioOptions(),
+                p.videoFrame);
+            for (size_t i = 0; i < bounds.size(); ++i)
+            {
+                if (ftk::contains(bounds[i], renderPos))
+                {
+                    if (i != p.activeTile)
+                    {
+                        p.activeTile = i;
+                        p.tileZoom->setIfChanged(tl::getTileZoom(options, i));
+                    }
+                    break;
+                }
+            }
         }
 
         bool Viewport::_isMouseInside() const

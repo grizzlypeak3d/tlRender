@@ -166,7 +166,8 @@ namespace tl
                 const ftk::Box2I&,
                 const std::shared_ptr<ftk::ImageOptions>&,
                 const DisplayOptions&,
-                ftk::gl::TextureType colorBuffer);
+                ftk::gl::TextureType colorBuffer,
+                double tileZoom = 1.0);
 
             FTK_PRIVATE();
         };

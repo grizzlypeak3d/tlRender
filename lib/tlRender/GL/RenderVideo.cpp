@@ -661,7 +661,10 @@ namespace tl
                     boxes[i],
                     i < imageOptions.size() ? std::make_shared<ftk::ImageOptions>(imageOptions[i]) : nullptr,
                     i < displayOptions.size() ? displayOptions[i] : DisplayOptions(),
-                    colorBuffer);
+                    colorBuffer,
+                    Compare::Tile == compareOptions.compare ?
+                        getTileZoom(compareOptions, i) :
+                        1.0);
             }
         }
         
@@ -702,7 +705,8 @@ namespace tl
             const ftk::Box2I& box,
             const std::shared_ptr<ftk::ImageOptions>& imageOptions,
             const DisplayOptions& displayOptions,
-            ftk::gl::TextureType colorBuffer)
+            ftk::gl::TextureType colorBuffer,
+            double tileZoom)
         {
             FTK_P();
             
@@ -726,7 +730,7 @@ namespace tl
             // OTIO spatial coordinates a layer fills the buffer as before;
             // with them it keeps its place in the timeline canvas, scaled to
             // the buffer.
-            const auto layerBox = [&videoFrame, &offscreenBufferSize](
+            const auto layerBox = [&videoFrame, &offscreenBufferSize, tileZoom](
                 const std::optional<ftk::Box2F>& bounds)
             {
                 ftk::Box2I out(ftk::V2I(), offscreenBufferSize);
@@ -744,7 +748,10 @@ namespace tl
                             std::lround(bounds.value().max.x * sx),
                             std::lround(bounds.value().max.y * sy)));
                 }
-                return out;
+                return getTileZoomBox(
+                    out,
+                    ftk::Box2I(ftk::V2I(), offscreenBufferSize),
+                    tileZoom);
             };
 
             ftk::gl::OffscreenBufferOptions offscreenBufferOptions;
