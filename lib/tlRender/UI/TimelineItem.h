@@ -111,6 +111,7 @@ namespace tl
                 const ftk::Box2I&,
                 double scale);
 
+            std::string _timeLabel(const OTIO_NS::RationalTime&) const;
             std::string _getDurationLabel(const OTIO_NS::RationalTime&) const;
 
             ftk::Size2I _getLabelMaxSize(const std::shared_ptr<ftk::FontSystem>&) const;

@@ -341,6 +341,48 @@ namespace tl
         return out;
     }
 
+    MissingFrames fromOTIO(
+        OTIO_NS::ImageSequenceReference::MissingFramePolicy value)
+    {
+        MissingFrames out = MissingFrames::Error;
+        switch (value)
+        {
+        case OTIO_NS::ImageSequenceReference::MissingFramePolicy::hold:
+            out = MissingFrames::Hold;
+            break;
+        case OTIO_NS::ImageSequenceReference::MissingFramePolicy::black:
+            out = MissingFrames::Black;
+            break;
+        default: break;
+        }
+        return out;
+    }
+
+    OTIO_NS::ImageSequenceReference::MissingFramePolicy toOTIO(
+        MissingFrames value)
+    {
+        auto out = OTIO_NS::ImageSequenceReference::MissingFramePolicy::error;
+        switch (value)
+        {
+        case MissingFrames::Hold:
+            out = OTIO_NS::ImageSequenceReference::MissingFramePolicy::hold;
+            break;
+        case MissingFrames::Black:
+            out = OTIO_NS::ImageSequenceReference::MissingFramePolicy::black;
+            break;
+        case MissingFrames::Skip:
+        case MissingFrames::Gaps:
+            // Nothing to say: the clips over this reference already cover only
+            // the frames that are there, so no read reaches a missing one and
+            // the policy never comes up. Written as hold so that another
+            // application opening the same reference behaves sanely.
+            out = OTIO_NS::ImageSequenceReference::MissingFramePolicy::hold;
+            break;
+        default: break;
+        }
+        return out;
+    }
+
     OTIO_NS::RationalTime toVideoMediaTime(
         const OTIO_NS::RationalTime& time,
         const OTIO_NS::TimeRange& trimmedRangeInParent,

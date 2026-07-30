@@ -17,6 +17,7 @@
 #include <opentimelineio/gap.h>
 
 #include <algorithm>
+#include <cmath>
 
 namespace tl
 {
@@ -792,6 +793,16 @@ namespace tl
             return out;
         }
 
+        std::string TimelineItem::_timeLabel(
+            const OTIO_NS::RationalTime& value) const
+        {
+            // A position, so it is named in the media's time. The frame the
+            // ruler counts off is not the frame the media calls it when the
+            // sequence was built out of the frames it has.
+            return _data->timeUnitsModel->getLabel(
+                _data->toMediaTime ? _data->toMediaTime(value) : value);
+        }
+
         std::string TimelineItem::_getDurationLabel(const OTIO_NS::RationalTime& value) const
         {
             const OTIO_NS::RationalTime rescaled = value.rescaled_to(_data->speed);
@@ -1189,9 +1200,32 @@ namespace tl
             }
 
             const int w = mediaGeom.w();
+            const double duration = item.timeRange.duration().
+                rescaled_to(item.timeRange.start_time()).value();
+            if (w <= 0 || duration <= 0.0)
+                return;
+
+            // Step whole frames and put each thumbnail where its own frame is.
+            // Stepping pixels instead and asking afterwards which frame each one
+            // landed on left the image as much as a frame away from the frame it
+            // showed: unnoticeable while every thumbnail resolves and they tile
+            // into a strip, plain on a sequence where only some of them do.
+            const double perFrame = w / duration;
+            const int64_t start = static_cast<int64_t>(
+                std::floor(item.timeRange.start_time().value()));
+            const int64_t end = start + static_cast<int64_t>(duration);
+            // Rounded rather than rounded up, so the strip stays about as dense
+            // as it was: a step that comes out short overlaps the one before by
+            // less than a frame, which reads better than a gap.
+            const int64_t frameStep = std::max(
+                static_cast<int64_t>(1),
+                static_cast<int64_t>(std::round(thumbnailWidth / perFrame)));
+
             std::map<OTIO_NS::RationalTime, std::shared_ptr<ftk::Image> > thumbnails;
-            for (int x = 0; x < w; x += thumbnailWidth)
+            for (int64_t frame = start; frame < end; frame += frameStep)
             {
+                const int x = static_cast<int>(
+                    std::round((frame - start) * perFrame));
                 const ftk::Box2I box(
                     mediaGeom.min.x + x,
                     mediaGeom.min.y,
@@ -1200,12 +1234,9 @@ namespace tl
                 if (!ftk::intersects(box, activeRect))
                     continue;
 
-                const OTIO_NS::RationalTime time = OTIO_NS::RationalTime(
-                    item.timeRange.start_time().value() +
-                    (w > 1 ? (x / static_cast<double>(w - 1)) : 0) *
-                    item.timeRange.duration().rescaled_to(item.timeRange.start_time()).value(),
-                    item.timeRange.start_time().rate()).
-                    floor();
+                const OTIO_NS::RationalTime time(
+                    static_cast<double>(frame),
+                    item.timeRange.start_time().rate());
                 const OTIO_NS::RationalTime mediaTime = toVideoMediaTime(
                     time,
                     item.timeRange,
@@ -1767,7 +1798,7 @@ namespace tl
             const ftk::DrawEvent& event)
         {
             FTK_P();
-            if (_timeRange != invalidTimeRange)
+            if (isValid(_timeRange))
             {
                 const ftk::Box2I& g = getGeometry();
                 const double rate = _timeRange.duration().rate();
@@ -1779,7 +1810,8 @@ namespace tl
                     for (double t = t0; t <= t1; t += seconds)
                     {
                         const int x = timeToPos(OTIO_NS::RationalTime(t, 1.0));
-                        const std::string label = _data->timeUnitsModel->getLabel(OTIO_NS::RationalTime(t, 1.0).rescaled_to(rate));
+                        const std::string label = _timeLabel(
+                            OTIO_NS::RationalTime(t, 1.0).rescaled_to(rate));
                         event.render->drawText(
                             event.fontSystem->getGlyphs(label, p.size.fontInfo),
                             p.size.fontMetrics,
@@ -1801,7 +1833,7 @@ namespace tl
             const ftk::DrawEvent& event)
         {
             FTK_P();
-            if (_timeRange != invalidTimeRange)
+            if (isValid(_timeRange))
             {
                 const ftk::Box2I& g = getGeometry();
                 const int w = getSizeHint().w;
@@ -1886,7 +1918,7 @@ namespace tl
                         g.h()),
                     event.style->getColorRole(ftk::ColorRole::Red));
 
-                const std::string label = _data->timeUnitsModel->getLabel(p.currentTime);
+                const std::string label = _timeLabel(p.currentTime);
                 ftk::V2I labelPos(
                     pos.x + p.size.border * 2 + p.size.margin,
                     pos.y + p.size.margin);

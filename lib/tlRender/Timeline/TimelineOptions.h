@@ -59,6 +59,15 @@ namespace tl
         //! Image sequence audio file name.
         std::string imageSeqAudioFileName;
 
+        //! Find the frames of an image sequence on disk when the timeline is
+        //! opened.
+        //!
+        //! Turn this off when the path already states the range to use. A
+        //! path cannot say so itself: a range of one frame looks exactly like
+        //! the frame parsed out of a file name, so a sequence stated as a
+        //! single frame would be expanded back to whatever is on disk.
+        bool seqExpand = true;
+
         //! Enable workarounds for timelines that may not conform exactly
         //! to specification.
         bool compat = true;

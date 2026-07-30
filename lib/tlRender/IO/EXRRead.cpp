@@ -456,7 +456,27 @@ namespace tl
                                         0.F));
                             }
                             imfPart.setFrameBuffer(frameBuffer);
-                            imfPart.readPixels(displayWindow.min.y, displayWindow.max.y);
+                            try
+                            {
+                                imfPart.readPixels(
+                                    displayWindow.min.y, displayWindow.max.y);
+                            }
+                            catch (const std::exception&)
+                            {
+                                // Still being written, most likely. Take the
+                                // scanlines that are there and blank the rest,
+                                // so a frame part way through a render shows
+                                // what has been rendered of it.
+                                const int y = _readScanLines(
+                                    imfPart, displayWindow);
+                                if (y == displayWindow.min.y)
+                                {
+                                    // Not even one, so the file is not partly
+                                    // written but unreadable. Report it.
+                                    throw;
+                                }
+                                _blankFrom(out.image, displayWindow, y, scb);
+                            }
                         }
                         else
                         {
@@ -477,7 +497,9 @@ namespace tl
                                         0.F));
                             }
                             imfPart.setFrameBuffer(frameBuffer);
-                            for (int y = displayWindow.min.y; y <= displayWindow.max.y; ++y)
+                            bool anyRead = false;
+                            int y = displayWindow.min.y;
+                            for (; y <= displayWindow.max.y; ++y)
                             {
                                 uint8_t* p = out.image->getData() + ((y - displayWindow.min.y) * scb);
                                 uint8_t* end = p + scb;
@@ -487,7 +509,22 @@ namespace tl
                                     std::memset(p, 0, size);
                                     p += size;
                                     size = intersectedWindow.w() * cb;
-                                    imfPart.readPixels(y, y);
+                                    try
+                                    {
+                                        imfPart.readPixels(y, y);
+                                    }
+                                    catch (const std::exception&)
+                                    {
+                                        // See the other branch: what is there
+                                        // is kept, but a file with nothing
+                                        // readable in it is an error.
+                                        if (!anyRead)
+                                        {
+                                            throw;
+                                        }
+                                        break;
+                                    }
+                                    anyRead = true;
                                     std::memcpy(
                                         p,
                                         buf.data() + std::max(displayWindow.min.x - dataWindow.min.x, 0) * cb,
@@ -496,12 +533,53 @@ namespace tl
                                 }
                                 std::memset(p, 0, end - p);
                             }
+                            _blankFrom(out.image, displayWindow, y, scb);
                         }
                     }
                     return out;
                 }
 
             private:
+                //! Read one scanline at a time from the top of the window,
+                //! stopping at the first that is not there. Returns the row it
+                //! stopped on, which is one past the end when all were read.
+                static int _readScanLines(
+                    Imf::InputPart& imfPart,
+                    const ftk::Box2I& displayWindow)
+                {
+                    int y = displayWindow.min.y;
+                    for (; y <= displayWindow.max.y; ++y)
+                    {
+                        try
+                        {
+                            imfPart.readPixels(y, y);
+                        }
+                        catch (const std::exception&)
+                        {
+                            break;
+                        }
+                    }
+                    return y;
+                }
+
+                //! Blank the rows from the given one on. The image is not
+                //! cleared when it is created, so whatever was not read holds
+                //! nothing in particular.
+                static void _blankFrom(
+                    const std::shared_ptr<ftk::Image>& image,
+                    const ftk::Box2I& displayWindow,
+                    int y,
+                    int scb)
+                {
+                    if (y <= displayWindow.max.y)
+                    {
+                        std::memset(
+                            image->getData() + ((y - displayWindow.min.y) * scb),
+                            0,
+                            static_cast<size_t>(displayWindow.max.y - y + 1) * scb);
+                    }
+                }
+
                 std::unique_ptr<Imf::IStream> _s;
                 std::unique_ptr<Imf::MultiPartInputFile> _f;
                 IOInfo _info;

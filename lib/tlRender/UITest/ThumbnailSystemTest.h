@@ -18,6 +18,9 @@ namespace tl
             static std::shared_ptr<ThumbnailSystemTest> create(const std::shared_ptr<ftk::Context>&);
 
             void run() override;
+
+        private:
+            void _gapSeq();
         };
     }
 }

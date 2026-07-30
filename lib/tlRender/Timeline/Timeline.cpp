@@ -18,6 +18,7 @@
 #include <ftk/Core/Time.h>
 
 #include <opentimelineio/externalReference.h>
+#include <opentimelineio/gap.h>
 #include <opentimelineio/imageSequenceReference.h>
 #include <opentimelineio/transition.h>
 #include <algorithm>
@@ -63,6 +64,41 @@ namespace tl
         std::optional<ftk::Box2F> getClipBounds(const OTIO_NS::Clip* otioClip)
         {
             return getMediaReferenceBounds(otioClip->media_reference());
+        }
+
+        //! Look on disk for the frames a sequence has and group them into runs
+        //! of consecutive numbers, one per clip.
+        //!
+        //! This is the one place that goes looking, and it is a snapshot:
+        //! frames written after it are picked up by opening the sequence again,
+        //! not while it is being watched. The other policies need no such thing
+        //! because they answer for a missing frame as they meet it.
+        std::vector<ftk::RangeI64> getRuns(
+            const ftk::Path& path,
+            const ftk::RangeI64& within,
+            const ftk::PathOptions& pathOptions)
+        {
+            std::vector<ftk::RangeI64> out;
+            auto frames = ftk::toFrames(ftk::findSeq(path, pathOptions));
+            std::sort(frames.begin(), frames.end());
+            for (int64_t frame : frames)
+            {
+                if (frame < within.min() || frame > within.max())
+                {
+                    // Outside the range asked for, so not this sequence's
+                    // business even though it sits beside it on disk.
+                    continue;
+                }
+                if (!out.empty() && out.back().max() + 1 == frame)
+                {
+                    out.back() = ftk::RangeI64(out.back().min(), frame);
+                }
+                else
+                {
+                    out.push_back(ftk::RangeI64(frame, frame));
+                }
+            }
+            return out;
         }
 
         //! Get the union of the OTIO spatial coordinates of every media
@@ -283,7 +319,7 @@ namespace tl
             seqExts.begin(),
             seqExts.end(),
             ftk::toLower(path.getExt())) != seqExts.end();
-        if (hasSeqExt)
+        if (hasSeqExt && options.seqExpand)
         {
             path = ftk::expandSeq(path, options.pathOptions);
         }
@@ -361,29 +397,110 @@ namespace tl
             if (!info.video.empty())
             {
                 startTime = info.videoTime.start_time();
-                auto videoClip = new OTIO_NS::Clip;
-                videoClip->set_source_range(info.videoTime);
-                if (path.isSeq())
+                const double rate = info.videoTime.duration().rate();
+                const MissingFrames missingFrames =
+                    getMissingFrames(options.ioOptions);
+
+                // Every clip names the whole sequence over the whole range it
+                // covers, whatever the clip itself takes out of it. They are
+                // separate objects because a clip owns its reference, but they
+                // describe the same file, so the reads behind them share one
+                // decoder.
+                const auto makeClip =
+                    [&](const OTIO_NS::TimeRange& sourceRange)
+                    {
+                        auto out = new OTIO_NS::Clip;
+                        out->set_source_range(sourceRange);
+                        if (path.isSeq())
+                        {
+                            auto mediaReference =
+                                new OTIO_NS::ImageSequenceReference(
+                                    "",
+                                    path.getBase(),
+                                    path.getExt(),
+                                    info.videoTime.start_time().value(),
+                                    1,
+                                    rate,
+                                    path.getPad(),
+                                    // A file opened directly has no reference
+                                    // to say what to do about frames it is
+                                    // missing, so it takes the options the
+                                    // timeline was opened with.
+                                    toOTIO(missingFrames));
+                            mediaReference->set_available_range(info.videoTime);
+                            out->set_media_reference(mediaReference);
+                        }
+                        else
+                        {
+                            out->set_media_reference(
+                                new OTIO_NS::ExternalReference(
+                                    path.getFileName(),
+                                    info.videoTime));
+                        }
+                        return out;
+                    };
+
+                // A structural policy is answered here rather than by the
+                // reads: the frames that are there are found once, and a clip
+                // is laid over each run of them. Skip puts the runs end to
+                // end, so the timeline is only as long as the frames it has;
+                // Gaps leaves the holes in, so every frame keeps the time it
+                // had. Either way no read asks for a frame that is not there.
+                std::vector<ftk::RangeI64> runs;
+                if (path.isSeq() &&
+                    isStructural(missingFrames) &&
+                    path.getFrames().has_value())
                 {
-                    auto mediaReference = new OTIO_NS::ImageSequenceReference(
-                        "",
-                        path.getBase(),
-                        path.getExt(),
-                        info.videoTime.start_time().value(),
-                        1,
-                        info.videoTime.duration().rate(),
-                        path.getPad());
-                    mediaReference->set_available_range(info.videoTime);
-                    videoClip->set_media_reference(mediaReference);
+                    runs = getRuns(
+                        path,
+                        path.getFrames().value(),
+                        options.pathOptions);
+                }
+
+                videoTrack = new OTIO_NS::Track(
+                    "Video", std::nullopt, OTIO_NS::Track::Kind::video);
+                if (runs.size() < 2 && MissingFrames::Gaps != missingFrames)
+                {
+                    // Nothing to take out, so this is the same single clip a
+                    // complete sequence gets. A lone run still covers only
+                    // itself, which is what Skip means when the frames that
+                    // are there are consecutive.
+                    videoTrack->append_child(makeClip(
+                        runs.empty() ?
+                        info.videoTime :
+                        OTIO_NS::TimeRange(
+                            OTIO_NS::RationalTime(runs.front().min(), rate),
+                            OTIO_NS::RationalTime(
+                                runs.front().max() - runs.front().min() + 1,
+                                rate))));
                 }
                 else
                 {
-                    videoClip->set_media_reference(new OTIO_NS::ExternalReference(
-                        path.getFileName(),
-                        info.videoTime));
+                    const ftk::RangeI64& frames = path.getFrames().value();
+                    int64_t at = frames.min();
+                    for (const auto& run : runs)
+                    {
+                        if (MissingFrames::Gaps == missingFrames &&
+                            run.min() > at)
+                        {
+                            videoTrack->append_child(new OTIO_NS::Gap(
+                                OTIO_NS::RationalTime(run.min() - at, rate)));
+                        }
+                        videoTrack->append_child(makeClip(OTIO_NS::TimeRange(
+                            OTIO_NS::RationalTime(run.min(), rate),
+                            OTIO_NS::RationalTime(
+                                run.max() - run.min() + 1, rate))));
+                        at = run.max() + 1;
+                    }
+                    if (MissingFrames::Gaps == missingFrames &&
+                        at <= frames.max())
+                    {
+                        // The tail of a render that has not got there yet, kept
+                        // so the range asked for is the range shown.
+                        videoTrack->append_child(new OTIO_NS::Gap(
+                            OTIO_NS::RationalTime(frames.max() - at + 1, rate)));
+                    }
                 }
-                videoTrack = new OTIO_NS::Track("Video", std::nullopt, OTIO_NS::Track::Kind::video);
-                videoTrack->append_child(videoClip);
             }
 
             // Read the separate audio if provided.
@@ -955,52 +1072,95 @@ namespace tl
 
         // First use of this reference: work out where each of its files lives
         // inside the bundle.
+        //
+        // A sequence member is placed at its offset from the first frame
+        // rather than packed against the previous one, so that the result is
+        // indexed by frame number. Packing them would misplace every frame
+        // after a gap, and every frame at all when the step is greater than
+        // one.
         auto out = std::make_shared<std::vector<ftk::MemFile> >();
-        std::vector<std::string> mediaFileNames;
+        std::vector<std::pair<size_t, std::string> > mediaFileNames;
         if (auto externalReference = dynamic_cast<const OTIO_NS::ExternalReference*>(otioRef))
         {
-            mediaFileNames.push_back(ftk::Path(
-                decodeURL(externalReference->target_url())).get());
+            mediaFileNames.push_back(std::make_pair(
+                size_t(0),
+                ftk::Path(decodeURL(externalReference->target_url())).get()));
         }
         else if (auto imageSeqReference =
             dynamic_cast<const OTIO_NS::ImageSequenceReference*>(otioRef))
         {
             const int count = imageSeqReference->number_of_images_in_sequence();
+            const size_t step = std::max(imageSeqReference->frame_step(), 1);
             mediaFileNames.reserve(count);
             for (int number = 0; number < count; ++number)
             {
-                mediaFileNames.push_back(ftk::Path(decodeURL(
-                    imageSeqReference->target_url_for_image_number(number))).get());
+                mediaFileNames.push_back(std::make_pair(
+                    number * step,
+                    ftk::Path(decodeURL(
+                        imageSeqReference->target_url_for_image_number(number))).get()));
             }
         }
-        out->reserve(mediaFileNames.size());
+        if (!mediaFileNames.empty())
+        {
+            out->resize(mediaFileNames.back().first + 1);
+        }
+        size_t found = 0;
+        std::string missing;
+        size_t missingCount = 0;
         for (const auto& mediaFileName : mediaFileNames)
         {
-            const auto entry = zipReader->find(mediaFileName);
+            const auto entry = zipReader->find(mediaFileName.second);
             if (!entry.has_value())
             {
-                // The bundle does not hold this media after all. Mark the
-                // reference unavailable rather than returning nothing: an
-                // empty result reads as "not in a bundle", and the caller
-                // would go on to read the media from its path, which is a
-                // different file than the bundle describes.
-                if (auto log = logSystem.lock())
+                // A sequence member the bundle does not hold is a missing
+                // frame, which the sequence decoder deals with. Leave its slot
+                // empty and carry on.
+                ++missingCount;
+                if (missing.empty())
                 {
-                    log->print(
-                        "tl::Timeline",
-                        ftk::Format(
-                            "Cannot find zip entry: \"{0}\"; this media "
-                            "reference cannot be used").arg(mediaFileName),
-                        ftk::LogType::Error);
+                    missing = mediaFileName.second;
                 }
-                unavailableMediaReferences.insert(otioRef);
-                out->clear();
-                break;
+                continue;
             }
-            out->push_back(ftk::MemFile(
+            (*out)[mediaFileName.first] = ftk::MemFile(
                 fileIO,
                 fileIO->getMemStart() + entry->offset,
-                entry->size));
+                entry->size);
+            ++found;
+        }
+        if (0 == found)
+        {
+            // The bundle holds none of this media. Mark the reference
+            // unavailable rather than returning nothing: an empty result reads
+            // as "not in a bundle", and the caller would go on to read the
+            // media from its path, which is a different file than the bundle
+            // describes.
+            if (auto log = logSystem.lock())
+            {
+                log->print(
+                    "tl::Timeline",
+                    ftk::Format(
+                        "Cannot find zip entry: \"{0}\"; this media "
+                        "reference cannot be used").arg(missing),
+                    ftk::LogType::Error);
+            }
+            unavailableMediaReferences.insert(otioRef);
+            out->clear();
+        }
+        else if (missingCount > 0)
+        {
+            if (auto log = logSystem.lock())
+            {
+                log->print(
+                    "tl::Timeline",
+                    ftk::Format(
+                        "Bundle is missing {0} of {1} sequence frames, "
+                        "starting with \"{2}\"").
+                        arg(missingCount).
+                        arg(mediaFileNames.size()).
+                        arg(missing),
+                    ftk::LogType::Warning);
+            }
         }
         memFiles[otioRef] = out;
         return out;
@@ -1116,6 +1276,266 @@ namespace tl
                 mediaReference, merge(options, p.options.ioOptions), out);
         }
         return false;
+    }
+
+    std::optional<Timeline::MediaAt> Timeline::_mediaAt(
+        const OTIO_NS::RationalTime& time)
+    {
+        FTK_P();
+        std::optional<MediaAt> out;
+        if (!p.otioTimeline)
+        {
+            return out;
+        }
+        // The same walk the request thread makes: the timeline's own start is
+        // taken off, and the first enabled video track holding that time wins.
+        const OTIO_NS::RationalTime trackTime = time - p.timeRange.start_time();
+        for (const auto& otioTrack : p.otioTimeline->video_tracks())
+        {
+            if (!otioTrack->enabled())
+            {
+                continue;
+            }
+            for (const auto& otioChild : otioTrack->children())
+            {
+                auto otioClip = dynamic_cast<const OTIO_NS::Clip*>(otioChild.value);
+                if (!otioClip)
+                {
+                    continue;
+                }
+                OTIO_NS::ErrorStatus errorStatus;
+                const auto rangeInParent =
+                    otioClip->trimmed_range_in_parent(&errorStatus);
+                if (!rangeInParent.has_value() ||
+                    !rangeInParent.value().contains(trackTime))
+                {
+                    continue;
+                }
+
+                out = _mediaFrom(otioClip, rangeInParent.value());
+                if (out)
+                {
+                    return out;
+                }
+            }
+        }
+        return out;
+    }
+
+    std::optional<Timeline::MediaAt> Timeline::_mediaFrom(
+        const OTIO_NS::Clip* otioClip,
+        const OTIO_NS::TimeRange& rangeInParent)
+    {
+        FTK_P();
+        std::optional<MediaAt> out;
+        const IOOptions optionsMerged = p.options.ioOptions;
+        auto mediaReference = p.mediaReference(otioClip);
+        MediaAt mediaAt;
+        mediaAt.seq = _getSeqDecode(mediaReference, optionsMerged);
+        IOInfo ioInfo;
+        if (mediaAt.seq)
+        {
+            ioInfo = mediaAt.seq->getInfo();
+        }
+        else if (auto read = _getVideoRead(mediaReference, optionsMerged))
+        {
+            ioInfo = read->getInfo().get();
+        }
+        else
+        {
+            return out;
+        }
+
+        OTIO_NS::TimeRange trimmedRange = otioClip->trimmed_range();
+        const OTIO_NS::TimeRange availableRange = otioClip->available_range();
+        if (p.options.compat &&
+            availableRange.start_time() > ioInfo.videoTime.start_time())
+        {
+            // The same compensation _readVideo() makes, so that both agree on
+            // which media time a timeline time means.
+            trimmedRange = OTIO_NS::TimeRange(
+                trimmedRange.start_time() - availableRange.start_time(),
+                trimmedRange.duration());
+        }
+        mediaAt.rangeInParent = rangeInParent;
+        mediaAt.trimmedRange = trimmedRange;
+        mediaAt.rate = ioInfo.videoTime.duration().rate();
+        out = mediaAt;
+        return out;
+    }
+
+    std::vector<Timeline::MediaAt> Timeline::_mediaAll()
+    {
+        FTK_P();
+        std::vector<MediaAt> out;
+        if (!p.otioTimeline)
+        {
+            return out;
+        }
+        for (const auto& otioTrack : p.otioTimeline->video_tracks())
+        {
+            if (!otioTrack->enabled())
+            {
+                continue;
+            }
+            for (const auto& otioChild : otioTrack->children())
+            {
+                auto otioClip = dynamic_cast<const OTIO_NS::Clip*>(otioChild.value);
+                if (!otioClip)
+                {
+                    continue;
+                }
+                OTIO_NS::ErrorStatus errorStatus;
+                const auto rangeInParent =
+                    otioClip->trimmed_range_in_parent(&errorStatus);
+                if (!rangeInParent.has_value())
+                {
+                    continue;
+                }
+                if (const auto mediaAt =
+                    _mediaFrom(otioClip, rangeInParent.value()))
+                {
+                    out.push_back(*mediaAt);
+                }
+            }
+        }
+        return out;
+    }
+
+    OTIO_NS::RationalTime Timeline::_toMediaTime(
+        const MediaAt& mediaAt,
+        const OTIO_NS::RationalTime& time) const
+    {
+        FTK_P();
+        return toVideoMediaTime(
+            time - p.timeRange.start_time(),
+            mediaAt.rangeInParent,
+            mediaAt.trimmedRange,
+            mediaAt.rate);
+    }
+
+    OTIO_NS::RationalTime Timeline::_fromMediaTime(
+        const MediaAt& mediaAt,
+        int64_t frame) const
+    {
+        FTK_P();
+
+        // The inverse of toVideoMediaTime(), with the timeline's own start put
+        // back on. Which frames a clip covers is the caller's business: this
+        // just moves a frame number into the clip that holds it.
+        const OTIO_NS::RationalTime mediaTime(
+            static_cast<double>(frame), mediaAt.rate);
+        return (mediaTime
+            - mediaAt.trimmedRange.start_time()
+            + mediaAt.rangeInParent.start_time()
+            + p.timeRange.start_time()).
+            rescaled_to(mediaAt.rangeInParent.duration().rate()).
+            round();
+    }
+
+    std::optional<OTIO_NS::RationalTime> Timeline::getMediaTime(
+        const OTIO_NS::RationalTime& time)
+    {
+        std::optional<OTIO_NS::RationalTime> out;
+        if (const auto mediaAt = _mediaAt(time))
+        {
+            out = _toMediaTime(*mediaAt, time);
+        }
+        return out;
+    }
+
+    std::optional<int64_t> Timeline::getMediaFrame(
+        const OTIO_NS::RationalTime& time)
+    {
+        std::optional<int64_t> out;
+        if (const auto mediaTime = getMediaTime(time))
+        {
+            // Already whole, at the media's rate.
+            out = static_cast<int64_t>(mediaTime->value());
+        }
+        return out;
+    }
+
+    std::optional<OTIO_NS::RationalTime> Timeline::getMediaFrameTime(
+        const OTIO_NS::RationalTime& time,
+        int64_t frame)
+    {
+        std::optional<OTIO_NS::RationalTime> out;
+        if (const auto mediaAt = _mediaAt(time))
+        {
+            out = _fromMediaTime(*mediaAt, frame);
+        }
+        return out;
+    }
+
+    std::optional<OTIO_NS::RationalTime> Timeline::getTimelineTime(
+        const OTIO_NS::RationalTime& time,
+        const OTIO_NS::RationalTime& mediaTime)
+    {
+        std::optional<OTIO_NS::RationalTime> out;
+        const auto at = _mediaAt(time);
+        if (!at)
+        {
+            return out;
+        }
+        const OTIO_NS::RationalTime frame =
+            mediaTime.rescaled_to(at->rate).round();
+
+        // The clip being looked at, when it is the one holding the frame asked
+        // for. This is the whole answer for a timeline whose clips cover their
+        // media without a break.
+        if (at->trimmedRange.contains(frame))
+        {
+            out = _fromMediaTime(
+                *at, static_cast<int64_t>(frame.value()));
+            return out;
+        }
+
+        // Otherwise the frame belongs to one of the other clips over the same
+        // media, which is what a sequence with frames left out looks like. Only
+        // clips over that same media are considered, so a frame number means
+        // the same thing it does in the clip it was typed against rather than
+        // being matched against some other file that happens to number its
+        // frames the same way.
+        std::optional<MediaAt> snap;
+        for (const auto& i : _mediaAll())
+        {
+            if (i.seq != at->seq)
+            {
+                continue;
+            }
+            if (i.trimmedRange.contains(frame))
+            {
+                out = _fromMediaTime(i, static_cast<int64_t>(frame.value()));
+                return out;
+            }
+            const bool before = i.trimmedRange.end_time_inclusive() < frame;
+            if (before &&
+                (!snap ||
+                    snap->trimmedRange.end_time_inclusive() <
+                    i.trimmedRange.end_time_inclusive()))
+            {
+                snap = i;
+            }
+        }
+
+        // A frame that is not there at all snaps to the last one before it, or
+        // to the first frame when it is before them all, so that typing a
+        // number always lands somewhere.
+        if (snap)
+        {
+            out = _fromMediaTime(
+                *snap,
+                static_cast<int64_t>(
+                    snap->trimmedRange.end_time_inclusive().value()));
+        }
+        else
+        {
+            out = _fromMediaTime(
+                *at,
+                static_cast<int64_t>(at->trimmedRange.start_time().value()));
+        }
+        return out;
     }
 
     std::future<VideoData> Timeline::readMedia(
@@ -1473,6 +1893,17 @@ namespace tl
                 IOOptions readOptions = ioOptions;
                 readOptions["SeqIO/DefaultSpeed"] =
                     ftk::Format("{0}").arg(timeRange.duration().rate());
+                if (auto imageSeqReference =
+                    dynamic_cast<const OTIO_NS::ImageSequenceReference*>(mediaReference))
+                {
+                    // The reference says what to do about frames it does not
+                    // have, and it is more specific than the options the
+                    // timeline was opened with. A reference this timeline
+                    // built for a file opened directly carries those options
+                    // already.
+                    readOptions["SeqIO/MissingFrames"] = to_string(
+                        fromOTIO(imageSeqReference->missing_frame_policy()));
+                }
                 out = create(context, mediaPath, *mem, readOptions);
             }
             catch (const std::exception& e)
@@ -2286,17 +2717,18 @@ namespace tl
                             task = std::move(readPool.tasks.front());
                             readPool.tasks.pop_front();
                         }
-                        VideoData out;
                         try
                         {
-                            out = task.f();
+                            task.promise.set_value(task.f());
                         }
                         catch (const std::exception&)
                         {
-                            // A frame that cannot be decoded is delivered
-                            // empty, the same as a reader delivered it.
+                            // Passed on rather than delivered empty: the
+                            // frame still comes out blank, since videoFrame()
+                            // catches this and carries on, but it is counted
+                            // and logged instead of going by in silence.
+                            task.promise.set_exception(std::current_exception());
                         }
-                        task.promise.set_value(out);
                     }
                 }));
         }
@@ -2338,14 +2770,14 @@ namespace tl
         if (readPool.threads.empty())
         {
             // No pool: the caller is the worker.
-            VideoData data;
             try
             {
-                data = task.f();
+                task.promise.set_value(task.f());
             }
             catch (const std::exception&)
-            {}
-            task.promise.set_value(data);
+            {
+                task.promise.set_exception(std::current_exception());
+            }
             return out;
         }
         bool queued = false;

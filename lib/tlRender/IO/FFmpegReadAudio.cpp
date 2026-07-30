@@ -72,7 +72,9 @@ namespace tl
                 // format context: the audio does not depend on a video reader
                 // existing. A file with no video has no rate to parse the
                 // timecode against.
-                double videoRate = invalidTime.rate();
+                // Negative, so that from_timecode() below rejects it and
+                // leaves the start time alone.
+                double videoRate = -1.0;
                 const int avVideoStream = findStream(
                     _avFormatContext,
                     AVMEDIA_TYPE_VIDEO);

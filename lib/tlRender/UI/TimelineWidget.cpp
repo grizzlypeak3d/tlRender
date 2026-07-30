@@ -147,6 +147,30 @@ namespace tl
             p.player = player;
             p.scale = _getTimelineScale();
 
+            // Weak, because the item data belongs to this widget and the
+            // player does not.
+            if (p.player)
+            {
+                std::weak_ptr<Player> weak = p.player;
+                p.itemData->toMediaTime =
+                    [weak](const OTIO_NS::RationalTime& value)
+                    {
+                        if (auto player = weak.lock())
+                        {
+                            if (const auto time =
+                                player->getTimeline()->getMediaTime(value))
+                            {
+                                return *time;
+                            }
+                        }
+                        return value;
+                    };
+            }
+            else
+            {
+                p.itemData->toMediaTime = nullptr;
+            }
+
             _timelineUpdate();
 
             if (p.player)

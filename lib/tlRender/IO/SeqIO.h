@@ -8,12 +8,45 @@
 
 namespace tl
 {
+    //! What to do about a frame a sequence does not have.
+    //!
+    //! The first three match OTIO's image sequence reference policies, which is
+    //! where the value comes from when the sequence is described by a timeline.
+    //! They are decided per read: the sequence keeps its length and each of
+    //! them says what fills a gap.
+    //!
+    //! The last two are different in kind. They do not fill anything; they say
+    //! what the timeline is built out of, so a clip covers each run of frames
+    //! that are there and no read ever asks for a frame that is not. That makes
+    //! them structural: they are settled when the sequence is opened, and
+    //! changing one means opening it again. Because the frames are found in
+    //! order to build the clips, they only apply to an image sequence opened
+    //! directly -- a timeline that was authored already says what its clips
+    //! are, and those are not ours to rewrite.
+    enum class TL_API_TYPE MissingFrames
+    {
+        Error,  //!< The frame does not read.
+        Hold,   //!< Repeat the nearest frame before it.
+        Black,  //!< A blank frame.
+        Skip,   //!< Leave it out; only the frames that are there play.
+        Gaps,   //!< Leave a hole, so the frames keep the times they had.
+
+        Count,
+        First = Error
+    };
+    FTK_ENUM(MissingFrames);
+
+    //! Get whether a policy is settled when the sequence is opened, by
+    //! deciding the clips, rather than per read.
+    TL_API bool isStructural(MissingFrames);
+
     //! Sequence I/O options.
     struct TL_API_TYPE SeqOptions
     {
         SeqOptions();
 
-        double defaultSpeed = 24.0;
+        double        defaultSpeed  = 24.0;
+        MissingFrames missingFrames = MissingFrames::Error;
 
         TL_API bool operator == (const SeqOptions&) const;
         TL_API bool operator != (const SeqOptions&) const;
@@ -21,6 +54,9 @@ namespace tl
 
     //! Get sequence I/O options.
     TL_API IOOptions getOptions(const SeqOptions&);
+
+    //! Get the missing frame policy from the options.
+    TL_API MissingFrames getMissingFrames(const IOOptions&);
 
     //! Base class for image sequence writers.
     class TL_API_TYPE ISeqWrite : public IWrite

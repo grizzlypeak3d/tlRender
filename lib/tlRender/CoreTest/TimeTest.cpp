@@ -35,12 +35,12 @@ namespace tl
         {
             {
                 std::stringstream ss;
-                ss << "Invalid time: " << invalidTime;
+                ss << "Invalid time: " << OTIO_NS::RationalTime(invalidTime);
                 _print(ss.str());
             }
             {
                 std::stringstream ss;
-                ss << "Invalid time range: " << invalidTimeRange;
+                ss << "Invalid time range: " << OTIO_NS::TimeRange(invalidTimeRange);
                 _print(ss.str());
             }
             {

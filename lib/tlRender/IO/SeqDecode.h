@@ -4,6 +4,7 @@
 #pragma once
 
 #include <tlRender/IO/Decode.h>
+#include <tlRender/IO/SeqIO.h>
 
 #include <ftk/Core/Path.h>
 
@@ -59,6 +60,20 @@ namespace tl
             const IOOptions& = IOOptions()) const;
 
     private:
+        //! Read the image information from the first frame that is there.
+        IOInfo _probeInfo() const;
+
+        //! The bytes for a frame, or null when the bundle does not hold it.
+        const ftk::MemFile* _memFile(int64_t frame) const;
+
+        //! The nearest frame at or before the given one that can be read, or
+        //! the frame itself when there is none.
+        int64_t _holdFrame(int64_t frame) const;
+
+        VideoData _missingVideo(
+            const OTIO_NS::RationalTime&,
+            MissingFrames) const;
+
         ftk::Path _path;
         std::vector<ftk::MemFile> _mem;
         std::shared_ptr<IDecode> _decode;

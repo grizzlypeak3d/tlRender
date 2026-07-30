@@ -15,6 +15,18 @@ namespace tl
 
     namespace ui
     {
+        //! Mapping between the time a player runs on and the time to show.
+        //!
+        //! These are not always the same time. A sequence read with the frames
+        //! it is missing left out is played at the length of the frames it
+        //! has, so counting from the start does not name the frame; the
+        //! media's own time does. Left unset the two are the same.
+        struct TL_API_TYPE TimeMap
+        {
+            std::function<OTIO_NS::RationalTime(const OTIO_NS::RationalTime&)> toMedia;
+            std::function<OTIO_NS::RationalTime(const OTIO_NS::RationalTime&)> fromMedia;
+        };
+
         //! Time value editor.
         class TL_API_TYPE TimeEdit : public ftk::IWidget
         {
@@ -46,6 +58,10 @@ namespace tl
             //! Set the time value.
             TL_API void setValue(const OTIO_NS::RationalTime&);
 
+            //! Set the mapping between the value and the time shown. The
+            //! value, and the callback, stay in the player's time.
+            TL_API void setTimeMap(const TimeMap&);
+
             //! Set the time value callback.
             TL_API void setCallback(const std::function<void(const OTIO_NS::RationalTime&)>&);
 
@@ -62,6 +78,7 @@ namespace tl
             TL_API void keyReleaseEvent(ftk::KeyEvent&) override;
 
         private:
+            OTIO_NS::RationalTime _mediaValue() const;
             void _commitValue(const std::string&);
             void _commitValue(const OTIO_NS::RationalTime&);
             void _textUpdate();

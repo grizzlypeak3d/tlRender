@@ -17,11 +17,59 @@
 
 namespace tl
 {
-    //! Invalid time.
-    constexpr OTIO_NS::RationalTime invalidTime(-1.0, -1.0);
+    //! \todo Marking a time as unset by giving it a value is what makes the
+    //! two types below necessary, and it costs more than the comparisons they
+    //! guard against: the marker is a real time, so it goes on to be
+    //! subtracted from and added to, and the result is wrong without ever
+    //! looking wrong. std::optional says the same thing in the type, and is
+    //! what OTIO itself uses for this -- an image sequence reference holds a
+    //! std::optional<TimeRange>. Moving to it changes the signatures of
+    //! Timeline, Player, ThumbnailSystem and IOInfo, so it wants doing in one
+    //! pass rather than a member at a time: two conventions at once would be
+    //! worse than either. When it is done, everything down to isValid() goes.
 
-    //! Invalid time range.
-    constexpr OTIO_NS::TimeRange invalidTimeRange(invalidTime, invalidTime);
+    //! Invalid time.
+    //!
+    //! This converts to a time but cannot be compared with one, because
+    //! comparing times rescales them and this is worth exactly one second:
+    //! any time of one second -- frame 24 at 24fps -- compares equal to it.
+    //! Use isValid() instead, which the deleted operators below insist on.
+    struct InvalidTime
+    {
+        constexpr operator OTIO_NS::RationalTime() const
+        {
+            return OTIO_NS::RationalTime(-1.0, -1.0);
+        }
+    };
+    constexpr InvalidTime invalidTime;
+
+    //! Invalid time range. See InvalidTime.
+    struct InvalidTimeRange
+    {
+        constexpr operator OTIO_NS::TimeRange() const
+        {
+            return OTIO_NS::TimeRange(invalidTime, invalidTime);
+        }
+    };
+    constexpr InvalidTimeRange invalidTimeRange;
+
+    //! \name Deleted Comparisons
+    //!
+    //! Chosen over the conversion to a time, so that comparing against these
+    //! markers does not compile. Assigning them still does.
+    ///@{
+
+    bool operator == (const OTIO_NS::RationalTime&, InvalidTime) = delete;
+    bool operator != (const OTIO_NS::RationalTime&, InvalidTime) = delete;
+    bool operator == (InvalidTime, const OTIO_NS::RationalTime&) = delete;
+    bool operator != (InvalidTime, const OTIO_NS::RationalTime&) = delete;
+
+    bool operator == (const OTIO_NS::TimeRange&, InvalidTimeRange) = delete;
+    bool operator != (const OTIO_NS::TimeRange&, InvalidTimeRange) = delete;
+    bool operator == (InvalidTimeRange, const OTIO_NS::TimeRange&) = delete;
+    bool operator != (InvalidTimeRange, const OTIO_NS::TimeRange&) = delete;
+
+    ///@}
 
     //! Check whether the given time is valid. This function should be
     //! used instead of comparing a time to the "invalidTime" constant.

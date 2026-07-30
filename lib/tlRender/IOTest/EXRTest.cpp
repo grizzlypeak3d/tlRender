@@ -10,7 +10,9 @@
 #include <ftk/Core/Context.h>
 #include <ftk/Core/FileIO.h>
 #include <ftk/Core/Format.h>
+#include <ftk/Core/Image.h>
 
+#include <cstring>
 #include <sstream>
 
 namespace tl
@@ -28,6 +30,7 @@ namespace tl
 
         void EXRTest::run()
         {
+            _partial();
             _enums();
             _util();
             _io();
@@ -377,6 +380,107 @@ namespace tl
                         _error(e.what());
                     }
                 }
+            }
+        }
+
+        void EXRTest::_partial()
+        {
+            // An EXR still being written. The header is there and so are the
+            // first scanlines, and DJV 1.x showed those rather than nothing;
+            // losing the whole frame is what issue #308 is about.
+            auto readSystem = _context->getSystem<ReadSystem>();
+            auto writeSystem = _context->getSystem<WriteSystem>();
+            const ftk::Path path((_getTempDir() / "EXRPartial.exr").u8string());
+            auto writePlugin = writeSystem->getPlugin(path);
+            auto readPlugin = readSystem->getPlugin(path);
+            if (!writePlugin || !readPlugin)
+            {
+                return;
+            }
+            auto decode = readPlugin->decode();
+            if (!decode)
+            {
+                return;
+            }
+
+            // Written with no compression, so that cutting the file leaves
+            // whole scanlines behind rather than half of a compressed block.
+            const ftk::Size2I size(64, 64);
+            const ftk::ImageInfo imageInfo = writePlugin->getInfo(
+                ftk::ImageInfo(size, ftk::ImageType::RGB_F16));
+            IOInfo writeInfo;
+            writeInfo.video.push_back(imageInfo);
+            auto image = ftk::Image::create(imageInfo);
+            std::memset(image->getData(), 0xff, image->getByteCount());
+            IOOptions writeOptions;
+            writeOptions["OpenEXR/Compression"] = "None";
+            writeSystem->write(path, writeInfo, writeOptions)->writeVideo(
+                OTIO_NS::RationalTime(0.0, 24.0), image);
+
+            std::vector<uint8_t> whole;
+            {
+                auto fileIO = ftk::FileIO::create(path.get(), ftk::FileMode::Read);
+                whole.resize(fileIO->getSize());
+                fileIO->read(whole.data(), whole.size());
+            }
+
+            // Two thirds of the file: the header and most of the scanlines.
+            const ftk::Path partialPath(
+                (_getTempDir() / "EXRPartialCut.exr").u8string());
+            {
+                auto fileIO = ftk::FileIO::create(partialPath.get(), ftk::FileMode::Write);
+                fileIO->write(whole.data(), whole.size() * 2 / 3);
+            }
+            try
+            {
+                const VideoData v = decode->readVideo(
+                    partialPath.get(), nullptr, OTIO_NS::RationalTime(0.0, 24.0));
+                FTK_ASSERT(v.image);
+                FTK_ASSERT(v.image->getSize() == size);
+
+                // Some of it was read, and some of it was not.
+                const uint8_t* data = v.image->getData();
+                const size_t byteCount = v.image->getByteCount();
+                size_t set = 0;
+                for (size_t i = 0; i < byteCount; ++i)
+                {
+                    if (data[i] != 0)
+                    {
+                        ++set;
+                    }
+                }
+                _print(ftk::Format("Partial EXR: {0} of {1} bytes read").
+                    arg(set).arg(byteCount));
+                FTK_ASSERT(set > 0);
+                FTK_ASSERT(set < byteCount);
+            }
+            catch (const std::exception& e)
+            {
+                _error(ftk::Format("A partial EXR should still read: {0}").
+                    arg(e.what()));
+            }
+
+            // Only the header, so there is not one scanline to show. That is
+            // an unreadable file rather than one part way through, and it has
+            // to say so instead of handing back a blank frame.
+            const ftk::Path headerPath(
+                (_getTempDir() / "EXRHeaderOnly.exr").u8string());
+            {
+                auto fileIO = ftk::FileIO::create(headerPath.get(), ftk::FileMode::Write);
+                fileIO->write(whole.data(), std::min<size_t>(whole.size(), 200));
+            }
+            {
+                bool threw = false;
+                try
+                {
+                    decode->readVideo(
+                        headerPath.get(), nullptr, OTIO_NS::RationalTime(0.0, 24.0));
+                }
+                catch (const std::exception&)
+                {
+                    threw = true;
+                }
+                FTK_ASSERT(threw);
             }
         }
     }

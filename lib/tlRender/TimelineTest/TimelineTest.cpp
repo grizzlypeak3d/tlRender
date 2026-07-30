@@ -15,6 +15,7 @@
 #include <ftk/Core/Assert.h>
 #include <ftk/Core/Context.h>
 
+#include <algorithm>
 #include <cstring>
 #include <ftk/Core/Format.h>
 
@@ -899,6 +900,297 @@ namespace tl
                     const VideoFrame videoFrame = request.future.get();
                     FTK_ASSERT(!videoFrame.layers.empty());
                     FTK_ASSERT(!videoFrame.layers[0].image);
+                }
+            }
+            catch (const std::exception& e)
+            {
+                _error(e.what());
+            }
+
+            // A bundle whose sequence is missing frames. Its content.otio
+            // still describes all ninety, since an image sequence reference
+            // cannot express gaps, so the frames the bundle does hold have to
+            // stay addressable by frame number rather than being packed
+            // together.
+            try
+            {
+                const ftk::Path path(TLRENDER_SAMPLE_DATA, "PartialSeq.otioz");
+                _print(ftk::Format("Path: {0}").arg(path.get()));
+                auto timeline = Timeline::create(_context, path);
+
+                const auto otioClips =
+                    timeline->getTimeline().value->find_children<OTIO_NS::Clip>();
+                const auto mem = timeline->getMem(otioClips[0]->media_reference());
+
+                // Indexed by frame number over the whole range, not by how
+                // many frames are present.
+                FTK_ASSERT(90 == mem.size());
+                const std::vector<size_t> missing = { 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 49 };
+                for (size_t i = 0; i < mem.size(); ++i)
+                {
+                    const bool present = std::find(
+                        missing.begin(), missing.end(), i) == missing.end();
+                    FTK_ASSERT(present == (mem[i].p != nullptr));
+                }
+
+                // A frame the bundle holds reads. Frame 30 sits after the
+                // first gap, so it would come back as the wrong image if the
+                // frames had been packed.
+                for (double frame : { 0.0, 30.0, 89.0 })
+                {
+                    auto request = timeline->getVideo(
+                        OTIO_NS::RationalTime(frame, 30.0));
+                    const VideoFrame videoFrame = request.future.get();
+                    FTK_ASSERT(!videoFrame.layers.empty());
+                    FTK_ASSERT(videoFrame.layers[0].image);
+                }
+
+                // A frame it does not hold follows the policy the bundle
+                // declares, which for this one is black. It is not read from
+                // the file system whatever the policy says.
+                {
+                    auto request = timeline->getVideo(
+                        OTIO_NS::RationalTime(12.0, 30.0));
+                    const VideoFrame videoFrame = request.future.get();
+                    FTK_ASSERT(!videoFrame.layers.empty());
+                    const auto& image = videoFrame.layers[0].image;
+                    FTK_ASSERT(image);
+                    std::vector<uint8_t> zero(image->getByteCount(), 0);
+                    FTK_ASSERT(0 == memcmp(
+                        image->getData(), zero.data(), zero.size()));
+                }
+            }
+            catch (const std::exception& e)
+            {
+                _error(e.what());
+            }
+
+            // A frame that will not read has to reach the timeline's error
+            // count under the error policy, rather than arriving as a blank
+            // frame with nothing said about it.
+            try
+            {
+                auto writeSystem = _context->getSystem<WriteSystem>();
+                const ftk::Path path(
+                    (_getTempDir() / "TimelineGap.0001.png").u8string());
+                if (auto writePlugin = writeSystem->getPlugin(path))
+                {
+                    IOInfo writeInfo;
+                    writeInfo.video.push_back(writePlugin->getInfo(
+                        ftk::ImageInfo(
+                            ftk::Size2I(16, 16), ftk::ImageType::RGB_U8)));
+                    auto write = writeSystem->write(path, writeInfo);
+                    // Frames 1 and 2 only, so 3 is missing.
+                    for (int64_t frame : { 1, 2 })
+                    {
+                        write->writeVideo(
+                            OTIO_NS::RationalTime(
+                                static_cast<double>(frame), 24.0),
+                            ftk::Image::create(writeInfo.video[0]));
+                    }
+                    write.reset();
+
+                    ftk::Path seqPath(path);
+                    seqPath.setFrames(ftk::RangeI64(1, 3));
+
+                    Options options;
+                    options.ioOptions["SeqIO/MissingFrames"] =
+                        to_string(MissingFrames::Error);
+                    auto timeline = Timeline::create(_context, seqPath, options);
+                    FTK_ASSERT(0 == timeline->getReadErrorCount());
+                    auto request = timeline->getVideo(
+                        OTIO_NS::RationalTime(3.0, 24.0));
+                    request.future.get();
+                    FTK_ASSERT(timeline->getReadErrorCount() > 0);
+                    FTK_ASSERT(!timeline->getReadError().empty());
+                    _print("Read error: " + timeline->getReadError());
+
+                    // A range stated beyond the frames that exist, which is
+                    // how a render in progress is opened. Nothing on disk
+                    // changes; the timeline is simply the length the sequence
+                    // is meant to be.
+                    std::shared_ptr<Timeline> wideTimeline;
+                    {
+                        ftk::Path wide(path);
+                        wide.setFrames(ftk::RangeI64(1, 100));
+                        Options wideOptions;
+                        wideOptions.ioOptions["SeqIO/MissingFrames"] =
+                            to_string(MissingFrames::Black);
+                        wideTimeline = Timeline::create(
+                            _context, wide, wideOptions);
+                        const auto timeRange = wideTimeline->getTimeRange();
+                        FTK_ASSERT(100 == timeRange.duration().value());
+
+                        // A frame that exists, and one that does not.
+                        auto have = wideTimeline->getVideo(
+                            OTIO_NS::RationalTime(1.0, 24.0));
+                        FTK_ASSERT(have.future.get().layers[0].image);
+                        auto pending = wideTimeline->getVideo(
+                            OTIO_NS::RationalTime(80.0, 24.0));
+                        FTK_ASSERT(pending.future.get().layers[0].image);
+                        FTK_ASSERT(0 == wideTimeline->getReadErrorCount());
+                    }
+
+                    // A range of one frame. It has to survive being opened:
+                    // a path cannot tell such a range apart from the frame
+                    // parsed out of its name, so without being told not to,
+                    // opening would look on disk and find the rest again.
+                    {
+                        ftk::Path one(path);
+                        one.setFrames(ftk::RangeI64(1, 1));
+                        Options oneOptions;
+                        oneOptions.seqExpand = false;
+                        auto oneTimeline = Timeline::create(
+                            _context, one, oneOptions);
+                        FTK_ASSERT(
+                            1 == oneTimeline->getTimeRange().duration().value());
+
+                        // And that looking on disk is what would undo it.
+                        auto expanded = Timeline::create(_context, one);
+                        FTK_ASSERT(
+                            expanded->getTimeRange().duration().value() > 1);
+                    }
+
+                    // A structural policy answers a sparse sequence by
+                    // building a clip over each run of frames that are there.
+                    // The frames deliberately have a hole in the middle: runs
+                    // that start at the beginning and run together would let a
+                    // wrong mapping look right.
+                    {
+                        const ftk::Path sparsePath(
+                            (_getTempDir() / "TimelineSparse.0001.png").u8string());
+                        auto sparseWrite = writeSystem->write(
+                            sparsePath, writeInfo);
+                        for (int64_t frame : { 1, 2, 5, 6 })
+                        {
+                            sparseWrite->writeVideo(
+                                OTIO_NS::RationalTime(
+                                    static_cast<double>(frame), 24.0),
+                                ftk::Image::create(writeInfo.video[0]));
+                        }
+                        sparseWrite.reset();
+
+                        // Runs of 1-2 and 5-6 inside a range of 1-8.
+                        ftk::Path statedPath(sparsePath);
+                        statedPath.setFrames(ftk::RangeI64(1, 8));
+
+                        // Skip puts the runs end to end, so the timeline is as
+                        // long as the frames it has.
+                        Options skipOptions;
+                        skipOptions.seqExpand = false;
+                        skipOptions.ioOptions["SeqIO/MissingFrames"] =
+                            to_string(MissingFrames::Skip);
+                        auto skipTimeline = Timeline::create(
+                            _context, statedPath, skipOptions);
+                        FTK_ASSERT(4 ==
+                            skipTimeline->getTimeRange().duration().value());
+
+                        // Each position names the frame it stands for and reads
+                        // it. This is what the frame counter shows.
+                        const std::vector<std::pair<double, int64_t> > skipped =
+                        {
+                            { 1.0, 1 }, { 2.0, 2 }, { 3.0, 5 }, { 4.0, 6 }
+                        };
+                        for (const auto& i : skipped)
+                        {
+                            const OTIO_NS::RationalTime time(i.first, 24.0);
+                            const auto frame =
+                                skipTimeline->getMediaFrame(time);
+                            FTK_ASSERT(frame.has_value());
+                            FTK_ASSERT(i.second == frame.value());
+                            auto request = skipTimeline->getVideo(time);
+                            FTK_ASSERT(request.future.get().layers[0].image);
+                        }
+                        FTK_ASSERT(0 == skipTimeline->getReadErrorCount());
+
+                        // And the way back, which is what typing a frame number
+                        // needs. A frame in the second run has to be found there
+                        // rather than in the clip being looked at.
+                        for (const auto& i : skipped)
+                        {
+                            const auto time = skipTimeline->getTimelineTime(
+                                OTIO_NS::RationalTime(1.0, 24.0),
+                                OTIO_NS::RationalTime(
+                                    static_cast<double>(i.second), 24.0));
+                            FTK_ASSERT(time.has_value());
+                            FTK_ASSERT(i.first == time.value().value());
+                        }
+
+                        // A frame that is not there snaps to the last one
+                        // before it, and one before them all to the first.
+                        const std::vector<std::pair<int64_t, int64_t> > snap =
+                        {
+                            { 3, 2 },   // in the hole, so back to 2
+                            { 4, 2 },
+                            { 8, 6 },   // past the frames rendered so far
+                            { 0, 1 }    // before the first, so up to it
+                        };
+                        for (const auto& i : snap)
+                        {
+                            const auto time = skipTimeline->getTimelineTime(
+                                OTIO_NS::RationalTime(1.0, 24.0),
+                                OTIO_NS::RationalTime(
+                                    static_cast<double>(i.first), 24.0));
+                            FTK_ASSERT(time.has_value());
+                            const auto frame =
+                                skipTimeline->getMediaFrame(time.value());
+                            FTK_ASSERT(frame.has_value());
+                            FTK_ASSERT(i.second == frame.value());
+                        }
+
+                        // Gaps leaves the holes in, so the timeline is the range
+                        // asked for and every frame keeps the time it had. The
+                        // counter needs no mapping at all in this one.
+                        Options gapsOptions;
+                        gapsOptions.seqExpand = false;
+                        gapsOptions.ioOptions["SeqIO/MissingFrames"] =
+                            to_string(MissingFrames::Gaps);
+                        auto gapsTimeline = Timeline::create(
+                            _context, statedPath, gapsOptions);
+                        FTK_ASSERT(8 ==
+                            gapsTimeline->getTimeRange().duration().value());
+                        for (int64_t frame : { 1, 2, 5, 6 })
+                        {
+                            const OTIO_NS::RationalTime time(
+                                static_cast<double>(frame), 24.0);
+                            const auto at = gapsTimeline->getMediaFrame(time);
+                            FTK_ASSERT(at.has_value());
+                            FTK_ASSERT(frame == at.value());
+                            auto request = gapsTimeline->getVideo(time);
+                            FTK_ASSERT(request.future.get().layers[0].image);
+                        }
+                        FTK_ASSERT(0 == gapsTimeline->getReadErrorCount());
+
+                        // A hole has no media, so there is no frame to name
+                        // there and nothing is read for it.
+                        for (int64_t frame : { 3, 4, 7, 8 })
+                        {
+                            FTK_ASSERT(!gapsTimeline->getMediaFrame(
+                                OTIO_NS::RationalTime(
+                                    static_cast<double>(frame), 24.0)).
+                                has_value());
+                        }
+                    }
+
+                    // Without a structural policy a timeline time is the frame
+                    // number.
+                    {
+                        const auto frame = wideTimeline->getMediaFrame(
+                            OTIO_NS::RationalTime(80.0, 24.0));
+                        FTK_ASSERT(frame.has_value());
+                        FTK_ASSERT(80 == frame.value());
+                    }
+
+                    // Holding is not an error: the policy dealt with it.
+                    options.ioOptions["SeqIO/MissingFrames"] =
+                        to_string(MissingFrames::Hold);
+                    auto held = Timeline::create(_context, seqPath, options);
+                    auto heldRequest = held->getVideo(
+                        OTIO_NS::RationalTime(3.0, 24.0));
+                    const VideoFrame heldFrame = heldRequest.future.get();
+                    FTK_ASSERT(!heldFrame.layers.empty());
+                    FTK_ASSERT(heldFrame.layers[0].image);
+                    FTK_ASSERT(0 == held->getReadErrorCount());
                 }
             }
             catch (const std::exception& e)
