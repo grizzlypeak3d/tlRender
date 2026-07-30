@@ -786,6 +786,16 @@ namespace tl
             return out;
         }
 
+        std::string TimelineItem::_timeLabel(
+            const OTIO_NS::RationalTime& value) const
+        {
+            // A position, so it is named in the media's time. The frame the
+            // ruler counts off is not the frame the media calls it when the
+            // sequence was built out of the frames it has.
+            return _data->timeUnitsModel->getLabel(
+                _data->toMediaTime ? _data->toMediaTime(value) : value);
+        }
+
         std::string TimelineItem::_getDurationLabel(const OTIO_NS::RationalTime& value) const
         {
             const OTIO_NS::RationalTime rescaled = value.rescaled_to(_data->speed);
@@ -1761,7 +1771,8 @@ namespace tl
                     for (double t = t0; t <= t1; t += seconds)
                     {
                         const int x = timeToPos(OTIO_NS::RationalTime(t, 1.0));
-                        const std::string label = _data->timeUnitsModel->getLabel(OTIO_NS::RationalTime(t, 1.0).rescaled_to(rate));
+                        const std::string label = _timeLabel(
+                            OTIO_NS::RationalTime(t, 1.0).rescaled_to(rate));
                         event.render->drawText(
                             event.fontSystem->getGlyphs(label, p.size.fontInfo),
                             p.size.fontMetrics,
@@ -1868,7 +1879,7 @@ namespace tl
                         g.h()),
                     event.style->getColorRole(ftk::ColorRole::Red));
 
-                const std::string label = _data->timeUnitsModel->getLabel(p.currentTime);
+                const std::string label = _timeLabel(p.currentTime);
                 ftk::V2I labelPos(
                     pos.x + p.size.border * 2 + p.size.margin,
                     pos.y + p.size.margin);

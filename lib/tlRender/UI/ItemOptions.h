@@ -23,6 +23,15 @@ namespace tl
             std::string dir;
             Options options;
             std::shared_ptr<ITimeUnitsModel> timeUnitsModel;
+
+            //! How to turn a time on the timeline into the time to show for
+            //! it, which are not always the same: a sequence read with frames
+            //! left out is played at the length of the frames it has, so
+            //! counting from the start does not name the frame. Left unset the
+            //! two are the same. Only positions go through this; a duration is
+            //! a length either way.
+            std::function<
+                OTIO_NS::RationalTime(const OTIO_NS::RationalTime&)> toMediaTime;
         };
 
         //! In/out points display options.
