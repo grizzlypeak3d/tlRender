@@ -666,6 +666,23 @@ namespace tl
 
         // Get information about the timeline.
         p.timeRange = tl::getTimeRange(p.otioTimeline.value);
+        for (const auto& otioTrack :
+            p.otioTimeline.value->find_children<OTIO_NS::Track>())
+        {
+            OTIO_NS::ErrorStatus errorStatus;
+            const auto ranges = otioTrack->range_of_all_children(&errorStatus);
+            if (OTIO_NS::is_error(errorStatus))
+            {
+                continue;
+            }
+            for (const auto& i : ranges)
+            {
+                if (const auto trimmed = otioTrack->trim_child_range(i.second))
+                {
+                    p.trimmedRangeInParent[i.first] = trimmed.value();
+                }
+            }
+        }
         for (const auto& otioClip :
             p.otioTimeline.value->find_children<OTIO_NS::Clip>())
         {
@@ -984,6 +1001,22 @@ namespace tl
             otioClip,
             thread.mediaReferenceKey,
             thread.clipMediaReferenceKeys);
+    }
+
+    std::optional<OTIO_NS::TimeRange>
+        Timeline::Private::getTrimmedRangeInParent(
+            const OTIO_NS::Composable* otioComposable) const
+    {
+        const auto i = trimmedRangeInParent.find(otioComposable);
+        if (i != trimmedRangeInParent.end())
+        {
+            return i->second;
+        }
+        if (auto otioItem = dynamic_cast<const OTIO_NS::Item*>(otioComposable))
+        {
+            return otioItem->trimmed_range_in_parent();
+        }
+        return std::nullopt;
     }
 
     namespace
@@ -1587,7 +1620,7 @@ namespace tl
         // be read statefully keeps its own reader.
         auto seq = _getSeqDecode(mediaReference, optionsMerged);
         auto read = seq ? nullptr : _getVideoRead(mediaReference, optionsMerged);
-        const auto timeRangeOpt = clip->trimmed_range_in_parent();
+        const auto timeRangeOpt = p.getTrimmedRangeInParent(clip);
         if ((seq || read) && timeRangeOpt.has_value())
         {
             const IOInfo& ioInfo = seq ? seq->getInfo() : read->getInfo().get();
@@ -1628,7 +1661,7 @@ namespace tl
         std::future<AudioData> out;
         IOOptions optionsMerged = merge(options, p.options.ioOptions);
         auto read = _getAudioRead(clip, optionsMerged);
-        const auto timeRangeOpt = clip->trimmed_range_in_parent();
+        const auto timeRangeOpt = p.getTrimmedRangeInParent(clip);
         if (read && timeRangeOpt.has_value())
         {
             const IOInfo& ioInfo = read->getInfo().get();
@@ -1954,7 +1987,7 @@ namespace tl
                         {
                             const auto requestTime = request->time - p.timeRange.start_time();
                             OTIO_NS::ErrorStatus errorStatus;
-                            const auto range = otioItem->trimmed_range_in_parent(&errorStatus);
+                            const auto range = p.getTrimmedRangeInParent(otioItem);
                             if (range.has_value() && range.value().contains(requestTime))
                             {
                                 Private::VideoLayerData videoLayerData;
@@ -2043,7 +2076,7 @@ namespace tl
                     {
                         if (auto otioClip = dynamic_cast<OTIO_NS::Clip*>(otioChild.value))
                         {
-                            const auto rangeOptional = otioClip->trimmed_range_in_parent();
+                            const auto rangeOptional = p.getTrimmedRangeInParent(otioClip);
                             if (rangeOptional.has_value())
                             {
                                 const OTIO_NS::TimeRange clipTimeRange(

@@ -13,7 +13,9 @@
 #include <functional>
 #include <future>
 #include <list>
+#include <map>
 #include <mutex>
+#include <optional>
 #include <set>
 #include <thread>
 
@@ -27,6 +29,15 @@ namespace tl
         std::weak_ptr<ftk::LogSystem> logSystem;
         std::shared_ptr<ftk::FileIO> fileIO;
         OTIO_NS::SerializableObject::Retainer<OTIO_NS::Timeline> otioTimeline;
+        // OTIO works out an item's range in its track by summing the duration
+        // of every preceding sibling, and _requests() asks each track child
+        // for its range on every request to find the one covering the
+        // requested time. Left to OTIO that is quadratic in the number of
+        // clips: 20,000 clips took nine seconds to reach the first frame and
+        // 100,000 never got there. Filled in once by _init(), which can be
+        // done in a single pass per track; the OTIO timeline is never
+        // written, so this can be read without locking.
+        std::map<const OTIO_NS::Composable*, OTIO_NS::TimeRange> trimmedRangeInParent;
         // The bundle stays open so that a media reference's byte ranges can
         // be worked out when it is first read. Doing it for every reference
         // at open meant generating a file name, decoding it as a URL and
@@ -278,6 +289,12 @@ namespace tl
         // thread-owned key state. Request thread only; the main thread goes
         // through Timeline::getMediaReference(), which takes the mutex.
         OTIO_NS::MediaReference* mediaReference(const OTIO_NS::Clip*) const;
+
+        //! Get a track child's trimmed range in its parent, from
+        //! trimmedRangeInParent. Anything not covered by the cache, such as an
+        //! item nested below a track, falls back to asking OTIO.
+        std::optional<OTIO_NS::TimeRange> getTrimmedRangeInParent(
+            const OTIO_NS::Composable*) const;
         // Aggregate reader and frame errors into the mutex-guarded
         // fields. Called on the request thread before completing a
         // request, so the error state is current by the time a caller's
