@@ -522,19 +522,17 @@ namespace tl
             _print(ftk::Format("Silent movie readers: {0}").arg(silentCount));
             if (silentCount != 1)
             {
-                _error(ftk::Format(
+                _fail(ftk::Format(
                     "A movie with no audio should cost one reader, not {0}").
                     arg(silentCount));
-                FTK_ASSERT(false);
             }
             const size_t audioCount = readerCount(audioPath);
             _print(ftk::Format("Movie with audio readers: {0}").arg(audioCount));
             if (audioCount != 2)
             {
-                _error(ftk::Format(
+                _fail(ftk::Format(
                     "A movie with audio should cost two readers, not {0}").
                     arg(audioCount));
-                FTK_ASSERT(false);
             }
         }
 
@@ -610,8 +608,7 @@ namespace tl
             _print(ss.str());
             if (elapsed >= 1000)
             {
-                _error("Shutdown had to wait for the logging interval");
-                FTK_ASSERT(false);
+                _fail("Shutdown had to wait for the logging interval");
             }
         }
 
