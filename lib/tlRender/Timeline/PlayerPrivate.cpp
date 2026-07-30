@@ -607,15 +607,11 @@ namespace tl
     }
 
     void Player::Private::droppedFramesTick(
-        const OTIO_NS::RationalTime& presentedTime,
+        const std::optional<OTIO_NS::RationalTime>& presentedTime,
         Playback playback,
         double timelineSpeed)
     {
         const OTIO_NS::RationalTime clockTime = currentTime->get();
-        if (!isValid(clockTime))
-        {
-            return;
-        }
 
         // (Re)establish the baseline after a discontinuity (seek, loop wrap,
         // play start) or on the first tick. The running total carries across so
@@ -632,7 +628,7 @@ namespace tl
         }
 
         // Count each distinct frame actually shown since the baseline.
-        if (isValid(presentedTime) && presentedTime != droppedPresentedLast)
+        if (presentedTime.has_value() && presentedTime != droppedPresentedLast)
         {
             droppedPresentedLast = presentedTime;
             ++droppedShownCount;
@@ -668,8 +664,8 @@ namespace tl
             const std::string id = ftk::Format("tl::Player {0}").arg(this);
 
             // Get values.
-            OTIO_NS::RationalTime currentTime = invalidTime;
-            OTIO_NS::TimeRange inOutRange = invalidTimeRange;
+            OTIO_NS::RationalTime currentTime;
+            OTIO_NS::TimeRange inOutRange;
             IOOptions ioOptions;
             PlayerCacheInfo cacheInfo;
             {

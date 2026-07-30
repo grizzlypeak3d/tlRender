@@ -59,8 +59,8 @@ namespace tl
         //! Timeout to sleep each tick.
         std::chrono::milliseconds sleepTimeout = std::chrono::milliseconds(5);
 
-        //! Current time to start at.
-        OTIO_NS::RationalTime currentTime = invalidTime;
+        //! Current time to start at. Unset starts at the beginning.
+        std::optional<OTIO_NS::RationalTime> currentTime;
 
         TL_API bool operator == (const PlayerOptions&) const;
         TL_API bool operator != (const PlayerOptions&) const;

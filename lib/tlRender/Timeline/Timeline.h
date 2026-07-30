@@ -295,8 +295,8 @@ namespace tl
         struct MediaAt
         {
             std::shared_ptr<SeqDecode> seq;
-            OTIO_NS::TimeRange rangeInParent = invalidTimeRange;
-            OTIO_NS::TimeRange trimmedRange = invalidTimeRange;
+            OTIO_NS::TimeRange rangeInParent;
+            OTIO_NS::TimeRange trimmedRange;
             double rate = 0.0;
         };
         std::optional<MediaAt> _mediaAt(const OTIO_NS::RationalTime&);

@@ -302,7 +302,12 @@ namespace tl
         void VideoRead::_run()
         {
             FTK_P();
-            p.currentTime = p.info.videoTime.start_time();
+            // Fixed once the file is probed, so it is read here rather than
+            // per request. A file with no video stream reads nothing, so the
+            // empty range it falls back to is never used.
+            const OTIO_NS::TimeRange videoTime =
+                p.info.videoTime.value_or(OTIO_NS::TimeRange());
+            p.currentTime = videoTime.start_time();
             p.readVideo->start();
             p.logTimer = std::chrono::steady_clock::now();
             size_t errorCount = 0;
@@ -343,7 +348,7 @@ namespace tl
                     }
                     guard.setValue(std::move(data));
 
-                    p.currentTime += OTIO_NS::RationalTime(1.0, p.info.videoTime.duration().rate());
+                    p.currentTime += OTIO_NS::RationalTime(1.0, videoTime.duration().rate());
                 }
 
                 // Record any new errors from the worker, logging the
@@ -534,7 +539,11 @@ namespace tl
         void AudioRead::_run()
         {
             FTK_P();
-            p.currentTime = p.info.audioTime.start_time();
+            // As with the video above: fixed by the probe, and unused when
+            // the file has no audio.
+            const OTIO_NS::TimeRange audioTime =
+                p.info.audioTime.value_or(OTIO_NS::TimeRange());
+            p.currentTime = audioTime.start_time();
             p.readAudio->start();
             p.logTimer = std::chrono::steady_clock::now();
             const bool audioValid = p.info.audio.isValid();
@@ -575,7 +584,7 @@ namespace tl
                     bool intersects = false;
                     if (audioValid)
                     {
-                        intersects = request->timeRange.intersects(p.info.audioTime);
+                        intersects = request->timeRange.intersects(audioTime);
                     }
                     while (
                         intersects &&
@@ -604,11 +613,11 @@ namespace tl
                         if (intersects)
                         {
                             size_t offset = 0;
-                            if (audioData.time < p.info.audioTime.start_time())
+                            if (audioData.time < audioTime.start_time())
                             {
                                 offset = std::min(
                                     static_cast<size_t>(
-                                        (p.info.audioTime.start_time() - audioData.time).
+                                        (audioTime.start_time() - audioData.time).
                                             rescaled_to(p.info.audio.sampleRate).value()),
                                     requestSampleCount);
                             }

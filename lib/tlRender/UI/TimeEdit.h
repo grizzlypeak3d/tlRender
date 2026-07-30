@@ -52,11 +52,11 @@ namespace tl
             //! Get the time units model.
             TL_API const std::shared_ptr<TimeUnitsModel>& getTimeUnitsModel() const;
 
-            //! Get the time value.
-            TL_API const OTIO_NS::RationalTime& getValue() const;
+            //! Get the time value, unset when the edit has none.
+            TL_API const std::optional<OTIO_NS::RationalTime>& getValue() const;
 
             //! Set the time value.
-            TL_API void setValue(const OTIO_NS::RationalTime&);
+            TL_API void setValue(const std::optional<OTIO_NS::RationalTime>&);
 
             //! Set the mapping between the value and the time shown. The
             //! value, and the callback, stay in the player's time.
@@ -78,7 +78,7 @@ namespace tl
             TL_API void keyReleaseEvent(ftk::KeyEvent&) override;
 
         private:
-            OTIO_NS::RationalTime _mediaValue() const;
+            std::optional<OTIO_NS::RationalTime> _mediaValue() const;
             void _commitValue(const std::string&);
             void _commitValue(const OTIO_NS::RationalTime&);
             void _textUpdate();

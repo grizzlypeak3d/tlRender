@@ -22,7 +22,7 @@ namespace tl
 
             std::shared_ptr<ftk::Observer<bool> > frameViewObserver;
             std::shared_ptr<ftk::Observer<bool> > scrubObserver;
-            std::shared_ptr<ftk::Observer<OTIO_NS::RationalTime> > timeScrubObserver;
+            std::shared_ptr<ftk::Observer<std::optional<OTIO_NS::RationalTime> > > timeScrubObserver;
         };
 
         TimelineWidget::TimelineWidget(
@@ -52,11 +52,16 @@ namespace tl
                     Q_EMIT scrubChanged(value);
                 });
 
-            p.timeScrubObserver = ftk::Observer<OTIO_NS::RationalTime>::create(
+            p.timeScrubObserver = ftk::Observer<std::optional<OTIO_NS::RationalTime> >::create(
                 p.timelineWidget->observeTimeScrub(),
-                [this](const OTIO_NS::RationalTime& value)
+                [this](const std::optional<OTIO_NS::RationalTime>& value)
                 {
-                    Q_EMIT timeScrubbed(value);
+                    // Nothing has been scrubbed to yet, so there is no
+                    // position to report.
+                    if (value.has_value())
+                    {
+                        Q_EMIT timeScrubbed(*value);
+                    }
                 });
         }
 

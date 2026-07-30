@@ -18,7 +18,7 @@ namespace tl
         {
             Q_OBJECT
             Q_PROPERTY(
-                OTIO_NS::RationalTime value
+                std::optional<OTIO_NS::RationalTime> value
                 READ value
                 WRITE setValue)
             Q_PROPERTY(
@@ -34,15 +34,15 @@ namespace tl
             //! Set the time object.
             void setTimeObject(qt::TimeObject*);
 
-            //! Get the time value.
-            const OTIO_NS::RationalTime& value() const;
+            //! Get the time value, unset when the label has none.
+            const std::optional<OTIO_NS::RationalTime>& value() const;
 
             //! Get the time units.
             TimeUnits timeUnits() const;
 
         public Q_SLOTS:
             //! Set the time value.
-            void setValue(const OTIO_NS::RationalTime&);
+            void setValue(const std::optional<OTIO_NS::RationalTime>&);
 
             //! Set the time units.
             void setTimeUnits(tl::TimeUnits);

@@ -485,7 +485,7 @@ namespace tl
                     auto samples = Audio::create(
                         audioInfo, audioInfo.sampleRate);
                     samples->zero();
-                    write->writeAudio(info.audioTime, samples);
+                    write->writeAudio(*info.audioTime, samples);
                 }
                 write->finish();
             };
@@ -569,7 +569,7 @@ namespace tl
             auto seq = SeqDecode::create(mediaPath, mem, decode);
             const IOInfo info = seq->getInfo();
             FTK_ASSERT(!info.video.empty());
-            const auto time = info.videoTime.start_time();
+            const auto time = info.videoTime->start_time();
             FTK_ASSERT(seq->readVideo(time).image);
 
             // The decoder was handed the memory the frames live in, and each
@@ -1304,7 +1304,7 @@ namespace tl
                 }
 
                 auto future = timeline->readMedia(
-                    mediaPath, info.videoTime.start_time());
+                    mediaPath, info.videoTime->start_time());
                 FTK_ASSERT(future.valid());
                 // No thread, so the read is already done.
                 FTK_ASSERT(future.wait_for(std::chrono::seconds(0)) ==

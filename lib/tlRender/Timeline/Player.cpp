@@ -108,9 +108,7 @@ namespace tl
         p.playback = ftk::Observable<Playback>::create(Playback::Stop);
         p.loop = ftk::Observable<Loop>::create(Loop::Loop);
         p.currentTime = ftk::Observable<OTIO_NS::RationalTime>::create(
-            isValid(playerOptions.currentTime) ?
-            playerOptions.currentTime :
-            p.timeRange.start_time());
+            playerOptions.currentTime.value_or(p.timeRange.start_time()));
         p.seek = ftk::Observable<OTIO_NS::RationalTime>::create(p.currentTime->get());
         p.inOutRange = ftk::Observable<OTIO_NS::TimeRange>::create(p.timeRange);
         p.compare = ftk::ObservableList<std::shared_ptr<Timeline> >::create();
@@ -922,7 +920,7 @@ namespace tl
         const auto playback = p.playback->get();
         if (playback != Playback::Stop && timelineSpeed > 0.0)
         {
-            OTIO_NS::RationalTime start = invalidTime;
+            OTIO_NS::RationalTime start;
             double t = 0.0;
             if (p.hasAudio())
             {
@@ -980,7 +978,9 @@ namespace tl
         if (playback != Playback::Stop && timelineSpeed > 0.0)
         {
             p.droppedFramesTick(
-                !currentVideoFrame.empty() ? currentVideoFrame[0].time : invalidTime,
+                !currentVideoFrame.empty() ?
+                    std::optional<OTIO_NS::RationalTime>(currentVideoFrame[0].time) :
+                    std::nullopt,
                 playback,
                 timelineSpeed);
         }

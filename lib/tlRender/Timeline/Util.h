@@ -68,8 +68,8 @@ namespace tl
         const OTIO_NS::Timeline*,
         const std::string& kind);
 
-    //! Get the time range of a timeline.
-    TL_API OTIO_NS::TimeRange getTimeRange(const OTIO_NS::Timeline*);
+    //! Get the time range of a timeline. Unset when no track has a duration.
+    TL_API std::optional<OTIO_NS::TimeRange> getTimeRange(const OTIO_NS::Timeline*);
 
     //! Get a list of paths to open from the given path.
     TL_API std::vector<ftk::Path> getPaths(

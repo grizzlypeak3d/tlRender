@@ -17,24 +17,26 @@ namespace tl
         "Seconds",
         "Timecode");
 
-    std::string timeToText(const OTIO_NS::RationalTime& time, TimeUnits units)
+    std::string timeToText(
+        const std::optional<OTIO_NS::RationalTime>& time,
+        TimeUnits units)
     {
         std::string out;
         switch (units)
         {
         case TimeUnits::Frames:
             out = ftk::Format("{0}").
-                arg(isValid(time) ? time.to_frames() : 0);
+                arg(time.has_value() ? time->to_frames() : 0);
             break;
         case TimeUnits::Seconds:
             out = ftk::Format("{0}").
-                arg(isValid(time) ? time.to_seconds() : 0.0, 2);
+                arg(time.has_value() ? time->to_seconds() : 0.0, 2);
             break;
         case TimeUnits::Timecode:
         {
-            if (isValid(time))
+            if (time.has_value())
             {
-                out = time.to_timecode();
+                out = time->to_timecode();
             }
             if (out.empty())
             {
@@ -47,13 +49,13 @@ namespace tl
         return out;
     }
 
-    OTIO_NS::RationalTime textToTime(
+    std::optional<OTIO_NS::RationalTime> textToTime(
         const std::string& text,
         double rate,
         TimeUnits units,
         opentime::ErrorStatus* errorStatus)
     {
-        OTIO_NS::RationalTime out = invalidTime;
+        std::optional<OTIO_NS::RationalTime> out;
         switch (units)
         {
         case TimeUnits::Frames:
@@ -72,6 +74,10 @@ namespace tl
             out = OTIO_NS::RationalTime::from_timecode(text, rate, errorStatus);
             break;
         default: break;
+        }
+        if (out.has_value() && out->is_invalid_time())
+        {
+            out.reset();
         }
         return out;
     }
@@ -175,7 +181,8 @@ namespace tl
         }
     }
 
-    std::string TimeUnitsModel::getLabel(const OTIO_NS::RationalTime& value) const
+    std::string TimeUnitsModel::getLabel(
+        const std::optional<OTIO_NS::RationalTime>& value) const
     {
         return timeToText(value, _p->timeUnits->get());
     }

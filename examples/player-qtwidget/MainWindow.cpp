@@ -53,8 +53,8 @@ namespace tl
                 addToolBar(Qt::BottomToolBarArea, toolBar);
 
                 // Update the widget.
-                _currentTimeUpdate(invalidTime);
-                _durationUpdate(invalidTime);
+                _currentTimeUpdate(std::nullopt);
+                _durationUpdate(std::nullopt);
                 _playbackUpdate(Playback::Stop);
 
                 // Setup connections.
@@ -98,8 +98,12 @@ namespace tl
                 _viewport->setPlayer(player);
                 _timelineWidget->setPlayer(player ? player->player() : nullptr);
 
-                _currentTimeUpdate(player ? player->currentTime() : invalidTime);
-                _durationUpdate(player ? player->timeRange().duration() : invalidTime);
+                _currentTimeUpdate(player ?
+                    std::optional<OTIO_NS::RationalTime>(player->currentTime()) :
+                    std::nullopt);
+                _durationUpdate(player ?
+                    std::optional<OTIO_NS::RationalTime>(player->timeRange().duration()) :
+                    std::nullopt);
                 _playbackUpdate(player ? player->playback() : Playback::Stop);
 
                 if (player)
@@ -121,13 +125,13 @@ namespace tl
                 }
             }
 
-            void MainWindow::_currentTimeUpdate(const OTIO_NS::RationalTime& value)
+            void MainWindow::_currentTimeUpdate(const std::optional<OTIO_NS::RationalTime>& value)
             {
                 QSignalBlocker blocker(_currentTimeSpinBox);
                 _currentTimeSpinBox->setValue(value);
             }
 
-            void MainWindow::_durationUpdate(const OTIO_NS::RationalTime& value)
+            void MainWindow::_durationUpdate(const std::optional<OTIO_NS::RationalTime>& value)
             {
                 _durationLabel->setValue(value);
             }

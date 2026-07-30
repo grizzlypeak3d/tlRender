@@ -233,9 +233,9 @@ namespace tl
         return out;
     }
 
-    OTIO_NS::TimeRange getTimeRange(const OTIO_NS::Timeline* otioTimeline)
+    std::optional<OTIO_NS::TimeRange> getTimeRange(const OTIO_NS::Timeline* otioTimeline)
     {
-        OTIO_NS::TimeRange out = invalidTimeRange;
+        std::optional<OTIO_NS::TimeRange> out;
         auto duration = getDuration(otioTimeline, OTIO_NS::Track::Kind::video);
         if (!duration.has_value())
         {

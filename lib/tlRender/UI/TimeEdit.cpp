@@ -17,7 +17,7 @@ namespace tl
         struct TimeEdit::Private
         {
             std::shared_ptr<TimeUnitsModel> timeUnitsModel;
-            OTIO_NS::RationalTime value = invalidTime;
+            std::optional<OTIO_NS::RationalTime> value;
             TimeMap timeMap;
             std::function<void(const OTIO_NS::RationalTime&)> callback;
             std::shared_ptr<ftk::LineEdit> lineEdit;
@@ -69,15 +69,24 @@ namespace tl
                     }
                 });
 
+            // Nothing to step from when the edit has no value.
             p.incButtons->setIncCallback(
                 [this]
                 {
-                    _commitValue(_p->value + OTIO_NS::RationalTime(1.0, _p->value.rate()));
+                    if (_p->value.has_value())
+                    {
+                        _commitValue(*_p->value +
+                            OTIO_NS::RationalTime(1.0, _p->value->rate()));
+                    }
                 });
             p.incButtons->setDecCallback(
                 [this]
                 {
-                    _commitValue(_p->value + OTIO_NS::RationalTime(-1.0, _p->value.rate()));
+                    if (_p->value.has_value())
+                    {
+                        _commitValue(*_p->value +
+                            OTIO_NS::RationalTime(-1.0, _p->value->rate()));
+                    }
                 });
 
             p.timeUnitsObserver = ftk::Observer<TimeUnits>::create(
@@ -110,15 +119,15 @@ namespace tl
             return _p->timeUnitsModel;
         }
 
-        const OTIO_NS::RationalTime& TimeEdit::getValue() const
+        const std::optional<OTIO_NS::RationalTime>& TimeEdit::getValue() const
         {
             return _p->value;
         }
 
-        void TimeEdit::setValue(const OTIO_NS::RationalTime& value)
+        void TimeEdit::setValue(const std::optional<OTIO_NS::RationalTime>& value)
         {
             FTK_P();
-            if (value.strictly_equal(p.value))
+            if (compareExact(value, p.value))
                 return;
             p.value = value;
             _textUpdate();
@@ -165,33 +174,33 @@ namespace tl
         void TimeEdit::keyPressEvent(ftk::KeyEvent& event)
         {
             FTK_P();
-            if (isEnabled() && 0 == event.modifiers)
+            if (isEnabled() && 0 == event.modifiers && p.value.has_value())
             {
                 switch (event.key)
                 {
                 case ftk::Key::Up:
                     event.accept = true;
                     _commitValue(
-                        p.value +
-                        OTIO_NS::RationalTime(1.0, p.value.rate()));
+                        *p.value +
+                        OTIO_NS::RationalTime(1.0, p.value->rate()));
                     break;
                 case ftk::Key::Down:
                     event.accept = true;
                     _commitValue(
-                        p.value -
-                        OTIO_NS::RationalTime(1.0, p.value.rate()));
+                        *p.value -
+                        OTIO_NS::RationalTime(1.0, p.value->rate()));
                     break;
                 case ftk::Key::PageUp:
                     event.accept = true;
                     _commitValue(
-                        p.value +
-                        OTIO_NS::RationalTime(p.value.rate(), p.value.rate()));
+                        *p.value +
+                        OTIO_NS::RationalTime(p.value->rate(), p.value->rate()));
                     break;
                 case ftk::Key::PageDown:
                     event.accept = true;
                     _commitValue(
-                        p.value -
-                        OTIO_NS::RationalTime(p.value.rate(), p.value.rate()));
+                        *p.value -
+                        OTIO_NS::RationalTime(p.value->rate(), p.value->rate()));
                     break;
                 default: break;
                 }
@@ -203,36 +212,39 @@ namespace tl
             event.accept = true;
         }
 
-        OTIO_NS::RationalTime TimeEdit::_mediaValue() const
+        std::optional<OTIO_NS::RationalTime> TimeEdit::_mediaValue() const
         {
             FTK_P();
-            return (p.timeMap.toMedia && isValid(p.value)) ?
-                p.timeMap.toMedia(p.value) :
+            return (p.timeMap.toMedia && p.value.has_value()) ?
+                p.timeMap.toMedia(*p.value) :
                 p.value;
         }
 
         void TimeEdit::_commitValue(const std::string& value)
         {
             FTK_P();
-            OTIO_NS::RationalTime tmp = invalidTime;
+            std::optional<OTIO_NS::RationalTime> tmp;
             opentime::ErrorStatus errorStatus;
-            if (p.timeUnitsModel)
+            const std::optional<OTIO_NS::RationalTime> mediaValue = _mediaValue();
+            // Without a value there is no rate to read the text at, so there
+            // is nothing to parse it into.
+            if (p.timeUnitsModel && mediaValue.has_value())
             {
                 const TimeUnits timeUnits = p.timeUnitsModel->getTimeUnits();
                 // What was typed is in the media's time, so it is read at the
                 // media's rate and taken back to the player's time.
                 tmp = textToTime(
                     value,
-                    _mediaValue().rate(),
+                    mediaValue->rate(),
                     timeUnits,
                     &errorStatus);
-                if (isValid(tmp) && p.timeMap.fromMedia)
+                if (tmp.has_value() && p.timeMap.fromMedia)
                 {
-                    tmp = p.timeMap.fromMedia(tmp);
+                    tmp = p.timeMap.fromMedia(*tmp);
                 }
             }
             const bool valid =
-                isValid(tmp) &&
+                tmp.has_value() &&
                 !opentime::is_error(errorStatus);
             if (valid)
             {
@@ -241,7 +253,7 @@ namespace tl
             _textUpdate();
             if (valid && p.callback)
             {
-                p.callback(_p->value);
+                p.callback(*_p->value);
             }
         }
 
@@ -252,7 +264,7 @@ namespace tl
             _textUpdate();
             if (p.callback)
             {
-                p.callback(p.value);
+                p.callback(value);
             }
         }
 

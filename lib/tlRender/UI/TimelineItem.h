@@ -62,7 +62,7 @@ namespace tl
             TL_API std::shared_ptr<ftk::IObservable<bool> > observeScrub() const;
 
             //! Observe time scrubbing.
-            TL_API std::shared_ptr<ftk::IObservable<OTIO_NS::RationalTime> > observeTimeScrub() const;
+            TL_API std::shared_ptr<ftk::IObservable<std::optional<OTIO_NS::RationalTime> > > observeTimeScrub() const;
 
             //! Set the frame markers.
             TL_API void setFrameMarkers(const std::vector<int>&);
@@ -161,7 +161,7 @@ namespace tl
             void _tracksUpdate();
             void _textUpdate();
 
-            OTIO_NS::TimeRange _timeRange = invalidTimeRange;
+            OTIO_NS::TimeRange _timeRange;
             double _scale = 500.0;
             ItemOptions _options;
             DisplayOptions _displayOptions;

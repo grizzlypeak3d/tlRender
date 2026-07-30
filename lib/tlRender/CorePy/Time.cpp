@@ -15,9 +15,6 @@ namespace tl
     namespace python
     {
         void time(py::module_& m)
-        {
-            m.attr("invalidTime") = invalidTime;
-            m.attr("invaliinvalidTimeRangedTime") = invalidTimeRange;
-        }
+        {}
     }
 }

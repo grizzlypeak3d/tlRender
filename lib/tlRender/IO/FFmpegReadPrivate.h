@@ -98,7 +98,7 @@ namespace tl
             std::string _fileName;
             ReadOptions _options;
             ftk::ImageInfo _info;
-            OTIO_NS::TimeRange _timeRange = invalidTimeRange;
+            OTIO_NS::TimeRange _timeRange;
             ftk::ImageTags _tags;
 
             AVFormatContext* _avFormatContext = nullptr;
@@ -163,7 +163,7 @@ namespace tl
             std::string _fileName;
             ReadOptions _options;
             AudioInfo _info;
-            OTIO_NS::TimeRange _timeRange = invalidTimeRange;
+            OTIO_NS::TimeRange _timeRange;
             ftk::ImageTags _tags;
 
             AVFormatContext* _avFormatContext = nullptr;
@@ -203,7 +203,7 @@ namespace tl
             };
             struct VideoRequest
             {
-                OTIO_NS::RationalTime time = invalidTime;
+                OTIO_NS::RationalTime time;
                 IOOptions options;
                 std::promise<VideoData> promise;
             };
@@ -215,7 +215,7 @@ namespace tl
 
             std::thread thread;
             // Only accessed from the thread above.
-            OTIO_NS::RationalTime currentTime = invalidTime;
+            OTIO_NS::RationalTime currentTime;
             std::chrono::steady_clock::time_point logTimer;
 
             ErrorMutex errorMutex;
@@ -234,7 +234,7 @@ namespace tl
             };
             struct AudioRequest
             {
-                OTIO_NS::TimeRange timeRange = invalidTimeRange;
+                OTIO_NS::TimeRange timeRange;
                 IOOptions options;
                 std::promise<AudioData> promise;
             };
@@ -244,7 +244,7 @@ namespace tl
 
             std::thread thread;
             // Only accessed from the thread above.
-            OTIO_NS::RationalTime currentTime = invalidTime;
+            OTIO_NS::RationalTime currentTime;
             std::chrono::steady_clock::time_point logTimer;
 
             ErrorMutex errorMutex;

@@ -15,7 +15,7 @@ namespace tl
     std::vector<OTIO_NS::RationalTime> frames(const OTIO_NS::TimeRange& value)
     {
         std::vector<OTIO_NS::RationalTime> out;
-        if (isValid(value))
+        if (!value.duration().is_invalid_time())
         {
             const auto start = value.start_time();
             const auto end = value.end_time_exclusive();
@@ -31,7 +31,7 @@ namespace tl
     std::vector<OTIO_NS::TimeRange> seconds(const OTIO_NS::TimeRange& value)
     {
         std::vector<OTIO_NS::TimeRange> out;
-        if (isValid(value))
+        if (!value.duration().is_invalid_time())
         {
             const OTIO_NS::TimeRange seconds(
                 value.start_time().rescaled_to(1.0),

@@ -170,7 +170,7 @@ namespace tl
                             r);
                     }
 
-                    OTIO_NS::RationalTime timeReference = invalidTime;
+                    std::optional<OTIO_NS::RationalTime> timeReference;
                     ftk::ImageTags tags;
                     AVDictionaryEntry* tag = nullptr;
                     while ((tag = av_dict_get(_avFormatContext->metadata, "", tag, AV_DICT_IGNORE_SUFFIX)))
@@ -211,9 +211,9 @@ namespace tl
                             //std::cout << fileName << " start time: " << startTime << std::endl;
                         }
                     }
-                    else if (!timeReference.is_invalid_time())
+                    else if (timeReference.has_value())
                     {
-                        startTime = timeReference;
+                        startTime = timeReference.value();
                     }
                     _timeRange = OTIO_NS::TimeRange(
                         startTime,

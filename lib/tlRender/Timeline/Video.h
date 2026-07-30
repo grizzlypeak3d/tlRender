@@ -57,7 +57,7 @@ namespace tl
         //! image sizes instead.
         ftk::Size2I             canvasSize;
 
-        OTIO_NS::RationalTime   time   = invalidTime;
+        OTIO_NS::RationalTime   time;
         std::vector<VideoLayer> layers;
 
         TL_API bool operator == (const VideoFrame&) const;

@@ -322,7 +322,7 @@ namespace tl
         // Get mutex protected values.
         AudioState state;
         bool reset = false;
-        OTIO_NS::RationalTime start = invalidTime;
+        OTIO_NS::RationalTime start;
         {
             std::unique_lock<std::mutex> lock(audioMutex.mutex);
             state = audioMutex.state;

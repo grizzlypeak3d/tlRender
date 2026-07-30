@@ -162,7 +162,7 @@ namespace tl
 
             // Test the current time.
             player->setPlayback(Playback::Stop);
-            OTIO_NS::RationalTime currentTime = invalidTime;
+            OTIO_NS::RationalTime currentTime;
             auto currentTimeObserver = ftk::Observer<OTIO_NS::RationalTime>::create(
                 player->observeCurrentTime(),
                 [&currentTime](const OTIO_NS::RationalTime& value)
@@ -197,7 +197,7 @@ namespace tl
             player->timeAction(TimeAction::JumpBack10s);
 
             // Test the in/out points.
-            OTIO_NS::TimeRange inOutRange = invalidTimeRange;
+            OTIO_NS::TimeRange inOutRange;
             auto inOutRangeObserver = ftk::Observer<OTIO_NS::TimeRange>::create(
                 player->observeInOutRange(),
                 [&inOutRange](const OTIO_NS::TimeRange& value)

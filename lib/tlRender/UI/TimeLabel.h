@@ -40,11 +40,11 @@ namespace tl
             //! Get the time units model.
             TL_API const std::shared_ptr<TimeUnitsModel>& getTimeUnitsModel() const;
 
-            //! Get the time value.
-            TL_API const OTIO_NS::RationalTime& getValue() const;
+            //! Get the time value, unset when the label has none.
+            TL_API const std::optional<OTIO_NS::RationalTime>& getValue() const;
 
             //! Set the time value.
-            TL_API void setValue(const OTIO_NS::RationalTime&);
+            TL_API void setValue(const std::optional<OTIO_NS::RationalTime>&);
 
             //! Set the margin role.
             TL_API void setMarginRole(ftk::SizeRole);

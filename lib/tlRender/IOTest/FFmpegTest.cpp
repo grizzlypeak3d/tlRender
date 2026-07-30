@@ -535,7 +535,7 @@ namespace tl
                     FTK_ASSERT(false);
                 }
                 const int64_t readSampleCount = static_cast<int64_t>(
-                    ioInfo.audioTime.duration().
+                    ioInfo.audioTime->duration().
                         rescaled_to(audioInfo.sampleRate).value());
                 if (std::abs(
                     readSampleCount - static_cast<int64_t>(sampleCount)) > 64)
@@ -559,7 +559,7 @@ namespace tl
                         audioInfo.sampleRate, compareCount - offset);
                     const auto audioData = read->readAudio(
                         OTIO_NS::TimeRange(
-                            ioInfo.audioTime.start_time() +
+                            ioInfo.audioTime->start_time() +
                                 OTIO_NS::RationalTime(
                                     static_cast<double>(offset),
                                     audioInfo.sampleRate),
@@ -685,7 +685,7 @@ namespace tl
                     FTK_ASSERT(false);
                 }
                 const int64_t readSampleCount = static_cast<int64_t>(
-                    ioInfo.audioTime.duration().
+                    ioInfo.audioTime->duration().
                         rescaled_to(audioInfo.sampleRate).value());
                 if (std::abs(
                     readSampleCount - static_cast<int64_t>(sampleCount)) >
@@ -703,7 +703,7 @@ namespace tl
                 const size_t rmsCount = 44100;
                 const auto audioData = read->readAudio(
                     OTIO_NS::TimeRange(
-                        ioInfo.audioTime.start_time() +
+                        ioInfo.audioTime->start_time() +
                             OTIO_NS::RationalTime(
                                 static_cast<double>(rmsOffset),
                                 audioInfo.sampleRate),
@@ -924,7 +924,7 @@ namespace tl
                     FTK_ASSERT(false);
                 }
                 const auto videoData = videoRead->readVideo(
-                    videoInfo.videoTime.start_time()).get();
+                    videoInfo.videoTime->start_time()).get();
                 if (!videoData.image)
                 {
                     _error("Split: expected video data");
@@ -942,7 +942,7 @@ namespace tl
                 }
                 const auto audioData = audioRead->readAudio(
                     OTIO_NS::TimeRange(
-                        audioReadInfo.audioTime.start_time(),
+                        audioReadInfo.audioTime->start_time(),
                         OTIO_NS::RationalTime(
                             1000.0, audioInfo.sampleRate))).get();
                 if (!audioData.audio ||

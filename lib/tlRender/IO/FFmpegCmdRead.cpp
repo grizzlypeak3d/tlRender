@@ -24,7 +24,7 @@ namespace tl
 
             struct VideoRequest
             {
-                OTIO_NS::RationalTime time = invalidTime;
+                OTIO_NS::RationalTime time;
                 IOOptions options;
                 std::promise<VideoData> promise;
             };
@@ -39,7 +39,7 @@ namespace tl
 
             struct Thread
             {
-                OTIO_NS::RationalTime time = invalidTime;
+                OTIO_NS::RationalTime time;
                 std::shared_ptr<Pipe> pipe = nullptr;
                 std::atomic<bool> running;
                 std::condition_variable cv;
@@ -59,7 +59,7 @@ namespace tl
 
             struct AudioRequest
             {
-                OTIO_NS::TimeRange timeRange = invalidTimeRange;
+                OTIO_NS::TimeRange timeRange;
                 IOOptions options;
                 std::promise<AudioData> promise;
             };
@@ -74,7 +74,7 @@ namespace tl
 
             struct Thread
             {
-                OTIO_NS::RationalTime time = invalidTime;
+                OTIO_NS::RationalTime time;
                 std::shared_ptr<Pipe> pipe = nullptr;
                 std::atomic<bool> running;
                 std::condition_variable cv;
@@ -550,12 +550,12 @@ namespace tl
                             }
                             {
                                 std::stringstream ss;
-                                ss << out.videoTime.start_time().to_timecode();
+                                ss << out.videoTime->start_time().to_timecode();
                                 out.tags["Video Start Time"] = ss.str();
                             }
                             {
                                 std::stringstream ss;
-                                ss << out.videoTime.duration().to_timecode();
+                                ss << out.videoTime->duration().to_timecode();
                                 out.tags["Video Duration"] = ss.str();
                             }
                             {
@@ -669,7 +669,7 @@ namespace tl
                                 std::stringstream ss;
                                 ss.precision(2);
                                 ss << std::fixed;
-                                ss << out.audioTime.duration().rescaled_to(1.0).value() << " seconds";
+                                ss << out.audioTime->duration().rescaled_to(1.0).value() << " seconds";
                                 out.tags["Audio Duration"] = ss.str();
                             }
                             k = j.find("codec_name");
@@ -698,7 +698,12 @@ namespace tl
         void VideoRead::_run()
         {
             FTK_P();
-            p.thread.time = p.info.videoTime.start_time();
+            // Fixed by the probe, so it is read once here rather than per
+            // request. Nothing is read when the file has no video stream, so
+            // the empty range it falls back to is never used.
+            const OTIO_NS::TimeRange videoTime =
+                p.info.videoTime.value_or(OTIO_NS::TimeRange());
+            p.thread.time = videoTime.start_time();
             IOOptions ioOptions;
             while (p.thread.running)
             {
@@ -750,7 +755,7 @@ namespace tl
                         cmd.push_back("-v");
                         cmd.push_back("quiet");
                         cmd.push_back("-ss");
-                        const double s = (p.thread.time - p.info.videoTime.start_time()).to_seconds();
+                        const double s = (p.thread.time - videoTime.start_time()).to_seconds();
                         cmd.push_back(ftk::Format("{0}").arg(s));
                         cmd.push_back("-i");
                         cmd.push_back(_path.get());
@@ -800,7 +805,7 @@ namespace tl
                         }
                     }
                     videoRequest->promise.set_value(video);
-                    p.thread.time += OTIO_NS::RationalTime(1.0, p.info.videoTime.duration().rate());
+                    p.thread.time += OTIO_NS::RationalTime(1.0, videoTime.duration().rate());
                 }
             }
 
@@ -810,7 +815,11 @@ namespace tl
         void AudioRead::_run()
         {
             FTK_P();
-            p.thread.time = p.info.audioTime.start_time();
+            // As with the video above: fixed by the probe, and unused when
+            // the file has no audio.
+            const OTIO_NS::TimeRange audioTime =
+                p.info.audioTime.value_or(OTIO_NS::TimeRange());
+            p.thread.time = audioTime.start_time();
             IOOptions ioOptions;
             while (p.thread.running)
             {
@@ -861,7 +870,7 @@ namespace tl
                         cmd.push_back("-v");
                         cmd.push_back("quiet");
                         cmd.push_back("-ss");
-                        const double s = (p.thread.time - p.info.audioTime.start_time()).to_seconds();
+                        const double s = (p.thread.time - audioTime.start_time()).to_seconds();
                         cmd.push_back(ftk::Format("{0}").arg(s));
                         cmd.push_back("-i");
                         cmd.push_back(_path.get());

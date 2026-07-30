@@ -105,9 +105,9 @@ namespace tl
             std::shared_ptr<Timeline> _timeline;
             ftk::Size2I _renderSize;
             ftk::ImageInfo _outputInfo;
-            OTIO_NS::TimeRange _timeRange = invalidTimeRange;
-            OTIO_NS::RationalTime _inputTime = invalidTime;
-            OTIO_NS::RationalTime _outputTime = invalidTime;
+            OTIO_NS::TimeRange _timeRange;
+            OTIO_NS::RationalTime _inputTime;
+            OTIO_NS::RationalTime _outputTime;
             bool _hasAudio = false;
             double _audioStartSeconds = 0.0;
             double _audioDurationSeconds = 0.0;

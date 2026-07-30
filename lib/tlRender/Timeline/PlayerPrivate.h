@@ -40,7 +40,10 @@ namespace tl
         bool hasAudio() const;
         void playbackReset(const OTIO_NS::RationalTime&);
         void resetPlaybackTime(const OTIO_NS::RationalTime&);
-        void droppedFramesTick(const OTIO_NS::RationalTime& presentedTime, Playback, double timelineSpeed);
+        void droppedFramesTick(
+            const std::optional<OTIO_NS::RationalTime>& presentedTime,
+            Playback,
+            double timelineSpeed);
         void audioInit(const std::shared_ptr<ftk::Context>&);
         void audioReset(const OTIO_NS::RationalTime&);
 #if defined(FTK_SDL2) || defined(FTK_SDL3)
@@ -57,7 +60,7 @@ namespace tl
         std::weak_ptr<ftk::LogSystem> logSystem;
         PlayerOptions playerOptions;
         std::shared_ptr<Timeline> timeline;
-        OTIO_NS::TimeRange timeRange = invalidTimeRange;
+        OTIO_NS::TimeRange timeRange;
 
         // The audio format of the media, found when the timeline was read. This
         // is stable across media reference keys, because the timeline hands the
@@ -108,7 +111,7 @@ namespace tl
         // across baselines so loops keep accumulating; droppedPeak is the
         // high-water deficit since the baseline, so the count never decreases.
         std::optional<OTIO_NS::RationalTime> droppedClockBaseline;
-        OTIO_NS::RationalTime droppedPresentedLast = invalidTime;
+        std::optional<OTIO_NS::RationalTime> droppedPresentedLast;
         int64_t droppedShownCount = 0;
         int64_t droppedPeak = 0;
         size_t droppedBase = 0;
@@ -130,8 +133,8 @@ namespace tl
         struct PlaybackState
         {
             Playback playback = Playback::Stop;
-            OTIO_NS::RationalTime currentTime = invalidTime;
-            OTIO_NS::TimeRange inOutRange = invalidTimeRange;
+            OTIO_NS::RationalTime currentTime;
+            OTIO_NS::TimeRange inOutRange;
             std::vector<std::shared_ptr<Timeline> > compare;
             CompareTime compareTime = CompareTime::Relative;
             IOOptions ioOptions;
@@ -220,7 +223,7 @@ namespace tl
             AudioState state;
             std::map<int64_t, AudioFrame> cache;
             bool reset = false;
-            OTIO_NS::RationalTime start = invalidTime;
+            OTIO_NS::RationalTime start;
             int64_t frame = 0;
             std::mutex mutex;
         };
@@ -248,7 +251,7 @@ namespace tl
         struct NoAudio
         {
             std::chrono::steady_clock::time_point playbackTimer;
-            OTIO_NS::RationalTime start = invalidTime;
+            OTIO_NS::RationalTime start;
             std::mutex mutex;
         };
         NoAudio noAudio;

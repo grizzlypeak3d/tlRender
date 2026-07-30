@@ -30,7 +30,7 @@ namespace tl
         {
             uint64_t id = 0;
             int height = 0;
-            OTIO_NS::RationalTime time = invalidTime;
+            std::optional<OTIO_NS::RationalTime> time;
             std::future<std::shared_ptr<ftk::Image> > future;
         };
 
@@ -39,7 +39,7 @@ namespace tl
         {
             uint64_t id = 0;
             ftk::Size2I size;
-            OTIO_NS::TimeRange timeRange = invalidTimeRange;
+            std::optional<OTIO_NS::TimeRange> timeRange;
             std::future<std::shared_ptr<ftk::TriMesh2F> > future;
         };
 
@@ -87,7 +87,7 @@ namespace tl
             TL_API ThumbnailRequest getThumbnail(
                 const ftk::Path&,
                 int height,
-                const OTIO_NS::RationalTime& = invalidTime,
+                const std::optional<OTIO_NS::RationalTime>& = std::nullopt,
                 const IOOptions& = IOOptions());
 
             //! Get a video thumbnail of media inside a timeline.
@@ -95,14 +95,14 @@ namespace tl
                 const ftk::Path& timelinePath,
                 const ftk::Path& mediaPath,
                 int height,
-                const OTIO_NS::RationalTime& = invalidTime,
+                const std::optional<OTIO_NS::RationalTime>& = std::nullopt,
                 const IOOptions& = IOOptions());
 
             //! Get an audio waveform.
             TL_API WaveformRequest getWaveform(
                 const ftk::Path&,
                 const ftk::Size2I&,
-                const OTIO_NS::TimeRange& = invalidTimeRange,
+                const std::optional<OTIO_NS::TimeRange>& = std::nullopt,
                 const IOOptions& = IOOptions());
 
             //! Get an audio waveform of media inside a timeline.
@@ -110,7 +110,7 @@ namespace tl
                 const ftk::Path& timelinePath,
                 const ftk::Path& mediaPath,
                 const ftk::Size2I&,
-                const OTIO_NS::TimeRange& = invalidTimeRange,
+                const std::optional<OTIO_NS::TimeRange>& = std::nullopt,
                 const IOOptions& = IOOptions());
 
             //! Cancel pending requests.

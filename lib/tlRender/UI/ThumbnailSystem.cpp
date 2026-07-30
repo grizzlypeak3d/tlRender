@@ -124,12 +124,17 @@ namespace tl
                 const ftk::Path& path,
                 const ftk::Path& mediaPath,
                 int height,
-                const OTIO_NS::RationalTime& time,
+                const std::optional<OTIO_NS::RationalTime>& time,
                 const IOOptions& options)
             {
                 std::stringstream ss;
                 ss << path.get() << ";" << mediaPath.get() << ";" <<
-                    height << ";" << time << ";";
+                    height << ";";
+                if (time.has_value())
+                {
+                    ss << time.value();
+                }
+                ss << ";";
                 for (const auto& i : options)
                 {
                     ss << i.first << ":" << i.second << ";";
@@ -141,12 +146,17 @@ namespace tl
                 const ftk::Path& path,
                 const ftk::Path& mediaPath,
                 const ftk::Size2I& size,
-                const OTIO_NS::TimeRange& timeRange,
+                const std::optional<OTIO_NS::TimeRange>& timeRange,
                 const IOOptions& options)
             {
                 std::stringstream ss;
                 ss << path.get() << ";" << mediaPath.get() << ";" <<
-                    size << ";" << timeRange << ";";
+                    size << ";";
+                if (timeRange.has_value())
+                {
+                    ss << timeRange.value();
+                }
+                ss << ";";
                 for (const auto& i : options)
                 {
                     ss << i.first << ":" << i.second << ";";
@@ -177,7 +187,7 @@ namespace tl
                 ftk::Path path;
                 ftk::Path mediaPath;
                 int height = 0;
-                OTIO_NS::RationalTime time = invalidTime;
+                std::optional<OTIO_NS::RationalTime> time;
                 IOOptions options;
                 std::promise<std::shared_ptr<ftk::Image> > promise;
             };
@@ -188,7 +198,7 @@ namespace tl
                 ftk::Path path;
                 ftk::Path mediaPath;
                 ftk::Size2I size;
-                OTIO_NS::TimeRange timeRange = invalidTimeRange;
+                std::optional<OTIO_NS::TimeRange> timeRange;
                 IOOptions options;
                 std::promise<std::shared_ptr<ftk::TriMesh2F> > promise;
             };
@@ -482,7 +492,7 @@ namespace tl
         ThumbnailRequest ThumbnailSystem::getThumbnail(
             const ftk::Path& path,
             int height,
-            const OTIO_NS::RationalTime& time,
+            const std::optional<OTIO_NS::RationalTime>& time,
             const IOOptions& options)
         {
             return getThumbnail(path, path, height, time, options);
@@ -492,7 +502,7 @@ namespace tl
             const ftk::Path& path,
             const ftk::Path& mediaPath,
             int height,
-            const OTIO_NS::RationalTime& time,
+            const std::optional<OTIO_NS::RationalTime>& time,
             const IOOptions& options)
         {
             FTK_P();
@@ -544,7 +554,7 @@ namespace tl
         WaveformRequest ThumbnailSystem::getWaveform(
             const ftk::Path& path,
             const ftk::Size2I& size,
-            const OTIO_NS::TimeRange& range,
+            const std::optional<OTIO_NS::TimeRange>& range,
             const IOOptions& options)
         {
             return getWaveform(path, {}, size, range, options);
@@ -554,7 +564,7 @@ namespace tl
             const ftk::Path& path,
             const ftk::Path& mediaPath,
             const ftk::Size2I& size,
-            const OTIO_NS::TimeRange& timeRange,
+            const std::optional<OTIO_NS::TimeRange>& timeRange,
             const IOOptions& options)
         {
             FTK_P();
@@ -826,16 +836,9 @@ namespace tl
                                         size,
                                         ftk::gl::TextureType::RGBA_U8);
                                 }
-                                // isValid(), not a comparison against
-                                // invalidTime: that constant is -1/-1, which
-                                // is one second, and comparing times rescales
-                                // them. Every request at one second -- frame
-                                // 24 at 24fps -- would read as "no time given"
-                                // and quietly return the first frame instead.
                                 const OTIO_NS::RationalTime time =
-                                    isValid(request->time) ?
-                                    request->time :
-                                    info.videoTime.start_time();
+                                    request->time.value_or(
+                                        info.videoTime->start_time());
                                 auto videoRequest = timeline->readMedia(
                                     request->mediaPath, time, request->options);
                                 if (videoRequest.valid())
@@ -891,9 +894,8 @@ namespace tl
                             }
                             const auto info = timeline->getIOInfo();
                             const auto videoData = timeline->getVideo(
-                                isValid(request->time) ?
-                                    request->time :
-                                    timeline->getTimeRange().start_time()).future.get();
+                                request->time.value_or(
+                                    timeline->getTimeRange().start_time())).future.get();
                             ftk::Size2I size;
                             if (!info.video.empty())
                             {
@@ -1074,11 +1076,10 @@ namespace tl
                                 request->mediaPath, info, request->options))
                         {
                             const OTIO_NS::TimeRange timeRange =
-                                isValid(request->timeRange) ?
-                                request->timeRange :
-                                OTIO_NS::TimeRange(
-                                    OTIO_NS::RationalTime(0.0, 1.0),
-                                    OTIO_NS::RationalTime(1.0, 1.0));
+                                request->timeRange.value_or(
+                                    OTIO_NS::TimeRange(
+                                        OTIO_NS::RationalTime(0.0, 1.0),
+                                        OTIO_NS::RationalTime(1.0, 1.0)));
                             auto audioRequest = timeline->readMediaAudio(
                                 request->mediaPath, timeRange, request->options);
                             if (audioRequest.valid())

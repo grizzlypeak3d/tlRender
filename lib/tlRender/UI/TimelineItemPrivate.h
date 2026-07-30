@@ -23,21 +23,21 @@ namespace tl
         struct TimelineItem::Private
         {
             std::shared_ptr<Player> player;
-            OTIO_NS::RationalTime currentTime = invalidTime;
-            OTIO_NS::TimeRange inOutRange = invalidTimeRange;
+            std::optional<OTIO_NS::RationalTime> currentTime;
+            std::optional<OTIO_NS::TimeRange> inOutRange;
             PlayerCacheInfo cacheInfo;
             bool stopOnScrub = true;
             std::shared_ptr<ftk::Observable<bool> > scrub;
-            std::shared_ptr<ftk::Observable<OTIO_NS::RationalTime> > timeScrub;
+            std::shared_ptr<ftk::Observable<std::optional<OTIO_NS::RationalTime> > > timeScrub;
             std::vector<int> frameMarkers;
 
             //! A clip or gap.
             struct Item
             {
                 ItemType type = ItemType::Gap;
-                OTIO_NS::TimeRange timeRange = invalidTimeRange;
-                OTIO_NS::TimeRange availableRange = invalidTimeRange;
-                OTIO_NS::TimeRange trimmedRange = invalidTimeRange;
+                OTIO_NS::TimeRange timeRange;
+                OTIO_NS::TimeRange availableRange;
+                OTIO_NS::TimeRange trimmedRange;
 
                 //! Both colors are kept so that toggling DisplayOptions
                 //! clipColors is a redraw rather than a rebuild.

@@ -389,15 +389,15 @@ namespace tl
         }
         if (infoValid)
         {
-            OTIO_NS::RationalTime startTime = invalidTime;
+            std::optional<OTIO_NS::RationalTime> startTime;
             OTIO_NS::Track* videoTrack = nullptr;
             OTIO_NS::Track* audioTrack = nullptr;
 
             // Read the video.
             if (!info.video.empty())
             {
-                startTime = info.videoTime.start_time();
-                const double rate = info.videoTime.duration().rate();
+                startTime = info.videoTime->start_time();
+                const double rate = info.videoTime->duration().rate();
                 const MissingFrames missingFrames =
                     getMissingFrames(options.ioOptions);
 
@@ -418,7 +418,7 @@ namespace tl
                                     "",
                                     path.getBase(),
                                     path.getExt(),
-                                    info.videoTime.start_time().value(),
+                                    info.videoTime->start_time().value(),
                                     1,
                                     rate,
                                     path.getPad(),
@@ -427,7 +427,7 @@ namespace tl
                                     // missing, so it takes the options the
                                     // timeline was opened with.
                                     toOTIO(missingFrames));
-                            mediaReference->set_available_range(info.videoTime);
+                            mediaReference->set_available_range(*info.videoTime);
                             out->set_media_reference(mediaReference);
                         }
                         else
@@ -467,7 +467,7 @@ namespace tl
                     // are there are consecutive.
                     videoTrack->append_child(makeClip(
                         runs.empty() ?
-                        info.videoTime :
+                        *info.videoTime :
                         OTIO_NS::TimeRange(
                             OTIO_NS::RationalTime(runs.front().min(), rate),
                             OTIO_NS::RationalTime(
@@ -511,7 +511,7 @@ namespace tl
                     const auto audioInfo = audioRead->getInfo().get();
 
                     auto audioClip = new OTIO_NS::Clip;
-                    audioClip->set_source_range(audioInfo.audioTime);
+                    audioClip->set_source_range(*audioInfo.audioTime);
                     audioClip->set_media_reference(new OTIO_NS::ExternalReference(
                         audioPath.getFileName(),
                         audioInfo.audioTime));
@@ -522,13 +522,13 @@ namespace tl
             }
             else if (info.audio.isValid())
             {
-                if (startTime.is_invalid_time())
+                if (!startTime.has_value())
                 {
-                    startTime = info.audioTime.start_time();
+                    startTime = info.audioTime->start_time();
                 }
 
                 auto audioClip = new OTIO_NS::Clip;
-                audioClip->set_source_range(info.audioTime);
+                audioClip->set_source_range(*info.audioTime);
                 audioClip->set_media_reference(new OTIO_NS::ExternalReference(
                     path.getFileName(),
                     info.audioTime));
@@ -551,7 +551,7 @@ namespace tl
             // Create the timeline.
             otioTimeline = new OTIO_NS::Timeline(path.get());
             otioTimeline->set_tracks(otioStack);
-            if (isValid(startTime))
+            if (startTime.has_value())
             {
                 otioTimeline->set_global_start_time(startTime);
             }
@@ -781,8 +781,11 @@ namespace tl
             p.startReadPool(p.options.readThreadCount);
         }
 
-        // Get information about the timeline.
-        p.timeRange = tl::getTimeRange(p.otioTimeline.value);
+        // Get information about the timeline. A timeline whose tracks have
+        // no duration is zero length rather than unset, so that everything
+        // downstream has a range to work in.
+        p.timeRange = tl::getTimeRange(p.otioTimeline.value).
+            value_or(OTIO_NS::TimeRange());
         for (const auto& otioTrack :
             p.otioTimeline.value->find_children<OTIO_NS::Track>())
         {
@@ -1348,10 +1351,16 @@ namespace tl
             return out;
         }
 
+        if (!ioInfo.videoTime.has_value())
+        {
+            // No video in the media, so there is no rate to convert times
+            // with and nothing to say where the clip sits.
+            return out;
+        }
         OTIO_NS::TimeRange trimmedRange = otioClip->trimmed_range();
         const OTIO_NS::TimeRange availableRange = otioClip->available_range();
         if (p.options.compat &&
-            availableRange.start_time() > ioInfo.videoTime.start_time())
+            availableRange.start_time() > ioInfo.videoTime->start_time())
         {
             // The same compensation _readVideo() makes, so that both agree on
             // which media time a timeline time means.
@@ -1361,7 +1370,7 @@ namespace tl
         }
         mediaAt.rangeInParent = rangeInParent;
         mediaAt.trimmedRange = trimmedRange;
-        mediaAt.rate = ioInfo.videoTime.duration().rate();
+        mediaAt.rate = ioInfo.videoTime->duration().rate();
         out = mediaAt;
         return out;
     }
@@ -2104,10 +2113,16 @@ namespace tl
         if ((seq || read) && timeRangeOpt.has_value())
         {
             const IOInfo& ioInfo = seq ? seq->getInfo() : read->getInfo().get();
+            if (!ioInfo.videoTime.has_value())
+            {
+                // No video in the media, so there is no frame to read and no
+                // rate to convert the time with.
+                return out;
+            }
             OTIO_NS::TimeRange availableRange = clip->available_range();
             OTIO_NS::TimeRange trimmedRange = clip->trimmed_range();
             if (p.options.compat &&
-                availableRange.start_time() > ioInfo.videoTime.start_time())
+                availableRange.start_time() > ioInfo.videoTime->start_time())
             {
                 //! \bug If the available range is greater than the media time,
                 //! assume the media time is wrong (e.g., Picchu) and
@@ -2120,7 +2135,7 @@ namespace tl
                 time,
                 timeRangeOpt.value(),
                 trimmedRange,
-                ioInfo.videoTime.duration().rate());
+                ioInfo.videoTime->duration().rate());
             out = seq ?
                 p.submitRead(
                     [seq, mediaTime, optionsMerged]
@@ -2147,13 +2162,14 @@ namespace tl
             const IOInfo& ioInfo = read->getInfo().get();
             OTIO_NS::TimeRange trimmedRange = clip->trimmed_range();
             if (p.options.compat &&
-                trimmedRange.start_time() < ioInfo.audioTime.start_time())
+                ioInfo.audioTime.has_value() &&
+                trimmedRange.start_time() < ioInfo.audioTime->start_time())
             {
                 //! \bug If the trimmed range is less than the media time,
                 //! assume the media time is wrong (e.g., ALab trailer) and
                 //! compensate for it.
                 trimmedRange = OTIO_NS::TimeRange(
-                    ioInfo.audioTime.start_time() + trimmedRange.start_time(),
+                    ioInfo.audioTime->start_time() + trimmedRange.start_time(),
                     trimmedRange.duration());
             }
             const auto mediaRange = toAudioMediaTime(

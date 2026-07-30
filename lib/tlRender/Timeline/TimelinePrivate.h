@@ -129,7 +129,7 @@ namespace tl
         // Resolving a path means decoding a URL and parsing it, so doing it
         // per lookup made every thumbnail request walk the whole timeline.
         std::map<std::string, OTIO_NS::MediaReference*> mediaByPath;
-        OTIO_NS::TimeRange timeRange = invalidTimeRange;
+        OTIO_NS::TimeRange timeRange;
         IOInfo ioInfo;
         // The clip whose media references provide the video information, and
         // the information for each of those references. Both are filled in
@@ -184,7 +184,7 @@ namespace tl
             PendingVideoRequest(PendingVideoRequest&&) = default;
 
             uint64_t id = 0;
-            OTIO_NS::RationalTime time = invalidTime;
+            OTIO_NS::RationalTime time;
             IOOptions options;
             std::promise<VideoFrame> promise;
 
