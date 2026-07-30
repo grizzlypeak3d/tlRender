@@ -26,7 +26,8 @@ namespace tl
                 const std::shared_ptr<ftk::Context>&,
                 std::vector<std::string>&);
 
-            void run();
+            //! Run the tests and return a process exit code.
+            int run();
 
         private:
             FTK_PRIVATE();
