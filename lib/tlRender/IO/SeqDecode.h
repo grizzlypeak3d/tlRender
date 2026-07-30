@@ -59,24 +59,6 @@ namespace tl
             const OTIO_NS::RationalTime&,
             const IOOptions& = IOOptions()) const;
 
-        //! \name Skipped Frames
-        //!
-        //! In Skip the sequence is only as long as the frames it has, so the
-        //! time it is read at is a position in that list rather than a frame
-        //! number. These convert between the two, and are the identity when
-        //! frames are not being skipped.
-        ///@{
-
-        //! The frame number the media gives to the given time.
-        TL_API int64_t getFrame(const OTIO_NS::RationalTime&) const;
-
-        //! The time the given frame number is read at. A frame the sequence
-        //! does not have snaps down to the nearest one at or before it, or to
-        //! the first when there is none, so there is always an answer.
-        TL_API OTIO_NS::RationalTime getTime(int64_t frame) const;
-
-        ///@}
-
     private:
         //! Read the image information from the first frame that is there.
         IOInfo _probeInfo() const;
@@ -98,10 +80,6 @@ namespace tl
         IOOptions _options;
         int64_t _startFrame = 0;
         int64_t _endFrame = 0;
-        // The frames the sequence has, in order, when they are being skipped.
-        // Empty otherwise, which is what marks Skip as being in force: the
-        // policy itself is read per call, but this is settled at open.
-        std::vector<int64_t> _skip;
         IOInfo _info;
     };
 }

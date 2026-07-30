@@ -26,7 +26,7 @@ namespace tl
             void _seqDecode();
             void _missingFrames();
             void _seqRange();
-            void _skip();
+            void _structural();
         };
     }
 }

@@ -39,7 +39,7 @@ namespace tl
             _seqDecode();
             _missingFrames();
             _seqRange();
-            _skip();
+            _structural();
         }
 
         void IOTest::_videoData()
@@ -515,17 +515,19 @@ namespace tl
             _print("a sequence opens over a range wider than its frames");
         }
 
-        void IOTest::_skip()
+        void IOTest::_structural()
         {
-            // Skipping leaves out the frames that are not there, so a render
-            // part way through plays as the frames it has rather than mostly
-            // gaps. The sequence is as long as the frames it has, and the time
-            // it is read at is a position in that list.
+            // A structural policy is not this layer's business: the timeline
+            // built over a sequence decides which frames it covers, so here the
+            // sequence keeps the range it was asked for and a frame number is a
+            // frame number. What does change is that a frame which is not there
+            // is a failure rather than something to fill in, because structure
+            // promised it would not be asked for.
             auto readSystem = _context->getSystem<ReadSystem>();
             auto writeSystem = _context->getSystem<WriteSystem>();
             const ftk::Size2I size(16, 16);
             const ftk::Path path(
-                (_getTempDir() / "IOTestSkip.0001.png").u8string());
+                (_getTempDir() / "IOTestStructural.0001.png").u8string());
             auto writePlugin = writeSystem->getPlugin(path);
             auto readPlugin = readSystem->getPlugin(path);
             if (!writePlugin || !readPlugin)
@@ -560,54 +562,49 @@ namespace tl
 
             ftk::Path seqPath(path);
             seqPath.setFrames(ftk::RangeI64(1, 20));
-            IOOptions options;
-            options["SeqIO/DefaultSpeed"] = "24";
-            options["SeqIO/MissingFrames"] = to_string(MissingFrames::Skip);
-            auto seq = SeqDecode::create(seqPath, {}, decode, options);
-
-            // Four frames long, not twenty.
-            const IOInfo info = seq->getInfo();
-            FTK_ASSERT(4 == info.videoTime.duration().value());
-            FTK_ASSERT(1 == info.videoTime.start_time().value());
-
-            // Each position reads the frame it stands for, and says which
-            // frame number that is.
-            for (size_t i = 0; i < frames.size(); ++i)
+            for (auto missingFrames :
+                { MissingFrames::Skip, MissingFrames::Gaps })
             {
-                const OTIO_NS::RationalTime time(
-                    static_cast<double>(1 + i), 24.0);
-                FTK_ASSERT(frames[i] == seq->getFrame(time));
-                const VideoData v = seq->readVideo(time);
-                FTK_ASSERT(v.image);
-                FTK_ASSERT(0 == memcmp(
-                    v.image->getData(),
-                    images[frames[i]]->getData(),
-                    images[frames[i]]->getByteCount()));
+                FTK_ASSERT(isStructural(missingFrames));
+                IOOptions options;
+                options["SeqIO/DefaultSpeed"] = "24";
+                options["SeqIO/MissingFrames"] = to_string(missingFrames);
+                auto seq = SeqDecode::create(seqPath, {}, decode, options);
+
+                // The whole range asked for, not the four frames that are
+                // there: shortening it is the timeline's job.
+                const IOInfo info = seq->getInfo();
+                FTK_ASSERT(20 == info.videoTime.duration().value());
+                FTK_ASSERT(1 == info.videoTime.start_time().value());
+
+                // A frame that is there reads at its own number.
+                for (int64_t frame : frames)
+                {
+                    const VideoData v = seq->readVideo(
+                        OTIO_NS::RationalTime(
+                            static_cast<double>(frame), 24.0));
+                    FTK_ASSERT(v.image);
+                    FTK_ASSERT(0 == memcmp(
+                        v.image->getData(),
+                        images[frame]->getData(),
+                        images[frame]->getByteCount()));
+                }
+
+                // One that is not is an error rather than a held or blank
+                // frame, since no clip should have asked for it.
+                bool caught = false;
+                try
+                {
+                    seq->readVideo(OTIO_NS::RationalTime(2.0, 24.0));
+                }
+                catch (const std::exception&)
+                {
+                    caught = true;
+                }
+                FTK_ASSERT(caught);
             }
 
-            // A frame number typed in snaps down to the one at or before it,
-            // so the frame shown and the frame landed on are the same.
-            const std::vector<std::pair<int64_t, int64_t> > snap =
-            {
-                { 1, 1 }, { 6, 6 }, { 16, 16 },
-                { 3, 1 },           // between 1 and 6
-                { 10, 6 },          // just before 11
-                { 20, 16 },         // past the last one there
-                { 0, 1 }            // before the first, so up to it
-            };
-            for (const auto& i : snap)
-            {
-                FTK_ASSERT(i.second == seq->getFrame(seq->getTime(i.first)));
-            }
-
-            // Without skipping the same sequence is its full length and the
-            // time is the frame number.
-            options["SeqIO/MissingFrames"] = to_string(MissingFrames::Black);
-            auto whole = SeqDecode::create(seqPath, {}, decode, options);
-            FTK_ASSERT(20 == whole->getInfo().videoTime.duration().value());
-            FTK_ASSERT(11 == whole->getFrame(OTIO_NS::RationalTime(11.0, 24.0)));
-
-            _print("skipped frames are left out of the sequence");
+            _print("a structural policy leaves the sequence its own length");
         }
     }
 }

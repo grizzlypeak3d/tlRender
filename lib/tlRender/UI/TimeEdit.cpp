@@ -18,6 +18,7 @@ namespace tl
         {
             std::shared_ptr<TimeUnitsModel> timeUnitsModel;
             OTIO_NS::RationalTime value = invalidTime;
+            TimeMap timeMap;
             std::function<void(const OTIO_NS::RationalTime&)> callback;
             std::shared_ptr<ftk::LineEdit> lineEdit;
             std::shared_ptr<ftk::IncButtons> incButtons;
@@ -123,6 +124,13 @@ namespace tl
             _textUpdate();
         }
 
+        void TimeEdit::setTimeMap(const TimeMap& value)
+        {
+            FTK_P();
+            p.timeMap = value;
+            _textUpdate();
+        }
+
         void TimeEdit::setCallback(const std::function<void(const OTIO_NS::RationalTime&)>& value)
         {
             _p->callback = value;
@@ -195,6 +203,14 @@ namespace tl
             event.accept = true;
         }
 
+        OTIO_NS::RationalTime TimeEdit::_mediaValue() const
+        {
+            FTK_P();
+            return (p.timeMap.toMedia && isValid(p.value)) ?
+                p.timeMap.toMedia(p.value) :
+                p.value;
+        }
+
         void TimeEdit::_commitValue(const std::string& value)
         {
             FTK_P();
@@ -203,11 +219,17 @@ namespace tl
             if (p.timeUnitsModel)
             {
                 const TimeUnits timeUnits = p.timeUnitsModel->getTimeUnits();
+                // What was typed is in the media's time, so it is read at the
+                // media's rate and taken back to the player's time.
                 tmp = textToTime(
                     value,
-                    p.value.rate(),
+                    _mediaValue().rate(),
                     timeUnits,
                     &errorStatus);
+                if (isValid(tmp) && p.timeMap.fromMedia)
+                {
+                    tmp = p.timeMap.fromMedia(tmp);
+                }
             }
             const bool valid =
                 isValid(tmp) &&
@@ -242,7 +264,7 @@ namespace tl
             if (p.timeUnitsModel)
             {
                 const TimeUnits timeUnits = p.timeUnitsModel->getTimeUnits();
-                text = timeToText(p.value, timeUnits);
+                text = timeToText(_mediaValue(), timeUnits);
                 format = formatString(timeUnits);
             }
             p.lineEdit->setText(text);

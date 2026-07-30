@@ -1051,61 +1051,129 @@ namespace tl
                             expanded->getTimeRange().duration().value() > 1);
                     }
 
-                    // Skipping shortens the timeline to the frames that are
-                    // there, and the frame numbers have to survive that: the
-                    // whole point is watching a render whose frames you can
-                    // still name.
+                    // A structural policy answers a sparse sequence by
+                    // building a clip over each run of frames that are there.
+                    // The frames deliberately have a hole in the middle: runs
+                    // that start at the beginning and run together would let a
+                    // wrong mapping look right.
                     {
-                        ftk::Path skipPath(path);
-                        skipPath.setFrames(ftk::RangeI64(1, 6));
+                        const ftk::Path sparsePath(
+                            (_getTempDir() / "TimelineSparse.0001.png").u8string());
+                        auto sparseWrite = writeSystem->write(
+                            sparsePath, writeInfo);
+                        for (int64_t frame : { 1, 2, 5, 6 })
+                        {
+                            sparseWrite->writeVideo(
+                                OTIO_NS::RationalTime(
+                                    static_cast<double>(frame), 24.0),
+                                ftk::Image::create(writeInfo.video[0]));
+                        }
+                        sparseWrite.reset();
+
+                        // Runs of 1-2 and 5-6 inside a range of 1-8.
+                        ftk::Path statedPath(sparsePath);
+                        statedPath.setFrames(ftk::RangeI64(1, 8));
+
+                        // Skip puts the runs end to end, so the timeline is as
+                        // long as the frames it has.
                         Options skipOptions;
                         skipOptions.seqExpand = false;
                         skipOptions.ioOptions["SeqIO/MissingFrames"] =
                             to_string(MissingFrames::Skip);
                         auto skipTimeline = Timeline::create(
-                            _context, skipPath, skipOptions);
+                            _context, statedPath, skipOptions);
+                        FTK_ASSERT(4 ==
+                            skipTimeline->getTimeRange().duration().value());
 
-                        // Frames 1 and 2 are on disk, so two frames long.
-                        const auto timeRange = skipTimeline->getTimeRange();
-                        FTK_ASSERT(2 == timeRange.duration().value());
-
-                        // Each position says which frame it stands for, and
-                        // reads it.
-                        for (double t : { 1.0, 2.0 })
+                        // Each position names the frame it stands for and reads
+                        // it. This is what the frame counter shows.
+                        const std::vector<std::pair<double, int64_t> > skipped =
                         {
-                            const OTIO_NS::RationalTime time(t, 24.0);
-                            const auto frame = skipTimeline->getMediaFrame(time);
+                            { 1.0, 1 }, { 2.0, 2 }, { 3.0, 5 }, { 4.0, 6 }
+                        };
+                        for (const auto& i : skipped)
+                        {
+                            const OTIO_NS::RationalTime time(i.first, 24.0);
+                            const auto frame =
+                                skipTimeline->getMediaFrame(time);
                             FTK_ASSERT(frame.has_value());
-                            FTK_ASSERT(static_cast<int64_t>(t) == frame.value());
+                            FTK_ASSERT(i.second == frame.value());
                             auto request = skipTimeline->getVideo(time);
                             FTK_ASSERT(request.future.get().layers[0].image);
                         }
+                        FTK_ASSERT(0 == skipTimeline->getReadErrorCount());
 
-                        // And the way back, which is what typing a frame
-                        // number into the counter needs.
-                        for (int64_t f : { 1, 2 })
+                        // And the way back, which is what typing a frame number
+                        // needs. A frame in the second run has to be found there
+                        // rather than in the clip being looked at.
+                        for (const auto& i : skipped)
                         {
-                            const auto time = skipTimeline->getMediaFrameTime(
-                                OTIO_NS::RationalTime(1.0, 24.0), f);
+                            const auto time = skipTimeline->getTimelineTime(
+                                OTIO_NS::RationalTime(1.0, 24.0),
+                                OTIO_NS::RationalTime(
+                                    static_cast<double>(i.second), 24.0));
                             FTK_ASSERT(time.has_value());
-                            const auto back =
-                                skipTimeline->getMediaFrame(time.value());
-                            FTK_ASSERT(back.has_value());
-                            FTK_ASSERT(f == back.value());
+                            FTK_ASSERT(i.first == time.value().value());
                         }
 
-                        // A frame that is not there snaps down rather than
-                        // refusing.
-                        const auto snapped = skipTimeline->getMediaFrameTime(
-                            OTIO_NS::RationalTime(1.0, 24.0), 5);
-                        FTK_ASSERT(snapped.has_value());
-                        const auto snappedFrame =
-                            skipTimeline->getMediaFrame(snapped.value());
-                        FTK_ASSERT(snappedFrame.has_value());
-                        FTK_ASSERT(2 == snappedFrame.value());
+                        // A frame that is not there snaps to the last one
+                        // before it, and one before them all to the first.
+                        const std::vector<std::pair<int64_t, int64_t> > snap =
+                        {
+                            { 3, 2 },   // in the hole, so back to 2
+                            { 4, 2 },
+                            { 8, 6 },   // past the frames rendered so far
+                            { 0, 1 }    // before the first, so up to it
+                        };
+                        for (const auto& i : snap)
+                        {
+                            const auto time = skipTimeline->getTimelineTime(
+                                OTIO_NS::RationalTime(1.0, 24.0),
+                                OTIO_NS::RationalTime(
+                                    static_cast<double>(i.first), 24.0));
+                            FTK_ASSERT(time.has_value());
+                            const auto frame =
+                                skipTimeline->getMediaFrame(time.value());
+                            FTK_ASSERT(frame.has_value());
+                            FTK_ASSERT(i.second == frame.value());
+                        }
+
+                        // Gaps leaves the holes in, so the timeline is the range
+                        // asked for and every frame keeps the time it had. The
+                        // counter needs no mapping at all in this one.
+                        Options gapsOptions;
+                        gapsOptions.seqExpand = false;
+                        gapsOptions.ioOptions["SeqIO/MissingFrames"] =
+                            to_string(MissingFrames::Gaps);
+                        auto gapsTimeline = Timeline::create(
+                            _context, statedPath, gapsOptions);
+                        FTK_ASSERT(8 ==
+                            gapsTimeline->getTimeRange().duration().value());
+                        for (int64_t frame : { 1, 2, 5, 6 })
+                        {
+                            const OTIO_NS::RationalTime time(
+                                static_cast<double>(frame), 24.0);
+                            const auto at = gapsTimeline->getMediaFrame(time);
+                            FTK_ASSERT(at.has_value());
+                            FTK_ASSERT(frame == at.value());
+                            auto request = gapsTimeline->getVideo(time);
+                            FTK_ASSERT(request.future.get().layers[0].image);
+                        }
+                        FTK_ASSERT(0 == gapsTimeline->getReadErrorCount());
+
+                        // A hole has no media, so there is no frame to name
+                        // there and nothing is read for it.
+                        for (int64_t frame : { 3, 4, 7, 8 })
+                        {
+                            FTK_ASSERT(!gapsTimeline->getMediaFrame(
+                                OTIO_NS::RationalTime(
+                                    static_cast<double>(frame), 24.0)).
+                                has_value());
+                        }
                     }
 
-                    // Without skipping a timeline time is the frame number.
+                    // Without a structural policy a timeline time is the frame
+                    // number.
                     {
                         const auto frame = wideTimeline->getMediaFrame(
                             OTIO_NS::RationalTime(80.0, 24.0));

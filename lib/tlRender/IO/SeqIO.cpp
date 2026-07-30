@@ -14,7 +14,15 @@ namespace tl
         "Error",
         "Hold",
         "Black",
-        "Skip");
+        "Skip",
+        "Gaps");
+
+    bool isStructural(MissingFrames value)
+    {
+        return
+            MissingFrames::Skip == value ||
+            MissingFrames::Gaps == value;
+    }
 
     SeqOptions::SeqOptions()
     {}

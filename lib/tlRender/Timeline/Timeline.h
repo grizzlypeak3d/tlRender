@@ -150,6 +150,20 @@ namespace tl
         //! which is the clip the caller is looking at.
         ///@{
 
+        //! The media time that names the frame shown at a timeline time.
+        //!
+        //! This is the time to show someone watching, whatever units they
+        //! read it in: it matches the file on disk, where the timeline's own
+        //! time only counts off the frames that are being played.
+        TL_API std::optional<OTIO_NS::RationalTime> getMediaTime(
+            const OTIO_NS::RationalTime&);
+
+        //! The timeline time that shows the given media time, taking the clip
+        //! from the given time.
+        TL_API std::optional<OTIO_NS::RationalTime> getTimelineTime(
+            const OTIO_NS::RationalTime&,
+            const OTIO_NS::RationalTime& mediaTime);
+
         //! The frame number the media gives to a timeline time.
         TL_API std::optional<int64_t> getMediaFrame(
             const OTIO_NS::RationalTime&);
@@ -286,6 +300,14 @@ namespace tl
             double rate = 0.0;
         };
         std::optional<MediaAt> _mediaAt(const OTIO_NS::RationalTime&);
+        std::optional<MediaAt> _mediaFrom(
+            const OTIO_NS::Clip*,
+            const OTIO_NS::TimeRange& rangeInParent);
+        std::vector<MediaAt> _mediaAll();
+        OTIO_NS::RationalTime _toMediaTime(
+            const MediaAt&,
+            const OTIO_NS::RationalTime&) const;
+        OTIO_NS::RationalTime _fromMediaTime(const MediaAt&, int64_t frame) const;
 
         // Find a media reference by its resolved path.
         OTIO_NS::MediaReference* _findMedia(const ftk::Path&);

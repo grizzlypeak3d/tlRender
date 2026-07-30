@@ -371,9 +371,11 @@ namespace tl
             out = OTIO_NS::ImageSequenceReference::MissingFramePolicy::black;
             break;
         case MissingFrames::Skip:
-            // OTIO has no way to say it, and the range written out must stay
-            // the full one or reloading renumbers the sequence. Hold is the
-            // closest another application can come to it.
+        case MissingFrames::Gaps:
+            // Nothing to say: the clips over this reference already cover only
+            // the frames that are there, so no read reaches a missing one and
+            // the policy never comes up. Written as hold so that another
+            // application opening the same reference behaves sanely.
             out = OTIO_NS::ImageSequenceReference::MissingFramePolicy::hold;
             break;
         default: break;
