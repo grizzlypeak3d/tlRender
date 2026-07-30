@@ -112,8 +112,7 @@ namespace tl
             _print(ss.str());
             if (elapsed >= 10000)
             {
-                _error("Shutdown had to wait for the timeout");
-                FTK_ASSERT(false);
+                _fail("Shutdown had to wait for the timeout");
             }
         }
 

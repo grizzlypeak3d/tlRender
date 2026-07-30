@@ -400,9 +400,8 @@ namespace tl
                             ss << "Color conversion mismatch, stripe " << i <<
                                 " channel " << c << ": expected " << want[c] <<
                                 " got " << got[c];
-                            _error(ss.str());
+                            _fail(ss.str());
                         }
-                        FTK_ASSERT(std::fabs(got[c] - want[c]) <= tolerance);
                     }
                 }
             }
@@ -531,8 +530,7 @@ namespace tl
                     ioInfo.audio.type != AudioType::S16 ||
                     ioInfo.audio.sampleRate != audioInfo.sampleRate)
                 {
-                    _error("PCM: unexpected audio info");
-                    FTK_ASSERT(false);
+                    _fail("PCM: unexpected audio info");
                 }
                 const int64_t readSampleCount = static_cast<int64_t>(
                     ioInfo.audioTime.duration().
@@ -543,8 +541,7 @@ namespace tl
                     std::stringstream ss;
                     ss << "PCM: unexpected sample count: " << readSampleCount <<
                         ", expected: " << sampleCount;
-                    _error(ss.str());
-                    FTK_ASSERT(false);
+                    _fail(ss.str());
                 }
 
                 size_t mismatches = 0;
@@ -570,8 +567,7 @@ namespace tl
                         audioData.audio->getSampleCount() != chunk ||
                         audioData.audio->getType() != AudioType::S16)
                     {
-                        _error("PCM: unexpected audio data");
-                        FTK_ASSERT(false);
+                        _fail("PCM: unexpected audio data");
                         break;
                     }
                     const auto expected = makeSine(audioInfo, chunk, offset);
@@ -594,8 +590,7 @@ namespace tl
                 {
                     std::stringstream ss;
                     ss << "PCM: " << mismatches << " samples do not match";
-                    _error(ss.str());
-                    FTK_ASSERT(false);
+                    _fail(ss.str());
                 }
 
                 // A request expressed at a different rate than the sample
@@ -614,8 +609,7 @@ namespace tl
                         (audioData.audio ?
                             audioData.audio->getSampleCount() : 0) <<
                         " samples, expected " << audioInfo.sampleRate;
-                    _error(ss.str());
-                    FTK_ASSERT(false);
+                    _fail(ss.str());
                 }
                 else
                 {
@@ -639,8 +633,7 @@ namespace tl
                         std::stringstream ss;
                         ss << "PCM: seconds-based request: " <<
                             secondsMismatches << " samples do not match";
-                        _error(ss.str());
-                        FTK_ASSERT(false);
+                        _fail(ss.str());
                     }
                 }
 
@@ -650,8 +643,7 @@ namespace tl
                     std::stringstream ss;
                     ss << "PCM: unexpected read errors: " <<
                         read->getErrorCount() << ": " << read->getError();
-                    _error(ss.str());
-                    FTK_ASSERT(false);
+                    _fail(ss.str());
                 }
             }
             catch (const std::exception& e)
@@ -681,8 +673,7 @@ namespace tl
                     ioInfo.audio.channelCount != audioInfo.channelCount ||
                     ioInfo.audio.sampleRate != audioInfo.sampleRate)
                 {
-                    _error("Default codec: unexpected audio info");
-                    FTK_ASSERT(false);
+                    _fail("Default codec: unexpected audio info");
                 }
                 const int64_t readSampleCount = static_cast<int64_t>(
                     ioInfo.audioTime.duration().
@@ -694,8 +685,7 @@ namespace tl
                     std::stringstream ss;
                     ss << "Default codec: unexpected sample count: " <<
                         readSampleCount << ", expected: " << sampleCount;
-                    _error(ss.str());
-                    FTK_ASSERT(false);
+                    _fail(ss.str());
                 }
 
                 // RMS over the middle second, [.25s, 1.25s).
@@ -712,8 +702,7 @@ namespace tl
                             audioInfo.sampleRate))).get();
                 if (!audioData.audio)
                 {
-                    _error("Default codec: no audio data");
-                    FTK_ASSERT(false);
+                    _fail("Default codec: no audio data");
                 }
                 else
                 {
@@ -746,8 +735,7 @@ namespace tl
                         break;
                     }
                     default:
-                        _error("Default codec: unexpected audio type");
-                        FTK_ASSERT(false);
+                        _fail("Default codec: unexpected audio type");
                         break;
                     }
                     if (count > 0)
@@ -757,8 +745,7 @@ namespace tl
                         {
                             std::stringstream ss;
                             ss << "Default codec: unexpected RMS: " << rms;
-                            _error(ss.str());
-                            FTK_ASSERT(false);
+                            _fail(ss.str());
                         }
                     }
                 }
@@ -800,8 +787,7 @@ namespace tl
                 }
                 if (!caught)
                 {
-                    _error("Bad codec: expected an exception");
-                    FTK_ASSERT(false);
+                    _fail("Bad codec: expected an exception");
                 }
             }
 
@@ -820,14 +806,12 @@ namespace tl
                 auto videoRead = readPlugin->videoRead(path);
                 if (videoRead->getInfo().get().video.empty())
                 {
-                    _error("Skip audio: expected video");
-                    FTK_ASSERT(false);
+                    _fail("Skip audio: expected video");
                 }
                 auto audioRead = readPlugin->audioRead(path);
                 if (audioRead->getInfo().get().audio.isValid())
                 {
-                    _error("Skip audio: expected no audio");
-                    FTK_ASSERT(false);
+                    _fail("Skip audio: expected no audio");
                 }
 
                 // A readAudio() request on a file without an audio stream
@@ -840,16 +824,14 @@ namespace tl
                 if (audioFuture.wait_for(std::chrono::seconds(30)) !=
                     std::future_status::ready)
                 {
-                    _error("Skip audio: readAudio() timed out");
-                    FTK_ASSERT(false);
+                    _fail("Skip audio: readAudio() timed out");
                 }
                 else
                 {
                     const auto audioData = audioFuture.get();
                     if (audioData.audio && audioData.audio->isValid())
                     {
-                        _error("Skip audio: expected empty audio data");
-                        FTK_ASSERT(false);
+                        _fail("Skip audio: expected empty audio data");
                     }
                 }
             }
@@ -920,15 +902,13 @@ namespace tl
                 const auto videoInfo = videoRead->getInfo().get();
                 if (videoInfo.video.empty() || videoInfo.audio.isValid())
                 {
-                    _error("Split: unexpected video reader info");
-                    FTK_ASSERT(false);
+                    _fail("Split: unexpected video reader info");
                 }
                 const auto videoData = videoRead->readVideo(
                     videoInfo.videoTime.start_time()).get();
                 if (!videoData.image)
                 {
-                    _error("Split: expected video data");
-                    FTK_ASSERT(false);
+                    _fail("Split: expected video data");
                 }
 
                 auto audioRead = readPlugin->audioRead(path, options);
@@ -937,8 +917,7 @@ namespace tl
                 if (!audioReadInfo.audio.isValid() ||
                     !audioReadInfo.video.empty())
                 {
-                    _error("Split: unexpected audio reader info");
-                    FTK_ASSERT(false);
+                    _fail("Split: unexpected audio reader info");
                 }
                 const auto audioData = audioRead->readAudio(
                     OTIO_NS::TimeRange(
@@ -948,8 +927,7 @@ namespace tl
                 if (!audioData.audio ||
                     audioData.audio->getSampleCount() != 1000)
                 {
-                    _error("Split: expected audio data");
-                    FTK_ASSERT(false);
+                    _fail("Split: expected audio data");
                 }
             }
             catch (const std::exception& e)
@@ -976,15 +954,13 @@ namespace tl
                 const auto info = audioRead->getInfo().get();
                 if (info.audio.isValid())
                 {
-                    _error("Split: expected no audio");
-                    FTK_ASSERT(false);
+                    _fail("Split: expected no audio");
                 }
                 auto future = audioRead->readAudio(audioTime);
                 if (future.wait_for(std::chrono::seconds(30)) !=
                     std::future_status::ready)
                 {
-                    _error("Split: readAudio() timed out");
-                    FTK_ASSERT(false);
+                    _fail("Split: readAudio() timed out");
                 }
             }
             catch (const std::exception& e)
