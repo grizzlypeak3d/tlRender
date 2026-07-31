@@ -259,6 +259,17 @@ namespace tl
 
     std::string getLabel(const AspectRatioOptions& value)
     {
+        // A display aspect ratio is conventionally written as a ratio
+        // ("2.39:1"), a pixel aspect ratio as a scalar ("2.00"). Writing a
+        // pixel aspect ratio as "2:1" reads like a display ratio, which is
+        // how it gets mistaken for one. Entry stays a ratio: broadcast pixel
+        // aspect ratios such as 10:11 have no exact decimal.
+        if (AspectRatioType::Pixel == value.type)
+        {
+            return ftk::Format("{0} {1}").
+                arg(static_cast<float>(value.value), 2).
+                arg(value.type);
+        }
         return ftk::Format("{0} {1}").
             arg(getLabel(value.value)).
             arg(value.type);
