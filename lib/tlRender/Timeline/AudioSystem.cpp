@@ -17,6 +17,7 @@
 
 #include <array>
 #include <atomic>
+#include <condition_variable>
 #include <map>
 #include <mutex>
 #include <thread>
@@ -73,6 +74,8 @@ namespace tl
             AudioDeviceInfo defaultDevice;
             std::thread thread;
             std::atomic<bool> running;
+            std::condition_variable stop;
+            std::mutex stopMutex;
         };
         Thread thread;
     };
@@ -136,8 +139,20 @@ namespace tl
                     {
                         const auto t0 = std::chrono::steady_clock::now();
                         _run();
+                        // Wait out the rest of the tick, but wake as soon as
+                        // the destructor clears the flag. Sleeping instead
+                        // made shutdown wait for the current tick to expire,
+                        // and this one is three seconds long.
                         const auto t1 = std::chrono::steady_clock::now();
-                        ftk::sleep(timeout, t0, t1);
+                        const auto period =
+                            std::chrono::duration_cast<std::chrono::microseconds>(timeout);
+                        const auto elapsed =
+                            std::chrono::duration_cast<std::chrono::microseconds>(t1 - t0);
+                        std::unique_lock<std::mutex> lock(_p->thread.stopMutex);
+                        _p->thread.stop.wait_for(
+                            lock,
+                            period > elapsed ? period - elapsed : std::chrono::microseconds(0),
+                            [this] { return !_p->thread.running; });
                     }
                 });
         }
@@ -147,7 +162,13 @@ namespace tl
     AudioSystem::~AudioSystem()
     {
         FTK_P();
-        p.thread.running = false;
+        {
+            // Under the mutex so the thread cannot test the flag and begin
+            // waiting between the store and the notify.
+            std::unique_lock<std::mutex> lock(p.thread.stopMutex);
+            p.thread.running = false;
+        }
+        p.thread.stop.notify_one();
         if (p.thread.thread.joinable())
         {
             p.thread.thread.join();
