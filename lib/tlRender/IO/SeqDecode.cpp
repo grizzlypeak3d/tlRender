@@ -193,7 +193,9 @@ namespace tl
             image = ftk::Image::create(_info.video[0]);
             image->zero();
         }
-        return VideoData(time, 0, image);
+        VideoData out(time, 0, image);
+        out.missing = true;
+        return out;
     }
 
     VideoData SeqDecode::readVideo(
@@ -247,11 +249,17 @@ namespace tl
             // when several frames are read at once.
             ftk::prefetch(mem->p, mem->size);
 
-            return _decode->readVideo(
+            VideoData out = _decode->readVideo(
                 seq ? _path.getFrame(readFrame, true) : _path.getFileName(true),
                 mem,
                 time,
                 merged);
+            if (readFrame != frame)
+            {
+                out.missing = true;
+                out.heldFrom = readFrame;
+            }
+            return out;
         }
 
         if (!seq)
@@ -287,8 +295,13 @@ namespace tl
                     }
                     try
                     {
-                        return _decode->readVideo(
+                        VideoData out = _decode->readVideo(
                             _path.getFrame(prev, true), nullptr, time, merged);
+                        // Which frame is being looked at rather than the one
+                        // asked for, so it can be said rather than guessed.
+                        out.missing = true;
+                        out.heldFrom = prev;
+                        return out;
                     }
                     catch (const std::exception&)
                     {}

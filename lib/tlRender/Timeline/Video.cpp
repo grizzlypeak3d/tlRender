@@ -15,7 +15,11 @@ namespace tl
             bounds == other.bounds &&
             boundsB == other.boundsB &&
             transition == other.transition &&
-            transitionValue == other.transitionValue;
+            transitionValue == other.transitionValue &&
+            // A layer that has become a stand-in, or stopped being one, is a
+            // different thing to draw even when the image is the same.
+            missing == other.missing &&
+            heldFrom == other.heldFrom;
     }
 
     bool VideoLayer::operator != (const VideoLayer& other) const

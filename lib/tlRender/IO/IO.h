@@ -8,6 +8,8 @@
 
 #include <ftk/Core/Image.h>
 
+#include <optional>
+
 namespace tl
 {
     //! File types.
@@ -64,6 +66,15 @@ namespace tl
         OTIO_NS::RationalTime       time;
         uint16_t                    layer = 0;
         std::shared_ptr<ftk::Image> image;
+
+        //! Whether the image stands in for a frame the media does not have,
+        //! rather than being the frame that was asked for. Reported whatever
+        //! the policy, so that showing it is a display choice and costs no
+        //! reading.
+        bool                        missing = false;
+
+        //! The frame repeated in place of it, when there was one to repeat.
+        std::optional<int64_t>      heldFrom;
 
         bool operator == (const VideoData&) const;
         bool operator != (const VideoData&) const;

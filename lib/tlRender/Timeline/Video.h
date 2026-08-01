@@ -42,6 +42,14 @@ namespace tl
         Transition                  transition      = Transition::None;
         float                       transitionValue = 0.F;
 
+        //! Whether the image stands in for a frame the media does not have,
+        //! rather than being the frame that was asked for. Carried per layer
+        //! so that a comparison can say which of its sources it is about.
+        bool                        missing         = false;
+
+        //! The frame repeated in place of it, when there was one to repeat.
+        std::optional<int64_t>      heldFrom;
+
         TL_API bool operator == (const VideoLayer&) const;
         TL_API bool operator != (const VideoLayer&) const;
     };

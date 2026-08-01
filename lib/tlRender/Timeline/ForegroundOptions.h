@@ -67,11 +67,33 @@ namespace tl
         TL_API bool operator != (const CenterMarker&) const;
     };
 
+    //! Missing frame indicator.
+    //!
+    //! Marks a picture that stands in for a frame the media does not have, so
+    //! a held or blank frame is not taken for the frame that was asked for.
+    //!
+    //! Drawn as brackets inside the corners of the image rather than as an
+    //! outline around it: the background outline is already a ring outside the
+    //! image, in the same default colour, and it scales away when the view is
+    //! zoomed into the middle of the picture. These are clamped to the part of
+    //! the image that can be seen, so zooming in cannot hide them.
+    struct TL_API_TYPE MissingIndicator
+    {
+        bool         enabled = false;
+        int          size    = 40;
+        int          width   = 4;
+        ftk::Color4F color   = ftk::Color4F(1.F, .2F, 0.F);
+
+        TL_API bool operator == (const MissingIndicator&) const;
+        TL_API bool operator != (const MissingIndicator&) const;
+    };
+
     //! Foreground options.
     struct TL_API_TYPE ForegroundOptions
     {
-        Grid         grid;
-        CenterMarker centerMarker;
+        Grid             grid;
+        CenterMarker     centerMarker;
+        MissingIndicator missingIndicator;
 
         TL_API bool operator == (const ForegroundOptions&) const;
         TL_API bool operator != (const ForegroundOptions&) const;
@@ -82,10 +104,12 @@ namespace tl
 
     TL_API void to_json(nlohmann::json&, const Grid&);
     TL_API void to_json(nlohmann::json&, const CenterMarker&);
+    TL_API void to_json(nlohmann::json&, const MissingIndicator&);
     TL_API void to_json(nlohmann::json&, const ForegroundOptions&);
 
     TL_API void from_json(const nlohmann::json&, Grid&);
     TL_API void from_json(const nlohmann::json&, CenterMarker&);
+    TL_API void from_json(const nlohmann::json&, MissingIndicator&);
     TL_API void from_json(const nlohmann::json&, ForegroundOptions&);
 
     ///@}

@@ -801,6 +801,92 @@ namespace tl
             {
                 render->drawTexture(p.fgBuffer->getColorID(), g, true);
             }
+
+            _drawMissingIndicators(event);
+        }
+
+        void Viewport::_drawMissingIndicators(const ftk::DrawEvent& event)
+        {
+            FTK_P();
+            const auto& indicator = p.fgOptions->get().missingIndicator;
+            if (!indicator.enabled || p.videoFrame.empty())
+            {
+                return;
+            }
+
+            // Drawn here rather than into the foreground buffer so that it is
+            // in the widget's own coordinates: clamping to the part of the
+            // image that is on screen is what keeps it visible when the view
+            // is zoomed inside the picture.
+            const ftk::Box2I& g = getGeometry();
+            const auto boxes = getBoxes(
+                p.compareOptions->get(),
+                !p.displayOptions->get().empty() ?
+                    p.displayOptions->get().front().aspectRatio :
+                    AspectRatioOptions(),
+                p.videoFrame);
+            const ftk::V2I& viewPos = p.viewPos->get();
+            const double zoom = p.zoom->get();
+
+            for (size_t i = 0; i < boxes.size() && i < p.videoFrame.size(); ++i)
+            {
+                // Any layer standing in makes the picture a stand-in: what is
+                // on screen is not what was asked for either way.
+                bool missing = false;
+                for (const auto& layer : p.videoFrame[i].layers)
+                {
+                    missing |= layer.missing;
+                }
+                if (!missing)
+                {
+                    continue;
+                }
+
+                const ftk::Box2I& box = boxes[i];
+                const ftk::Box2I image(
+                    g.min.x + viewPos.x + static_cast<int>(box.min.x * zoom),
+                    g.min.y + viewPos.y + static_cast<int>(box.min.y * zoom),
+                    static_cast<int>(box.w() * zoom),
+                    static_cast<int>(box.h() * zoom));
+                const ftk::Box2I visible = ftk::intersect(image, g);
+                if (!visible.isValid())
+                {
+                    continue;
+                }
+
+                // No longer than half the box, so the brackets of a small or
+                // mostly hidden image cannot meet and read as an outline.
+                const int w = std::min(
+                    indicator.width,
+                    std::min(visible.w(), visible.h()) / 2);
+                const int size = std::min(
+                    indicator.size,
+                    std::min(visible.w(), visible.h()) / 2);
+                if (w <= 0 || size <= 0)
+                {
+                    continue;
+                }
+                const int x0 = visible.min.x;
+                const int y0 = visible.min.y;
+                const int x1 = visible.max.x + 1;
+                const int y1 = visible.max.y + 1;
+                const std::vector<ftk::Box2I> arms =
+                {
+                    // Top left, top right, bottom left, bottom right.
+                    ftk::Box2I(x0, y0, size, w),
+                    ftk::Box2I(x0, y0, w, size),
+                    ftk::Box2I(x1 - size, y0, size, w),
+                    ftk::Box2I(x1 - w, y0, w, size),
+                    ftk::Box2I(x0, y1 - w, size, w),
+                    ftk::Box2I(x0, y1 - size, w, size),
+                    ftk::Box2I(x1 - size, y1 - w, size, w),
+                    ftk::Box2I(x1 - w, y1 - size, w, size)
+                };
+                for (const auto& arm : arms)
+                {
+                    event.render->drawRect(arm, indicator.color);
+                }
+            }
         }
 
         void Viewport::mouseEnterEvent(ftk::MouseEnterEvent& event)

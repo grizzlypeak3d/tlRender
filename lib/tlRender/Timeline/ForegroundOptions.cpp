@@ -95,11 +95,26 @@ namespace tl
         return !(*this == other);
     }
 
+    bool MissingIndicator::operator == (const MissingIndicator& other) const
+    {
+        return
+            enabled == other.enabled &&
+            size == other.size &&
+            width == other.width &&
+            color == other.color;
+    }
+
+    bool MissingIndicator::operator != (const MissingIndicator& other) const
+    {
+        return !(*this == other);
+    }
+
     bool ForegroundOptions::operator == (const ForegroundOptions& other) const
     {
         return
             grid == other.grid &&
-            centerMarker == other.centerMarker;
+            centerMarker == other.centerMarker &&
+            missingIndicator == other.missingIndicator;
     }
 
     bool ForegroundOptions::operator != (const ForegroundOptions& other) const
@@ -130,10 +145,19 @@ namespace tl
         json["Color"] = in.color;
     }
 
+    void to_json(nlohmann::json& json, const MissingIndicator& in)
+    {
+        json["Enabled"] = in.enabled;
+        json["Size"] = in.size;
+        json["Width"] = in.width;
+        json["Color"] = in.color;
+    }
+
     void to_json(nlohmann::json& json, const ForegroundOptions& in)
     {
         json["Grid"] = in.grid;
         json["CenterMarker"] = in.centerMarker;
+        json["MissingIndicator"] = in.missingIndicator;
     }
 
     void from_json(const nlohmann::json& json, Grid& out)
@@ -159,9 +183,23 @@ namespace tl
         json.at("Color").get_to(out.color);
     }
 
+    void from_json(const nlohmann::json& json, MissingIndicator& out)
+    {
+        json.at("Enabled").get_to(out.enabled);
+        json.at("Size").get_to(out.size);
+        json.at("Width").get_to(out.width);
+        json.at("Color").get_to(out.color);
+    }
+
     void from_json(const nlohmann::json& json, ForegroundOptions& out)
     {
         json.at("Grid").get_to(out.grid);
         json.at("CenterMarker").get_to(out.centerMarker);
+        // Added later, so a settings file written before it exists is still
+        // read rather than throwing and losing the rest of the options.
+        if (json.contains("MissingIndicator"))
+        {
+            json.at("MissingIndicator").get_to(out.missingIndicator);
+        }
     }
 }

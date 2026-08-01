@@ -2924,7 +2924,10 @@ namespace tl
             {
                 if (i.image.valid())
                 {
-                    layer.image = i.image.get().image;
+                    const VideoData data = i.image.get();
+                    layer.image = data.image;
+                    layer.missing = data.missing;
+                    layer.heldFrom = data.heldFrom;
                 }
                 if (i.imageB.valid())
                 {

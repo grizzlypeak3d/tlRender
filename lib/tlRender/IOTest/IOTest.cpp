@@ -393,11 +393,29 @@ namespace tl
                     v.image->getData(),
                     images[2]->getData(),
                     images[2]->getByteCount()));
+
+                // And it says so, so that a stand-in can be shown as one
+                // rather than passing for the frame that was asked for.
+                FTK_ASSERT(v.missing);
+                FTK_ASSERT(v.heldFrom.has_value());
+                FTK_ASSERT(2 == v.heldFrom.value());
+            }
+
+            // A frame that is there says nothing of the sort.
+            {
+                const VideoData v = readFrame(MissingFrames::Hold, 2);
+                FTK_ASSERT(v.image);
+                FTK_ASSERT(!v.missing);
+                FTK_ASSERT(!v.heldFrom.has_value());
             }
 
             // Black: a blank frame of the right size and type.
             {
                 const VideoData v = readFrame(MissingFrames::Black, 3);
+                // Blank, so there is no frame it stands in for, but it is
+                // still not the frame that was asked for.
+                FTK_ASSERT(v.missing);
+                FTK_ASSERT(!v.heldFrom.has_value());
                 FTK_ASSERT(v.image);
                 FTK_ASSERT(v.image->getSize() == size);
                 std::vector<uint8_t> zero(v.image->getByteCount(), 0);

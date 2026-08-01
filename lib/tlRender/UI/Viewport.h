@@ -239,6 +239,7 @@ namespace tl
             ftk::Size2I _getRenderSize() const;
             ftk::V2I _getViewportCenter() const;
             void _frameView();
+            void _drawMissingIndicators(const ftk::DrawEvent&);
 
             FTK_PRIVATE();
         };
