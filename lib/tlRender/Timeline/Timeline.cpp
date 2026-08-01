@@ -722,9 +722,17 @@ namespace tl
 
         if (!otioTimeline)
         {
+            // Nothing claimed the file and it is not a timeline document.
+            // Whether that is because the format is not supported at all or
+            // because a supported file could not be read is the difference
+            // between "try another application" and "this file is damaged",
+            // so say which.
             throw std::runtime_error(
-                ftk::Format("Unknown timeline: \"{0}\"").
-                arg(path.get()));
+                ioSystem->getPlugin(path) ?
+                ftk::Format("Cannot read the file: \"{0}\"").
+                arg(path.get()).str() :
+                ftk::Format("Unsupported file format: \"{0}\"").
+                arg(path.get()).str());
         }
 
         OTIO_NS::AnyDictionary dict;
