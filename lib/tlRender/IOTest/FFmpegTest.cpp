@@ -620,7 +620,7 @@ namespace tl
                         expected->getData());
                     size_t secondsMismatches = 0;
                     for (size_t i = 0;
-                        i < 1000 * audioInfo.channelCount;
+                        i < static_cast<size_t>(1000 * audioInfo.channelCount);
                         ++i)
                     {
                         if (std::abs(a[i] - b[i]) > 1)

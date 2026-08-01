@@ -199,7 +199,7 @@ namespace tl
             auto readSystem = _context->getSystem<ReadSystem>();
             auto writeSystem = _context->getSystem<WriteSystem>();
             const ftk::Size2I size(16, 16);
-            const size_t frameCount = 5;
+            constexpr size_t frameCount = 5;
             // The sequence itself is never on disk: its frames are memory,
             // so only the one file the bytes come from is written.
             const ftk::Path path(
@@ -273,7 +273,7 @@ namespace tl
             for (size_t i = 0; i < 8; ++i)
             {
                 threads.push_back(std::thread(
-                    [seq, &images, frameCount, &ok]
+                    [seq, &images, &ok]
                     {
                         for (size_t j = 0; j < frameCount; ++j)
                         {
