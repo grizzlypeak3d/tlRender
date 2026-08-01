@@ -72,17 +72,19 @@ namespace tl
     //! Marks a picture that stands in for a frame the media does not have, so
     //! a held or blank frame is not taken for the frame that was asked for.
     //!
-    //! Drawn as brackets inside the corners of the image rather than as an
-    //! outline around it: the background outline is already a ring outside the
-    //! image, in the same default colour, and it scales away when the view is
-    //! zoomed into the middle of the picture. These are clamped to the part of
-    //! the image that can be seen, so zooming in cannot hide them.
+    //! Drawn as a cross over the image. The other overlays -- the grid, the
+    //! centre marker, the outline -- are aids for measuring a picture, and a
+    //! mark that reads like one of them says the wrong thing about a frame
+    //! that is not the frame asked for. A cross cannot be taken for a guide.
+    //!
+    //! It covers the part of the image that can be seen rather than the image
+    //! itself, so zooming into the middle of the picture cannot hide it, the
+    //! way it hides the outline.
     struct TL_API_TYPE MissingIndicator
     {
         bool         enabled = false;
-        int          size    = 40;
-        int          width   = 4;
-        ftk::Color4F color   = ftk::Color4F(1.F, .2F, 0.F);
+        int          width   = 6;
+        ftk::Color4F color   = ftk::Color4F(1.F, 0.F, 0.F);
 
         TL_API bool operator == (const MissingIndicator&) const;
         TL_API bool operator != (const MissingIndicator&) const;

@@ -854,37 +854,56 @@ namespace tl
                     continue;
                 }
 
-                // No longer than half the box, so the brackets of a small or
-                // mostly hidden image cannot meet and read as an outline.
-                const int w = std::min(
-                    indicator.width,
-                    std::min(visible.w(), visible.h()) / 2);
-                const int size = std::min(
-                    indicator.size,
-                    std::min(visible.w(), visible.h()) / 2);
-                if (w <= 0 || size <= 0)
+                // A cross over what can be seen of the picture. Drawn as
+                // two quads rather than lines so the width is in pixels
+                // whatever the shape of the box.
+                const float w = std::max(1, indicator.width) / 2.F;
+                const ftk::V2F corners[2][2] =
                 {
-                    continue;
-                }
-                const int x0 = visible.min.x;
-                const int y0 = visible.min.y;
-                const int x1 = visible.max.x + 1;
-                const int y1 = visible.max.y + 1;
-                const std::vector<ftk::Box2I> arms =
-                {
-                    // Top left, top right, bottom left, bottom right.
-                    ftk::Box2I(x0, y0, size, w),
-                    ftk::Box2I(x0, y0, w, size),
-                    ftk::Box2I(x1 - size, y0, size, w),
-                    ftk::Box2I(x1 - w, y0, w, size),
-                    ftk::Box2I(x0, y1 - w, size, w),
-                    ftk::Box2I(x0, y1 - size, w, size),
-                    ftk::Box2I(x1 - size, y1 - w, size, w),
-                    ftk::Box2I(x1 - w, y1 - size, w, size)
+                    {
+                        ftk::V2F(visible.min.x, visible.min.y),
+                        ftk::V2F(visible.max.x + 1, visible.max.y + 1)
+                    },
+                    {
+                        ftk::V2F(visible.min.x, visible.max.y + 1),
+                        ftk::V2F(visible.max.x + 1, visible.min.y)
+                    }
                 };
-                for (const auto& arm : arms)
+                ftk::TriMesh2F mesh;
+                for (const auto& diagonal : corners)
                 {
-                    event.render->drawRect(arm, indicator.color);
+                    const ftk::V2F d(
+                        diagonal[1].x - diagonal[0].x,
+                        diagonal[1].y - diagonal[0].y);
+                    const float length = std::sqrt(d.x * d.x + d.y * d.y);
+                    if (length <= 0.F)
+                    {
+                        continue;
+                    }
+                    // Across the line, so the quad has the given thickness.
+                    const ftk::V2F n(-d.y / length * w, d.x / length * w);
+                    const size_t v = mesh.v.size();
+                    mesh.v.push_back(ftk::V2F(
+                        diagonal[0].x + n.x, diagonal[0].y + n.y));
+                    mesh.v.push_back(ftk::V2F(
+                        diagonal[1].x + n.x, diagonal[1].y + n.y));
+                    mesh.v.push_back(ftk::V2F(
+                        diagonal[1].x - n.x, diagonal[1].y - n.y));
+                    mesh.v.push_back(ftk::V2F(
+                        diagonal[0].x - n.x, diagonal[0].y - n.y));
+                    // Vertex indices are one based.
+                    mesh.triangles.push_back({
+                        ftk::Vertex2(v + 1),
+                        ftk::Vertex2(v + 2),
+                        ftk::Vertex2(v + 3) });
+                    mesh.triangles.push_back({
+                        ftk::Vertex2(v + 1),
+                        ftk::Vertex2(v + 3),
+                        ftk::Vertex2(v + 4) });
+                }
+                if (!mesh.triangles.empty())
+                {
+                    event.render->drawMesh(mesh, indicator.color);
                 }
             }
         }

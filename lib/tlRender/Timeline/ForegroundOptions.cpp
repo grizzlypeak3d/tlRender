@@ -99,7 +99,6 @@ namespace tl
     {
         return
             enabled == other.enabled &&
-            size == other.size &&
             width == other.width &&
             color == other.color;
     }
@@ -148,7 +147,6 @@ namespace tl
     void to_json(nlohmann::json& json, const MissingIndicator& in)
     {
         json["Enabled"] = in.enabled;
-        json["Size"] = in.size;
         json["Width"] = in.width;
         json["Color"] = in.color;
     }
@@ -186,7 +184,6 @@ namespace tl
     void from_json(const nlohmann::json& json, MissingIndicator& out)
     {
         json.at("Enabled").get_to(out.enabled);
-        json.at("Size").get_to(out.size);
         json.at("Width").get_to(out.width);
         json.at("Color").get_to(out.color);
     }
