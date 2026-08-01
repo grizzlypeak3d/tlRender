@@ -129,6 +129,11 @@ namespace tl
         // Resolving a path means decoding a URL and parsing it, so doing it
         // per lookup made every thumbnail request walk the whole timeline.
         std::map<std::string, OTIO_NS::MediaReference*> mediaByPath;
+        //! The same references keyed by an absolute, normalized path, so
+        //! that a caller which opened the timeline with a relative path
+        //! still finds them. mediaByPath keeps the paths as written,
+        //! which is what getMediaPaths() reports.
+        std::map<std::string, OTIO_NS::MediaReference*> mediaByNormalPath;
         OTIO_NS::TimeRange timeRange;
         IOInfo ioInfo;
         // The clip whose media references provide the video information, and

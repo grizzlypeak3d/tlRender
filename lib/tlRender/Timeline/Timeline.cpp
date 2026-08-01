@@ -3,6 +3,8 @@
 
 #include <tlRender/Timeline/TimelinePrivate.h>
 
+#include <filesystem>
+
 #include <tlRender/Timeline/Util.h>
 #include <tlRender/Timeline/ZipPrivate.h>
 
@@ -25,6 +27,26 @@
 
 namespace tl
 {
+    namespace
+    {
+        //! An absolute, normalized form of a media path, used only to compare
+        //! paths that name the same file in different ways.
+        std::string normalMediaPath(const ftk::Path& path)
+        {
+            std::filesystem::path out = std::filesystem::u8path(path.get());
+            if (!out.is_absolute())
+            {
+                std::error_code ec;
+                const std::filesystem::path abs = std::filesystem::absolute(out, ec);
+                if (!ec)
+                {
+                    out = abs;
+                }
+            }
+            return out.lexically_normal().u8string();
+        }
+    }
+
     namespace
     {
         const std::chrono::milliseconds timeout(5);
@@ -820,10 +842,12 @@ namespace tl
             {
                 if (i.second)
                 {
-                    p.mediaByPath[tl::getPath(
+                    const ftk::Path mediaPath = tl::getPath(
                         i.second,
                         p.path.getDir(),
-                        p.options.pathOptions).get()] = i.second;
+                        p.options.pathOptions);
+                    p.mediaByPath[mediaPath.get()] = i.second;
+                    p.mediaByNormalPath[normalMediaPath(mediaPath)] = i.second;
                 }
             }
         }
@@ -1259,7 +1283,16 @@ namespace tl
     {
         FTK_P();
         const auto i = p.mediaByPath.find(path.get());
-        return i != p.mediaByPath.end() ? i->second : nullptr;
+        if (i != p.mediaByPath.end())
+        {
+            return i->second;
+        }
+        // The media references are resolved when the timeline is read, so they
+        // are usually absolute, while a caller asks with the path it was given.
+        // Opening a file by a relative path otherwise found none of its own
+        // media.
+        const auto j = p.mediaByNormalPath.find(normalMediaPath(path));
+        return j != p.mediaByNormalPath.end() ? j->second : nullptr;
     }
 
     bool Timeline::getMediaInfo(
