@@ -4,6 +4,8 @@
 #include <tlRender/IO/OIIO.h>
 
 #include <ftk/Core/Format.h>
+
+#include <filesystem>
 #include <ftk/Core/Memory.h>
 #include <ftk/Core/String.h>
 
@@ -16,12 +18,22 @@ namespace tl
     {
         namespace
         {
-            void oiioDiscardError()
+            //! Retrieve and clear OIIO's pending global error. It has to be
+            //! taken either way, or OIIO emits it to stderr later; taking it
+            //! into our own exception is what says whether a file is missing
+            //! rather than unreadable.
+            std::string oiioTakeError()
             {
-                // Retrieve and clear OIIO's pending global error. If left
-                // unretrieved, OIIO emits it to stderr later; we call this on
-                // the paths where we surface our own exception instead.
-                OIIO::geterror();
+                return OIIO::geterror();
+            }
+
+            //! Append OIIO's reason to a message, when it gave one.
+            std::string oiioError(const std::string& message)
+            {
+                const std::string error = oiioTakeError();
+                return error.empty() ?
+                    message :
+                    ftk::Format("{0}: {1}").arg(message).arg(error).str();
             }
         }
 
@@ -109,10 +121,20 @@ namespace tl
                 oiioMemReader.get());
             if (!oiioInput)
             {
-                oiioDiscardError();
+                // Only reached once the open has failed, so looking at the
+                // file system here costs nothing in the ordinary case. OIIO
+                // does not say why it could not open a file, which leaves a
+                // file that is missing looking like one that cannot be read.
+                if (!oiioMemReader &&
+                    !std::filesystem::exists(std::filesystem::u8path(fileName)))
+                {
+                    oiioTakeError();
+                    throw std::runtime_error(ftk::Format(
+                        "No such file or directory: \"{0}\"").arg(fileName).str());
+                }
                 std::stringstream ss;
                 ss << "Cannot open file: " << fileName;
-                throw std::runtime_error(ss.str());
+                throw std::runtime_error(oiioError(ss.str()));
             }
 
             // Get file information.
@@ -169,10 +191,20 @@ namespace tl
                 oiioMemReader.get());
             if (!oiioInput)
             {
-                oiioDiscardError();
+                // Only reached once the open has failed, so looking at the
+                // file system here costs nothing in the ordinary case. OIIO
+                // does not say why it could not open a file, which leaves a
+                // file that is missing looking like one that cannot be read.
+                if (!oiioMemReader &&
+                    !std::filesystem::exists(std::filesystem::u8path(fileName)))
+                {
+                    oiioTakeError();
+                    throw std::runtime_error(ftk::Format(
+                        "No such file or directory: \"{0}\"").arg(fileName).str());
+                }
                 std::stringstream ss;
                 ss << "Cannot open file: " << fileName;
-                throw std::runtime_error(ss.str());
+                throw std::runtime_error(oiioError(ss.str()));
             }
 
             // Find the layer.
@@ -183,10 +215,9 @@ namespace tl
             }
             if (!oiioInput->seek_subimage(layer, 0))
             {
-                oiioDiscardError();
                 std::stringstream ss;
                 ss << "Cannot open layer: " << layer;
-                throw std::runtime_error(ss.str());
+                throw std::runtime_error(oiioError(ss.str()));
             }
 
             // Get file information.
@@ -221,10 +252,9 @@ namespace tl
                 oiioSpec.format,
                 out.image->getData()))
             {
-                oiioDiscardError();
                 std::stringstream ss;
                 ss << "Cannot read file: " << fileName;
-                throw std::runtime_error(ss.str());
+                throw std::runtime_error(oiioError(ss.str()));
             }
             return out;
         }
