@@ -56,7 +56,8 @@ Optional dependencies:
 
 ## Building on Linux
 
-Dependencies:
+Requirements:
+* Git
 * CMake 3.31
 
 #### Debian
@@ -70,14 +71,14 @@ sudo apt-get install build-essential git cmake xorg-dev libglu1-mesa-dev mesa-co
 
 Install system packages:
 ```
-sudo dnf install libX11-devel libXrandr-devel libXinerama-devel libXcursor-devel libXi-devel mesa-libGL-devel pipewire-devel libva-devel libdrm-devel
+sudo dnf install git libX11-devel libXrandr-devel libXinerama-devel libXcursor-devel libXi-devel mesa-libGL-devel pipewire-devel libva-devel libdrm-devel
 ```
 
 #### Rocky 8
 
 Install system packages:
 ```
-sudo dnf install libX11-devel libXrandr-devel libXinerama-devel libXcursor-devel libXi-devel mesa-libGL-devel pipewire-devel libva-devel libdrm-devel
+sudo dnf install git libX11-devel libXrandr-devel libXinerama-devel libXcursor-devel libXi-devel mesa-libGL-devel pipewire-devel libva-devel libdrm-devel
 ```
 Install newer compiler:
 ```
@@ -116,7 +117,8 @@ gcovr -r ../../../../lib --html --object-directory lib --html-details --output g
 
 ## Building on macOS
 
-Dependencies:
+Requirements:
+* Git
 * Xcode
 * CMake 3.31
 
@@ -147,7 +149,8 @@ alias intel="env /usr/bin/arch -x86_64 /bin/zsh --login"
 
 ## Building on Windows
 
-Dependencies:
+Requirements:
+* Git (https://git-scm.com)
 * Visual Studio 2022
 * CMake 3.31
 * NASM (https://www.nasm.us) for compiling FFmpeg and libjpeg-turbo.
