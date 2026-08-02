@@ -81,7 +81,7 @@ namespace tl
             wipeCenter == other.wipeCenter &&
             wipeRotation == other.wipeRotation &&
             overlay == other.overlay &&
-            fitToA == other.fitToA;
+            sameSize == other.sameSize;
     }
 
     bool CompareOptions::operator != (const CompareOptions& other) const
@@ -106,7 +106,7 @@ namespace tl
                 size = getRenderSize(infos[0], aspectRatioOptions);
                 out.push_back(ftk::Box2I(0, 0, size.w, size.h));
             }
-            if (options.fitToA && count > 1)
+            if (options.sameSize && count > 1)
             {
                 out.push_back(getBox(
                     ftk::Box2I(size.w, 0, size.w, size.h),
@@ -129,7 +129,7 @@ namespace tl
                 size = getRenderSize(infos[0], aspectRatioOptions);
                 out.push_back(ftk::Box2I(0, 0, size.w, size.h));
             }
-            if (options.fitToA && count > 1)
+            if (options.sameSize && count > 1)
             {
                 out.push_back(getBox(
                     ftk::Box2I(0, size.h, size.w, size.h),
@@ -150,7 +150,7 @@ namespace tl
             {
                 const int cols = std::max(1, static_cast<int>(std::ceil(std::sqrt(count))));
                 ftk::Size2I size;
-                if (options.fitToA)
+                if (options.sameSize)
                 {
                     size = getRenderSize(infos[0], aspectRatioOptions);
                 }
@@ -183,7 +183,7 @@ namespace tl
             }
             break;
         default:
-            if (options.fitToA && count > 0)
+            if (options.sameSize && count > 0)
             {
                 const ftk::Size2I size = getRenderSize(infos[0], aspectRatioOptions);
                 for (size_t i = 0; i < count; ++i)
@@ -301,7 +301,7 @@ namespace tl
         json["WipeCenter"] = in.wipeCenter;
         json["WipeRotation"] = in.wipeRotation;
         json["Overlay"] = in.overlay;
-        json["FitToA"] = in.fitToA;
+        json["SameSize"] = in.sameSize;
     }
 
     void from_json(const nlohmann::json& json, CompareOptions& out)
@@ -310,6 +310,6 @@ namespace tl
         json.at("WipeCenter").get_to(out.wipeCenter);
         json.at("WipeRotation").get_to(out.wipeRotation);
         json.at("Overlay").get_to(out.overlay);
-        json.at("FitToA").get_to(out.fitToA);
+        json.at("SameSize").get_to(out.sameSize);
     }
 }

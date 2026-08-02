@@ -48,7 +48,7 @@ namespace tl
         ftk::V2F wipeCenter   = ftk::V2F(.5F, .5F);
         float    wipeRotation = 0.F;
         float    overlay      = .5F;
-        bool     fitToA       = true;
+        bool     sameSize     = true;
 
         TL_API bool operator == (const CompareOptions&) const;
         TL_API bool operator != (const CompareOptions&) const;
