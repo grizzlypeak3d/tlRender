@@ -94,7 +94,7 @@ namespace tl
                 size_t end = boxes.size();
                 switch (compareOptions.compare)
                 {
-                    case Compare::A:
+                    case Compare::None:
                         if (!boxes.empty())
                         {
                             end = 1;
@@ -148,7 +148,7 @@ namespace tl
         {
             switch (compareOptions.compare)
             {
-            case Compare::A:
+            case Compare::None:
                 _drawVideoA(
                     videoFrame,
                     boxes,
@@ -1023,7 +1023,7 @@ namespace tl
             size_t end = boxes.size();
             switch (compareOptions.compare)
             {
-                case Compare::A:
+                case Compare::None:
                 case Compare::Wipe:
                 case Compare::Overlay:
                 case Compare::Difference:

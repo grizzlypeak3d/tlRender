@@ -19,7 +19,7 @@ namespace tl
         void compareOptions(py::module_& m)
         {
             py::enum_<Compare>(m, "Compare")
-                .value("A", Compare::A)
+                .value("None", Compare::None)
                 .value("B", Compare::B)
                 .value("Wipe", Compare::Wipe)
                 .value("Overlay", Compare::Overlay)

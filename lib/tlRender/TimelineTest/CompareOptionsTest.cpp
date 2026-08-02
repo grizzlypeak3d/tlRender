@@ -45,7 +45,7 @@ namespace tl
 
                 for (auto compare :
                     {
-                        Compare::A,
+                        Compare::None,
                         Compare::B,
                         Compare::Wipe,
                         Compare::Overlay,

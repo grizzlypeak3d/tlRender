@@ -22,7 +22,7 @@ namespace tl
             _playerIndex = ftk::Observable<int>::create(-1);
             _bPlayer = ftk::Observable<std::shared_ptr<Player> >::create();
             _bPlayerIndex = ftk::Observable<int>::create(-1);
-            _compare = ftk::Observable<Compare>::create(Compare::A);
+            _compare = ftk::Observable<Compare>::create(Compare::None);
 
             _cacheObserver = ftk::Observer<PlayerCacheOptions>::create(
                 settingsModel->observeCache(),

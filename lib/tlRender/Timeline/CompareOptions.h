@@ -13,7 +13,10 @@ namespace tl
     //! Comparison modes.
     enum class TL_API_TYPE Compare
     {
-        A,
+        //! Not comparing: the A file on its own. The comparisons are a set of
+        //! toggles in the user interface, and this is the state with none of
+        //! them on, so it is not offered as one of them.
+        None,
         B,
         Wipe,
         Overlay,
@@ -23,7 +26,7 @@ namespace tl
         Tile,
 
         Count,
-        First = A
+        First = None
     };
     TL_ENUM(Compare);
 
@@ -41,7 +44,7 @@ namespace tl
     //! Comparison options.
     struct TL_API_TYPE CompareOptions
     {
-        Compare  compare      = Compare::A;
+        Compare  compare      = Compare::None;
         ftk::V2F wipeCenter   = ftk::V2F(.5F, .5F);
         float    wipeRotation = 0.F;
         float    overlay      = .5F;

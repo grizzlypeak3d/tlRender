@@ -18,7 +18,7 @@ namespace tl
 {
     TL_ENUM_IMPL(
         Compare,
-        "A",
+        "None",
         "B",
         "Wipe",
         "Overlay",
@@ -236,7 +236,7 @@ namespace tl
         const auto bbox = ftk::bbox(bounds);
         switch (options.compare)
         {
-        case Compare::A:
+        case Compare::None:
             if (!bounds.empty())
             {
                 out.w = bounds[0].w();
