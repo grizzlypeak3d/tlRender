@@ -279,9 +279,20 @@ namespace tl
         const int count = SDL_GetNumAudioDevices(0);
         for (int i = 0; i < count; ++i)
         {
+            // A device can go away between being counted and being asked
+            // about -- unplugging one while this runs every few seconds is
+            // all it takes -- and the name comes back null then. Assigning
+            // null to a std::string is not something that can be caught, it
+            // just ends the process. A device that cannot be named cannot be
+            // chosen either, so it is left out.
+            const char* name = SDL_GetAudioDeviceName(i, 0);
+            if (!name)
+            {
+                continue;
+            }
             AudioDeviceInfo device;
             device.id.number = i;
-            device.id.name = SDL_GetAudioDeviceName(i, 0);
+            device.id.name = name;
             device.info.channelCount = 2;
             device.info.type = AudioType::F32;
             device.info.sampleRate = 48000;
@@ -292,10 +303,20 @@ namespace tl
         SDL_AudioDeviceID* ids = SDL_GetAudioPlaybackDevices(&count);
         for (int i = 0; i < count; ++i)
         {
+            // See the note above: a device that has gone away has no name,
+            // and assigning null to a std::string ends the process.
+            const char* name = SDL_GetAudioDeviceName(ids[i]);
+            if (!name)
+            {
+                continue;
+            }
             AudioDeviceInfo device;
             device.id.number = ids[i];
-            device.id.name = SDL_GetAudioDeviceName(ids[i]);
-            SDL_AudioSpec spec;
+            device.id.name = name;
+            // Zeroed, so that a format which cannot be read leaves a device
+            // saying it has nothing rather than saying whatever was on the
+            // stack.
+            SDL_AudioSpec spec{};
             int sampleFrames = 0;
             SDL_GetAudioDeviceFormat(ids[i], &spec, &sampleFrames);
             device.info.channelCount = spec.channels;
@@ -317,7 +338,7 @@ namespace tl
         out.info.sampleRate = 48000;
 #elif defined(FTK_SDL3)
         out.id.name = "Default";
-        SDL_AudioSpec spec;
+        SDL_AudioSpec spec{};
         int sampleFrames = 0;
         SDL_GetAudioDeviceFormat(SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, &spec, &sampleFrames);
         out.info.channelCount = spec.channels;
