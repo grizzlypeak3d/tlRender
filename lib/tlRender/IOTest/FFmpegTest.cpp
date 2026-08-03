@@ -368,10 +368,10 @@ namespace tl
                 readOptions["FFmpeg/YUVToRGB"] = "1";
                 auto read = readPlugin->videoRead(path, readOptions);
                 const auto ioInfo = read->getInfo().get();
-                FTK_ASSERT(!ioInfo.video.empty());
+                FTK_CHECK(!ioInfo.video.empty());
                 const auto videoData =
                     read->readVideo(OTIO_NS::RationalTime(0.0, 24.0)).get();
-                FTK_ASSERT(videoData.image);
+                FTK_CHECK(videoData.image);
 
                 const ftk::ImageType type = videoData.image->getInfo().type;
                 if (type != ftk::ImageType::RGB_U16 &&
@@ -922,7 +922,7 @@ namespace tl
                 }
 
                 auto videoRead = readPlugin->videoRead(path, options);
-                FTK_ASSERT(videoRead);
+                FTK_CHECK(videoRead);
                 const auto videoInfo = videoRead->getInfo().get();
                 if (videoInfo.video.empty() || videoInfo.audio.isValid())
                 {
@@ -936,7 +936,7 @@ namespace tl
                 }
 
                 auto audioRead = readPlugin->audioRead(path, options);
-                FTK_ASSERT(audioRead);
+                FTK_CHECK(audioRead);
                 const auto audioReadInfo = audioRead->getInfo().get();
                 if (!audioReadInfo.audio.isValid() ||
                     !audioReadInfo.video.empty())
@@ -974,7 +974,7 @@ namespace tl
                     options);
 
                 auto audioRead = readPlugin->audioRead(path, options);
-                FTK_ASSERT(audioRead);
+                FTK_CHECK(audioRead);
                 const auto info = audioRead->getInfo().get();
                 if (info.audio.isValid())
                 {

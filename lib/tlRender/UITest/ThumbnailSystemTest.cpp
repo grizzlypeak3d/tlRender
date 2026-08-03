@@ -106,7 +106,7 @@ namespace tl
                         ++infoCount;
                     }
                 }
-                FTK_ASSERT(!mediaReadable || infoCount > 0);
+                FTK_CHECK(!mediaReadable || infoCount > 0);
                 size_t thumbnailCount = 0;
                 for (auto& request : thumbnailRequests)
                 {
@@ -116,7 +116,7 @@ namespace tl
                         ++thumbnailCount;
                     }
                 }
-                FTK_ASSERT(!mediaReadable || thumbnailCount > 0);
+                FTK_CHECK(!mediaReadable || thumbnailCount > 0);
                 for (auto& request : waveformRequests)
                 {
                     const auto waveform = request.future.get();
@@ -168,7 +168,7 @@ namespace tl
             Options options;
             options.seqExpand = false;
             auto timeline = Timeline::create(_context, wide, options);
-            FTK_ASSERT(25 == timeline->getTimeRange().duration().value());
+            FTK_CHECK(25 == timeline->getTimeRange().duration().value());
 
             auto thumbnailSystem = _context->getSystem<ui::ThumbnailSystem>();
             const auto mediaPath = mediaPathFor(timeline);
@@ -230,7 +230,7 @@ namespace tl
             // is what the old unset-time marker of -1/-1 was worth. Comparing
             // times rescales them, so a request for it once read as "no time
             // given" and came back with the first frame.
-            FTK_ASSERT(onDisk == withImage);
+            FTK_CHECK(onDisk == withImage);
         }
     }
 }

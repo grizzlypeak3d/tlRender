@@ -56,25 +56,25 @@ namespace tl
                 };
                 const auto defaultChannels = exr::getDefaultChannels(data);
                 const std::set<std::string> result = { ".G", "A", "B.", "R" };
-                FTK_ASSERT(defaultChannels == result);
+                FTK_CHECK(defaultChannels == result);
             }
             {
                 std::vector<std::string> data = { "A", "b", "g", "r" };
                 exr::reorderChannels(data);
                 const std::vector<std::string> result = { "r", "g", "b", "A" };
-                FTK_ASSERT(data == result);
+                FTK_CHECK(data == result);
             }
             {
                 std::vector<std::string> data = { "z", "b", "G", "r" };
                 exr::reorderChannels(data);
                 const std::vector<std::string> result = { "r", "G", "b", "z" };
-                FTK_ASSERT(data == result);
+                FTK_CHECK(data == result);
             }
             {
                 std::vector<std::string> data = { "diffuse.B", "diffuse.G", "diffuse.R" };
                 exr::reorderChannels(data);
                 const std::vector<std::string> result = { "diffuse.R", "diffuse.G", "diffuse.B" };
-                FTK_ASSERT(data == result);
+                FTK_CHECK(data == result);
             }
         }
 
@@ -434,8 +434,8 @@ namespace tl
             {
                 const VideoData v = decode->readVideo(
                     partialPath.get(), nullptr, OTIO_NS::RationalTime(0.0, 24.0));
-                FTK_ASSERT(v.image);
-                FTK_ASSERT(v.image->getSize() == size);
+                FTK_CHECK(v.image);
+                FTK_CHECK(v.image->getSize() == size);
 
                 // Some of it was read, and some of it was not.
                 const uint8_t* data = v.image->getData();
@@ -450,8 +450,8 @@ namespace tl
                 }
                 _print(ftk::Format("Partial EXR: {0} of {1} bytes read").
                     arg(set).arg(byteCount));
-                FTK_ASSERT(set > 0);
-                FTK_ASSERT(set < byteCount);
+                FTK_CHECK(set > 0);
+                FTK_CHECK(set < byteCount);
             }
             catch (const std::exception& e)
             {
@@ -479,7 +479,7 @@ namespace tl
                 {
                     threw = true;
                 }
-                FTK_ASSERT(threw);
+                FTK_CHECK(threw);
             }
         }
     }

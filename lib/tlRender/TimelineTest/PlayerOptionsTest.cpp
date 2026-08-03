@@ -26,8 +26,8 @@ namespace tl
             {
                 PlayerCacheOptions v;
                 v.readBehind = 0.F;
-                FTK_ASSERT(v == v);
-                FTK_ASSERT(v != PlayerCacheOptions());
+                FTK_CHECK(v == v);
+                FTK_CHECK(v != PlayerCacheOptions());
             }
         }
     }

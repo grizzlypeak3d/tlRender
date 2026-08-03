@@ -27,8 +27,8 @@ namespace tl
             {
                 Color color;
                 color.enabled = true;
-                FTK_ASSERT(color == color);
-                FTK_ASSERT(color != Color());
+                FTK_CHECK(color == color);
+                FTK_CHECK(color != Color());
             }
             {
                 Color color;
@@ -43,26 +43,26 @@ namespace tl
             {
                 Levels levels;
                 levels.enabled = true;
-                FTK_ASSERT(levels == levels);
-                FTK_ASSERT(levels != Levels());
+                FTK_CHECK(levels == levels);
+                FTK_CHECK(levels != Levels());
             }
             {
                 Exposure exposure;
                 exposure.enabled = true;
-                FTK_ASSERT(exposure == exposure);
-                FTK_ASSERT(exposure != Exposure());
+                FTK_CHECK(exposure == exposure);
+                FTK_CHECK(exposure != Exposure());
             }
             {
                 SoftClip softClip;
                 softClip.enabled = true;
-                FTK_ASSERT(softClip == softClip);
-                FTK_ASSERT(softClip != SoftClip());
+                FTK_CHECK(softClip == softClip);
+                FTK_CHECK(softClip != SoftClip());
             }
             {
                 DisplayOptions displayOptions;
                 displayOptions.channels = ftk::ChannelDisplay::Red;
-                FTK_ASSERT(displayOptions == displayOptions);
-                FTK_ASSERT(displayOptions != DisplayOptions());
+                FTK_CHECK(displayOptions == displayOptions);
+                FTK_CHECK(displayOptions != DisplayOptions());
             }
         }
     }

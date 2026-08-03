@@ -54,7 +54,7 @@ namespace tl
                 withoutSeparator.value, directory, ftk::PathOptions());
             _print(ftk::Format("Sequence path: {0}").arg(a.get()));
             _print(ftk::Format("Sequence path: {0}").arg(b.get()));
-            FTK_ASSERT(a.get() == b.get());
+            FTK_CHECK(a.get() == b.get());
         }
 
         void UtilTest::_enums()
@@ -87,7 +87,7 @@ namespace tl
             {
                 std::vector<OTIO_NS::RationalTime> f;
                 auto r = toRanges(f);
-                FTK_ASSERT(r.empty());
+                FTK_CHECK(r.empty());
             }
             {
                 std::vector<OTIO_NS::RationalTime> f =
@@ -95,8 +95,8 @@ namespace tl
                     OTIO_NS::RationalTime(0, 24)
                 };
                 auto r = toRanges(f);
-                FTK_ASSERT(1 == r.size());
-                FTK_ASSERT(OTIO_NS::TimeRange(OTIO_NS::RationalTime(0, 24), OTIO_NS::RationalTime(1, 24)) == r[0]);
+                FTK_CHECK(1 == r.size());
+                FTK_CHECK(OTIO_NS::TimeRange(OTIO_NS::RationalTime(0, 24), OTIO_NS::RationalTime(1, 24)) == r[0]);
             }
             {
                 std::vector<OTIO_NS::RationalTime> f =
@@ -105,8 +105,8 @@ namespace tl
                     OTIO_NS::RationalTime(1, 24)
                 };
                 auto r = toRanges(f);
-                FTK_ASSERT(1 == r.size());
-                FTK_ASSERT(OTIO_NS::TimeRange(OTIO_NS::RationalTime(0, 24), OTIO_NS::RationalTime(2, 24)) == r[0]);
+                FTK_CHECK(1 == r.size());
+                FTK_CHECK(OTIO_NS::TimeRange(OTIO_NS::RationalTime(0, 24), OTIO_NS::RationalTime(2, 24)) == r[0]);
             }
             {
                 std::vector<OTIO_NS::RationalTime> f =
@@ -116,8 +116,8 @@ namespace tl
                     OTIO_NS::RationalTime(2, 24)
                 };
                 auto r = toRanges(f);
-                FTK_ASSERT(1 == r.size());
-                FTK_ASSERT(OTIO_NS::TimeRange(OTIO_NS::RationalTime(0, 24), OTIO_NS::RationalTime(3, 24)) == r[0]);
+                FTK_CHECK(1 == r.size());
+                FTK_CHECK(OTIO_NS::TimeRange(OTIO_NS::RationalTime(0, 24), OTIO_NS::RationalTime(3, 24)) == r[0]);
             }
             {
                 std::vector<OTIO_NS::RationalTime> f =
@@ -126,9 +126,9 @@ namespace tl
                     OTIO_NS::RationalTime(2, 24)
                 };
                 auto r = toRanges(f);
-                FTK_ASSERT(2 == r.size());
-                FTK_ASSERT(OTIO_NS::TimeRange(OTIO_NS::RationalTime(0, 24), OTIO_NS::RationalTime(1, 24)) == r[0]);
-                FTK_ASSERT(OTIO_NS::TimeRange(OTIO_NS::RationalTime(2, 24), OTIO_NS::RationalTime(1, 24)) == r[1]);
+                FTK_CHECK(2 == r.size());
+                FTK_CHECK(OTIO_NS::TimeRange(OTIO_NS::RationalTime(0, 24), OTIO_NS::RationalTime(1, 24)) == r[0]);
+                FTK_CHECK(OTIO_NS::TimeRange(OTIO_NS::RationalTime(2, 24), OTIO_NS::RationalTime(1, 24)) == r[1]);
             }
             {
                 std::vector<OTIO_NS::RationalTime> f =
@@ -138,9 +138,9 @@ namespace tl
                     OTIO_NS::RationalTime(3, 24)
                 };
                 auto r = toRanges(f);
-                FTK_ASSERT(2 == r.size());
-                FTK_ASSERT(OTIO_NS::TimeRange(OTIO_NS::RationalTime(0, 24), OTIO_NS::RationalTime(2, 24)) == r[0]);
-                FTK_ASSERT(OTIO_NS::TimeRange(OTIO_NS::RationalTime(3, 24), OTIO_NS::RationalTime(1, 24)) == r[1]);
+                FTK_CHECK(2 == r.size());
+                FTK_CHECK(OTIO_NS::TimeRange(OTIO_NS::RationalTime(0, 24), OTIO_NS::RationalTime(2, 24)) == r[0]);
+                FTK_CHECK(OTIO_NS::TimeRange(OTIO_NS::RationalTime(3, 24), OTIO_NS::RationalTime(1, 24)) == r[1]);
             }
             {
                 std::vector<OTIO_NS::RationalTime> f =
@@ -151,9 +151,9 @@ namespace tl
                     OTIO_NS::RationalTime(4, 24)
                 };
                 auto r = toRanges(f);
-                FTK_ASSERT(2 == r.size());
-                FTK_ASSERT(OTIO_NS::TimeRange(OTIO_NS::RationalTime(0, 24), OTIO_NS::RationalTime(2, 24)) == r[0]);
-                FTK_ASSERT(OTIO_NS::TimeRange(OTIO_NS::RationalTime(3, 24), OTIO_NS::RationalTime(2, 24)) == r[1]);
+                FTK_CHECK(2 == r.size());
+                FTK_CHECK(OTIO_NS::TimeRange(OTIO_NS::RationalTime(0, 24), OTIO_NS::RationalTime(2, 24)) == r[0]);
+                FTK_CHECK(OTIO_NS::TimeRange(OTIO_NS::RationalTime(3, 24), OTIO_NS::RationalTime(2, 24)) == r[1]);
             }
         }
 
@@ -168,20 +168,20 @@ namespace tl
                     OTIO_NS::RationalTime(0.0, 24.0),
                     range,
                     &looped);
-                FTK_ASSERT(OTIO_NS::RationalTime(0.0, 24.0) == t);
-                FTK_ASSERT(!looped);
+                FTK_CHECK(OTIO_NS::RationalTime(0.0, 24.0) == t);
+                FTK_CHECK(!looped);
                 t = loop(
                     OTIO_NS::RationalTime(24.0, 24.0),
                     range,
                     &looped);
-                FTK_ASSERT(OTIO_NS::RationalTime(0.0, 24.0) == t);
-                FTK_ASSERT(looped);
+                FTK_CHECK(OTIO_NS::RationalTime(0.0, 24.0) == t);
+                FTK_CHECK(looped);
                 t = loop(
                     OTIO_NS::RationalTime(-1.0, 24.0),
                     range,
                     &looped);
-                FTK_ASSERT(OTIO_NS::RationalTime(23.0, 24.0) == t);
-                FTK_ASSERT(looped);
+                FTK_CHECK(OTIO_NS::RationalTime(23.0, 24.0) == t);
+                FTK_CHECK(looped);
             }
             {
                 const OTIO_NS::TimeRange range(
@@ -191,8 +191,8 @@ namespace tl
                     OTIO_NS::RationalTime(0.0, 24.0),
                     OTIO_NS::RationalTime(24.0, 24.0));
                 const auto looped = loop(range, bounds);
-                FTK_ASSERT(1 == looped.size());
-                FTK_ASSERT(range == looped[0]);
+                FTK_CHECK(1 == looped.size());
+                FTK_CHECK(range == looped[0]);
             }
             {
                 const OTIO_NS::TimeRange range(
@@ -202,8 +202,8 @@ namespace tl
                     OTIO_NS::RationalTime(0.0, 24.0),
                     OTIO_NS::RationalTime(24.0, 24.0));
                 const auto looped = loop(range, bounds);
-                FTK_ASSERT(1 == looped.size());
-                FTK_ASSERT(bounds == looped[0]);
+                FTK_CHECK(1 == looped.size());
+                FTK_CHECK(bounds == looped[0]);
             }
             {
                 const OTIO_NS::TimeRange range(
@@ -213,11 +213,11 @@ namespace tl
                     OTIO_NS::RationalTime(0.0, 24.0),
                     OTIO_NS::RationalTime(24.0, 24.0));
                 const auto looped = loop(range, bounds);
-                FTK_ASSERT(2 == looped.size());
-                FTK_ASSERT(OTIO_NS::TimeRange(
+                FTK_CHECK(2 == looped.size());
+                FTK_CHECK(OTIO_NS::TimeRange(
                     OTIO_NS::RationalTime(12.0, 24.0),
                     OTIO_NS::RationalTime(12.0, 24.0)) == looped[0]);
-                FTK_ASSERT(OTIO_NS::TimeRange(
+                FTK_CHECK(OTIO_NS::TimeRange(
                     OTIO_NS::RationalTime(0.0, 24.0),
                     OTIO_NS::RationalTime(12.0, 24.0)) == looped[1]);
             }
@@ -229,11 +229,11 @@ namespace tl
                     OTIO_NS::RationalTime(0.0, 24.0),
                     OTIO_NS::RationalTime(24.0, 24.0));
                 const auto looped = loop(range, bounds);
-                FTK_ASSERT(2 == looped.size());
-                FTK_ASSERT(OTIO_NS::TimeRange(
+                FTK_CHECK(2 == looped.size());
+                FTK_CHECK(OTIO_NS::TimeRange(
                     OTIO_NS::RationalTime(12.0, 24.0),
                     OTIO_NS::RationalTime(12.0, 24.0)) == looped[0]);
-                FTK_ASSERT(OTIO_NS::TimeRange(
+                FTK_CHECK(OTIO_NS::TimeRange(
                     OTIO_NS::RationalTime(0.0, 24.0),
                     OTIO_NS::RationalTime(12.0, 24.0)) == looped[1]);
             }
@@ -241,31 +241,31 @@ namespace tl
                 const ftk::Range<int64_t> range(0, 23);
                 const ftk::Range<int64_t> bounds(0, 23);
                 const auto looped = loop(range, bounds);
-                FTK_ASSERT(1 == looped.size());
-                FTK_ASSERT(range == looped[0]);
+                FTK_CHECK(1 == looped.size());
+                FTK_CHECK(range == looped[0]);
             }
             {
                 const ftk::Range<int64_t> range(-12, 35);
                 const ftk::Range<int64_t> bounds(0, 23);
                 const auto looped = loop(range, bounds);
-                FTK_ASSERT(1 == looped.size());
-                FTK_ASSERT(bounds == looped[0]);
+                FTK_CHECK(1 == looped.size());
+                FTK_CHECK(bounds == looped[0]);
             }
             {
                 const ftk::Range<int64_t> range(-12, 11);
                 const ftk::Range<int64_t> bounds(0, 23);
                 const auto looped = loop(range, bounds);
-                FTK_ASSERT(2 == looped.size());
-                FTK_ASSERT(ftk::Range<int64_t>(12, 23) == looped[0]);
-                FTK_ASSERT(ftk::Range<int64_t>(0, 11) == looped[1]);
+                FTK_CHECK(2 == looped.size());
+                FTK_CHECK(ftk::Range<int64_t>(12, 23) == looped[0]);
+                FTK_CHECK(ftk::Range<int64_t>(0, 11) == looped[1]);
             }
             {
                 const ftk::Range<int64_t> range(12, 35);
                 const ftk::Range<int64_t> bounds(0, 23);
                 const auto looped = loop(range, bounds);
-                FTK_ASSERT(2 == looped.size());
-                FTK_ASSERT(ftk::Range<int64_t>(12, 23) == looped[0]);
-                FTK_ASSERT(ftk::Range<int64_t>(0, 11) == looped[1]);
+                FTK_CHECK(2 == looped.size());
+                FTK_CHECK(ftk::Range<int64_t>(12, 23) == looped[0]);
+                FTK_CHECK(ftk::Range<int64_t>(0, 11) == looped[1]);
             }
         }
 
@@ -288,16 +288,16 @@ namespace tl
                 }
                 OTIO_NS::SerializableObject::Retainer<OTIO_NS::Timeline> otioTimeline(new OTIO_NS::Timeline);
                 otioTimeline->set_tracks(otioStack);
-                FTK_ASSERT(otioStack == getRoot(otioClip));
-                FTK_ASSERT(otioStack == getParent<OTIO_NS::Stack>(otioClip));
-                FTK_ASSERT(otioTrack == getParent<OTIO_NS::Track>(otioClip));
+                FTK_CHECK(otioStack == getRoot(otioClip));
+                FTK_CHECK(otioStack == getParent<OTIO_NS::Stack>(otioClip));
+                FTK_CHECK(otioTrack == getParent<OTIO_NS::Track>(otioClip));
             }
             {
                 VideoFrame a;
                 a.time = OTIO_NS::RationalTime(1.0, 24.0);
                 VideoFrame b;
                 b.time = OTIO_NS::RationalTime(1.0, 24.0);
-                FTK_ASSERT(isTimeEqual(a, b));
+                FTK_CHECK(isTimeEqual(a, b));
             }
         }
 
@@ -307,7 +307,7 @@ namespace tl
                 AudioInfo info(2, AudioType::S32, 48000);
                 std::vector<AudioFrame> frames;
                 auto out = audioCopy(info, frames, Playback::Forward, 0, 2000);
-                FTK_ASSERT(out.empty());
+                FTK_CHECK(out.empty());
 
                 auto audio = Audio::create(info, info.sampleRate);
                 int32_t* audioP = reinterpret_cast<int32_t*>(audio->getData());
@@ -318,74 +318,74 @@ namespace tl
                 }
                 frames.push_back(AudioFrame({ 0.0, { { audio } } }));
                 out = audioCopy(info, frames, Playback::Forward, 0, 2000);
-                FTK_ASSERT(1 == out.size());
-                FTK_ASSERT(2000 == out[0]->getSampleCount());
+                FTK_CHECK(1 == out.size());
+                FTK_CHECK(2000 == out[0]->getSampleCount());
                 audioP = reinterpret_cast<int32_t*>(out[0]->getData());
                 for (size_t i = 0; i < out[0]->getSampleCount(); ++i, audioP += 2)
                 {
-                    FTK_ASSERT(static_cast<int32_t>(i) == audioP[0]);
-                    FTK_ASSERT(static_cast<int32_t>(i + 1) == audioP[1]);
+                    FTK_CHECK(static_cast<int32_t>(i) == audioP[0]);
+                    FTK_CHECK(static_cast<int32_t>(i + 1) == audioP[1]);
                 }
 
                 out = audioCopy(info, frames, Playback::Forward, info.sampleRate - 1000, 2000);
-                FTK_ASSERT(1 == out.size());
-                FTK_ASSERT(1000 == out[0]->getSampleCount());
+                FTK_CHECK(1 == out.size());
+                FTK_CHECK(1000 == out[0]->getSampleCount());
                 audioP = reinterpret_cast<int32_t*>(out[0]->getData());
                 for (size_t i = 0, j = info.sampleRate - 1000; i < out[0]->getSampleCount(); ++i, ++j, audioP += 2)
                 {
-                    FTK_ASSERT(static_cast<int>(j) == audioP[0]);
-                    FTK_ASSERT(static_cast<int>(j + 1) == audioP[1]);
+                    FTK_CHECK(static_cast<int>(j) == audioP[0]);
+                    FTK_CHECK(static_cast<int>(j + 1) == audioP[1]);
                 }
 
                 frames.push_back(AudioFrame({ 1.0, { { audio } } }));
                 out = audioCopy(info, frames, Playback::Forward, info.sampleRate - 1000, 2000);
-                FTK_ASSERT(1 == out.size());
-                FTK_ASSERT(2000 == out[0]->getSampleCount());
+                FTK_CHECK(1 == out.size());
+                FTK_CHECK(2000 == out[0]->getSampleCount());
                 audioP = reinterpret_cast<int32_t*>(out[0]->getData());
                 size_t i = 0;
                 size_t j = info.sampleRate - 1000;
                 for (; i < 1000; ++i, ++j, audioP += 2)
                 {
-                    FTK_ASSERT(static_cast<int>(j) == audioP[0]);
-                    FTK_ASSERT(static_cast<int>(j + 1) == audioP[1]);
+                    FTK_CHECK(static_cast<int>(j) == audioP[0]);
+                    FTK_CHECK(static_cast<int>(j + 1) == audioP[1]);
                 }
                 i = 0;
                 j = 0;
                 for (; i < 1000; ++i, ++j, audioP += 2)
                 {
-                    FTK_ASSERT(static_cast<int>(j) == audioP[0]);
-                    FTK_ASSERT(static_cast<int>(j + 1) == audioP[1]);
+                    FTK_CHECK(static_cast<int>(j) == audioP[0]);
+                    FTK_CHECK(static_cast<int>(j + 1) == audioP[1]);
                 }
 
                 out = audioCopy(info, frames, Playback::Reverse, info.sampleRate, 2000);
-                FTK_ASSERT(1 == out.size());
-                FTK_ASSERT(2000 == out[0]->getSampleCount());
+                FTK_CHECK(1 == out.size());
+                FTK_CHECK(2000 == out[0]->getSampleCount());
                 audioP = reinterpret_cast<int32_t*>(out[0]->getData());
                 i = 0;
                 j = info.sampleRate - 2000;
                 for (; i < 2000; ++i, ++j, audioP += 2)
                 {
-                    FTK_ASSERT(static_cast<int>(j) == audioP[0]);
-                    FTK_ASSERT(static_cast<int>(j + 1) == audioP[1]);
+                    FTK_CHECK(static_cast<int>(j) == audioP[0]);
+                    FTK_CHECK(static_cast<int>(j + 1) == audioP[1]);
                 }
 
                 out = audioCopy(info, frames, Playback::Reverse, info.sampleRate + 1000, 2000);
-                FTK_ASSERT(1 == out.size());
-                FTK_ASSERT(2000 == out[0]->getSampleCount());
+                FTK_CHECK(1 == out.size());
+                FTK_CHECK(2000 == out[0]->getSampleCount());
                 audioP = reinterpret_cast<int32_t*>(out[0]->getData());
                 i = 0;
                 j = info.sampleRate - 1000;
                 for (; i < 1000; ++i, ++j, audioP += 2)
                 {
-                    FTK_ASSERT(static_cast<int>(j) == audioP[0]);
-                    FTK_ASSERT(static_cast<int>(j + 1) == audioP[1]);
+                    FTK_CHECK(static_cast<int>(j) == audioP[0]);
+                    FTK_CHECK(static_cast<int>(j + 1) == audioP[1]);
                 }
                 i = 0;
                 j = 0;
                 for (; i < 1000; ++i, ++j, audioP += 2)
                 {
-                    FTK_ASSERT(static_cast<int>(j) == audioP[0]);
-                    FTK_ASSERT(static_cast<int>(j + 1) == audioP[1]);
+                    FTK_CHECK(static_cast<int>(j) == audioP[0]);
+                    FTK_CHECK(static_cast<int>(j + 1) == audioP[1]);
                 }
             }
         }

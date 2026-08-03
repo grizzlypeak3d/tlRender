@@ -33,11 +33,11 @@ namespace tl
         {
             {
                 const std::string scheme = getURLScheme("file://path");
-                FTK_ASSERT("file://" == scheme);
+                FTK_CHECK("file://" == scheme);
             }
             {
                 const std::string scheme = getURLScheme("path");
-                FTK_ASSERT(scheme.empty());
+                FTK_CHECK(scheme.empty());
             }
         }
         
@@ -59,9 +59,9 @@ namespace tl
             for (const auto& i : data)
             {
                 const std::string decoded = decodeURL(i.encoded);
-                FTK_ASSERT(decoded == i.decoded);
+                FTK_CHECK(decoded == i.decoded);
                 const std::string encoded = encodeURL(decoded);
-                FTK_ASSERT(encoded == i.encoded);
+                FTK_CHECK(encoded == i.encoded);
             }
         }
     }

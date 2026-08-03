@@ -88,7 +88,7 @@ namespace tl
                     _print(ftk::Format("Timeline: {0}").arg(path.get()));
                     auto timeline = Timeline::create(_context, path.get());
                     auto player = Player::create(_context, timeline);
-                    FTK_ASSERT(player->getTimeline());
+                    FTK_CHECK(player->getTimeline());
                     _player(player);
                 }
                 catch (const std::exception& e)
@@ -133,7 +133,7 @@ namespace tl
                 });
             const double doubleSpeed = defaultSpeed * 2.0;
             player->setSpeed(doubleSpeed);
-            FTK_ASSERT(doubleSpeed == speed);
+            FTK_CHECK(doubleSpeed == speed);
             player->setSpeed(defaultSpeed);
 
             // Test the playback mode.
@@ -145,8 +145,8 @@ namespace tl
                     playback = value;
                 });
             player->setPlayback(Playback::Forward);
-            FTK_ASSERT(Playback::Forward == player->getPlayback());
-            FTK_ASSERT(Playback::Forward == playback);
+            FTK_CHECK(Playback::Forward == player->getPlayback());
+            FTK_CHECK(Playback::Forward == playback);
 
             // Test the playback loop mode.
             Loop loop = Loop::Loop;
@@ -157,8 +157,8 @@ namespace tl
                     loop = value;
                 });
             player->setLoop(Loop::Once);
-            FTK_ASSERT(Loop::Once == player->getLoop());
-            FTK_ASSERT(Loop::Once == loop);
+            FTK_CHECK(Loop::Once == player->getLoop());
+            FTK_CHECK(Loop::Once == loop);
 
             // Test the current time.
             player->setPlayback(Playback::Stop);
@@ -170,20 +170,20 @@ namespace tl
                     currentTime = value;
                 });
             player->seek(timeRange.start_time());
-            FTK_ASSERT(timeRange.start_time() == player->getCurrentTime());
-            FTK_ASSERT(timeRange.start_time() == currentTime);
+            FTK_CHECK(timeRange.start_time() == player->getCurrentTime());
+            FTK_CHECK(timeRange.start_time() == currentTime);
             const double rate = timeRange.duration().rate();
             player->seek(
                 timeRange.start_time() + OTIO_NS::RationalTime(1.0, rate));
-            FTK_ASSERT(
+            FTK_CHECK(
                 timeRange.start_time() + OTIO_NS::RationalTime(1.0, rate) ==
                 currentTime);
             player->gotoEnd();
-            FTK_ASSERT(timeRange.end_time_inclusive() == currentTime);
+            FTK_CHECK(timeRange.end_time_inclusive() == currentTime);
             player->gotoStart();
-            FTK_ASSERT(timeRange.start_time() == currentTime);
+            FTK_CHECK(timeRange.start_time() == currentTime);
             player->frameNext();
-            FTK_ASSERT(
+            FTK_CHECK(
                 timeRange.start_time() + OTIO_NS::RationalTime(1.0, rate) ==
                 currentTime);
             player->timeAction(TimeAction::FrameNextX10);
@@ -207,22 +207,22 @@ namespace tl
             player->setInOutRange(OTIO_NS::TimeRange(
                 timeRange.start_time(),
                 OTIO_NS::RationalTime(10.0, rate)));
-            FTK_ASSERT(OTIO_NS::TimeRange(
+            FTK_CHECK(OTIO_NS::TimeRange(
                 timeRange.start_time(),
                 OTIO_NS::RationalTime(10.0, rate)) == player->getInOutRange());
-            FTK_ASSERT(OTIO_NS::TimeRange(
+            FTK_CHECK(OTIO_NS::TimeRange(
                 timeRange.start_time(),
                 OTIO_NS::RationalTime(10.0, rate)) == inOutRange);
             player->seek(timeRange.start_time() + OTIO_NS::RationalTime(1.0, rate));
             player->setInPoint();
             player->seek(timeRange.start_time() + OTIO_NS::RationalTime(10.0, rate));
             player->setOutPoint();
-            FTK_ASSERT(OTIO_NS::TimeRange(
+            FTK_CHECK(OTIO_NS::TimeRange(
                 timeRange.start_time() + OTIO_NS::RationalTime(1.0, rate),
                 OTIO_NS::RationalTime(10.0, rate)) == inOutRange);
             player->resetInPoint();
             player->resetOutPoint();
-            FTK_ASSERT(OTIO_NS::TimeRange(timeRange.start_time(), timeRange.duration()) == inOutRange);
+            FTK_CHECK(OTIO_NS::TimeRange(timeRange.start_time(), timeRange.duration()) == inOutRange);
 
             // Test the I/O options.
             IOOptions ioOptions;
@@ -235,8 +235,8 @@ namespace tl
             IOOptions ioOptions2;
             ioOptions2["Layer"] = "1";
             player->setIOOptions(ioOptions2);
-            FTK_ASSERT(ioOptions2 == player->getIOOptions());
-            FTK_ASSERT(ioOptions2 == ioOptions);
+            FTK_CHECK(ioOptions2 == player->getIOOptions());
+            FTK_CHECK(ioOptions2 == ioOptions);
             player->setIOOptions({});
 
             // Test the video layers.
@@ -256,12 +256,12 @@ namespace tl
                 });
             int videoLayer2 = 1;
             player->setVideoLayer(videoLayer2);
-            FTK_ASSERT(videoLayer2 == player->getVideoLayer());
-            FTK_ASSERT(videoLayer2 == videoLayer);
+            FTK_CHECK(videoLayer2 == player->getVideoLayer());
+            FTK_CHECK(videoLayer2 == videoLayer);
             std::vector<int> compareVideoLayers2 = { 2, 3 };
             player->setCompareVideoLayers(compareVideoLayers2);
-            FTK_ASSERT(compareVideoLayers2 == player->getCompareVideoLayers());
-            FTK_ASSERT(compareVideoLayers2 == compareVideoLayers);
+            FTK_CHECK(compareVideoLayers2 == player->getCompareVideoLayers());
+            FTK_CHECK(compareVideoLayers2 == compareVideoLayers);
             player->setVideoLayer(0);
             player->setCompareVideoLayers({});
 
@@ -274,8 +274,8 @@ namespace tl
                     volume = value;
                 });
             player->setVolume(.5F);
-            FTK_ASSERT(.5F == player->getVolume());
-            FTK_ASSERT(.5F == volume);
+            FTK_CHECK(.5F == player->getVolume());
+            FTK_CHECK(.5F == volume);
             player->setVolume(1.F);
 
             bool mute = false;
@@ -286,8 +286,8 @@ namespace tl
                     mute = value;
                 });
             player->setMute(true);
-            FTK_ASSERT(player->isMuted());
-            FTK_ASSERT(mute);
+            FTK_CHECK(player->isMuted());
+            FTK_CHECK(mute);
             player->setMute(false);
 
             std::vector<bool> channelMute = { false, false };
@@ -298,9 +298,9 @@ namespace tl
                     channelMute = value;
                 });
             player->setChannelMute({ true, true });
-            FTK_ASSERT(player->getChannelMute() == std::vector<bool>({ true, true }));
-            FTK_ASSERT(channelMute[0]);
-            FTK_ASSERT(channelMute[1]);
+            FTK_CHECK(player->getChannelMute() == std::vector<bool>({ true, true }));
+            FTK_CHECK(channelMute[0]);
+            FTK_CHECK(channelMute[1]);
             player->setChannelMute({ false, false });
 
             double audioOffset = 0.0;
@@ -311,8 +311,8 @@ namespace tl
                     audioOffset = value;
                 });
             player->setAudioOffset(0.5);
-            FTK_ASSERT(0.5 == player->getAudioOffset());
-            FTK_ASSERT(0.5 == audioOffset);
+            FTK_CHECK(0.5 == player->getAudioOffset());
+            FTK_CHECK(0.5 == audioOffset);
             player->setAudioOffset(0.0);
             
             // Test frames.
@@ -326,7 +326,7 @@ namespace tl
                     });
                 cacheOptions.videoGB = 1.F;
                 player->setCacheOptions(cacheOptions);
-                FTK_ASSERT(cacheOptions == player->getCacheOptions());
+                FTK_CHECK(cacheOptions == player->getCacheOptions());
 
                 auto currentVideoObserver = ftk::ListObserver<VideoFrame>::create(
                     player->observeCurrentVideo(),

@@ -39,9 +39,9 @@ namespace tl
             {
                 HDRData a;
                 HDRData b;
-                FTK_ASSERT(a == b);
+                FTK_CHECK(a == b);
                 a.eotf = HDR_EOTF::ST2084;
-                FTK_ASSERT(a != b);
+                FTK_CHECK(a != b);
             }
         }
 
@@ -65,7 +65,7 @@ namespace tl
                 to_json(json, value);
                 HDRData value2;
                 from_json(json, value2);
-                FTK_ASSERT(value == value2);
+                FTK_CHECK(value == value2);
             }
         }
     }

@@ -137,10 +137,10 @@ namespace tl
                         auto request = timeline->getVideo(
                             OTIO_NS::RationalTime(frame.first, 24.0));
                         const VideoFrame videoFrame = request.future.get();
-                        FTK_ASSERT(i.canvasSize == videoFrame.canvasSize);
-                        FTK_ASSERT(!videoFrame.layers.empty());
-                        FTK_ASSERT(videoFrame.layers[0].bounds.has_value());
-                        FTK_ASSERT(frame.second == videoFrame.layers[0].bounds.value());
+                        FTK_CHECK(i.canvasSize == videoFrame.canvasSize);
+                        FTK_CHECK(!videoFrame.layers.empty());
+                        FTK_CHECK(videoFrame.layers[0].bounds.has_value());
+                        FTK_CHECK(frame.second == videoFrame.layers[0].bounds.value());
                     }
                 }
                 catch (const std::exception& e)
@@ -158,10 +158,10 @@ namespace tl
                 auto timeline = Timeline::create(_context, path);
                 auto request = timeline->getVideo(OTIO_NS::RationalTime(0.0, 24.0));
                 const VideoFrame videoFrame = request.future.get();
-                FTK_ASSERT(!videoFrame.canvasSize.isValid());
+                FTK_CHECK(!videoFrame.canvasSize.isValid());
                 for (const auto& layer : videoFrame.layers)
                 {
-                    FTK_ASSERT(!layer.bounds.has_value());
+                    FTK_CHECK(!layer.bounds.has_value());
                 }
             }
             catch (const std::exception& e)
@@ -180,10 +180,10 @@ namespace tl
                 auto timeline = Timeline::create(_context, path);
                 auto request = timeline->getVideo(OTIO_NS::RationalTime(30.0, 24.0));
                 const VideoFrame videoFrame = request.future.get();
-                FTK_ASSERT(ftk::Size2I(1920, 1080) == videoFrame.canvasSize);
-                FTK_ASSERT(!videoFrame.layers.empty());
-                FTK_ASSERT(videoFrame.layers[0].bounds.has_value());
-                FTK_ASSERT(full == videoFrame.layers[0].bounds.value());
+                FTK_CHECK(ftk::Size2I(1920, 1080) == videoFrame.canvasSize);
+                FTK_CHECK(!videoFrame.layers.empty());
+                FTK_CHECK(videoFrame.layers[0].bounds.has_value());
+                FTK_CHECK(full == videoFrame.layers[0].bounds.value());
             }
             catch (const std::exception& e)
             {
@@ -200,10 +200,10 @@ namespace tl
                 auto timeline = Timeline::create(_context, path, options);
                 auto request = timeline->getVideo(OTIO_NS::RationalTime(0.0, 24.0));
                 const VideoFrame videoFrame = request.future.get();
-                FTK_ASSERT(!videoFrame.canvasSize.isValid());
+                FTK_CHECK(!videoFrame.canvasSize.isValid());
                 for (const auto& layer : videoFrame.layers)
                 {
-                    FTK_ASSERT(!layer.bounds.has_value());
+                    FTK_CHECK(!layer.bounds.has_value());
                 }
             }
             catch (const std::exception& e)
@@ -223,8 +223,8 @@ namespace tl
                     auto timeline = Timeline::create(_context, path);
                     auto request = timeline->getVideo(OTIO_NS::RationalTime(30.0, 24.0));
                     const VideoFrame videoFrame = request.future.get();
-                    FTK_ASSERT(!videoFrame.layers.empty());
-                    FTK_ASSERT(!videoFrame.layers[0].bounds.has_value());
+                    FTK_CHECK(!videoFrame.layers.empty());
+                    FTK_CHECK(!videoFrame.layers[0].bounds.has_value());
                 }
                 {
                     Options options;
@@ -232,10 +232,10 @@ namespace tl
                     auto timeline = Timeline::create(_context, path, options);
                     auto request = timeline->getVideo(OTIO_NS::RationalTime(30.0, 24.0));
                     const VideoFrame videoFrame = request.future.get();
-                    FTK_ASSERT(ftk::Size2I(1920, 1080) == videoFrame.canvasSize);
-                    FTK_ASSERT(!videoFrame.layers.empty());
-                    FTK_ASSERT(videoFrame.layers[0].bounds.has_value());
-                    FTK_ASSERT(full == videoFrame.layers[0].bounds.value());
+                    FTK_CHECK(ftk::Size2I(1920, 1080) == videoFrame.canvasSize);
+                    FTK_CHECK(!videoFrame.layers.empty());
+                    FTK_CHECK(videoFrame.layers[0].bounds.has_value());
+                    FTK_CHECK(full == videoFrame.layers[0].bounds.value());
                 }
             }
             catch (const std::exception& e)
@@ -254,18 +254,18 @@ namespace tl
         {
             Options a;
             a.imageSeqAudio = ImageSeqAudio::FileName;
-            FTK_ASSERT(a == a);
-            FTK_ASSERT(a != Options());
+            FTK_CHECK(a == a);
+            FTK_CHECK(a != Options());
 
             // The cache sizes are options rather than constants so that a
             // caller can ask for what it needs; comparing them is what keeps
             // a timeline from being reused with somebody else's sizes.
             Options cache;
             cache.readCacheMax = 1;
-            FTK_ASSERT(cache != Options());
+            FTK_CHECK(cache != Options());
             Options seq;
             seq.seqCacheMax = 1;
-            FTK_ASSERT(seq != Options());
+            FTK_CHECK(seq != Options());
         }
 
         void TimelineTest::_util()
@@ -275,8 +275,8 @@ namespace tl
         void TimelineTest::_transitions()
         {
             {
-                FTK_ASSERT(toTransition(std::string()) == Transition::None);
-                FTK_ASSERT(toTransition("SMPTE_Dissolve") == Transition::Dissolve);
+                FTK_CHECK(toTransition(std::string()) == Transition::None);
+                FTK_CHECK(toTransition("SMPTE_Dissolve") == Transition::Dissolve);
             }
         }
 
@@ -284,15 +284,15 @@ namespace tl
         {
             {
                 VideoLayer a, b;
-                FTK_ASSERT(a == b);
+                FTK_CHECK(a == b);
                 a.transition = Transition::Dissolve;
-                FTK_ASSERT(a != b);
+                FTK_CHECK(a != b);
             }
             {
                 VideoData a, b;
-                FTK_ASSERT(a == b);
+                FTK_CHECK(a == b);
                 a.time = OTIO_NS::RationalTime(1.0, 24.0);
-                FTK_ASSERT(a != b);
+                FTK_CHECK(a != b);
             }
         }
 
@@ -366,7 +366,7 @@ namespace tl
                     }
                 }
             }
-            FTK_ASSERT(videoRequests.empty());
+            FTK_CHECK(videoRequests.empty());
 
             // Get audio from the timeline.
             std::vector<AudioFrame> audioFrame;
@@ -392,7 +392,7 @@ namespace tl
                     }
                 }
             }
-            FTK_ASSERT(audioRequests.empty());
+            FTK_CHECK(audioRequests.empty());
 
             // Cancel requests.
             videoFrame.clear();
@@ -546,7 +546,7 @@ namespace tl
             options.threaded = false;
             auto timeline = Timeline::create(_context, path, options);
             const auto clips = timeline->getTimeline()->find_clips();
-            FTK_ASSERT(!clips.empty());
+            FTK_CHECK(!clips.empty());
             auto mediaReference = clips[0]->media_reference();
             const auto mediaPath = getPath(
                 mediaReference,
@@ -560,15 +560,15 @@ namespace tl
                 return;
             }
             const auto decode = plugin->decode(IOOptions());
-            FTK_ASSERT(decode);
+            FTK_CHECK(decode);
 
             auto mem = timeline->getMem(mediaReference);
-            FTK_ASSERT(!mem.empty());
+            FTK_CHECK(!mem.empty());
             auto seq = SeqDecode::create(mediaPath, mem, decode);
             const IOInfo info = seq->getInfo();
-            FTK_ASSERT(!info.video.empty());
+            FTK_CHECK(!info.video.empty());
             const auto time = info.videoTime->start_time();
-            FTK_ASSERT(seq->readVideo(time).image);
+            FTK_CHECK(seq->readVideo(time).image);
 
             // The decoder was handed the memory the frames live in, and each
             // of those keeps the mapping open, so nothing it needs belongs to
@@ -583,8 +583,8 @@ namespace tl
             mem.clear();
             timeline.reset();
             const VideoData data = seq->readVideo(time);
-            FTK_ASSERT(data.image);
-            FTK_ASSERT(data.image->getSize() == info.video[0].size);
+            FTK_CHECK(data.image);
+            FTK_CHECK(data.image->getSize() == info.video[0].size);
 
             _print("a decoder outlives the timeline that opened it");
         }
@@ -644,7 +644,7 @@ namespace tl
                 options.imageSeqAudio = ImageSeqAudio::None;
                 auto timeline = Timeline::create(_context, path, options);
                 const ftk::Path& audioPath = timeline->getAudioPath();
-                FTK_ASSERT(audioPath.isEmpty());
+                FTK_CHECK(audioPath.isEmpty());
                 _print(ftk::Format("Audio path: {0}").arg(audioPath.get()));
             }
             catch (const std::exception& e)
@@ -659,7 +659,7 @@ namespace tl
                 options.imageSeqAudio = ImageSeqAudio::Ext;
                 auto timeline = Timeline::create(_context, path, options);
                 const ftk::Path& audioPath = timeline->getAudioPath();
-                FTK_ASSERT(!audioPath.isEmpty());
+                FTK_CHECK(!audioPath.isEmpty());
                 _print(ftk::Format("Audio path: {0}").arg(audioPath.get()));
             }
             catch (const std::exception& e)
@@ -676,7 +676,7 @@ namespace tl
                     TLRENDER_SAMPLE_DATA, "AudioToneStereo.wav").get();
                 auto timeline = Timeline::create(_context, path, options);
                 const ftk::Path& audioPath = timeline->getAudioPath();
-                FTK_ASSERT(!audioPath.isEmpty());
+                FTK_CHECK(!audioPath.isEmpty());
                 _print(ftk::Format("Audio path: {0}").arg(audioPath.get()));
             }
             catch (const std::exception& e)
@@ -722,28 +722,28 @@ namespace tl
                 // Every key used anywhere in the timeline is listed, including
                 // the default key of the clip that has a single reference.
                 const auto keys = timeline->getMediaReferenceKeys();
-                FTK_ASSERT(3 == keys.size());
-                FTK_ASSERT(keys.end() != std::find(keys.begin(), keys.end(), "Full"));
-                FTK_ASSERT(keys.end() != std::find(keys.begin(), keys.end(), "Proxy"));
-                FTK_ASSERT(keys.end() != std::find(
+                FTK_CHECK(3 == keys.size());
+                FTK_CHECK(keys.end() != std::find(keys.begin(), keys.end(), "Full"));
+                FTK_CHECK(keys.end() != std::find(keys.begin(), keys.end(), "Proxy"));
+                FTK_CHECK(keys.end() != std::find(
                     keys.begin(), keys.end(), OTIO_NS::Clip::default_media_key));
 
                 // Without a key the clips are read from the media reference
                 // OTIO has active.
-                FTK_ASSERT(timeline->getMediaReferenceKey().empty());
+                FTK_CHECK(timeline->getMediaReferenceKey().empty());
                 std::optional<ftk::Box2F> bounds;
                 {
                     auto request = timeline->getVideo(OTIO_NS::RationalTime(0.0, 24.0));
                     const VideoFrame videoFrame = request.future.get();
-                    FTK_ASSERT(!videoFrame.layers.empty());
-                    FTK_ASSERT(videoFrame.layers[0].image);
-                    FTK_ASSERT(smallSize == videoFrame.layers[0].image->getSize());
+                    FTK_CHECK(!videoFrame.layers.empty());
+                    FTK_CHECK(videoFrame.layers[0].image);
+                    FTK_CHECK(smallSize == videoFrame.layers[0].image->getSize());
                     // The proxy is being read, but the canvas is built for the
                     // full resolution reference that the clip can be switched
                     // to, so no resolution is lost by opening on the proxy.
-                    FTK_ASSERT(canvasSize == videoFrame.canvasSize);
+                    FTK_CHECK(canvasSize == videoFrame.canvasSize);
                     bounds = videoFrame.layers[0].bounds;
-                    FTK_ASSERT(bounds.has_value());
+                    FTK_CHECK(bounds.has_value());
                 }
 
                 // Switching to the full resolution reference changes the image
@@ -751,19 +751,19 @@ namespace tl
                 // within it are unchanged, which is the point of the feature:
                 // the resolution changes underneath a fixed layout.
                 timeline->setMediaReferenceKey("Full");
-                FTK_ASSERT("Full" == timeline->getMediaReferenceKey());
+                FTK_CHECK("Full" == timeline->getMediaReferenceKey());
                 // The reported information follows the media reference being
                 // read, so that it describes what is on screen.
-                FTK_ASSERT(!timeline->getIOInfo().video.empty());
-                FTK_ASSERT(largeSize == timeline->getIOInfo().video[0].size);
+                FTK_CHECK(!timeline->getIOInfo().video.empty());
+                FTK_CHECK(largeSize == timeline->getIOInfo().video[0].size);
                 {
                     auto request = timeline->getVideo(OTIO_NS::RationalTime(0.0, 24.0));
                     const VideoFrame videoFrame = request.future.get();
-                    FTK_ASSERT(!videoFrame.layers.empty());
-                    FTK_ASSERT(videoFrame.layers[0].image);
-                    FTK_ASSERT(largeSize == videoFrame.layers[0].image->getSize());
-                    FTK_ASSERT(canvasSize == videoFrame.canvasSize);
-                    FTK_ASSERT(bounds == videoFrame.layers[0].bounds);
+                    FTK_CHECK(!videoFrame.layers.empty());
+                    FTK_CHECK(videoFrame.layers[0].image);
+                    FTK_CHECK(largeSize == videoFrame.layers[0].image->getSize());
+                    FTK_CHECK(canvasSize == videoFrame.canvasSize);
+                    FTK_CHECK(bounds == videoFrame.layers[0].bounds);
                 }
 
                 // The second clip has no reference under this key, so it falls
@@ -771,37 +771,37 @@ namespace tl
                 {
                     auto request = timeline->getVideo(OTIO_NS::RationalTime(30.0, 24.0));
                     const VideoFrame videoFrame = request.future.get();
-                    FTK_ASSERT(!videoFrame.layers.empty());
-                    FTK_ASSERT(videoFrame.layers[0].image);
-                    FTK_ASSERT(smallSize == videoFrame.layers[0].image->getSize());
-                    FTK_ASSERT(canvasSize == videoFrame.canvasSize);
+                    FTK_CHECK(!videoFrame.layers.empty());
+                    FTK_CHECK(videoFrame.layers[0].image);
+                    FTK_CHECK(smallSize == videoFrame.layers[0].image->getSize());
+                    FTK_CHECK(canvasSize == videoFrame.canvasSize);
                 }
 
                 // A key set for a single clip overrides the timeline wide key.
                 const auto otioClips =
                     timeline->getTimeline().value->find_children<OTIO_NS::Clip>();
-                FTK_ASSERT(2 == otioClips.size());
+                FTK_CHECK(2 == otioClips.size());
                 timeline->setMediaReferenceKey(otioClips[0], "Proxy");
-                FTK_ASSERT("Proxy" == timeline->getMediaReferenceKey(otioClips[0]));
+                FTK_CHECK("Proxy" == timeline->getMediaReferenceKey(otioClips[0]));
                 {
                     auto request = timeline->getVideo(OTIO_NS::RationalTime(0.0, 24.0));
                     const VideoFrame videoFrame = request.future.get();
-                    FTK_ASSERT(!videoFrame.layers.empty());
-                    FTK_ASSERT(videoFrame.layers[0].image);
-                    FTK_ASSERT(smallSize == videoFrame.layers[0].image->getSize());
-                    FTK_ASSERT(bounds == videoFrame.layers[0].bounds);
+                    FTK_CHECK(!videoFrame.layers.empty());
+                    FTK_CHECK(videoFrame.layers[0].image);
+                    FTK_CHECK(smallSize == videoFrame.layers[0].image->getSize());
+                    FTK_CHECK(bounds == videoFrame.layers[0].bounds);
                 }
 
                 // Clearing the key for the clip returns it to the timeline
                 // wide key.
                 timeline->setMediaReferenceKey(otioClips[0], std::string());
-                FTK_ASSERT(timeline->getMediaReferenceKey(otioClips[0]).empty());
+                FTK_CHECK(timeline->getMediaReferenceKey(otioClips[0]).empty());
                 {
                     auto request = timeline->getVideo(OTIO_NS::RationalTime(0.0, 24.0));
                     const VideoFrame videoFrame = request.future.get();
-                    FTK_ASSERT(!videoFrame.layers.empty());
-                    FTK_ASSERT(videoFrame.layers[0].image);
-                    FTK_ASSERT(largeSize == videoFrame.layers[0].image->getSize());
+                    FTK_CHECK(!videoFrame.layers.empty());
+                    FTK_CHECK(videoFrame.layers[0].image);
+                    FTK_CHECK(largeSize == videoFrame.layers[0].image->getSize());
                 }
             }
             catch (const std::exception& e)
@@ -825,15 +825,15 @@ namespace tl
                 auto timeline = Timeline::create(_context, path);
                 const auto otioClips =
                     timeline->getTimeline().value->find_children<OTIO_NS::Clip>();
-                FTK_ASSERT(2 == otioClips.size());
+                FTK_CHECK(2 == otioClips.size());
 
                 // Both of the first clip's references are mapped, including
                 // the one that is not active.
                 const auto mediaReferences = otioClips[0]->media_references();
-                FTK_ASSERT(2 == mediaReferences.size());
+                FTK_CHECK(2 == mediaReferences.size());
                 for (const auto& i : mediaReferences)
                 {
-                    FTK_ASSERT(!timeline->getMem(i.second).empty());
+                    FTK_CHECK(!timeline->getMem(i.second).empty());
                 }
 
                 // The bundle opens on the proxy and switches to the full
@@ -841,19 +841,19 @@ namespace tl
                 {
                     auto request = timeline->getVideo(OTIO_NS::RationalTime(0.0, 24.0));
                     const VideoFrame videoFrame = request.future.get();
-                    FTK_ASSERT(!videoFrame.layers.empty());
-                    FTK_ASSERT(videoFrame.layers[0].image);
-                    FTK_ASSERT(smallSize == videoFrame.layers[0].image->getSize());
-                    FTK_ASSERT(canvasSize == videoFrame.canvasSize);
+                    FTK_CHECK(!videoFrame.layers.empty());
+                    FTK_CHECK(videoFrame.layers[0].image);
+                    FTK_CHECK(smallSize == videoFrame.layers[0].image->getSize());
+                    FTK_CHECK(canvasSize == videoFrame.canvasSize);
                 }
                 timeline->setMediaReferenceKey("Full");
                 {
                     auto request = timeline->getVideo(OTIO_NS::RationalTime(0.0, 24.0));
                     const VideoFrame videoFrame = request.future.get();
-                    FTK_ASSERT(!videoFrame.layers.empty());
-                    FTK_ASSERT(videoFrame.layers[0].image);
-                    FTK_ASSERT(largeSize == videoFrame.layers[0].image->getSize());
-                    FTK_ASSERT(canvasSize == videoFrame.canvasSize);
+                    FTK_CHECK(!videoFrame.layers.empty());
+                    FTK_CHECK(videoFrame.layers[0].image);
+                    FTK_CHECK(largeSize == videoFrame.layers[0].image->getSize());
+                    FTK_CHECK(canvasSize == videoFrame.canvasSize);
                 }
             }
             catch (const std::exception& e)
@@ -875,17 +875,17 @@ namespace tl
                 const auto otioClips =
                     timeline->getTimeline().value->find_children<OTIO_NS::Clip>();
                 const auto mediaReferences = otioClips[0]->media_references();
-                FTK_ASSERT(2 == mediaReferences.size());
-                FTK_ASSERT(!timeline->getMem(mediaReferences.at("Proxy")).empty());
-                FTK_ASSERT(timeline->getMem(mediaReferences.at("Full")).empty());
+                FTK_CHECK(2 == mediaReferences.size());
+                FTK_CHECK(!timeline->getMem(mediaReferences.at("Proxy")).empty());
+                FTK_CHECK(timeline->getMem(mediaReferences.at("Full")).empty());
 
                 // The active reference still reads.
                 {
                     auto request = timeline->getVideo(OTIO_NS::RationalTime(0.0, 24.0));
                     const VideoFrame videoFrame = request.future.get();
-                    FTK_ASSERT(!videoFrame.layers.empty());
-                    FTK_ASSERT(videoFrame.layers[0].image);
-                    FTK_ASSERT(smallSize == videoFrame.layers[0].image->getSize());
+                    FTK_CHECK(!videoFrame.layers.empty());
+                    FTK_CHECK(videoFrame.layers[0].image);
+                    FTK_CHECK(smallSize == videoFrame.layers[0].image->getSize());
                 }
 
                 // The missing reference does not. Its path resolves to a file
@@ -895,8 +895,8 @@ namespace tl
                 {
                     auto request = timeline->getVideo(OTIO_NS::RationalTime(0.0, 24.0));
                     const VideoFrame videoFrame = request.future.get();
-                    FTK_ASSERT(!videoFrame.layers.empty());
-                    FTK_ASSERT(!videoFrame.layers[0].image);
+                    FTK_CHECK(!videoFrame.layers.empty());
+                    FTK_CHECK(!videoFrame.layers[0].image);
                 }
             }
             catch (const std::exception& e)
@@ -921,13 +921,13 @@ namespace tl
 
                 // Indexed by frame number over the whole range, not by how
                 // many frames are present.
-                FTK_ASSERT(90 == mem.size());
+                FTK_CHECK(90 == mem.size());
                 const std::vector<size_t> missing = { 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 49 };
                 for (size_t i = 0; i < mem.size(); ++i)
                 {
                     const bool present = std::find(
                         missing.begin(), missing.end(), i) == missing.end();
-                    FTK_ASSERT(present == (mem[i].p != nullptr));
+                    FTK_CHECK(present == (mem[i].p != nullptr));
                 }
 
                 // A frame the bundle holds reads. Frame 30 sits after the
@@ -938,8 +938,8 @@ namespace tl
                     auto request = timeline->getVideo(
                         OTIO_NS::RationalTime(frame, 30.0));
                     const VideoFrame videoFrame = request.future.get();
-                    FTK_ASSERT(!videoFrame.layers.empty());
-                    FTK_ASSERT(videoFrame.layers[0].image);
+                    FTK_CHECK(!videoFrame.layers.empty());
+                    FTK_CHECK(videoFrame.layers[0].image);
                 }
 
                 // A frame it does not hold follows the policy the bundle
@@ -949,11 +949,11 @@ namespace tl
                     auto request = timeline->getVideo(
                         OTIO_NS::RationalTime(12.0, 30.0));
                     const VideoFrame videoFrame = request.future.get();
-                    FTK_ASSERT(!videoFrame.layers.empty());
+                    FTK_CHECK(!videoFrame.layers.empty());
                     const auto& image = videoFrame.layers[0].image;
-                    FTK_ASSERT(image);
+                    FTK_CHECK(image);
                     std::vector<uint8_t> zero(image->getByteCount(), 0);
-                    FTK_ASSERT(0 == memcmp(
+                    FTK_CHECK(0 == memcmp(
                         image->getData(), zero.data(), zero.size()));
                 }
             }
@@ -994,12 +994,12 @@ namespace tl
                     options.ioOptions["SeqIO/MissingFrames"] =
                         to_string(MissingFrames::Error);
                     auto timeline = Timeline::create(_context, seqPath, options);
-                    FTK_ASSERT(0 == timeline->getReadErrorCount());
+                    FTK_CHECK(0 == timeline->getReadErrorCount());
                     auto request = timeline->getVideo(
                         OTIO_NS::RationalTime(3.0, 24.0));
                     request.future.get();
-                    FTK_ASSERT(timeline->getReadErrorCount() > 0);
-                    FTK_ASSERT(!timeline->getReadError().empty());
+                    FTK_CHECK(timeline->getReadErrorCount() > 0);
+                    FTK_CHECK(!timeline->getReadError().empty());
                     _print("Read error: " + timeline->getReadError());
 
                     // A range stated beyond the frames that exist, which is
@@ -1016,16 +1016,16 @@ namespace tl
                         wideTimeline = Timeline::create(
                             _context, wide, wideOptions);
                         const auto timeRange = wideTimeline->getTimeRange();
-                        FTK_ASSERT(100 == timeRange.duration().value());
+                        FTK_CHECK(100 == timeRange.duration().value());
 
                         // A frame that exists, and one that does not.
                         auto have = wideTimeline->getVideo(
                             OTIO_NS::RationalTime(1.0, 24.0));
-                        FTK_ASSERT(have.future.get().layers[0].image);
+                        FTK_CHECK(have.future.get().layers[0].image);
                         auto pending = wideTimeline->getVideo(
                             OTIO_NS::RationalTime(80.0, 24.0));
-                        FTK_ASSERT(pending.future.get().layers[0].image);
-                        FTK_ASSERT(0 == wideTimeline->getReadErrorCount());
+                        FTK_CHECK(pending.future.get().layers[0].image);
+                        FTK_CHECK(0 == wideTimeline->getReadErrorCount());
                     }
 
                     // A range of one frame. It has to survive being opened:
@@ -1039,12 +1039,12 @@ namespace tl
                         oneOptions.seqExpand = false;
                         auto oneTimeline = Timeline::create(
                             _context, one, oneOptions);
-                        FTK_ASSERT(
+                        FTK_CHECK(
                             1 == oneTimeline->getTimeRange().duration().value());
 
                         // And that looking on disk is what would undo it.
                         auto expanded = Timeline::create(_context, one);
-                        FTK_ASSERT(
+                        FTK_CHECK(
                             expanded->getTimeRange().duration().value() > 1);
                     }
 
@@ -1079,7 +1079,7 @@ namespace tl
                             to_string(MissingFrames::Skip);
                         auto skipTimeline = Timeline::create(
                             _context, statedPath, skipOptions);
-                        FTK_ASSERT(4 ==
+                        FTK_CHECK(4 ==
                             skipTimeline->getTimeRange().duration().value());
 
                         // Each position names the frame it stands for and reads
@@ -1093,12 +1093,12 @@ namespace tl
                             const OTIO_NS::RationalTime time(i.first, 24.0);
                             const auto frame =
                                 skipTimeline->getMediaFrame(time);
-                            FTK_ASSERT(frame.has_value());
-                            FTK_ASSERT(i.second == frame.value());
+                            FTK_CHECK(frame.has_value());
+                            FTK_CHECK(i.second == frame.value());
                             auto request = skipTimeline->getVideo(time);
-                            FTK_ASSERT(request.future.get().layers[0].image);
+                            FTK_CHECK(request.future.get().layers[0].image);
                         }
-                        FTK_ASSERT(0 == skipTimeline->getReadErrorCount());
+                        FTK_CHECK(0 == skipTimeline->getReadErrorCount());
 
                         // And the way back, which is what typing a frame number
                         // needs. A frame in the second run has to be found there
@@ -1109,8 +1109,8 @@ namespace tl
                                 OTIO_NS::RationalTime(1.0, 24.0),
                                 OTIO_NS::RationalTime(
                                     static_cast<double>(i.second), 24.0));
-                            FTK_ASSERT(time.has_value());
-                            FTK_ASSERT(i.first == time.value().value());
+                            FTK_CHECK(time.has_value());
+                            FTK_CHECK(i.first == time.value().value());
                         }
 
                         // A frame that is not there snaps to the last one
@@ -1128,11 +1128,11 @@ namespace tl
                                 OTIO_NS::RationalTime(1.0, 24.0),
                                 OTIO_NS::RationalTime(
                                     static_cast<double>(i.first), 24.0));
-                            FTK_ASSERT(time.has_value());
+                            FTK_CHECK(time.has_value());
                             const auto frame =
                                 skipTimeline->getMediaFrame(time.value());
-                            FTK_ASSERT(frame.has_value());
-                            FTK_ASSERT(i.second == frame.value());
+                            FTK_CHECK(frame.has_value());
+                            FTK_CHECK(i.second == frame.value());
                         }
 
                         // Gaps leaves the holes in, so the timeline is the range
@@ -1144,25 +1144,25 @@ namespace tl
                             to_string(MissingFrames::Gaps);
                         auto gapsTimeline = Timeline::create(
                             _context, statedPath, gapsOptions);
-                        FTK_ASSERT(8 ==
+                        FTK_CHECK(8 ==
                             gapsTimeline->getTimeRange().duration().value());
                         for (int64_t frame : { 1, 2, 5, 6 })
                         {
                             const OTIO_NS::RationalTime time(
                                 static_cast<double>(frame), 24.0);
                             const auto at = gapsTimeline->getMediaFrame(time);
-                            FTK_ASSERT(at.has_value());
-                            FTK_ASSERT(frame == at.value());
+                            FTK_CHECK(at.has_value());
+                            FTK_CHECK(frame == at.value());
                             auto request = gapsTimeline->getVideo(time);
-                            FTK_ASSERT(request.future.get().layers[0].image);
+                            FTK_CHECK(request.future.get().layers[0].image);
                         }
-                        FTK_ASSERT(0 == gapsTimeline->getReadErrorCount());
+                        FTK_CHECK(0 == gapsTimeline->getReadErrorCount());
 
                         // A hole has no media, so there is no frame to name
                         // there and nothing is read for it.
                         for (int64_t frame : { 3, 4, 7, 8 })
                         {
-                            FTK_ASSERT(!gapsTimeline->getMediaFrame(
+                            FTK_CHECK(!gapsTimeline->getMediaFrame(
                                 OTIO_NS::RationalTime(
                                     static_cast<double>(frame), 24.0)).
                                 has_value());
@@ -1174,8 +1174,8 @@ namespace tl
                     {
                         const auto frame = wideTimeline->getMediaFrame(
                             OTIO_NS::RationalTime(80.0, 24.0));
-                        FTK_ASSERT(frame.has_value());
-                        FTK_ASSERT(80 == frame.value());
+                        FTK_CHECK(frame.has_value());
+                        FTK_CHECK(80 == frame.value());
                     }
 
                     // Holding is not an error: the policy dealt with it.
@@ -1185,9 +1185,9 @@ namespace tl
                     auto heldRequest = held->getVideo(
                         OTIO_NS::RationalTime(3.0, 24.0));
                     const VideoFrame heldFrame = heldRequest.future.get();
-                    FTK_ASSERT(!heldFrame.layers.empty());
-                    FTK_ASSERT(heldFrame.layers[0].image);
-                    FTK_ASSERT(0 == held->getReadErrorCount());
+                    FTK_CHECK(!heldFrame.layers.empty());
+                    FTK_CHECK(heldFrame.layers[0].image);
+                    FTK_CHECK(0 == held->getReadErrorCount());
                 }
             }
             catch (const std::exception& e)
@@ -1205,16 +1205,16 @@ namespace tl
                 auto timeline = Timeline::create(_context, path);
                 const auto otioClips =
                     timeline->getTimeline().value->find_children<OTIO_NS::Clip>();
-                FTK_ASSERT(2 == otioClips.size());
+                FTK_CHECK(2 == otioClips.size());
 
                 const auto color = otioClips[0]->color();
-                FTK_ASSERT(color.has_value());
-                FTK_ASSERT(0.75 == color.value().r());
-                FTK_ASSERT(0.25 == color.value().g());
-                FTK_ASSERT(0.125 == color.value().b());
-                FTK_ASSERT(1.0 == color.value().a());
+                FTK_CHECK(color.has_value());
+                FTK_CHECK(0.75 == color.value().r());
+                FTK_CHECK(0.25 == color.value().g());
+                FTK_CHECK(0.125 == color.value().b());
+                FTK_CHECK(1.0 == color.value().a());
 
-                FTK_ASSERT(!otioClips[1]->color().has_value());
+                FTK_CHECK(!otioClips[1]->color().has_value());
             }
             catch (const std::exception& e)
             {
@@ -1231,8 +1231,8 @@ namespace tl
             options.threaded = false;
             auto sync = Timeline::create(_context, path, options);
             auto threaded = Timeline::create(_context, path);
-            FTK_ASSERT(sync->getTimeRange() == threaded->getTimeRange());
-            FTK_ASSERT(sync->getIOInfo().video == threaded->getIOInfo().video);
+            FTK_CHECK(sync->getTimeRange() == threaded->getTimeRange());
+            FTK_CHECK(sync->getIOInfo().video == threaded->getIOInfo().video);
 
             const size_t frameCount = std::min(
                 static_cast<size_t>(sync->getTimeRange().duration().value()),
@@ -1243,25 +1243,25 @@ namespace tl
 
                 // The future is already resolved when there is no thread.
                 auto request = sync->getVideo(time);
-                FTK_ASSERT(request.future.valid());
-                FTK_ASSERT(request.future.wait_for(std::chrono::seconds(0)) ==
+                FTK_CHECK(request.future.valid());
+                FTK_CHECK(request.future.wait_for(std::chrono::seconds(0)) ==
                     std::future_status::ready);
                 const VideoFrame a = request.future.get();
 
                 auto other = threaded->getVideo(time);
                 const VideoFrame b = other.future.get();
 
-                FTK_ASSERT(a.layers.size() == b.layers.size());
+                FTK_CHECK(a.layers.size() == b.layers.size());
                 for (size_t j = 0; j < a.layers.size(); ++j)
                 {
                     const auto& imageA = a.layers[j].image;
                     const auto& imageB = b.layers[j].image;
-                    FTK_ASSERT(!imageA == !imageB);
+                    FTK_CHECK(!imageA == !imageB);
                     if (imageA && imageB)
                     {
-                        FTK_ASSERT(imageA->getSize() == imageB->getSize());
-                        FTK_ASSERT(imageA->getByteCount() == imageB->getByteCount());
-                        FTK_ASSERT(0 == memcmp(
+                        FTK_CHECK(imageA->getSize() == imageB->getSize());
+                        FTK_CHECK(imageA->getByteCount() == imageB->getByteCount());
+                        FTK_CHECK(0 == memcmp(
                             imageA->getData(),
                             imageB->getData(),
                             imageB->getByteCount()));
@@ -1282,7 +1282,7 @@ namespace tl
             auto timeline = Timeline::create(_context, path, options);
 
             const auto mediaPaths = timeline->getMediaPaths();
-            FTK_ASSERT(!mediaPaths.empty());
+            FTK_CHECK(!mediaPaths.empty());
             for (const auto& mediaPath : mediaPaths)
             {
                 _print(ftk::Format("Media: {0}").arg(mediaPath.get()));
@@ -1302,20 +1302,20 @@ namespace tl
 
                 auto future = timeline->readMedia(
                     mediaPath, info.videoTime->start_time());
-                FTK_ASSERT(future.valid());
+                FTK_CHECK(future.valid());
                 // No thread, so the read is already done.
-                FTK_ASSERT(future.wait_for(std::chrono::seconds(0)) ==
+                FTK_CHECK(future.wait_for(std::chrono::seconds(0)) ==
                     std::future_status::ready);
                 const VideoData data = future.get();
-                FTK_ASSERT(data.image);
-                FTK_ASSERT(data.image->getSize() == info.video[0].size);
+                FTK_CHECK(data.image);
+                FTK_CHECK(data.image->getSize() == info.video[0].size);
             }
 
             // Media that is not in the timeline.
             IOInfo info;
-            FTK_ASSERT(!timeline->getMediaInfo(
+            FTK_CHECK(!timeline->getMediaInfo(
                 ftk::Path("/nowhere/absent.exr"), info));
-            FTK_ASSERT(!timeline->readMedia(
+            FTK_CHECK(!timeline->readMedia(
                 ftk::Path("/nowhere/absent.exr"),
                 OTIO_NS::RationalTime(0.0, 24.0)).valid());
 
@@ -1347,14 +1347,14 @@ namespace tl
                     {
                         return i.get() == seqPath.get();
                     });
-                FTK_ASSERT(j != seqMedia.end());
+                FTK_CHECK(j != seqMedia.end());
                 // Only a build with an image format can read it, but
                 // whichever build this is, saying it read something and
                 // returning nothing would be wrong.
                 IOInfo seqInfo;
                 if (seqTimeline->getMediaInfo(seqPath, seqInfo))
                 {
-                    FTK_ASSERT(!seqInfo.video.empty());
+                    FTK_CHECK(!seqInfo.video.empty());
                 }
             }
 
@@ -1367,20 +1367,20 @@ namespace tl
                 Options threadOptions;
                 threadOptions.readThreadCount = 3;
                 auto t = Timeline::create(_context, path, threadOptions);
-                FTK_ASSERT(3 == t->getReadThreadCount());
+                FTK_CHECK(3 == t->getReadThreadCount());
                 auto d = Timeline::create(_context, path);
-                FTK_ASSERT(d->getReadThreadCount() == getDefaultReadThreadCount());
+                FTK_CHECK(d->getReadThreadCount() == getDefaultReadThreadCount());
 
                 // How many requests are in flight follows the thread count,
                 // so asking for more decoding threads is not undone by a
                 // separate limit that nothing mentions. This used to stop at
                 // sixteen whatever the thread count said.
-                FTK_ASSERT(6 == t->getVideoRequestMax());
+                FTK_CHECK(6 == t->getVideoRequestMax());
                 Options manyOptions;
                 manyOptions.readThreadCount = 24;
                 auto many = Timeline::create(_context, path, manyOptions);
-                FTK_ASSERT(24 == many->getReadThreadCount());
-                FTK_ASSERT(many->getVideoRequestMax() > 16);
+                FTK_CHECK(24 == many->getReadThreadCount());
+                FTK_CHECK(many->getVideoRequestMax() > 16);
 
                 // Zero threads must not mean zero requests in flight: that
                 // would leave a timeline without a thread waiting for a
@@ -1389,11 +1389,11 @@ namespace tl
                 zeroOptions.threaded = false;
                 zeroOptions.readThreadCount = 0;
                 auto zero = Timeline::create(_context, path, zeroOptions);
-                FTK_ASSERT(zero->getVideoRequestMax() > 0);
+                FTK_CHECK(zero->getVideoRequestMax() > 0);
                 auto zeroRequest = zero->getVideo(
                     zero->getTimeRange().start_time());
-                FTK_ASSERT(zeroRequest.future.valid());
-                FTK_ASSERT(zeroRequest.future.wait_for(std::chrono::seconds(0)) ==
+                FTK_CHECK(zeroRequest.future.valid());
+                FTK_CHECK(zeroRequest.future.wait_for(std::chrono::seconds(0)) ==
                     std::future_status::ready);
             }
 

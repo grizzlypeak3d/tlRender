@@ -37,14 +37,14 @@ namespace tl
                 const OTIO_NS::TimeRange a(
                     OTIO_NS::RationalTime(24.0, 24.0),
                     OTIO_NS::RationalTime(24.0, 24.0));
-                FTK_ASSERT(compareExact(a, a));
+                FTK_CHECK(compareExact(a, a));
                 const OTIO_NS::TimeRange b(
                     OTIO_NS::RationalTime(1.0, 1.0),
                     OTIO_NS::RationalTime(1.0, 1.0));
                 // The rescaling "==" is what compareExact() exists to avoid,
                 // and what makes an unset time unsafe to spell as a value.
-                FTK_ASSERT(a == b);
-                FTK_ASSERT(!compareExact(a, b));
+                FTK_CHECK(a == b);
+                FTK_CHECK(!compareExact(a, b));
             }
             {
                 // The same for optional times, where either side may be unset.
@@ -53,12 +53,12 @@ namespace tl
                 const std::optional<OTIO_NS::RationalTime> b(
                     OTIO_NS::RationalTime(1.0, 1.0));
                 const std::optional<OTIO_NS::RationalTime> unset;
-                FTK_ASSERT(compareExact(a, a));
-                FTK_ASSERT(a == b);
-                FTK_ASSERT(!compareExact(a, b));
-                FTK_ASSERT(compareExact(unset, unset));
-                FTK_ASSERT(!compareExact(a, unset));
-                FTK_ASSERT(!compareExact(unset, a));
+                FTK_CHECK(compareExact(a, a));
+                FTK_CHECK(a == b);
+                FTK_CHECK(!compareExact(a, b));
+                FTK_CHECK(compareExact(unset, unset));
+                FTK_CHECK(!compareExact(a, unset));
+                FTK_CHECK(!compareExact(unset, a));
             }
             {
                 const std::optional<OTIO_NS::TimeRange> a(OTIO_NS::TimeRange(
@@ -68,11 +68,11 @@ namespace tl
                     OTIO_NS::RationalTime(1.0, 1.0),
                     OTIO_NS::RationalTime(1.0, 1.0)));
                 const std::optional<OTIO_NS::TimeRange> unset;
-                FTK_ASSERT(compareExact(a, a));
-                FTK_ASSERT(a == b);
-                FTK_ASSERT(!compareExact(a, b));
-                FTK_ASSERT(compareExact(unset, unset));
-                FTK_ASSERT(!compareExact(a, unset));
+                FTK_CHECK(compareExact(a, a));
+                FTK_CHECK(a == b);
+                FTK_CHECK(!compareExact(a, b));
+                FTK_CHECK(compareExact(unset, unset));
+                FTK_CHECK(!compareExact(a, unset));
             }
         }
         
@@ -127,7 +127,7 @@ namespace tl
                 for (const auto& i : data)
                 {
                     const auto frames = tl::frames(i.range);
-                    FTK_ASSERT(frames == i.frames);
+                    FTK_CHECK(frames == i.frames);
                 }
             }
             {
@@ -231,7 +231,7 @@ namespace tl
                 for (const auto& i : data)
                 {
                     const auto seconds = tl::seconds(i.range);
-                    FTK_ASSERT(seconds == i.seconds);
+                    FTK_CHECK(seconds == i.seconds);
                 }
             }
             {
@@ -256,7 +256,7 @@ namespace tl
                 for (const auto& i : data)
                 {
                     const auto rational = toRational(i.rate);
-                    FTK_ASSERT(
+                    FTK_CHECK(
                         rational.first == i.rational.first &&
                         rational.second == i.rational.second);
                 }
@@ -273,11 +273,11 @@ namespace tl
                 int count = 0;
                 int offset = 0;
                 stringToKeycode(s, id, type, prefix, count, offset);
-                FTK_ASSERT(1 == id);
-                FTK_ASSERT(2 == type);
-                FTK_ASSERT(3 == prefix);
-                FTK_ASSERT(4 == count);
-                FTK_ASSERT(5 == offset);
+                FTK_CHECK(1 == id);
+                FTK_CHECK(2 == type);
+                FTK_CHECK(3 == prefix);
+                FTK_CHECK(4 == count);
+                FTK_CHECK(5 == offset);
             }
             try
             {
@@ -288,7 +288,7 @@ namespace tl
                 int count = 0;
                 int offset = 0;
                 stringToKeycode(s, id, type, prefix, count, offset);
-                FTK_ASSERT(false);
+                FTK_CHECK(false);
             }
             catch (const std::exception&)
             {}
@@ -303,23 +303,23 @@ namespace tl
                 int second = 0;
                 int frame = 0;
                 timecodeToTime(t, hour, minute, second, frame);
-                FTK_ASSERT(1 == hour);
-                FTK_ASSERT(2 == minute);
-                FTK_ASSERT(3 == second);
-                FTK_ASSERT(4 == frame);
+                FTK_CHECK(1 == hour);
+                FTK_CHECK(2 == minute);
+                FTK_CHECK(3 == second);
+                FTK_CHECK(4 == frame);
             }
             {
                 const std::string s = "01:02:03:04";
                 uint32_t t = 0;
                 stringToTimecode(s, t);
-                FTK_ASSERT(s == timecodeToString(t));
+                FTK_CHECK(s == timecodeToString(t));
             }
             try
             {
                 const std::string s = "...";
                 uint32_t t = 0;
                 stringToTimecode(s, t);
-                FTK_ASSERT(false);
+                FTK_CHECK(false);
             }
             catch (const std::exception&)
             {}
@@ -332,14 +332,14 @@ namespace tl
                 const std::string s = opentime::OPENTIME_VERSION_NS::to_string(t);
                 OTIO_NS::RationalTime t2;
                 from_string(s, t2);
-                FTK_ASSERT(t == t2);
+                FTK_CHECK(t == t2);
             }
             {
                 const auto t = OTIO_NS::TimeRange(OTIO_NS::RationalTime(0.0, 24.0), OTIO_NS::RationalTime(1.0, 24.0));
                 const std::string s = opentime::OPENTIME_VERSION_NS::to_string(t);
                 OTIO_NS::TimeRange t2;
                 from_string(s, t2);
-                FTK_ASSERT(t == t2);
+                FTK_CHECK(t == t2);
             }
             {
                 const OTIO_NS::RationalTime t(1.0, 24.0);
@@ -347,7 +347,7 @@ namespace tl
                 to_json(json, t);
                 OTIO_NS::RationalTime t2;
                 from_json(json, t2);
-                FTK_ASSERT(t == t2);
+                FTK_CHECK(t == t2);
             }
             {
                 const auto t = OTIO_NS::TimeRange(OTIO_NS::RationalTime(0.0, 24.0), OTIO_NS::RationalTime(1.0, 24.0));
@@ -355,7 +355,7 @@ namespace tl
                 to_json(json, t);
                 OTIO_NS::TimeRange t2;
                 from_json(json, t2);
-                FTK_ASSERT(t == t2);
+                FTK_CHECK(t == t2);
             }
        }
     }

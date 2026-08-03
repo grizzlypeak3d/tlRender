@@ -35,9 +35,9 @@ namespace tl
             {
                 OCIOOptions a;
                 OCIOOptions b;
-                FTK_ASSERT(a == b);
+                FTK_CHECK(a == b);
                 a.fileName = "fileName";
-                FTK_ASSERT(a != b);
+                FTK_CHECK(a != b);
             }
         }
     }

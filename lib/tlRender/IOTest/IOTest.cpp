@@ -46,16 +46,16 @@ namespace tl
         {
             {
                 const VideoData v;
-                FTK_ASSERT(!v.image);
+                FTK_CHECK(!v.image);
             }
             {
                 const auto time = OTIO_NS::RationalTime(1.0, 24.0);
                 const uint16_t layer = 1;
                 const auto image = ftk::Image::create(160, 80, ftk::ImageType::L_U8);
                 const VideoData v(time, layer, image);
-                FTK_ASSERT(time.strictly_equal(v.time));
-                FTK_ASSERT(layer == v.layer);
-                FTK_ASSERT(image == v.image);
+                FTK_CHECK(time.strictly_equal(v.time));
+                FTK_CHECK(layer == v.layer);
+                FTK_CHECK(image == v.image);
             }
             {
                 const auto time = OTIO_NS::RationalTime(1.0, 24.0);
@@ -63,10 +63,10 @@ namespace tl
                 const auto image = ftk::Image::create(16, 16, ftk::ImageType::L_U8);
                 const VideoData a(time, layer, image);
                 VideoData b(time, layer, image);
-                FTK_ASSERT(a == b);
+                FTK_CHECK(a == b);
                 b.time = OTIO_NS::RationalTime(2.0, 24.0);
-                FTK_ASSERT(a != b);
-                FTK_ASSERT(a < b);
+                FTK_CHECK(a != b);
+                FTK_CHECK(a < b);
             }
         }
 
@@ -83,10 +83,10 @@ namespace tl
                     _print(ss.str());
                 }
             }
-            FTK_ASSERT(!readSystem->videoRead(ftk::Path()));
-            FTK_ASSERT(!readSystem->audioRead(ftk::Path()));
+            FTK_CHECK(!readSystem->videoRead(ftk::Path()));
+            FTK_CHECK(!readSystem->audioRead(ftk::Path()));
             auto writeSystem = _context->getSystem<WriteSystem>();
-            FTK_ASSERT(!writeSystem->write(ftk::Path(), IOInfo()));
+            FTK_CHECK(!writeSystem->write(ftk::Path(), IOInfo()));
         }
 
         void IOTest::_decode()
@@ -134,12 +134,12 @@ namespace tl
                 const ftk::MemFile memFile(nullptr, bytes.data(), bytes.size());
 
                 const IOInfo decodeInfo = decode->getInfo(path.get());
-                FTK_ASSERT(!decodeInfo.video.empty());
-                FTK_ASSERT(decodeInfo.video[0].size == size);
+                FTK_CHECK(!decodeInfo.video.empty());
+                FTK_CHECK(decodeInfo.video[0].size == size);
 
                 // One file says nothing about the sequence it is part of, so
                 // the decoder leaves the time range alone.
-                FTK_ASSERT(!decodeInfo.videoTime.has_value());
+                FTK_CHECK(!decodeInfo.videoTime.has_value());
 
                 const auto viaDecode = decode->readVideo(path.get(), nullptr, time);
                 const auto viaMem = decode->readVideo(path.get(), &memFile, time);
@@ -147,15 +147,15 @@ namespace tl
                 // There is no reader to compare against any more; the image
                 // that was written is the oracle, and the two decode paths
                 // have to agree with it and with each other.
-                FTK_ASSERT(viaDecode.image && viaMem.image);
+                FTK_CHECK(viaDecode.image && viaMem.image);
                 const size_t byteCount = image->getByteCount();
-                FTK_ASSERT(viaDecode.image->getByteCount() == byteCount);
-                FTK_ASSERT(viaMem.image->getByteCount() == byteCount);
-                FTK_ASSERT(viaDecode.image->getType() == image->getType());
-                FTK_ASSERT(viaMem.image->getType() == image->getType());
-                FTK_ASSERT(0 == memcmp(
+                FTK_CHECK(viaDecode.image->getByteCount() == byteCount);
+                FTK_CHECK(viaMem.image->getByteCount() == byteCount);
+                FTK_CHECK(viaDecode.image->getType() == image->getType());
+                FTK_CHECK(viaMem.image->getType() == image->getType());
+                FTK_CHECK(0 == memcmp(
                     viaDecode.image->getData(), image->getData(), byteCount));
-                FTK_ASSERT(0 == memcmp(
+                FTK_CHECK(0 == memcmp(
                     viaMem.image->getData(), image->getData(), byteCount));
 
                 // A decoder holds no state, so it can be used from several
@@ -185,7 +185,7 @@ namespace tl
                 {
                     thread.join();
                 }
-                FTK_ASSERT(ok);
+                FTK_CHECK(ok);
 
                 _print(ftk::Format("{0}: decoder matches what was written").arg(ext));
             }
@@ -213,7 +213,7 @@ namespace tl
                 return;
             }
             auto decode = readPlugin->decode();
-            FTK_ASSERT(decode);
+            FTK_CHECK(decode);
 
             const ftk::ImageInfo imageInfo = writePlugin->getInfo(
                 ftk::ImageInfo(size, ftk::ImageType::RGB_U8));
@@ -251,17 +251,17 @@ namespace tl
             const IOInfo seqInfo = seq->getInfo();
 
             // The sequence knows the time range that no single file does.
-            FTK_ASSERT(seqInfo.videoTime.has_value());
-            FTK_ASSERT(seqInfo.videoTime->duration().value() == frameCount);
-            FTK_ASSERT(!seqInfo.video.empty());
+            FTK_CHECK(seqInfo.videoTime.has_value());
+            FTK_CHECK(seqInfo.videoTime->duration().value() == frameCount);
+            FTK_CHECK(!seqInfo.video.empty());
 
             for (size_t i = 0; i < frameCount; ++i)
             {
                 const OTIO_NS::RationalTime time(
                     static_cast<double>(1 + i), 24.0);
                 const VideoData a = seq->readVideo(time);
-                FTK_ASSERT(a.image);
-                FTK_ASSERT(0 == memcmp(
+                FTK_CHECK(a.image);
+                FTK_CHECK(0 == memcmp(
                     a.image->getData(),
                     images[i]->getData(),
                     images[i]->getByteCount()));
@@ -294,7 +294,7 @@ namespace tl
             {
                 thread.join();
             }
-            FTK_ASSERT(ok);
+            FTK_CHECK(ok);
             _print("sequence decode reads the right frame from memory");
         }
 
@@ -315,7 +315,7 @@ namespace tl
                 return;
             }
             auto decode = readPlugin->decode();
-            FTK_ASSERT(decode);
+            FTK_CHECK(decode);
 
             const ftk::ImageInfo imageInfo = writePlugin->getInfo(
                 ftk::ImageInfo(size, ftk::ImageType::RGB_U8));
@@ -361,8 +361,8 @@ namespace tl
             for (auto policy : getMissingFramesEnums())
             {
                 const VideoData v = readFrame(policy, 2);
-                FTK_ASSERT(v.image);
-                FTK_ASSERT(0 == memcmp(
+                FTK_CHECK(v.image);
+                FTK_CHECK(0 == memcmp(
                     v.image->getData(),
                     images[2]->getData(),
                     images[2]->getByteCount()));
@@ -379,7 +379,7 @@ namespace tl
                 {
                     threw = true;
                 }
-                FTK_ASSERT(threw);
+                FTK_CHECK(threw);
             }
 
             // Hold: both frames of the gap give frame 2, the last one before
@@ -387,26 +387,26 @@ namespace tl
             for (int64_t frame : { 3, 4 })
             {
                 const VideoData v = readFrame(MissingFrames::Hold, frame);
-                FTK_ASSERT(v.image);
-                FTK_ASSERT(v.time.value() == frame);
-                FTK_ASSERT(0 == memcmp(
+                FTK_CHECK(v.image);
+                FTK_CHECK(v.time.value() == frame);
+                FTK_CHECK(0 == memcmp(
                     v.image->getData(),
                     images[2]->getData(),
                     images[2]->getByteCount()));
 
                 // And it says so, so that a stand-in can be shown as one
                 // rather than passing for the frame that was asked for.
-                FTK_ASSERT(v.missing);
-                FTK_ASSERT(v.heldFrom.has_value());
-                FTK_ASSERT(2 == v.heldFrom.value());
+                FTK_CHECK(v.missing);
+                FTK_CHECK(v.heldFrom.has_value());
+                FTK_CHECK(2 == v.heldFrom.value());
             }
 
             // A frame that is there says nothing of the sort.
             {
                 const VideoData v = readFrame(MissingFrames::Hold, 2);
-                FTK_ASSERT(v.image);
-                FTK_ASSERT(!v.missing);
-                FTK_ASSERT(!v.heldFrom.has_value());
+                FTK_CHECK(v.image);
+                FTK_CHECK(!v.missing);
+                FTK_CHECK(!v.heldFrom.has_value());
             }
 
             // Black: a blank frame of the right size and type.
@@ -414,12 +414,12 @@ namespace tl
                 const VideoData v = readFrame(MissingFrames::Black, 3);
                 // Blank, so there is no frame it stands in for, but it is
                 // still not the frame that was asked for.
-                FTK_ASSERT(v.missing);
-                FTK_ASSERT(!v.heldFrom.has_value());
-                FTK_ASSERT(v.image);
-                FTK_ASSERT(v.image->getSize() == size);
+                FTK_CHECK(v.missing);
+                FTK_CHECK(!v.heldFrom.has_value());
+                FTK_CHECK(v.image);
+                FTK_CHECK(v.image->getSize() == size);
                 std::vector<uint8_t> zero(v.image->getByteCount(), 0);
-                FTK_ASSERT(0 == memcmp(
+                FTK_CHECK(0 == memcmp(
                     v.image->getData(), zero.data(), zero.size()));
             }
 
@@ -452,14 +452,14 @@ namespace tl
                 {
                     threw = true;
                 }
-                FTK_ASSERT(threw);
+                FTK_CHECK(threw);
 
                 const VideoData black = readFrame(MissingFrames::Black, 5);
-                FTK_ASSERT(black.image);
+                FTK_CHECK(black.image);
 
                 const VideoData hold = readFrame(MissingFrames::Hold, 5);
-                FTK_ASSERT(hold.image);
-                FTK_ASSERT(0 == memcmp(
+                FTK_CHECK(hold.image);
+                FTK_CHECK(0 == memcmp(
                     hold.image->getData(),
                     images[1]->getData(),
                     images[1]->getByteCount()));
@@ -485,7 +485,7 @@ namespace tl
                 return;
             }
             auto decode = readPlugin->decode();
-            FTK_ASSERT(decode);
+            FTK_CHECK(decode);
 
             IOInfo writeInfo;
             writeInfo.video.push_back(writePlugin->getInfo(
@@ -514,20 +514,20 @@ namespace tl
             // Opening works, and the range is the one that was asked for
             // rather than the frames that happen to be there.
             const IOInfo seqInfo = seq->getInfo();
-            FTK_ASSERT(!seqInfo.video.empty());
-            FTK_ASSERT(seqInfo.video[0].size == size);
-            FTK_ASSERT(60 == seqInfo.videoTime->duration().value());
-            FTK_ASSERT(1 == seqInfo.videoTime->start_time().value());
+            FTK_CHECK(!seqInfo.video.empty());
+            FTK_CHECK(seqInfo.video[0].size == size);
+            FTK_CHECK(60 == seqInfo.videoTime->duration().value());
+            FTK_CHECK(1 == seqInfo.videoTime->start_time().value());
 
             // A frame that has been rendered reads; one that has not follows
             // the policy.
             const VideoData rendered = seq->readVideo(
                 OTIO_NS::RationalTime(50.0, 24.0));
-            FTK_ASSERT(rendered.image);
+            FTK_CHECK(rendered.image);
             const VideoData pending = seq->readVideo(
                 OTIO_NS::RationalTime(10.0, 24.0));
-            FTK_ASSERT(pending.image);
-            FTK_ASSERT(pending.image->getSize() == size);
+            FTK_CHECK(pending.image);
+            FTK_CHECK(pending.image->getSize() == size);
 
             _print("a sequence opens over a range wider than its frames");
         }
@@ -552,7 +552,7 @@ namespace tl
                 return;
             }
             auto decode = readPlugin->decode();
-            FTK_ASSERT(decode);
+            FTK_CHECK(decode);
 
             IOInfo writeInfo;
             writeInfo.video.push_back(writePlugin->getInfo(
@@ -582,7 +582,7 @@ namespace tl
             for (auto missingFrames :
                 { MissingFrames::Skip, MissingFrames::Gaps })
             {
-                FTK_ASSERT(isStructural(missingFrames));
+                FTK_CHECK(isStructural(missingFrames));
                 IOOptions options;
                 options["SeqIO/DefaultSpeed"] = "24";
                 options["SeqIO/MissingFrames"] = to_string(missingFrames);
@@ -591,8 +591,8 @@ namespace tl
                 // The whole range asked for, not the four frames that are
                 // there: shortening it is the timeline's job.
                 const IOInfo info = seq->getInfo();
-                FTK_ASSERT(20 == info.videoTime->duration().value());
-                FTK_ASSERT(1 == info.videoTime->start_time().value());
+                FTK_CHECK(20 == info.videoTime->duration().value());
+                FTK_CHECK(1 == info.videoTime->start_time().value());
 
                 // A frame that is there reads at its own number.
                 for (int64_t frame : frames)
@@ -600,8 +600,8 @@ namespace tl
                     const VideoData v = seq->readVideo(
                         OTIO_NS::RationalTime(
                             static_cast<double>(frame), 24.0));
-                    FTK_ASSERT(v.image);
-                    FTK_ASSERT(0 == memcmp(
+                    FTK_CHECK(v.image);
+                    FTK_CHECK(0 == memcmp(
                         v.image->getData(),
                         images[frame]->getData(),
                         images[frame]->getByteCount()));
@@ -618,7 +618,7 @@ namespace tl
                 {
                     caught = true;
                 }
-                FTK_ASSERT(caught);
+                FTK_CHECK(caught);
             }
 
             _print("a structural policy leaves the sequence its own length");

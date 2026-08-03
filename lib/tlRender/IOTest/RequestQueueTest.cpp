@@ -79,8 +79,8 @@ namespace tl
             auto stringRequest = std::make_shared<StringRequest>();
             auto intFuture = ints.push(intRequest);
             auto stringFuture = strings.push(stringRequest);
-            FTK_ASSERT(42 == intFuture.get());
-            FTK_ASSERT("info" == stringFuture.get());
+            FTK_CHECK(42 == intFuture.get());
+            FTK_CHECK("info" == stringFuture.get());
             condition.stop();
             worker.join();
         }
@@ -126,15 +126,15 @@ namespace tl
             pending->in = 5;
             auto pendingFuture = queue.push(pending);
             condition.stopQueues();
-            FTK_ASSERT(0 == pendingFuture.get());
+            FTK_CHECK(0 == pendingFuture.get());
             // Requests pushed after the queues are stopped complete
             // immediately.
             auto late = std::make_shared<IntRequest>();
             late->in = 7;
             auto lateFuture = queue.push(late);
-            FTK_ASSERT(std::future_status::ready ==
+            FTK_CHECK(std::future_status::ready ==
                 lateFuture.wait_for(std::chrono::seconds(0)));
-            FTK_ASSERT(0 == lateFuture.get());
+            FTK_CHECK(0 == lateFuture.get());
         }
 
         void RequestQueueTest::_stopQueue()
@@ -162,16 +162,16 @@ namespace tl
             pending->in = 5;
             auto pendingFuture = ints.push(pending);
             ints.stop();
-            FTK_ASSERT(0 == pendingFuture.get());
+            FTK_CHECK(0 == pendingFuture.get());
             auto late = std::make_shared<IntRequest>();
             late->in = 7;
             auto lateFuture = ints.push(late);
-            FTK_ASSERT(std::future_status::ready ==
+            FTK_CHECK(std::future_status::ready ==
                 lateFuture.wait_for(std::chrono::seconds(0)));
-            FTK_ASSERT(0 == lateFuture.get());
+            FTK_CHECK(0 == lateFuture.get());
             auto stringRequest = std::make_shared<StringRequest>();
             auto stringFuture = strings.push(stringRequest);
-            FTK_ASSERT("info" == stringFuture.get());
+            FTK_CHECK("info" == stringFuture.get());
             condition.stop();
             worker.join();
         }
@@ -183,18 +183,18 @@ namespace tl
             RequestQueue<IntRequest, int> queue(condition);
             auto a = std::make_shared<IntRequest>();
             auto aFuture = queue.push(a);
-            FTK_ASSERT(1 == queue.size());
+            FTK_CHECK(1 == queue.size());
             queue.cancel();
-            FTK_ASSERT(0 == aFuture.get());
-            FTK_ASSERT(0 == queue.size());
+            FTK_CHECK(0 == aFuture.get());
+            FTK_CHECK(0 == queue.size());
             // The queue keeps working after a cancel.
             auto b = std::make_shared<IntRequest>();
             b->in = 3;
             auto bFuture = queue.push(b);
             auto popped = queue.pop();
-            FTK_ASSERT(popped == b);
+            FTK_CHECK(popped == b);
             popped->promise.set_value(popped->in);
-            FTK_ASSERT(3 == bFuture.get());
+            FTK_CHECK(3 == bFuture.get());
         }
 
         void RequestQueueTest::_promiseGuard()
@@ -211,7 +211,7 @@ namespace tl
             }
             catch (const std::exception&)
             {}
-            FTK_ASSERT(0 == future.get());
+            FTK_CHECK(0 == future.get());
             // Setting a value dismisses the guard.
             std::promise<int> promise2;
             auto future2 = promise2.get_future();
@@ -219,7 +219,7 @@ namespace tl
                 PromiseGuard<int> guard(promise2);
                 guard.setValue(9);
             }
-            FTK_ASSERT(9 == future2.get());
+            FTK_CHECK(9 == future2.get());
         }
     }
 }
