@@ -40,118 +40,115 @@ namespace tl
             _split();
         }
 
-        namespace
+        void FFmpegTest::write(
+            const std::shared_ptr<IWritePlugin>& plugin,
+            const std::shared_ptr<ftk::Image>& image,
+            const ftk::Path& path,
+            const ftk::ImageInfo& imageInfo,
+            const ftk::ImageTags& tags,
+            const OTIO_NS::RationalTime& duration,
+            const IOOptions& options)
         {
-            void write(
-                const std::shared_ptr<IWritePlugin>& plugin,
-                const std::shared_ptr<ftk::Image>& image,
-                const ftk::Path& path,
-                const ftk::ImageInfo& imageInfo,
-                const ftk::ImageTags& tags,
-                const OTIO_NS::RationalTime& duration,
-                const IOOptions& options)
+            IOInfo info;
+            info.video.push_back(imageInfo);
+            info.videoTime = OTIO_NS::TimeRange(OTIO_NS::RationalTime(0.0, 24.0), duration);
+            info.tags = tags;
+            auto write = plugin->write(path, info, options);
+            for (size_t i = 0; i < static_cast<size_t>(duration.value()); ++i)
             {
-                IOInfo info;
-                info.video.push_back(imageInfo);
-                info.videoTime = OTIO_NS::TimeRange(OTIO_NS::RationalTime(0.0, 24.0), duration);
-                info.tags = tags;
-                auto write = plugin->write(path, info, options);
-                for (size_t i = 0; i < static_cast<size_t>(duration.value()); ++i)
-                {
-                    write->writeVideo(OTIO_NS::RationalTime(i, 24.0), image);
-                }
-                write->finish();
+                write->writeVideo(OTIO_NS::RationalTime(i, 24.0), image);
             }
+            write->finish();
+        }
 
-            void read(
-                const std::shared_ptr<IReadPlugin>& plugin,
-                const std::shared_ptr<ftk::Image>& image,
-                const ftk::Path& path,
-                bool memoryIO,
-                const ftk::ImageTags& tags,
-                const OTIO_NS::RationalTime& duration,
-                const IOOptions& options)
+        void FFmpegTest::read(
+            const std::shared_ptr<IReadPlugin>& plugin,
+            const std::shared_ptr<ftk::Image>& image,
+            const ftk::Path& path,
+            bool memoryIO,
+            const ftk::ImageTags& tags,
+            const OTIO_NS::RationalTime& duration,
+            const IOOptions& options)
+        {
+            std::vector<uint8_t> memoryData;
+            std::vector<ftk::MemFile> memory;
+            std::shared_ptr<IVideoRead> read;
+            if (memoryIO)
             {
-                std::vector<uint8_t> memoryData;
-                std::vector<ftk::MemFile> memory;
-                std::shared_ptr<IVideoRead> read;
-                if (memoryIO)
+                auto fileIO = ftk::FileIO::create(path.get(), ftk::FileMode::Read);
+                memoryData.resize(fileIO->getSize());
+                fileIO->read(memoryData.data(), memoryData.size());
+                memory.push_back(ftk::MemFile(nullptr, memoryData.data(), memoryData.size()));
+                read = plugin->videoRead(path, memory, options);
+            }
+            else
+            {
+                read = plugin->videoRead(path, options);
+            }
+            const auto ioInfo = read->getInfo().get();
+            FTK_CHECK(!ioInfo.video.empty());
+            for (size_t i = 0; i < static_cast<size_t>(duration.value()); ++i)
+            {
+                const auto videoData = read->readVideo(OTIO_NS::RationalTime(i, 24.0)).get();
+                FTK_CHECK(videoData.image);
+                FTK_CHECK(videoData.image->getSize() == image->getSize());
+                const auto frameTags = videoData.image->getTags();
+                for (const auto& j : tags)
                 {
-                    auto fileIO = ftk::FileIO::create(path.get(), ftk::FileMode::Read);
-                    memoryData.resize(fileIO->getSize());
-                    fileIO->read(memoryData.data(), memoryData.size());
-                    memory.push_back(ftk::MemFile(nullptr, memoryData.data(), memoryData.size()));
-                    read = plugin->videoRead(path, memory, options);
-                }
-                else
-                {
-                    read = plugin->videoRead(path, options);
-                }
-                const auto ioInfo = read->getInfo().get();
-                FTK_ASSERT(!ioInfo.video.empty());
-                for (size_t i = 0; i < static_cast<size_t>(duration.value()); ++i)
-                {
-                    const auto videoData = read->readVideo(OTIO_NS::RationalTime(i, 24.0)).get();
-                    FTK_ASSERT(videoData.image);
-                    FTK_ASSERT(videoData.image->getSize() == image->getSize());
-                    const auto frameTags = videoData.image->getTags();
-                    for (const auto& j : tags)
-                    {
-                        const auto k = frameTags.find(j.first);
-                        FTK_ASSERT(k != frameTags.end());
-                        FTK_ASSERT(k->second == j.second);
-                    }
-                }
-                for (size_t i = 0; i < static_cast<size_t>(duration.value()); ++i)
-                {
-                    const auto videoData = read->readVideo(OTIO_NS::RationalTime(i, 24.0)).get();
+                    const auto k = frameTags.find(j.first);
+                    FTK_CHECK(k != frameTags.end());
+                    FTK_CHECK(k->second == j.second);
                 }
             }
-
-            void readError(
-                const std::shared_ptr<IReadPlugin>& plugin,
-                const std::shared_ptr<ftk::Image>& image,
-                const ftk::Path& path,
-                bool memoryIO,
-                const IOOptions& options)
+            for (size_t i = 0; i < static_cast<size_t>(duration.value()); ++i)
             {
-                {
-                    auto fileIO = ftk::FileIO::create(path.get(), ftk::FileMode::Read);
-                    const size_t size = fileIO->getSize();
-                    fileIO.reset();
-                    ftk::truncateFile(path.get(), size / 2);
-                }
-                std::vector<uint8_t> memoryData;
-                std::vector<ftk::MemFile> memory;
-                if (memoryIO)
-                {
-                    auto fileIO = ftk::FileIO::create(path.get(), ftk::FileMode::Read);
-                    memoryData.resize(fileIO->getSize());
-                    fileIO->read(memoryData.data(), memoryData.size());
-                    memory.push_back(ftk::MemFile(nullptr, memoryData.data(), memoryData.size()));
-                }
-                auto read = plugin->videoRead(path, memory, options);
-                // This previously hung on truncated files (suspected cause:
-                // the avIOBufferSeek() whence/return bug, since fixed). Use
-                // a watchdog rather than a bare get() so a regression fails
-                // the test instead of hanging the suite. Any result --
-                // including empty -- is acceptable; completing is what
-                // matters.
-                auto future = read->readVideo(OTIO_NS::RationalTime(0.0, 24.0));
-                if (future.wait_for(std::chrono::seconds(30)) !=
-                    std::future_status::ready)
-                {
-                    throw std::runtime_error(
-                        "Timeout reading a truncated file");
-                }
-                const auto videoData = future.get();
-                // The truncated file must record a queryable error;
-                // silently returning empty data is not acceptable.
-                if (read->getError().empty() || 0 == read->getErrorCount())
-                {
-                    throw std::runtime_error(
-                        "Expected an error reading a truncated file");
-                }
+                const auto videoData = read->readVideo(OTIO_NS::RationalTime(i, 24.0)).get();
+            }
+        }
+
+        void FFmpegTest::readError(
+            const std::shared_ptr<IReadPlugin>& plugin,
+            const std::shared_ptr<ftk::Image>& image,
+            const ftk::Path& path,
+            bool memoryIO,
+            const IOOptions& options)
+        {
+            {
+                auto fileIO = ftk::FileIO::create(path.get(), ftk::FileMode::Read);
+                const size_t size = fileIO->getSize();
+                fileIO.reset();
+                ftk::truncateFile(path.get(), size / 2);
+            }
+            std::vector<uint8_t> memoryData;
+            std::vector<ftk::MemFile> memory;
+            if (memoryIO)
+            {
+                auto fileIO = ftk::FileIO::create(path.get(), ftk::FileMode::Read);
+                memoryData.resize(fileIO->getSize());
+                fileIO->read(memoryData.data(), memoryData.size());
+                memory.push_back(ftk::MemFile(nullptr, memoryData.data(), memoryData.size()));
+            }
+            auto read = plugin->videoRead(path, memory, options);
+            // This previously hung on truncated files (suspected cause:
+            // the avIOBufferSeek() whence/return bug, since fixed). Use
+            // a watchdog rather than a bare get() so a regression fails
+            // the test instead of hanging the suite. Any result --
+            // including empty -- is acceptable; completing is what
+            // matters.
+            auto future = read->readVideo(OTIO_NS::RationalTime(0.0, 24.0));
+            if (future.wait_for(std::chrono::seconds(30)) !=
+                std::future_status::ready)
+            {
+                throw std::runtime_error(
+                    "Timeout reading a truncated file");
+            }
+            const auto videoData = future.get();
+            // The truncated file must record a queryable error;
+            // silently returning empty data is not acceptable.
+            if (read->getError().empty() || 0 == read->getErrorCount())
+            {
+                throw std::runtime_error(
+                    "Expected an error reading a truncated file");
             }
         }
 

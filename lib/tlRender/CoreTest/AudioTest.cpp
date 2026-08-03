@@ -103,67 +103,64 @@ namespace tl
             FTK_CHECK(3 == combined->getData()[2]);
         }
 
-        namespace
+        template<AudioType DT, typename T>
+        void AudioTest::_mixI()
         {
-            template<AudioType DT, typename T>
-            void _mixI()
-            {
-                const AudioInfo info(1, DT, 48000);
+            const AudioInfo info(1, DT, 48000);
 
-                auto audio0 = Audio::create(info, 5);
-                T* p0 = reinterpret_cast<T*>(audio0->getData());
-                p0[0] = 0;
-                p0[1] = std::numeric_limits<T>::max();
-                p0[2] = std::numeric_limits<T>::min();
-                p0[3] = std::numeric_limits<T>::max();
-                p0[4] = std::numeric_limits<T>::min();
+            auto audio0 = Audio::create(info, 5);
+            T* p0 = reinterpret_cast<T*>(audio0->getData());
+            p0[0] = 0;
+            p0[1] = std::numeric_limits<T>::max();
+            p0[2] = std::numeric_limits<T>::min();
+            p0[3] = std::numeric_limits<T>::max();
+            p0[4] = std::numeric_limits<T>::min();
 
-                auto audio1 = Audio::create(info, 5);
-                T* p1 = reinterpret_cast<T*>(audio1->getData());
-                p1[0] = 0;
-                p1[1] = std::numeric_limits<T>::max();
-                p1[2] = std::numeric_limits<T>::min();
-                p1[3] = std::numeric_limits<T>::min();
-                p1[4] = std::numeric_limits<T>::max();
+            auto audio1 = Audio::create(info, 5);
+            T* p1 = reinterpret_cast<T*>(audio1->getData());
+            p1[0] = 0;
+            p1[1] = std::numeric_limits<T>::max();
+            p1[2] = std::numeric_limits<T>::min();
+            p1[3] = std::numeric_limits<T>::min();
+            p1[4] = std::numeric_limits<T>::max();
 
-                auto out = mixAudio({ audio0, audio1 }, 1.0);
-                const T* outP = reinterpret_cast<T*>(out->getData());
-                FTK_ASSERT(0 == outP[0]);
-                FTK_ASSERT(std::numeric_limits<T>::max() == outP[1]);
-                FTK_ASSERT(std::numeric_limits<T>::min() == outP[2]);
-                FTK_ASSERT(std::numeric_limits<T>::max() + std::numeric_limits<T>::min() == outP[3]);
-                FTK_ASSERT(std::numeric_limits<T>::max() + std::numeric_limits<T>::min() == outP[4]);
-            }
+            auto out = mixAudio({ audio0, audio1 }, 1.0);
+            const T* outP = reinterpret_cast<T*>(out->getData());
+            FTK_CHECK(0 == outP[0]);
+            FTK_CHECK(std::numeric_limits<T>::max() == outP[1]);
+            FTK_CHECK(std::numeric_limits<T>::min() == outP[2]);
+            FTK_CHECK(std::numeric_limits<T>::max() + std::numeric_limits<T>::min() == outP[3]);
+            FTK_CHECK(std::numeric_limits<T>::max() + std::numeric_limits<T>::min() == outP[4]);
+        }
 
-            template<AudioType DT, typename T>
-            void _mixF()
-            {
-                const AudioInfo info(1, DT, 48000);
+        template<AudioType DT, typename T>
+        void AudioTest::_mixF()
+        {
+            const AudioInfo info(1, DT, 48000);
 
-                auto audio0 = Audio::create(info, 5);
-                T* p0 = reinterpret_cast<T*>(audio0->getData());
-                p0[0] = 0;
-                p0[1] = 1;
-                p0[2] = -1;
-                p0[3] = 1;
-                p0[4] = -1;
+            auto audio0 = Audio::create(info, 5);
+            T* p0 = reinterpret_cast<T*>(audio0->getData());
+            p0[0] = 0;
+            p0[1] = 1;
+            p0[2] = -1;
+            p0[3] = 1;
+            p0[4] = -1;
 
-                auto audio1 = Audio::create(info, 5);
-                T* p1 = reinterpret_cast<T*>(audio1->getData());
-                p1[0] = 0;
-                p1[1] = 1;
-                p1[2] = -1;
-                p1[3] = -1;
-                p1[4] = 1;
+            auto audio1 = Audio::create(info, 5);
+            T* p1 = reinterpret_cast<T*>(audio1->getData());
+            p1[0] = 0;
+            p1[1] = 1;
+            p1[2] = -1;
+            p1[3] = -1;
+            p1[4] = 1;
 
-                auto out = mixAudio({ audio0, audio1 }, 1.0);
-                const T* outP = reinterpret_cast<T*>(out->getData());
-                FTK_ASSERT(0 == outP[0]);
-                FTK_ASSERT(2 == outP[1]);
-                FTK_ASSERT(-2 == outP[2]);
-                FTK_ASSERT(0 == outP[3]);
-                FTK_ASSERT(0 == outP[4]);
-            }
+            auto out = mixAudio({ audio0, audio1 }, 1.0);
+            const T* outP = reinterpret_cast<T*>(out->getData());
+            FTK_CHECK(0 == outP[0]);
+            FTK_CHECK(2 == outP[1]);
+            FTK_CHECK(-2 == outP[2]);
+            FTK_CHECK(0 == outP[3]);
+            FTK_CHECK(0 == outP[4]);
         }
 
         void AudioTest::_mix()

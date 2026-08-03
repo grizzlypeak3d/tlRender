@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include <tlRender/Core/Audio.h>
+
 #include <ftk/TestLib/ITest.h>
 
 namespace tl
@@ -20,6 +22,13 @@ namespace tl
             void run() override;
 
         private:
+            // Members rather than free helpers so they can report a
+            // failed check, which goes through the test.
+            template<AudioType DT, typename T>
+            void _mixI();
+            template<AudioType DT, typename T>
+            void _mixF();
+
             void _enums();
             void _types();
             void _audio();
