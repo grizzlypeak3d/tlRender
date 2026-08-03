@@ -143,6 +143,13 @@ namespace tl
 
             TL_API std::string getPluginInfo(
                 const IOOptions& = IOOptions()) const override;
+
+        private:
+            //! Refuse media held in memory, which the command line has no way
+            //! to be given.
+            static void _memoryUnsupported(
+                const ftk::Path&,
+                const std::vector<ftk::MemFile>&);
         };
 
         //! \name Serialize

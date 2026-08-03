@@ -287,6 +287,7 @@ namespace tl
             const std::vector<ftk::MemFile>& memory,
             const IOOptions& options)
         {
+            _memoryUnsupported(path, memory);
             return VideoRead::create(path, memory, options, _logSystem.lock());
         }
 
@@ -302,7 +303,26 @@ namespace tl
             const std::vector<ftk::MemFile>& memory,
             const IOOptions& options)
         {
+            _memoryUnsupported(path, memory);
             return AudioRead::create(path, memory, options, _logSystem.lock());
+        }
+
+        void ReadPlugin::_memoryUnsupported(
+            const ftk::Path& path,
+            const std::vector<ftk::MemFile>& memory)
+        {
+            // The command line takes a file name, so media held as a byte
+            // range -- what a bundle stores -- has nowhere to go. Throwing
+            // hands the read to the next plugin for the extension, which on a
+            // build with the FFmpeg library is one that can read it; on a
+            // build without, it is the error the reader would otherwise have
+            // been silent about.
+            if (!memory.empty())
+            {
+                throw std::runtime_error(
+                    ftk::Format("The FFmpeg command line cannot read media "
+                        "held in memory: \"{0}\"").arg(path.get()));
+            }
         }
 
         std::string ReadPlugin::getPluginInfo(const IOOptions& ioOptions) const
