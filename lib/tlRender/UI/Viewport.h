@@ -193,7 +193,19 @@ namespace tl
             //! \name Color Sample
             ///@{
 
-            //! Sample a color from the viewport.
+            //! Sample a color from the viewport, at a position in the
+            //! viewport's own coordinates.
+            //!
+            //! Two things about where the color comes from, both of which
+            //! have been mistaken for bugs:
+            //!
+            //! - It is read back from the buffer the viewport drew into, so
+            //!   it is the frame *before* the one being drawn. Sampling from
+            //!   drawEvent() returns the picture that is being replaced;
+            //!   something that changes the image has to be given a drawing
+            //!   before the sample means anything.
+            //! - The read is synchronous, and waits for the GPU. Sampling
+            //!   every frame stalls the playback being sampled.
             TL_API ftk::Color4F getColorSample(const ftk::V2I&);
 
             ///@}
