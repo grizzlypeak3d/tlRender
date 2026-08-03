@@ -372,6 +372,31 @@ namespace tl
             }
         }
 
+        ftk::V2I Viewport::toViewportPos(const ftk::V2I& windowPos) const
+        {
+            return windowPos - getGeometry().min;
+        }
+
+        ftk::V2I Viewport::toRenderPos(const ftk::V2I& viewportPos) const
+        {
+            FTK_P();
+            const ftk::V2I& viewPos = p.viewPos->get();
+            const double zoom = p.zoom->get();
+            return ftk::V2I(
+                static_cast<int>(std::floor((viewportPos.x - viewPos.x) / zoom)),
+                static_cast<int>(std::floor((viewportPos.y - viewPos.y) / zoom)));
+        }
+
+        ftk::V2I Viewport::fromRenderPos(const ftk::V2I& renderPos) const
+        {
+            FTK_P();
+            const ftk::V2I& viewPos = p.viewPos->get();
+            const double zoom = p.zoom->get();
+            return ftk::V2I(
+                static_cast<int>(std::floor(viewPos.x + renderPos.x * zoom)),
+                static_cast<int>(std::floor(viewPos.y + renderPos.y * zoom)));
+        }
+
         const ftk::V2I& Viewport::getViewPos() const
         {
             return _p->viewPos->get();
@@ -915,7 +940,7 @@ namespace tl
             {
                 event.accept = true;
                 p.mouse.inside = true;
-                p.mouse.pos = event.pos - getGeometry().min;
+                p.mouse.pos = toViewportPos(event.pos);
             }
         }
 
@@ -932,8 +957,7 @@ namespace tl
             {
                 event.accept = true;
 
-                const ftk::Box2I& g = getGeometry();
-                p.mouse.pos = event.pos - g.min;
+                p.mouse.pos = toViewportPos(event.pos);
 
                 switch (p.mouse.mode)
                 {
@@ -989,8 +1013,7 @@ namespace tl
             FTK_P();
             if (p.inputEnabled)
             {
-                const ftk::Box2I& g = getGeometry();
-                p.mouse.pos = event.pos - g.min;
+                p.mouse.pos = toViewportPos(event.pos);
                 p.mouse.press = p.mouse.pos;
 
                 if (p.panBinding.first == event.button &&
@@ -1037,8 +1060,7 @@ namespace tl
                 {
                     event.accept = true;
 
-                    const ftk::Box2I& g = getGeometry();
-                    p.mouse.pos = event.pos - g.min;
+                    p.mouse.pos = toViewportPos(event.pos);
 
                     const double zoom = p.zoom->get();
                     const double newZoom =
@@ -1065,8 +1087,7 @@ namespace tl
             FTK_P();
             if (p.inputEnabled)
             {
-                const ftk::Box2I& g = getGeometry();
-                p.mouse.pos = event.pos - g.min;
+                p.mouse.pos = toViewportPos(event.pos);
 
                 if (0 == event.modifiers)
                 {

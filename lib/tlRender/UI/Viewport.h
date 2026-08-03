@@ -114,6 +114,36 @@ namespace tl
 
             ///@}
 
+            //! \name Coordinates
+            ///@{
+            //!
+            //! Three spaces meet at the viewport, and mixing them up is the
+            //! usual way a pixel readout goes wrong:
+            //!
+            //! - the window's, which is what an event carries;
+            //! - the viewport's own, which is the window's less the position
+            //!   the viewport was laid out at;
+            //! - the render's, which is what the images are laid out in and
+            //!   what a comparison arranges -- the view position and zoom are
+            //!   the difference between it and the viewport's.
+            //!
+            //! Going to a coarser space rounds down rather than towards zero,
+            //! so that a position just outside the image stays outside it
+            //! rather than landing on the first row or column.
+
+            //! Convert a window position to the viewport's own coordinates.
+            TL_API ftk::V2I toViewportPos(const ftk::V2I& windowPos) const;
+
+            //! Convert a position in the viewport's own coordinates to the
+            //! render coordinates the images are laid out in.
+            TL_API ftk::V2I toRenderPos(const ftk::V2I& viewportPos) const;
+
+            //! Convert a render position back to the viewport's own
+            //! coordinates.
+            TL_API ftk::V2I fromRenderPos(const ftk::V2I& renderPos) const;
+
+            ///@}
+
             //! \name View
             ///@{
 
