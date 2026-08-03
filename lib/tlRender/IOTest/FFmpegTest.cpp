@@ -4,11 +4,13 @@
 #include <tlRender/IOTest/FFmpegTest.h>
 
 #include <tlRender/IO/FFmpeg.h>
+#include <tlRender/IO/FFmpegPrivate.h>
 #include <tlRender/IO/System.h>
 
 #include <ftk/Core/Assert.h>
 #include <ftk/Core/Context.h>
 #include <ftk/Core/FileIO.h>
+#include <ftk/Core/Format.h>
 
 #include <algorithm>
 #include <array>
@@ -658,101 +660,123 @@ namespace tl
             // doubled samples at the FIFO seam would show up here. A .5
             // amplitude sine has an RMS of .5/sqrt(2) ~= .354; the bounds
             // allow roughly +/-4dB of codec variance.
-            try
+            //
+            // The container default is a lossy codec, which a minimal FFmpeg
+            // does not carry -- see the licensing note in BuildFFmpeg.cmake.
+            // Without an encoder the movie is written without audio, which is
+            // what this build is rather than something it got wrong.
+            const AVOutputFormat* avFormat = av_guess_format("mov", nullptr, nullptr);
+            const AVCodecID avAudioCodecID =
+                avFormat ? avFormat->audio_codec : AV_CODEC_ID_NONE;
+            const bool defaultAudioEncoder =
+                avAudioCodecID != AV_CODEC_ID_NONE &&
+                avcodec_find_encoder(avAudioCodecID);
+            if (!defaultAudioEncoder)
             {
-                _print("_audio: default codec round trip");
-                const ftk::Path path(
-                    (_getTempDir() / "FFmpegAudioDefault.mov").u8string());
-                IOOptions options;
-                options["FFmpeg/Codec"] = "mjpeg";
-                writeMovie(path, options);
-
-                auto read = readPlugin->audioRead(path);
-                const auto ioInfo = read->getInfo().get();
-                if (!ioInfo.audio.isValid() ||
-                    ioInfo.audio.channelCount != audioInfo.channelCount ||
-                    ioInfo.audio.sampleRate != audioInfo.sampleRate)
-                {
-                    _fail("Default codec: unexpected audio info");
-                }
-                const int64_t readSampleCount = static_cast<int64_t>(
-                    ioInfo.audioTime->duration().
-                        rescaled_to(audioInfo.sampleRate).value());
-                if (std::abs(
-                    readSampleCount - static_cast<int64_t>(sampleCount)) >
-                    4096)
-                {
-                    std::stringstream ss;
-                    ss << "Default codec: unexpected sample count: " <<
-                        readSampleCount << ", expected: " << sampleCount;
-                    _fail(ss.str());
-                }
-
-                // RMS over the middle second, [.25s, 1.25s).
-                const size_t rmsOffset = 11025;
-                const size_t rmsCount = 44100;
-                const auto audioData = read->readAudio(
-                    OTIO_NS::TimeRange(
-                        ioInfo.audioTime->start_time() +
-                            OTIO_NS::RationalTime(
-                                static_cast<double>(rmsOffset),
-                                audioInfo.sampleRate),
-                        OTIO_NS::RationalTime(
-                            static_cast<double>(rmsCount),
-                            audioInfo.sampleRate))).get();
-                if (!audioData.audio)
-                {
-                    _fail("Default codec: no audio data");
-                }
-                else
-                {
-                    double sum = 0.0;
-                    const size_t count =
-                        audioData.audio->getSampleCount() *
-                        audioData.audio->getChannelCount();
-                    switch (audioData.audio->getType())
-                    {
-                    case AudioType::F32:
-                    {
-                        const float* data = reinterpret_cast<const float*>(
-                            audioData.audio->getData());
-                        for (size_t i = 0; i < count; ++i)
-                        {
-                            sum += data[i] * data[i];
-                        }
-                        break;
-                    }
-                    case AudioType::S16:
-                    {
-                        const int16_t* data =
-                            reinterpret_cast<const int16_t*>(
-                                audioData.audio->getData());
-                        for (size_t i = 0; i < count; ++i)
-                        {
-                            const double v = data[i] / 32767.0;
-                            sum += v * v;
-                        }
-                        break;
-                    }
-                    default:
-                        _fail("Default codec: unexpected audio type");
-                        break;
-                    }
-                    if (count > 0)
-                    {
-                        const double rms = std::sqrt(sum / count);
-                        if (rms < .2 || rms > .5)
-                        {
-                            std::stringstream ss;
-                            ss << "Default codec: unexpected RMS: " << rms;
-                            _fail(ss.str());
-                        }
-                    }
-                }
+                // Named, so that a skip for the reason above can be told from
+                // a skip because the lookup itself came back with nothing.
+                _print(ftk::Format("_audio: default codec round trip skipped, "
+                    "no encoder for \"{0}\"").
+                    arg(avcodec_get_name(avAudioCodecID)));
             }
-            catch (const std::exception& e)
+            else
             {
-                _error(e.what());
+                try
+                {
+                    _print("_audio: default codec round trip");
+                    const ftk::Path path(
+                        (_getTempDir() / "FFmpegAudioDefault.mov").u8string());
+                    IOOptions options;
+                    options["FFmpeg/Codec"] = "mjpeg";
+                    writeMovie(path, options);
+
+                    auto read = readPlugin->audioRead(path);
+                    const auto ioInfo = read->getInfo().get();
+                    if (!ioInfo.audio.isValid() ||
+                        ioInfo.audio.channelCount != audioInfo.channelCount ||
+                        ioInfo.audio.sampleRate != audioInfo.sampleRate)
+                    {
+                        _fail("Default codec: unexpected audio info");
+                    }
+                    const int64_t readSampleCount = static_cast<int64_t>(
+                        ioInfo.audioTime->duration().
+                            rescaled_to(audioInfo.sampleRate).value());
+                    if (std::abs(
+                        readSampleCount - static_cast<int64_t>(sampleCount)) >
+                        4096)
+                    {
+                        std::stringstream ss;
+                        ss << "Default codec: unexpected sample count: " <<
+                            readSampleCount << ", expected: " << sampleCount;
+                        _fail(ss.str());
+                    }
+
+                    // RMS over the middle second, [.25s, 1.25s).
+                    const size_t rmsOffset = 11025;
+                    const size_t rmsCount = 44100;
+                    const auto audioData = read->readAudio(
+                        OTIO_NS::TimeRange(
+                            ioInfo.audioTime->start_time() +
+                                OTIO_NS::RationalTime(
+                                    static_cast<double>(rmsOffset),
+                                    audioInfo.sampleRate),
+                            OTIO_NS::RationalTime(
+                                static_cast<double>(rmsCount),
+                                audioInfo.sampleRate))).get();
+                    if (!audioData.audio)
+                    {
+                        _fail("Default codec: no audio data");
+                    }
+                    else
+                    {
+                        double sum = 0.0;
+                        const size_t count =
+                            audioData.audio->getSampleCount() *
+                            audioData.audio->getChannelCount();
+                        switch (audioData.audio->getType())
+                        {
+                        case AudioType::F32:
+                        {
+                            const float* data = reinterpret_cast<const float*>(
+                                audioData.audio->getData());
+                            for (size_t i = 0; i < count; ++i)
+                            {
+                                sum += data[i] * data[i];
+                            }
+                            break;
+                        }
+                        case AudioType::S16:
+                        {
+                            const int16_t* data =
+                                reinterpret_cast<const int16_t*>(
+                                    audioData.audio->getData());
+                            for (size_t i = 0; i < count; ++i)
+                            {
+                                const double v = data[i] / 32767.0;
+                                sum += v * v;
+                            }
+                            break;
+                        }
+                        default:
+                            _fail("Default codec: unexpected audio type");
+                            break;
+                        }
+                        if (count > 0)
+                        {
+                            const double rms = std::sqrt(sum / count);
+                            if (rms < .2 || rms > .5)
+                            {
+                                std::stringstream ss;
+                                ss << "Default codec: unexpected RMS: " << rms;
+                                _fail(ss.str());
+                            }
+                        }
+                    }
+                }
+                catch (const std::exception& e)
+                {
+                    _error(e.what());
+                }
             }
 
             // An explicitly requested audio codec that does not exist is an

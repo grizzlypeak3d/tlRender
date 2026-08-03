@@ -148,19 +148,39 @@ namespace tl
                             arg(audioCodec).arg(p.fileName));
                     }
                 }
-                else if (p.avFormatContext->oformat->audio_codec != AV_CODEC_ID_NONE)
+                const bool containerHasAudio =
+                    p.avFormatContext->oformat->audio_codec != AV_CODEC_ID_NONE;
+                if (audioCodec.empty() && containerHasAudio)
                 {
                     avAudioCodec = avcodec_find_encoder(p.avFormatContext->oformat->audio_codec);
                 }
                 if (!avAudioCodec)
                 {
-                    // The container does not support audio; skip it.
+                    // Two different reasons to write no audio, worth telling
+                    // apart: a container that has no place to put it, and a
+                    // build without the encoder the container asks for. The
+                    // second is what a minimal FFmpeg gives, where the codec
+                    // a movie defaults to is left out over licensing, and it
+                    // reads as a broken file rather than a missing feature.
+                    std::string message =
+                        ftk::Format("The output format does not support audio, "
+                            "audio will not be written: \"{0}\"").
+                        arg(p.fileName);
+                    if (containerHasAudio)
+                    {
+                        message =
+                            ftk::Format("This build has no encoder for the audio "
+                                "codec \"{0}\" the output format uses, audio will "
+                                "not be written: \"{1}\"").
+                            arg(avcodec_get_name(
+                                p.avFormatContext->oformat->audio_codec)).
+                            arg(p.fileName);
+                    }
                     if (logSystem)
                     {
                         logSystem->print(
                             "tl::ffmpeg::Write",
-                            ftk::Format("No audio encoder for the output format, "
-                                "audio will not be written: \"{0}\"").arg(p.fileName),
+                            message,
                             ftk::LogType::Warning);
                     }
                 }

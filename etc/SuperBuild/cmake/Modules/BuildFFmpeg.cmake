@@ -100,6 +100,10 @@ set(FFmpeg_CONFIGURE_ARGS
     ${FFmpeg_OBJCFLAGS}
     ${FFmpeg_LDFLAGS})
 if(TLRENDER_FFMPEG_MINIMAL)
+    # Codecs that can be shipped without a patent license. AAC is left out
+    # deliberately, and it is the codec a QuickTime movie defaults to, so a
+    # minimal build writes movies without audio and cannot read the ones it
+    # would otherwise have written. That is the trade, not an oversight.
     list(APPEND FFmpeg_CONFIGURE_ARGS
         --disable-decoders
         --enable-decoder=apv
