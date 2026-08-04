@@ -7,6 +7,7 @@
 #include <ftk/Core/Format.h>
 #include <ftk/Core/String.h>
 
+#include <cmath>
 #include <cstdlib>
 
 namespace tl
@@ -37,6 +38,23 @@ namespace tl
             if (time.has_value())
             {
                 out = time->to_timecode();
+                if (out.empty())
+                {
+                    // Timecode counts frames, and only at the rates it has
+                    // names for. Audio timed in samples has neither, so the
+                    // time itself is given rather than nothing: a file that
+                    // is four minutes long should say so.
+                    // Rounded whole and split afterwards, so that a time a
+                    // fraction under the second does not round up into a
+                    // thousandth place that does not exist.
+                    const int total = static_cast<int>(
+                        std::llround(time->to_seconds() * 1000.0));
+                    out = ftk::Format("{0}:{1}:{2}.{3}").
+                        arg(total / 3600000, 2, '0').
+                        arg(total / 60000 % 60, 2, '0').
+                        arg(total / 1000 % 60, 2, '0').
+                        arg(total % 1000, 3, '0');
+                }
             }
             if (out.empty())
             {

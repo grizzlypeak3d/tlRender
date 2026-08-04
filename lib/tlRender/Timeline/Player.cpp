@@ -975,7 +975,10 @@ namespace tl
         p.currentAudioFrame->setIfChanged(currentAudioFrame);
         p.cacheInfo->setIfChanged(cacheInfo);
 
-        if (playback != Playback::Stop && timelineSpeed > 0.0)
+        // A timeline with no video has nothing to drop; without this its
+        // "frames" are audio samples, and every tick misses tens of them.
+        if (playback != Playback::Stop && timelineSpeed > 0.0 &&
+            !p.timeline->getIOInfo().video.empty())
         {
             p.droppedFramesTick(
                 !currentVideoFrame.empty() ?
