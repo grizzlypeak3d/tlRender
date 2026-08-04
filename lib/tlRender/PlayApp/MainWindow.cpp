@@ -40,12 +40,12 @@ namespace tl
             bool settingsVisible = false;
             double splitter = 0.8;
             double splitter2 = 0.8;
-            auto settingsModel = app->getSettingsModel();
-            settingsModel->get("/MainWindow/SettingsVisible", settingsVisible);
+            auto settings = app->getSettings();
+            settings->get("/MainWindow/SettingsVisible", settingsVisible);
             _settingsVisible = ftk::Observable<bool>::create(settingsVisible);
-            settingsModel->get("/MainWindow/Splitter", splitter);
-            settingsModel->get("/MainWindow/Splitter2", splitter2);
-            _settingsModel = settingsModel;
+            settings->get("/MainWindow/Splitter", splitter);
+            settings->get("/MainWindow/Splitter2", splitter2);
+            _settings = settings;
 
             // Create the viewport.
             _viewport = ui::Viewport::create(context);
@@ -173,13 +173,13 @@ namespace tl
         MainWindow::~MainWindow()
         {
             // Save settings.
-            if (auto settingsModel = _settingsModel.lock())
+            if (auto settings = _settings.lock())
             {
-                settingsModel->set(
+                settings->set(
                     "/MainWindow/SettingsVisible",
                     _settingsVisible->get());
-                settingsModel->set("/MainWindow/Splitter", _splitter->getSplit());
-                settingsModel->set("/MainWindow/Splitter2", _splitter2->getSplit());
+                settings->set("/MainWindow/Splitter", _splitter->getSplit());
+                settings->set("/MainWindow/Splitter2", _splitter2->getSplit());
             }
         }
 

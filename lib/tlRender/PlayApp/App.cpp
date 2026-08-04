@@ -38,7 +38,8 @@ namespace tl
                 "tlplay",
                 "Example player application.",
                 { _cmdLine.inputs },
-                { _cmdLine.debugLoop });
+                { _cmdLine.debugLoop },
+                ftk::AppFiles{ "tlRender", "tlplay" });
         }
 
         App::~App()
@@ -52,11 +53,11 @@ namespace tl
                     {
                         recentFiles.push_back(i.u8string());
                     }
-                    _settingsModel->set("/Files/Recent", recentFiles);
-                    _settingsModel->set("/Files/RecentMax", _recentFilesModel->getRecentMax());
+                    getSettings()->set("/Files/Recent", recentFiles);
+                    getSettings()->set("/Files/RecentMax", _recentFilesModel->getRecentMax());
                 }
 
-                _settingsModel->set(
+                getSettings()->set(
                     "/TimeUnits",
                     to_string(_timeUnitsModel->getTimeUnits()));
             }
@@ -142,9 +143,7 @@ namespace tl
         void App::run()
         {
             // Create the settings model.
-            _settingsModel = SettingsModel::create(
-                _context,
-                ftk::getSettingsPath("tlRender", "tlplay.json"));
+            _settingsModel = SettingsModel::create(_context, getSettings());
 
             // Create the system log model.
             _sysLogModel = ftk::SysLogModel::create(_context);
@@ -152,7 +151,7 @@ namespace tl
             // Create the time units model.
             _timeUnitsModel = TimeUnitsModel::create(_context);
             std::string settings;
-            if (_settingsModel->get("/TimeUnits", settings))
+            if (getSettings()->get("/TimeUnits", settings))
             {
                 TimeUnits timeUnits = TimeUnits::Timecode;
                 from_string(settings, timeUnits);
@@ -162,7 +161,7 @@ namespace tl
             // Create the recent files model.
             _recentFilesModel = ftk::RecentFilesModel::create(_context);
             std::vector<std::string> recentFiles;
-            if (_settingsModel->get("/Files/Recent", recentFiles))
+            if (getSettings()->get("/Files/Recent", recentFiles))
             {
                 std::vector<std::filesystem::path> recentPaths;
                 for (const auto& i : recentFiles)
@@ -172,7 +171,7 @@ namespace tl
                 _recentFilesModel->setRecent(recentPaths);
             }
             size_t recentFilesMax = 10;
-            if (_settingsModel->get("/Files/RecentMax", recentFilesMax))
+            if (getSettings()->get("/Files/RecentMax", recentFilesMax))
             {
                 _recentFilesModel->setRecentMax(recentFilesMax);
             }

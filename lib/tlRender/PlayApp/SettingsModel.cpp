@@ -9,22 +9,22 @@ namespace tl
     {
         SettingsModel::SettingsModel(
             const std::shared_ptr<ftk::Context>& context,
-            const std::filesystem::path& path) :
-            Settings(context, path, false)
+            const std::shared_ptr<ftk::Settings>& settings) :
+            _settings(settings)
         {
             // Restore file browser settings.
             ftk::FileBrowserOptions fileBrowserOptions;
-            getT("/FileBrowser", fileBrowserOptions);
+            _settings->getT("/FileBrowser", fileBrowserOptions);
             auto fileBrowserSystem = context->getSystem<ftk::FileBrowserSystem>();
             fileBrowserSystem->getModel()->setOptions(fileBrowserOptions);
             bool nativeFileDialog = false;
-            get("/NativeFileDialog", nativeFileDialog);
+            _settings->get("/NativeFileDialog", nativeFileDialog);
             fileBrowserSystem->setNativeFileDialog(nativeFileDialog);
             _fileBrowserSystem = fileBrowserSystem;
 
             // Restore timeline player cache settings.
             PlayerCacheOptions cache;
-            getT("/Cache", cache);
+            _settings->getT("/Cache", cache);
             _cache = ftk::Observable<PlayerCacheOptions>::create(cache);
         }
         
@@ -33,19 +33,19 @@ namespace tl
             // Save file browser settings.
             if (auto fileBrowserSystem = _fileBrowserSystem.lock())
             {
-                setT("/FileBrowser", fileBrowserSystem->getModel()->getOptions());
-                set("/NativeFileDialog", fileBrowserSystem->isNativeFileDialog());
+                _settings->setT("/FileBrowser", fileBrowserSystem->getModel()->getOptions());
+                _settings->set("/NativeFileDialog", fileBrowserSystem->isNativeFileDialog());
             }
 
             // Save timeline player cache settings.
-            setT("/Cache", _cache->get());
+            _settings->setT("/Cache", _cache->get());
         }
 
         std::shared_ptr<SettingsModel> SettingsModel::create(
             const std::shared_ptr<ftk::Context>& context,
-            const std::filesystem::path& path)
+            const std::shared_ptr<ftk::Settings>& settings)
         {
-            return std::shared_ptr<SettingsModel>(new SettingsModel(context, path));
+            return std::shared_ptr<SettingsModel>(new SettingsModel(context, settings));
         }
 
         const PlayerCacheOptions& SettingsModel::getCache() const
