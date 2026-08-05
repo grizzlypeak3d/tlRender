@@ -55,10 +55,12 @@ namespace tl
                 ftk::Color4F defaultColor;
                 std::optional<ftk::Color4F> otioColor;
 
-                //! Set from outside the timeline, and preferred over both:
-                //! the caller knows something about this item that the
-                //! timeline does not.
-                std::optional<ftk::Color4F> overrideColor;
+                //! Set from outside the timeline: the caller knows something
+                //! about this item that the timeline does not. Drawn as an
+                //! outline rather than as the item's color, which already
+                //! says what kind of item it is and may carry a color the
+                //! timeline was authored with.
+                std::optional<ftk::Color4F> markerColor;
 
                 bool enabled = true;
                 std::string label;
@@ -184,6 +186,7 @@ namespace tl
             struct DrawData
             {
                 ftk::TriMesh2F items;
+                ftk::TriMesh2F markers;
                 ftk::TriMesh2F mediaBackgrounds;
                 ftk::TriMesh2F waveforms;
                 ftk::TriMesh2F cache;

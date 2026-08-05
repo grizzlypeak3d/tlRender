@@ -85,7 +85,11 @@ namespace tl
             //! Set the frame markers.
             TL_API void setFrameMarkers(const std::vector<int>&);
 
-            //! Set colors for items.
+            //! Set colors marking items.
+            //!
+            //! Drawn as an outline around the item rather than as its color:
+            //! the item's own color says what kind of item it is, and may be
+            //! one the timeline was authored with.
             TL_API void setItemColors(const ItemColors&);
 
             //! Set the label naming this timeline.

@@ -135,12 +135,15 @@ namespace tl
             //! player's own and the rest what it is compared against.
             TL_API const ItemColors& getItemColors(int index) const;
 
-            //! Set colors for items.
+            //! Set colors marking items.
             //!
             //! For an embedder that knows something about the items the
             //! timeline does not -- which of them a comparison found changed,
             //! say. Kept outside the timeline because the players read it on
             //! their own threads and it is not ours to write to.
+            //!
+            //! Drawn as an outline around the item, so that the color the
+            //! timeline was authored with is still the color of the item.
             TL_API void setItemColors(int index, const ItemColors&);
 
             ///@}

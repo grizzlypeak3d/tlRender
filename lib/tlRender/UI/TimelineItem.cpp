@@ -79,6 +79,26 @@ namespace tl
                 }
             }
 
+            //! Add the outline of a rectangle to a mesh, as four bars just
+            //! inside its edges.
+            void addOutline(
+                ftk::TriMesh2F& mesh,
+                const ftk::Box2I& box,
+                int width,
+                const ftk::Color4F& color)
+            {
+                if (box.w() <= 0 || box.h() <= 0)
+                    return;
+                const int w = std::min(width, std::min(box.w(), box.h()));
+                addRect(mesh, ftk::Box2I(box.min.x, box.min.y, box.w(), w), &color);
+                addRect(mesh, ftk::Box2I(
+                    box.min.x, box.max.y - w + 1, box.w(), w), &color);
+                addRect(mesh, ftk::Box2I(
+                    box.min.x, box.min.y + w, w, box.h() - w * 2), &color);
+                addRect(mesh, ftk::Box2I(
+                    box.max.x - w + 1, box.min.y + w, w, box.h() - w * 2), &color);
+            }
+
             void clearMesh(ftk::TriMesh2F& mesh)
             {
                 mesh.v.clear();
@@ -118,12 +138,6 @@ namespace tl
             {
                 out = item.otioColor.value();
             }
-            // After the OTIO color and not subject to clipColors: this one
-            // was asked for explicitly rather than carried by the timeline.
-            if (item.overrideColor.has_value())
-            {
-                out = item.overrideColor.value();
-            }
             return enabled ? out : ftk::greyscale(out);
         }
 
@@ -134,14 +148,14 @@ namespace tl
                 const auto trackColors = itemColors.find(track.index);
                 for (auto& item : track.items)
                 {
-                    item.overrideColor.reset();
+                    item.markerColor.reset();
                     if (trackColors != itemColors.end())
                     {
                         const auto i = trackColors->second.find(
                             item.timeRange.start_time());
                         if (i != trackColors->second.end())
                         {
-                            item.overrideColor = i->second;
+                            item.markerColor = i->second;
                         }
                     }
                 }
@@ -1422,6 +1436,7 @@ namespace tl
             const bool enabled = isEnabled();
 
             clearMesh(p.draw.items);
+            clearMesh(p.draw.markers);
             clearMesh(p.draw.mediaBackgrounds);
             clearMesh(p.draw.waveforms);
 
@@ -1442,6 +1457,14 @@ namespace tl
                         _displayOptions,
                         enabled && item.enabled);
                     addRect(p.draw.items, insideGeom, &color);
+                    if (item.markerColor.has_value())
+                    {
+                        addOutline(
+                            p.draw.markers,
+                            insideGeom,
+                            p.size.border * 2,
+                            item.markerColor.value());
+                    }
 
                     if (ItemType::Video == item.type && _displayOptions.thumbnails)
                     {
@@ -1502,6 +1525,11 @@ namespace tl
             if (_displayOptions.thumbnails)
             {
                 _drawThumbnails(drawRect, event);
+            }
+
+            if (!p.draw.markers.triangles.empty())
+            {
+                event.render->drawColorMesh(p.draw.markers);
             }
 
             if (!_displayOptions.minimize)
