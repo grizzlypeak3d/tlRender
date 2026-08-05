@@ -173,6 +173,12 @@ namespace tl
                 int handle = 0;
                 ftk::FontInfo fontInfo;
                 ftk::FontMetrics fontMetrics;
+
+                //! Bold, so a timeline's name reads as a heading over its
+                //! tracks rather than as more of the writing in them.
+                ftk::FontInfo labelFontInfo;
+                ftk::FontMetrics labelFontMetrics;
+
                 ftk::FontInfo itemFontInfo;
                 ftk::FontMetrics itemFontMetrics;
                 int labelHeight = 0;

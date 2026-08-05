@@ -600,6 +600,8 @@ namespace tl
                 p.size.handle = event.style->getSizeRole(ftk::SizeRole::Handle, event.displayScale);
                 p.size.fontInfo = event.style->getFont(ftk::FontType::Mono, event.displayScale);
                 p.size.fontMetrics = event.fontSystem->getMetrics(p.size.fontInfo);
+                p.size.labelFontInfo = event.style->getFont(ftk::FontType::Bold, event.displayScale);
+                p.size.labelFontMetrics = event.fontSystem->getMetrics(p.size.labelFontInfo);
                 p.size.itemFontInfo = event.style->getFont(ftk::FontType::Regular, event.displayScale);
                 p.size.itemFontMetrics = event.fontSystem->getMetrics(p.size.itemFontInfo);
                 _itemsTextUpdate(event);
@@ -607,7 +609,7 @@ namespace tl
 
             p.size.labelHeight = p.label.empty() ?
                 0 :
-                (p.size.margin * 2 + p.size.fontMetrics.lineHeight);
+                (p.size.margin * 2 + p.size.labelFontMetrics.lineHeight);
 
             // An item is as tall as its labels, its media, and its border. A
             // track is as tall as its tallest item, so a track of gaps is no
@@ -780,8 +782,8 @@ namespace tl
                 event.render->drawRect(
                     box, event.style->getColorRole(ftk::ColorRole::Header));
                 event.render->drawText(
-                    event.fontSystem->getGlyphs(p.label, p.size.fontInfo),
-                    p.size.fontMetrics,
+                    event.fontSystem->getGlyphs(p.label, p.size.labelFontInfo),
+                    p.size.labelFontMetrics,
                     ftk::V2I(
                         box.min.x + p.size.margin,
                         box.min.y + p.size.margin),
