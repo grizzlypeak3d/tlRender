@@ -45,6 +45,16 @@ namespace tl
             //! Set the timeline player.
             TL_API void setPlayer(const std::shared_ptr<Player>&);
 
+            //! Set the timelines drawn beside the player's own.
+            //!
+            //! Unset, they are the player's comparison timelines, which is
+            //! what a player comparing pictures is showing. Set, they are
+            //! whatever is given: for drawing the structure of timelines the
+            //! picture is not comparing, which the player has no reason to
+            //! know about.
+            TL_API void setTimelines(
+                const std::optional<std::vector<std::shared_ptr<Timeline> > >&);
+
             //! \name View
             ///@{
 
@@ -204,6 +214,8 @@ namespace tl
                 double zoomPrev,
                 const ftk::V2I& focus,
                 const ftk::V2I& scrollPos);
+
+            std::vector<std::shared_ptr<Timeline> > _getCompare() const;
 
             std::shared_ptr<ItemData> _getItemData(
                 const std::shared_ptr<Timeline>&) const;

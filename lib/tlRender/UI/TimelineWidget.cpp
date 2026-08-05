@@ -30,7 +30,12 @@ namespace tl
             std::vector<std::shared_ptr<ItemData> > itemData;
 
             std::shared_ptr<Player> player;
+
+            //! The timelines drawn beside the player's own, and where they
+            //! came from: what the player is comparing, or what the embedder
+            //! asked for.
             std::vector<std::shared_ptr<Timeline> > compare;
+            std::optional<std::vector<std::shared_ptr<Timeline> > > timelines;
             std::shared_ptr<ftk::Observable<bool> > frameView;
             std::shared_ptr<ftk::Observable<bool> > scrollBarsVisible;
             std::shared_ptr<ftk::Observable<bool> > autoScroll;
@@ -202,7 +207,7 @@ namespace tl
             p.compareObserver.reset();
 
             p.player = player;
-            p.compare = p.player ? p.player->getCompare() : std::vector<std::shared_ptr<Timeline> >();
+            p.compare = _getCompare();
             p.scale = _getTimelineScale();
 
             _timelineUpdate();
@@ -215,10 +220,17 @@ namespace tl
                 // the items are rebuilt when the set changes.
                 p.compareObserver = ftk::ListObserver<std::shared_ptr<Timeline> >::create(
                     p.player->observeCompare(),
-                    [this](const std::vector<std::shared_ptr<Timeline> >& value)
+                    [this](const std::vector<std::shared_ptr<Timeline> >&)
                     {
-                        _p->compare = value;
-                        _timelineUpdate();
+                        // Only when the drawn timelines are the player's; an
+                        // embedder that says which to draw is not overruled by
+                        // the player changing what it compares.
+                        FTK_P();
+                        if (!p.timelines.has_value())
+                        {
+                            p.compare = _getCompare();
+                            _timelineUpdate();
+                        }
                     },
                     ftk::ObserverAction::Suppress);
 
@@ -257,6 +269,29 @@ namespace tl
         double TimelineWidget::getViewZoom() const
         {
             return _p->scale;
+        }
+
+        void TimelineWidget::setTimelines(
+            const std::optional<std::vector<std::shared_ptr<Timeline> > >& value)
+        {
+            FTK_P();
+            if (value == p.timelines)
+                return;
+            p.timelines = value;
+            p.compare = _getCompare();
+            _timelineUpdate();
+            setSizeUpdate();
+            setDrawUpdate();
+        }
+
+        std::vector<std::shared_ptr<Timeline> > TimelineWidget::_getCompare() const
+        {
+            FTK_P();
+            if (p.timelines.has_value())
+                return p.timelines.value();
+            return p.player ?
+                p.player->getCompare() :
+                std::vector<std::shared_ptr<Timeline> >();
         }
 
         void TimelineWidget::setViewZoom(double value)
