@@ -145,6 +145,20 @@ namespace tl
 
             ///@}
 
+            //! \name Labels
+            ///@{
+
+            //! Set the label naming the given timeline, zero being the
+            //! player's own and the rest what it is compared against.
+            //!
+            //! Only drawn when more than one timeline is shown, since one on
+            //! its own does not need telling apart. Left unset a timeline is
+            //! named after its file, which is what the label is for; set it
+            //! to say more than the file name does.
+            TL_API void setLabel(int index, const std::string&);
+
+            ///@}
+
             //! \name Options
             ///@{
 
@@ -195,6 +209,7 @@ namespace tl
             double _getTimelineScaleMax() const;
 
             void _setItemScale();
+            void _labelsUpdate();
 
             void _scrollUpdate();
             void _timelineUpdate();

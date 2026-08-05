@@ -397,6 +397,21 @@ namespace tl
             setDrawUpdate();
         }
 
+        void TimelineItem::setLabel(const std::string& value)
+        {
+            FTK_P();
+            if (value == p.label)
+                return;
+            const bool had = !p.label.empty();
+            p.label = value;
+            if (had != !p.label.empty())
+            {
+                // Gaining or losing the label changes how tall the item is.
+                setSizeUpdate();
+            }
+            setDrawUpdate();
+        }
+
         void TimelineItem::setScale(double value)
         {
             if (value == _scale)
@@ -448,6 +463,7 @@ namespace tl
             FTK_P();
 
             int y =
+                p.size.labelHeight +
                 p.size.margin +
                 p.size.fontMetrics.lineHeight +
                 p.size.margin +
@@ -567,6 +583,10 @@ namespace tl
                 _itemsTextUpdate(event);
             }
 
+            p.size.labelHeight = p.label.empty() ?
+                0 :
+                (p.size.margin * 2 + p.size.fontMetrics.lineHeight);
+
             // An item is as tall as its labels, its media, and its border. A
             // track is as tall as its tallest item, so a track of gaps is no
             // taller than the gaps need.
@@ -620,6 +640,7 @@ namespace tl
             }
             p.size.sizeHint = ftk::Size2I(
                 _timeRange.duration().rescaled_to(1.0).value() * _scale,
+                p.size.labelHeight +
                 p.size.margin +
                 p.size.fontMetrics.lineHeight +
                 p.size.margin +
@@ -729,8 +750,29 @@ namespace tl
 
             const ftk::Box2I& g = getGeometry();
 
+            // Above the ruler and scrolling with it, so that the timeline
+            // being looked at stays named while its rows go by.
+            if (p.size.labelHeight > 0)
+            {
+                const ftk::Box2I box(
+                    g.min.x,
+                    p.size.scrollArea.min.y + g.min.y,
+                    g.w(),
+                    p.size.labelHeight);
+                event.render->drawRect(
+                    box, event.style->getColorRole(ftk::ColorRole::Header));
+                event.render->drawText(
+                    event.fontSystem->getGlyphs(p.label, p.size.fontInfo),
+                    p.size.fontMetrics,
+                    ftk::V2I(
+                        box.min.x + p.size.margin,
+                        box.min.y + p.size.margin),
+                    event.style->getColorRole(ftk::ColorRole::Text));
+            }
+
             int y =
                 p.size.scrollArea.min.y +
+                p.size.labelHeight +
                 g.min.y;
             int h =
                 p.size.margin +
@@ -1735,6 +1777,7 @@ namespace tl
                     const ftk::Box2I box(
                         x0,
                         p.size.scrollArea.min.y +
+                        p.size.labelHeight +
                         g.min.y,
                         x1 - x0 + 1,
                         h);
@@ -1748,6 +1791,7 @@ namespace tl
                     ftk::Box2I box(
                         x0,
                         p.size.scrollArea.min.y +
+                        p.size.labelHeight +
                         g.min.y,
                         x1 - x0 + 1,
                         h);
@@ -1757,6 +1801,7 @@ namespace tl
                     box = ftk::Box2I(
                         x0,
                         p.size.scrollArea.min.y +
+                        p.size.labelHeight +
                         g.min.y,
                         x1 - x0 + 1,
                         h);
@@ -1782,6 +1827,7 @@ namespace tl
                 const ftk::Box2I g2(
                     timeToPos(OTIO_NS::RationalTime(frameMarker, rate)),
                     p.size.scrollArea.min.y +
+                    p.size.labelHeight +
                     g.min.y,
                     p.size.border * 2,
                     p.size.margin +
@@ -1823,6 +1869,7 @@ namespace tl
                     const ftk::Box2I box(
                         x0,
                         p.size.scrollArea.min.y +
+                        p.size.labelHeight +
                         g.min.y +
                         p.size.margin +
                         p.size.fontMetrics.lineHeight +
@@ -1852,6 +1899,7 @@ namespace tl
                     const ftk::Box2I box(
                         x0,
                         p.size.scrollArea.min.y +
+                        p.size.labelHeight +
                         g.min.y +
                         p.size.margin +
                         p.size.fontMetrics.lineHeight +
@@ -1898,6 +1946,7 @@ namespace tl
                                 p.size.border +
                                 p.size.margin,
                                 p.size.scrollArea.min.y +
+                                p.size.labelHeight +
                                 g.min.y +
                                 p.size.margin),
                             event.style->getColorRole(ftk::ColorRole::TextDisabled));
@@ -1931,6 +1980,7 @@ namespace tl
                         rects.emplace_back(ftk::Box2I(
                             x,
                             p.size.scrollArea.min.y +
+                            p.size.labelHeight +
                             g.min.y +
                             p.size.margin +
                             p.size.fontMetrics.lineHeight,
@@ -1952,6 +2002,7 @@ namespace tl
                         rects.emplace_back(ftk::Box2I(
                             x,
                             p.size.scrollArea.min.y +
+                            p.size.labelHeight +
                             g.min.y +
                             p.size.margin +
                             p.size.fontMetrics.lineHeight,
@@ -1986,6 +2037,7 @@ namespace tl
                 const ftk::V2I pos(
                     timeToPos(*p.currentTime),
                     p.size.scrollArea.min.y +
+                    p.size.labelHeight +
                     g.min.y);
 
                 event.render->drawRect(

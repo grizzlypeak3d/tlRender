@@ -86,6 +86,13 @@ namespace tl
             //! Set colors for items.
             TL_API void setItemColors(const ItemColors&);
 
+            //! Set the label naming this timeline.
+            //!
+            //! Drawn above the time ruler when it is not empty, and taking up
+            //! no room when it is. A timeline shown on its own does not need
+            //! naming; several drawn together do.
+            TL_API void setLabel(const std::string&);
+
             //! Get the time range.
             TL_API const OTIO_NS::TimeRange& getTimeRange() const;
 

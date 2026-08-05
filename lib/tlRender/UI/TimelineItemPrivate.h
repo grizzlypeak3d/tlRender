@@ -38,6 +38,10 @@ namespace tl
             std::vector<int> frameMarkers;
             ItemColors itemColors;
 
+            //! Names the timeline when there is more than one of them drawn.
+            //! Empty otherwise, and then it takes up no room.
+            std::string label;
+
             //! A clip or gap.
             struct Item
             {
@@ -169,6 +173,7 @@ namespace tl
                 ftk::FontMetrics fontMetrics;
                 ftk::FontInfo itemFontInfo;
                 ftk::FontMetrics itemFontMetrics;
+                int labelHeight = 0;
                 ftk::Box2I scrollArea;
                 ftk::Size2I sizeHint;
             };

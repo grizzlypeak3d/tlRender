@@ -38,6 +38,7 @@ namespace tl
             std::shared_ptr<ftk::Observable<std::optional<OTIO_NS::RationalTime> > > timeScrub;
             std::vector<int> frameMarkers;
             std::vector<ItemColors> itemColors;
+            std::vector<std::string> labels;
             std::shared_ptr<ftk::Observable<ItemOptions> > itemOptions;
             std::shared_ptr<ftk::Observable<DisplayOptions> > displayOptions;
             OTIO_NS::TimeRange timeRange;
@@ -390,6 +391,45 @@ namespace tl
             if (index < static_cast<int>(p.timelineItems.size()))
             {
                 p.timelineItems[index]->setItemColors(value);
+            }
+        }
+
+        void TimelineWidget::setLabel(int index, const std::string& value)
+        {
+            FTK_P();
+            if (index < 0)
+                return;
+            if (index >= static_cast<int>(p.labels.size()))
+            {
+                p.labels.resize(index + 1);
+            }
+            if (value == p.labels[index])
+                return;
+            p.labels[index] = value;
+            _labelsUpdate();
+        }
+
+        void TimelineWidget::_labelsUpdate()
+        {
+            FTK_P();
+
+            // Nothing to tell apart when there is only one.
+            const bool several = p.timelineItems.size() > 1;
+            for (size_t i = 0; i < p.timelineItems.size(); ++i)
+            {
+                std::string label;
+                if (several)
+                {
+                    label = i < p.labels.size() ? p.labels[i] : std::string();
+                    if (label.empty())
+                    {
+                        const auto& timeline = 0 == i ?
+                            p.player->getTimeline() :
+                            p.compare[i - 1];
+                        label = timeline->getPath().getFileName();
+                    }
+                }
+                p.timelineItems[i]->setLabel(label);
             }
         }
 
@@ -777,6 +817,7 @@ namespace tl
                             p.timelineItems[i]->setItemColors(p.itemColors[i]);
                         }
                     }
+                    _labelsUpdate();
                     p.scrollWidget->setScrollPos(scrollPos);
 
                     // Only the player's item can be scrubbed, so it is the
