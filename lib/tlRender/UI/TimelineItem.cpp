@@ -240,6 +240,7 @@ namespace tl
 
         void TimelineItem::_init(
             const std::shared_ptr<ftk::Context>& context,
+            const std::shared_ptr<Timeline>& timeline,
             const std::shared_ptr<Player>& player,
             double scale,
             const ItemOptions& options,
@@ -247,7 +248,9 @@ namespace tl
             const std::shared_ptr<ItemData>& itemData,
             const std::shared_ptr<IWidget>& parent)
         {
-            const OTIO_NS::TimeRange timeRange = player->getTimeRange();
+            const OTIO_NS::TimeRange timeRange = player ?
+                player->getTimeRange() :
+                timeline->getTimeRange();
             IMouseWidget::_init(context, "tl::ui::TimelineItem", parent);
             FTK_P();
 
@@ -267,6 +270,7 @@ namespace tl
             _setMouseHoverEnabled(true);
             _setMousePressEnabled(true, ftk::MouseButton::Left, 0);
 
+            p.timeline = timeline;
             p.player = player;
             p.thumbnailSystem = context->getSystem<ThumbnailSystem>();
 
@@ -278,29 +282,32 @@ namespace tl
             _tracksUpdate();
             _textUpdate();
 
-            p.currentTimeObserver = ftk::Observer<OTIO_NS::RationalTime>::create(
-                p.player->observeCurrentTime(),
-                [this](const OTIO_NS::RationalTime& value)
-                {
-                    _p->currentTime = value;
-                    setDrawUpdate();
-                });
+            if (p.player)
+            {
+                p.currentTimeObserver = ftk::Observer<OTIO_NS::RationalTime>::create(
+                    p.player->observeCurrentTime(),
+                    [this](const OTIO_NS::RationalTime& value)
+                    {
+                        _p->currentTime = value;
+                        setDrawUpdate();
+                    });
 
-            p.inOutRangeObserver = ftk::Observer<OTIO_NS::TimeRange>::create(
-                p.player->observeInOutRange(),
-                [this](const OTIO_NS::TimeRange value)
-                {
-                    _p->inOutRange = value;
-                    setDrawUpdate();
-                });
+                p.inOutRangeObserver = ftk::Observer<OTIO_NS::TimeRange>::create(
+                    p.player->observeInOutRange(),
+                    [this](const OTIO_NS::TimeRange value)
+                    {
+                        _p->inOutRange = value;
+                        setDrawUpdate();
+                    });
 
-            p.cacheInfoObserver = ftk::Observer<PlayerCacheInfo>::create(
-                p.player->observeCacheInfo(),
-                [this](const PlayerCacheInfo& value)
-                {
-                    _p->cacheInfo = value;
-                    setDrawUpdate();
-                });
+                p.cacheInfoObserver = ftk::Observer<PlayerCacheInfo>::create(
+                    p.player->observeCacheInfo(),
+                    [this](const PlayerCacheInfo& value)
+                    {
+                        _p->cacheInfo = value;
+                        setDrawUpdate();
+                    });
+            }
         }
 
         TimelineItem::TimelineItem() :
@@ -324,7 +331,30 @@ namespace tl
             auto out = std::shared_ptr<TimelineItem>(new TimelineItem);
             out->_init(
                 context,
+                player->getTimeline(),
                 player,
+                scale,
+                options,
+                displayOptions,
+                itemData,
+                parent);
+            return out;
+        }
+
+        std::shared_ptr<TimelineItem> TimelineItem::create(
+            const std::shared_ptr<ftk::Context>& context,
+            const std::shared_ptr<Timeline>& timeline,
+            double scale,
+            const ItemOptions& options,
+            const DisplayOptions& displayOptions,
+            const std::shared_ptr<ItemData>& itemData,
+            const std::shared_ptr<IWidget>& parent)
+        {
+            auto out = std::shared_ptr<TimelineItem>(new TimelineItem);
+            out->_init(
+                context,
+                timeline,
+                nullptr,
                 scale,
                 options,
                 displayOptions,
@@ -738,6 +768,8 @@ namespace tl
                 p.player->seek(time);
                 break;
             }
+            // Scrubbing is only entered with a player, so there is none to
+            // check for here.
             default: break;
             }
         }
@@ -747,7 +779,8 @@ namespace tl
             IMouseWidget::mousePressEvent(event);
             FTK_P();
             takeKeyFocus();
-            if (_options.inputEnabled &&
+            if (p.player &&
+                _options.inputEnabled &&
                 ftk::MouseButton::Left == event.button &&
                 0 == event.modifiers)
             {
@@ -901,7 +934,7 @@ namespace tl
         {
             FTK_P();
 
-            auto timeline = p.player->getTimeline();
+            auto timeline = p.timeline;
             const auto otioTimeline = timeline->getTimeline();
             for (const auto& child : otioTimeline->tracks()->children())
             {

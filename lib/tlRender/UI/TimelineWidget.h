@@ -48,6 +48,9 @@ namespace tl
             //! \name View
             ///@{
 
+            //! Get the view zoom, in pixels per second.
+            TL_API double getViewZoom() const;
+
             //! Set the view zoom.
             TL_API void setViewZoom(double);
 
@@ -128,8 +131,9 @@ namespace tl
             //! \name Item Colors
             ///@{
 
-            //! Get the item colors.
-            TL_API const ItemColors& getItemColors() const;
+            //! Get the item colors for the given timeline, zero being the
+            //! player's own and the rest what it is compared against.
+            TL_API const ItemColors& getItemColors(int index) const;
 
             //! Set colors for items.
             //!
@@ -137,7 +141,7 @@ namespace tl
             //! timeline does not -- which of them a comparison found changed,
             //! say. Kept outside the timeline because the players read it on
             //! their own threads and it is not ours to write to.
-            TL_API void setItemColors(const ItemColors&);
+            TL_API void setItemColors(int index, const ItemColors&);
 
             ///@}
 
@@ -183,6 +187,10 @@ namespace tl
                 const ftk::V2I& focus,
                 const ftk::V2I& scrollPos);
 
+            std::shared_ptr<ItemData> _getItemData(
+                const std::shared_ptr<Timeline>&) const;
+
+            double _getDuration() const;
             double _getTimelineScale() const;
             double _getTimelineScaleMax() const;
 

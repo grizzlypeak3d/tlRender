@@ -33,6 +33,7 @@ namespace tl
         protected:
             void _init(
                 const std::shared_ptr<ftk::Context>&,
+                const std::shared_ptr<Timeline>&,
                 const std::shared_ptr<Player>&,
                 double scale,
                 const ItemOptions&,
@@ -45,10 +46,25 @@ namespace tl
         public:
             TL_API virtual ~TimelineItem();
 
-            //! Create a new item.
+            //! Create a new item for a timeline that is being played.
             TL_API static std::shared_ptr<TimelineItem> create(
                 const std::shared_ptr<ftk::Context>&,
                 const std::shared_ptr<Player>&,
+                double scale,
+                const ItemOptions&,
+                const DisplayOptions&,
+                const std::shared_ptr<ItemData>&,
+                const std::shared_ptr<IWidget>& parent = nullptr);
+
+            //! Create a new item for a timeline that is not being played.
+            //!
+            //! For showing a timeline alongside the one being played -- an
+            //! earlier version of it, say. It is drawn without a playhead,
+            //! in/out points, or cache bar, since those belong to a player,
+            //! and it cannot be scrubbed: there is nothing to seek.
+            TL_API static std::shared_ptr<TimelineItem> create(
+                const std::shared_ptr<ftk::Context>&,
+                const std::shared_ptr<Timeline>&,
                 double scale,
                 const ItemOptions&,
                 const DisplayOptions&,

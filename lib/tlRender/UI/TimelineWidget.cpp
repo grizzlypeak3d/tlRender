@@ -5,6 +5,7 @@
 
 #include <tlRender/Timeline/TimeUnits.h>
 
+#include <ftk/UI/RowLayout.h>
 #include <ftk/UI/ScrollWidget.h>
 
 namespace tl
@@ -18,8 +19,14 @@ namespace tl
 
         struct TimelineWidget::Private
         {
-            std::shared_ptr<ItemData> itemData;
+            std::shared_ptr<ITimeUnitsModel> timeUnitsModel;
+
+            //! One per item: the media time conversion is bound to a
+            //! particular timeline, so it cannot be shared between them.
+            std::vector<std::shared_ptr<ItemData> > itemData;
+
             std::shared_ptr<Player> player;
+            std::vector<std::shared_ptr<Timeline> > compare;
             std::shared_ptr<ftk::Observable<bool> > frameView;
             std::shared_ptr<ftk::Observable<bool> > scrollBarsVisible;
             std::shared_ptr<ftk::Observable<bool> > autoScroll;
@@ -30,7 +37,7 @@ namespace tl
             std::shared_ptr<ftk::Observable<bool> > scrub;
             std::shared_ptr<ftk::Observable<std::optional<OTIO_NS::RationalTime> > > timeScrub;
             std::vector<int> frameMarkers;
-            ItemColors itemColors;
+            std::vector<ItemColors> itemColors;
             std::shared_ptr<ftk::Observable<ItemOptions> > itemOptions;
             std::shared_ptr<ftk::Observable<DisplayOptions> > displayOptions;
             OTIO_NS::TimeRange timeRange;
@@ -40,8 +47,13 @@ namespace tl
             bool sizeInit = true;
             float displayScale = 0.F;
 
+            //! One scroll area for every timeline, so that they share a scroll
+            //! position rather than being kept in step with each other. The
+            //! first item is the player's; the rest are what it is being
+            //! compared against.
             std::shared_ptr<ftk::ScrollWidget> scrollWidget;
-            std::shared_ptr<TimelineItem> timelineItem;
+            std::shared_ptr<ftk::VerticalLayout> layout;
+            std::vector<std::shared_ptr<TimelineItem> > timelineItems;
 
             enum class MouseMode
             {
@@ -60,6 +72,7 @@ namespace tl
             std::shared_ptr<ftk::Observer<Playback> > playbackObserver;
             std::shared_ptr<ftk::Observer<OTIO_NS::RationalTime> > currentTimeObserver;
             std::shared_ptr<ftk::Observer<std::string> > mediaReferenceKeyObserver;
+            std::shared_ptr<ftk::ListObserver<std::shared_ptr<Timeline> > > compareObserver;
             std::shared_ptr<ftk::Observer<bool> > scrubObserver;
             std::shared_ptr<ftk::Observer<std::optional<OTIO_NS::RationalTime> > > timeScrubObserver;
         };
@@ -72,8 +85,7 @@ namespace tl
             IWidget::_init(context, "tl::ui::TimelineWidget", parent);
             FTK_P();
 
-            p.itemData = std::make_shared<ItemData>();
-            p.itemData->timeUnitsModel = timeUnitsModel ?
+            p.timeUnitsModel = timeUnitsModel ?
                 timeUnitsModel :
                 TimeUnitsModel::create(context);
 
@@ -93,6 +105,10 @@ namespace tl
             p.scrollWidget->setScrollBarsVisible(p.scrollBarsVisible->get());
             p.scrollWidget->setScrollEventsEnabled(false);
             p.scrollWidget->setBorder(false);
+
+            p.layout = ftk::VerticalLayout::create(context);
+            p.layout->setSpacingRole(ftk::SizeRole::None);
+            p.scrollWidget->setWidget(p.layout);
         }
 
         TimelineWidget::TimelineWidget() :
@@ -123,7 +139,7 @@ namespace tl
 
         const std::shared_ptr<ITimeUnitsModel>& TimelineWidget::getTimeUnitsModel() const
         {
-            return _p->itemData->timeUnitsModel;
+            return _p->timeUnitsModel;
         }
 
         std::shared_ptr<Player>& TimelineWidget::getPlayer() const
@@ -142,41 +158,28 @@ namespace tl
             p.playbackObserver.reset();
             p.currentTimeObserver.reset();
             p.mediaReferenceKeyObserver.reset();
-            p.scrollWidget->setWidget(nullptr);
-            p.timelineItem.reset();
+            p.compareObserver.reset();
 
             p.player = player;
+            p.compare = p.player ? p.player->getCompare() : std::vector<std::shared_ptr<Timeline> >();
             p.scale = _getTimelineScale();
-
-            // Weak, because the item data belongs to this widget and the
-            // player does not.
-            if (p.player)
-            {
-                std::weak_ptr<Player> weak = p.player;
-                p.itemData->toMediaTime =
-                    [weak](const OTIO_NS::RationalTime& value)
-                    {
-                        if (auto player = weak.lock())
-                        {
-                            if (const auto time =
-                                player->getTimeline()->getMediaTime(value))
-                            {
-                                return *time;
-                            }
-                        }
-                        return value;
-                    };
-            }
-            else
-            {
-                p.itemData->toMediaTime = nullptr;
-            }
 
             _timelineUpdate();
 
             if (p.player)
             {
                 p.timeRange = p.player->getTimeRange();
+
+                // The compare timelines are drawn beside the player's own, so
+                // the items are rebuilt when the set changes.
+                p.compareObserver = ftk::ListObserver<std::shared_ptr<Timeline> >::create(
+                    p.player->observeCompare(),
+                    [this](const std::vector<std::shared_ptr<Timeline> >& value)
+                    {
+                        _p->compare = value;
+                        _timelineUpdate();
+                    },
+                    ftk::ObserverAction::Suppress);
 
                 p.playbackObserver = ftk::Observer<Playback>::create(
                     p.player->observePlayback(),
@@ -205,6 +208,11 @@ namespace tl
                         _scrollUpdate();
                     });
             }
+        }
+
+        double TimelineWidget::getViewZoom() const
+        {
+            return _p->scale;
         }
 
         void TimelineWidget::setViewZoom(double value)
@@ -324,9 +332,9 @@ namespace tl
             FTK_P();
             if (p.stopOnScrub->setIfChanged(value))
             {
-                if (p.timelineItem)
+                if (!p.timelineItems.empty())
                 {
-                    p.timelineItem->setStopOnScrub(value);
+                    p.timelineItems.front()->setStopOnScrub(value);
                 }
             }
         }
@@ -352,26 +360,36 @@ namespace tl
             if (value == p.frameMarkers)
                 return;
             p.frameMarkers = value;
-            if (p.timelineItem)
+            if (!p.timelineItems.empty())
             {
-                p.timelineItem->setFrameMarkers(value);
+                p.timelineItems.front()->setFrameMarkers(value);
             }
         }
 
-        const ItemColors& TimelineWidget::getItemColors() const
-        {
-            return _p->itemColors;
-        }
-
-        void TimelineWidget::setItemColors(const ItemColors& value)
+        const ItemColors& TimelineWidget::getItemColors(int index) const
         {
             FTK_P();
-            if (value == p.itemColors)
+            static const ItemColors empty;
+            return index >= 0 && index < static_cast<int>(p.itemColors.size()) ?
+                p.itemColors[index] :
+                empty;
+        }
+
+        void TimelineWidget::setItemColors(int index, const ItemColors& value)
+        {
+            FTK_P();
+            if (index < 0)
                 return;
-            p.itemColors = value;
-            if (p.timelineItem)
+            if (index >= static_cast<int>(p.itemColors.size()))
             {
-                p.timelineItem->setItemColors(value);
+                p.itemColors.resize(index + 1);
+            }
+            if (value == p.itemColors[index])
+                return;
+            p.itemColors[index] = value;
+            if (index < static_cast<int>(p.timelineItems.size()))
+            {
+                p.timelineItems[index]->setItemColors(value);
             }
         }
 
@@ -390,9 +408,9 @@ namespace tl
             FTK_P();
             if (p.itemOptions->setIfChanged(value))
             {
-                if (p.timelineItem)
+                for (const auto& item : p.timelineItems)
                 {
-                    p.timelineItem->setOptions(value);
+                    item->setOptions(value);
                 }
             }
         }
@@ -412,9 +430,9 @@ namespace tl
             FTK_P();
             if (p.displayOptions->setIfChanged(value))
             {
-                if (p.timelineItem)
+                for (const auto& item : p.timelineItems)
                 {
-                    p.timelineItem->setDisplayOptions(value);
+                    item->setDisplayOptions(value);
                 }
                 _scrollUpdate();
             }
@@ -436,8 +454,8 @@ namespace tl
                 p.sizeInit = false;
                 frameView();
             }
-            else if (p.timelineItem &&
-                p.timelineItem->getSizeHint().w <
+            else if (!p.timelineItems.empty() &&
+                p.layout->getSizeHint().w <
                 p.scrollWidget->getScrollInfo().viewport.w())
             {
                 setFrameView(true);
@@ -578,14 +596,34 @@ namespace tl
             }
         }
 
+        double TimelineWidget::_getDuration() const
+        {
+            FTK_P();
+
+            // The longest of them, so that framing the view frames all of
+            // them: a shorter timeline stops early and leaves the rest of its
+            // row empty, which is the difference being looked for.
+            double out = 0.0;
+            if (p.player)
+            {
+                out = p.player->getTimeRange().duration().rescaled_to(1.0).value();
+            }
+            for (const auto& timeline : p.compare)
+            {
+                out = std::max(
+                    out,
+                    timeline->getTimeRange().duration().rescaled_to(1.0).value());
+            }
+            return out;
+        }
+
         double TimelineWidget::_getTimelineScale() const
         {
             FTK_P();
             double out = 1.0;
             if (p.player)
             {
-                const OTIO_NS::TimeRange& timeRange = p.player->getTimeRange();
-                const double duration = timeRange.duration().rescaled_to(1.0).value();
+                const double duration = _getDuration();
                 if (duration > 0.0)
                 {
                     const ftk::Box2I scrollViewport = p.scrollWidget->getScrollInfo().viewport;
@@ -602,8 +640,7 @@ namespace tl
             if (p.player)
             {
                 const ftk::Box2I scrollViewport = p.scrollWidget->getScrollInfo().viewport;
-                const OTIO_NS::TimeRange& timeRange = p.player->getTimeRange();
-                const double duration = timeRange.duration().rescaled_to(1.0).value();
+                const double duration = _getDuration();
                 if (duration < 1.0)
                 {
                     if (duration > 0.0)
@@ -622,16 +659,18 @@ namespace tl
         void TimelineWidget::_setItemScale()
         {
             FTK_P();
-            if (p.timelineItem)
+            for (const auto& item : p.timelineItems)
             {
-                p.timelineItem->setScale(p.scale);
+                item->setScale(p.scale);
             }
         }
 
         void TimelineWidget::_scrollUpdate()
         {
             FTK_P();
-            if (p.timelineItem &&
+            // Follows the player's current time; the timelines it is compared
+            // against have no playhead of their own to follow.
+            if (!p.timelineItems.empty() &&
                 p.autoScroll->get() &&
                 !p.scrub->get() &&
                 Private::MouseMode::None == p.mouse.mode)
@@ -657,6 +696,34 @@ namespace tl
                 ftk::ScrollType::Both);
         }
 
+        std::shared_ptr<ItemData> TimelineWidget::_getItemData(
+            const std::shared_ptr<Timeline>& timeline) const
+        {
+            FTK_P();
+            auto out = std::make_shared<ItemData>();
+            out->timeUnitsModel = p.timeUnitsModel;
+            out->speed = timeline->getTimeRange().duration().rate();
+            out->dir = timeline->getPath().getDir();
+            out->options = timeline->getOptions();
+
+            // Weak, because the item data belongs to this widget and the
+            // timeline does not.
+            std::weak_ptr<Timeline> weak = timeline;
+            out->toMediaTime =
+                [weak](const OTIO_NS::RationalTime& value)
+                {
+                    if (auto timeline = weak.lock())
+                    {
+                        if (const auto time = timeline->getMediaTime(value))
+                        {
+                            return *time;
+                        }
+                    }
+                    return value;
+                };
+            return out;
+        }
+
         void TimelineWidget::_timelineUpdate()
         {
             FTK_P();
@@ -665,31 +732,57 @@ namespace tl
 
             p.scrubObserver.reset();
             p.timeScrubObserver.reset();
-            p.scrollWidget->setWidget(nullptr);
-            p.timelineItem.reset();
+            for (const auto& item : p.timelineItems)
+            {
+                item->setParent(nullptr);
+            }
+            p.timelineItems.clear();
+            p.itemData.clear();
 
             if (p.player)
             {
                 if (auto context = getContext())
                 {
-                    p.itemData->speed = p.player->getDefaultSpeed();
-                    p.itemData->dir = p.player->getPath().getDir();
-                    p.itemData->options = p.player->getOptions();
-                    p.timelineItem = TimelineItem::create(
+                    // The player's own timeline first, then what it is being
+                    // compared against, so that the item index and the compare
+                    // index agree with each other.
+                    p.itemData.push_back(_getItemData(p.player->getTimeline()));
+                    p.timelineItems.push_back(TimelineItem::create(
                         context,
                         p.player,
                         p.scale,
                         p.itemOptions->get(),
                         p.displayOptions->get(),
-                        p.itemData);
-                    p.timelineItem->setStopOnScrub(p.stopOnScrub->get());
-                    p.timelineItem->setFrameMarkers(p.frameMarkers);
-                    p.timelineItem->setItemColors(p.itemColors);
-                    p.scrollWidget->setScrollPos(scrollPos);
-                    p.scrollWidget->setWidget(p.timelineItem);
+                        p.itemData.back(),
+                        p.layout));
+                    for (const auto& timeline : p.compare)
+                    {
+                        p.itemData.push_back(_getItemData(timeline));
+                        p.timelineItems.push_back(TimelineItem::create(
+                            context,
+                            timeline,
+                            p.scale,
+                            p.itemOptions->get(),
+                            p.displayOptions->get(),
+                            p.itemData.back(),
+                            p.layout));
+                    }
 
+                    p.timelineItems.front()->setStopOnScrub(p.stopOnScrub->get());
+                    p.timelineItems.front()->setFrameMarkers(p.frameMarkers);
+                    for (size_t i = 0; i < p.timelineItems.size(); ++i)
+                    {
+                        if (i < p.itemColors.size())
+                        {
+                            p.timelineItems[i]->setItemColors(p.itemColors[i]);
+                        }
+                    }
+                    p.scrollWidget->setScrollPos(scrollPos);
+
+                    // Only the player's item can be scrubbed, so it is the
+                    // only one there is anything to hear from.
                     p.scrubObserver = ftk::Observer<bool>::create(
-                        p.timelineItem->observeScrub(),
+                        p.timelineItems.front()->observeScrub(),
                         [this](bool value)
                         {
                             _p->scrub->setIfChanged(value);
@@ -697,7 +790,7 @@ namespace tl
                         });
 
                     p.timeScrubObserver = ftk::Observer<std::optional<OTIO_NS::RationalTime> >::create(
-                        p.timelineItem->observeTimeScrub(),
+                        p.timelineItems.front()->observeTimeScrub(),
                         [this](const std::optional<OTIO_NS::RationalTime>& value)
                         {
                             _p->timeScrub->setIfChanged(value);

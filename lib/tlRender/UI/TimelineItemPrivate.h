@@ -22,6 +22,12 @@ namespace tl
 
         struct TimelineItem::Private
         {
+            std::shared_ptr<Timeline> timeline;
+
+            //! Null when the item is drawn from a timeline that is not being
+            //! played. Everything the player provides -- the current time, the
+            //! in/out range, the cache -- is drawn only when it has a value,
+            //! so leaving it out draws a timeline without them.
             std::shared_ptr<Player> player;
             std::optional<OTIO_NS::RationalTime> currentTime;
             std::optional<OTIO_NS::TimeRange> inOutRange;
