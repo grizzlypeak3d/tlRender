@@ -50,6 +50,17 @@ namespace tl
             int scrollPos = 0;
             std::vector<int> frameMarkers;
             DisplayOptions displayOptions;
+            ItemOptions options;
+            bool stopOnScrub = true;
+            std::shared_ptr<ftk::Observable<bool> > scrub;
+            std::shared_ptr<ftk::Observable<std::optional<OTIO_NS::RationalTime> > > timeScrub;
+
+            enum class MouseMode
+            {
+                None,
+                CurrentTime
+            };
+            MouseMode mouseMode = MouseMode::None;
 
             std::optional<OTIO_NS::RationalTime> currentTime;
             std::optional<OTIO_NS::TimeRange> inOutRange;
@@ -79,9 +90,16 @@ namespace tl
             const std::shared_ptr<ItemData>& data,
             const std::shared_ptr<IWidget>& parent)
         {
-            IWidget::_init(context, "tl::ui::TimelineRuler", parent);
+            IMouseWidget::_init(context, "tl::ui::TimelineRuler", parent);
             FTK_P();
             p.data = data;
+            p.scrub = ftk::Observable<bool>::create(false);
+            p.timeScrub = ftk::Observable<std::optional<OTIO_NS::RationalTime> >::create();
+
+            // The same binding the timelines take, so that the ruler is
+            // dragged to scrub as the timelines under it are.
+            _setMouseHoverEnabled(true);
+            _setMousePressEnabled(true, ftk::MouseButton::Left, 0);
         }
 
         TimelineRuler::TimelineRuler() :
@@ -193,6 +211,80 @@ namespace tl
             setDrawUpdate();
         }
 
+        void TimelineRuler::setOptions(const ItemOptions& value)
+        {
+            _p->options = value;
+        }
+
+        void TimelineRuler::setStopOnScrub(bool value)
+        {
+            _p->stopOnScrub = value;
+        }
+
+        std::shared_ptr<ftk::IObservable<bool> > TimelineRuler::observeScrub() const
+        {
+            return _p->scrub;
+        }
+
+        std::shared_ptr<ftk::IObservable<std::optional<OTIO_NS::RationalTime> > > TimelineRuler::observeTimeScrub() const
+        {
+            return _p->timeScrub;
+        }
+
+        void TimelineRuler::mouseMoveEvent(ftk::MouseMoveEvent& event)
+        {
+            IMouseWidget::mouseMoveEvent(event);
+            FTK_P();
+            if (Private::MouseMode::CurrentTime == p.mouseMode)
+            {
+                const OTIO_NS::RationalTime time = _posToTimeClamped(event.pos.x);
+                p.timeScrub->setIfChanged(time);
+                p.player->seek(time);
+            }
+        }
+
+        void TimelineRuler::mousePressEvent(ftk::MouseClickEvent& event)
+        {
+            IMouseWidget::mousePressEvent(event);
+            FTK_P();
+            takeKeyFocus();
+            if (p.player &&
+                p.options.inputEnabled &&
+                ftk::MouseButton::Left == event.button &&
+                0 == event.modifiers)
+            {
+                p.mouseMode = Private::MouseMode::CurrentTime;
+                if (p.stopOnScrub)
+                {
+                    p.player->stop();
+                }
+                const OTIO_NS::RationalTime time = _posToTimeClamped(event.pos.x);
+                p.scrub->setIfChanged(true);
+                p.timeScrub->setIfChanged(time);
+                p.player->seek(time);
+            }
+        }
+
+        void TimelineRuler::mouseReleaseEvent(ftk::MouseClickEvent& event)
+        {
+            IMouseWidget::mouseReleaseEvent(event);
+            FTK_P();
+            p.scrub->setIfChanged(false);
+            p.mouseMode = Private::MouseMode::None;
+        }
+
+        OTIO_NS::RationalTime TimelineRuler::_posToTimeClamped(float value) const
+        {
+            FTK_P();
+            // Clamped, unlike the one the ticks are drawn from: a seek has to
+            // land inside the range, while a tick past the end is only a tick
+            // that is not drawn.
+            return ftk::clamp(
+                _posToTime(value),
+                p.timeRange.start_time(),
+                p.timeRange.end_time_inclusive());
+        }
+
         int TimelineRuler::timeToPos(const OTIO_NS::RationalTime& value) const
         {
             FTK_P();
@@ -284,7 +376,7 @@ namespace tl
 
         void TimelineRuler::sizeHintEvent(const ftk::SizeHintEvent& event)
         {
-            IWidget::sizeHintEvent(event);
+            IMouseWidget::sizeHintEvent(event);
             FTK_P();
             if (p.size.init || p.size.fontInfo != event.style->getFont(
                 ftk::FontType::Mono, event.displayScale))
@@ -317,7 +409,7 @@ namespace tl
             const ftk::Box2I& drawRect,
             const ftk::DrawEvent& event)
         {
-            IWidget::drawEvent(drawRect, event);
+            IMouseWidget::drawEvent(drawRect, event);
             FTK_P();
             if (!p.player)
                 return;

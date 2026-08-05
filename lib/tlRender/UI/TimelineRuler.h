@@ -7,7 +7,7 @@
 
 #include <tlRender/Timeline/Player.h>
 
-#include <ftk/UI/IWidget.h>
+#include <ftk/UI/IMouseWidget.h>
 
 namespace tl
 {
@@ -23,7 +23,7 @@ namespace tl
         //! It is the player's ruler. The timelines the player is compared
         //! against are read against its axis, and the in/out points, frame
         //! markers and cache drawn here are its own.
-        class TL_API_TYPE TimelineRuler : public ftk::IWidget
+        class TL_API_TYPE TimelineRuler : public ftk::IMouseWidget
         {
             FTK_NON_COPYABLE(TimelineRuler);
 
@@ -63,12 +63,27 @@ namespace tl
             //! Set the display options.
             TL_API void setDisplayOptions(const DisplayOptions&);
 
+            //! Set the options.
+            TL_API void setOptions(const ItemOptions&);
+
+            //! Set whether playback stops when scrubbing.
+            TL_API void setStopOnScrub(bool);
+
+            //! Observe whether scrubbing is in progress.
+            TL_API std::shared_ptr<ftk::IObservable<bool> > observeScrub() const;
+
+            //! Observe time scrubbing.
+            TL_API std::shared_ptr<ftk::IObservable<std::optional<OTIO_NS::RationalTime> > > observeTimeScrub() const;
+
             //! Convert a time to a position.
             TL_API int timeToPos(const OTIO_NS::RationalTime&) const;
 
             TL_API ftk::Size2I getSizeHint() const override;
             TL_API void sizeHintEvent(const ftk::SizeHintEvent&) override;
             TL_API void drawEvent(const ftk::Box2I&, const ftk::DrawEvent&) override;
+            TL_API void mouseMoveEvent(ftk::MouseMoveEvent&) override;
+            TL_API void mousePressEvent(ftk::MouseClickEvent&) override;
+            TL_API void mouseReleaseEvent(ftk::MouseClickEvent&) override;
 
         private:
             void _drawInOutPoints(const ftk::Box2I&, const ftk::DrawEvent&);
@@ -79,6 +94,7 @@ namespace tl
             void _drawCurrentTime(const ftk::Box2I&, const ftk::DrawEvent&);
 
             OTIO_NS::RationalTime _posToTime(float) const;
+            OTIO_NS::RationalTime _posToTimeClamped(float) const;
             std::string _timeLabel(const OTIO_NS::RationalTime&) const;
             ftk::Size2I _getLabelMaxSize(const std::shared_ptr<ftk::FontSystem>&) const;
             double _getSecondsInc(const std::shared_ptr<ftk::FontSystem>&);

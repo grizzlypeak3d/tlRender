@@ -82,6 +82,8 @@ namespace tl
             std::shared_ptr<ftk::ListObserver<std::shared_ptr<Timeline> > > compareObserver;
             std::shared_ptr<ftk::Observer<bool> > scrubObserver;
             std::shared_ptr<ftk::Observer<std::optional<OTIO_NS::RationalTime> > > timeScrubObserver;
+            std::shared_ptr<ftk::Observer<bool> > rulerScrubObserver;
+            std::shared_ptr<ftk::Observer<std::optional<OTIO_NS::RationalTime> > > rulerTimeScrubObserver;
         };
 
         void TimelineWidget::_init(
@@ -120,6 +122,24 @@ namespace tl
             p.scrollWidget->setScrollBarsVisible(p.scrollBarsVisible->get());
             p.scrollWidget->setScrollEventsEnabled(false);
             p.scrollWidget->setBorder(false);
+
+            p.ruler->setStopOnScrub(p.stopOnScrub->get());
+            p.ruler->setOptions(p.itemOptions->get());
+
+            p.rulerScrubObserver = ftk::Observer<bool>::create(
+                p.ruler->observeScrub(),
+                [this](bool value)
+                {
+                    _p->scrub->setIfChanged(value);
+                    _scrollUpdate();
+                });
+
+            p.rulerTimeScrubObserver = ftk::Observer<std::optional<OTIO_NS::RationalTime> >::create(
+                p.ruler->observeTimeScrub(),
+                [this](const std::optional<OTIO_NS::RationalTime>& value)
+                {
+                    _p->timeScrub->setIfChanged(value);
+                });
 
             p.layout = ftk::VerticalLayout::create(context);
             p.layout->setSpacingRole(ftk::SizeRole::None);
@@ -360,6 +380,7 @@ namespace tl
                 {
                     p.timelineItems.front()->setStopOnScrub(value);
                 }
+                p.ruler->setStopOnScrub(value);
             }
         }
 
@@ -472,6 +493,7 @@ namespace tl
                 {
                     item->setOptions(value);
                 }
+                p.ruler->setOptions(value);
             }
         }
 
@@ -892,6 +914,8 @@ namespace tl
                     p.ruler->setScale(p.scale);
                     p.ruler->setFrameMarkers(p.frameMarkers);
                     p.ruler->setDisplayOptions(p.displayOptions->get());
+                    p.ruler->setOptions(p.itemOptions->get());
+                    p.ruler->setStopOnScrub(p.stopOnScrub->get());
 
                     p.scrollWidget->setScrollPos(scrollPos);
 
