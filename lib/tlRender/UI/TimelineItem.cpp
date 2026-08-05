@@ -79,8 +79,13 @@ namespace tl
                 }
             }
 
-            //! Add the outline of a rectangle to a mesh, as four bars just
-            //! inside its edges.
+            //! Add the outline of a rectangle to a mesh, in a color of its
+            //! own. Folded into the mesh rather than drawn on its own so that
+            //! any number of marked items is still one draw call.
+            //!
+            //! Square: the outline sits inside an item that is square, so a
+            //! rounded one leaves a wedge of the item showing past the curve,
+            //! which over a thumbnail reads as a stray mark.
             void addOutline(
                 ftk::TriMesh2F& mesh,
                 const ftk::Box2I& box,
@@ -90,13 +95,21 @@ namespace tl
                 if (box.w() <= 0 || box.h() <= 0)
                     return;
                 const int w = std::min(width, std::min(box.w(), box.h()));
-                addRect(mesh, ftk::Box2I(box.min.x, box.min.y, box.w(), w), &color);
-                addRect(mesh, ftk::Box2I(
-                    box.min.x, box.max.y - w + 1, box.w(), w), &color);
-                addRect(mesh, ftk::Box2I(
-                    box.min.x, box.min.y + w, w, box.h() - w * 2), &color);
-                addRect(mesh, ftk::Box2I(
-                    box.max.x - w + 1, box.min.y + w, w, box.h() - w * 2), &color);
+                const ftk::TriMesh2F border = ftk::border(box, w, 0);
+
+                const size_t v = mesh.v.size();
+                mesh.c.emplace_back(color.r, color.g, color.b, color.a);
+                const size_t c = mesh.c.size();
+                mesh.v.insert(mesh.v.end(), border.v.begin(), border.v.end());
+                mesh.triangles.reserve(
+                    mesh.triangles.size() + border.triangles.size());
+                for (const auto& t : border.triangles)
+                {
+                    mesh.triangles.push_back({
+                        ftk::Vertex2(t.v[0].v + v, 0, c),
+                        ftk::Vertex2(t.v[1].v + v, 0, c),
+                        ftk::Vertex2(t.v[2].v + v, 0, c) });
+                }
             }
 
             void clearMesh(ftk::TriMesh2F& mesh)
