@@ -65,6 +65,8 @@ namespace tl
         public:
             TL_API ~ThumbnailSystem();
 
+            TL_API void shutdown() override;
+
             //! Create a new system.
             TL_API static std::shared_ptr<ThumbnailSystem> create(
                 const std::shared_ptr<ftk::Context>&);

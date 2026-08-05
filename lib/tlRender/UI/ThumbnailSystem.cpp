@@ -410,6 +410,11 @@ namespace tl
 
         ThumbnailSystem::~ThumbnailSystem()
         {
+            shutdown();
+        }
+
+        void ThumbnailSystem::shutdown()
+        {
             FTK_P();
             p.infoThread.running = false;
             p.thumbnailThread.running = false;
