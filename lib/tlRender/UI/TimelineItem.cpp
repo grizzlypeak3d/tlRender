@@ -1462,7 +1462,7 @@ namespace tl
                         addOutline(
                             p.draw.markers,
                             insideGeom,
-                            p.size.border * 2,
+                            p.size.border * 3,
                             item.markerColor.value());
                     }
 
