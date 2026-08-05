@@ -464,11 +464,7 @@ namespace tl
 
             int y =
                 p.size.labelHeight +
-                p.size.margin +
-                p.size.fontMetrics.lineHeight +
-                p.size.margin +
-                p.size.border * 4 +
-                p.size.border +
+                p.size.rulerHeight +
                 value.min.y;
             for (auto& track : p.tracks)
             {
@@ -586,6 +582,11 @@ namespace tl
             p.size.labelHeight = p.label.empty() ?
                 0 :
                 (p.size.margin * 2 + p.size.fontMetrics.lineHeight);
+            p.size.rulerHeight = p.player ?
+                (p.size.margin * 2 +
+                    p.size.fontMetrics.lineHeight +
+                    p.size.border * 5) :
+                0;
 
             // An item is as tall as its labels, its media, and its border. A
             // track is as tall as its tallest item, so a track of gaps is no
@@ -641,11 +642,7 @@ namespace tl
             p.size.sizeHint = ftk::Size2I(
                 _timeRange.duration().rescaled_to(1.0).value() * _scale,
                 p.size.labelHeight +
-                p.size.margin +
-                p.size.fontMetrics.lineHeight +
-                p.size.margin +
-                p.size.border * 4 +
-                p.size.border +
+                p.size.rulerHeight +
                 tracksHeight);
         }
 
@@ -750,13 +747,14 @@ namespace tl
 
             const ftk::Box2I& g = getGeometry();
 
-            // Above the ruler and scrolling with it, so that the timeline
-            // being looked at stays named while its rows go by.
+            // Stays with its own timeline rather than being pinned to the top
+            // of the view. Several timelines pinning their labels to the same
+            // place would draw them over each other.
             if (p.size.labelHeight > 0)
             {
                 const ftk::Box2I box(
                     g.min.x,
-                    p.size.scrollArea.min.y + g.min.y,
+                    g.min.y,
                     g.w(),
                     p.size.labelHeight);
                 event.render->drawRect(
@@ -769,6 +767,9 @@ namespace tl
                         box.min.y + p.size.margin),
                     event.style->getColorRole(ftk::ColorRole::Text));
             }
+
+            if (0 == p.size.rulerHeight)
+                return;
 
             int y =
                 p.size.scrollArea.min.y +
