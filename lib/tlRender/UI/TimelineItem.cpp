@@ -118,7 +118,34 @@ namespace tl
             {
                 out = item.otioColor.value();
             }
+            // After the OTIO color and not subject to clipColors: this one
+            // was asked for explicitly rather than carried by the timeline.
+            if (item.overrideColor.has_value())
+            {
+                out = item.overrideColor.value();
+            }
             return enabled ? out : ftk::greyscale(out);
+        }
+
+        void TimelineItem::Private::itemColorsUpdate()
+        {
+            for (auto& track : tracks)
+            {
+                const auto trackColors = itemColors.find(track.index);
+                for (auto& item : track.items)
+                {
+                    item.overrideColor.reset();
+                    if (trackColors != itemColors.end())
+                    {
+                        const auto i = trackColors->second.find(
+                            item.timeRange.start_time());
+                        if (i != trackColors->second.end())
+                        {
+                            item.overrideColor = i->second;
+                        }
+                    }
+                }
+            }
         }
 
         ftk::Box2I TimelineItem::Private::getGeom(
@@ -327,6 +354,16 @@ namespace tl
             if (value == p.frameMarkers)
                 return;
             p.frameMarkers = value;
+            setDrawUpdate();
+        }
+
+        void TimelineItem::setItemColors(const ItemColors& value)
+        {
+            FTK_P();
+            if (value == p.itemColors)
+                return;
+            p.itemColors = value;
+            p.itemColorsUpdate();
             setDrawUpdate();
         }
 
@@ -1012,6 +1049,8 @@ namespace tl
 
                 p.tracks.push_back(std::move(track));
             }
+
+            p.itemColorsUpdate();
 
             // The items used to carry these tags themselves. Zero size widgets
             // stand in for them so the documentation tool can still point at an

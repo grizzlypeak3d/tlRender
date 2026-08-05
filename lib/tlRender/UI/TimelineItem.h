@@ -67,6 +67,9 @@ namespace tl
             //! Set the frame markers.
             TL_API void setFrameMarkers(const std::vector<int>&);
 
+            //! Set colors for items.
+            TL_API void setItemColors(const ItemColors&);
+
             //! Get the time range.
             TL_API const OTIO_NS::TimeRange& getTimeRange() const;
 

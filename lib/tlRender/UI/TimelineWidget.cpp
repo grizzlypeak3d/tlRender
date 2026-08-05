@@ -30,6 +30,7 @@ namespace tl
             std::shared_ptr<ftk::Observable<bool> > scrub;
             std::shared_ptr<ftk::Observable<std::optional<OTIO_NS::RationalTime> > > timeScrub;
             std::vector<int> frameMarkers;
+            ItemColors itemColors;
             std::shared_ptr<ftk::Observable<ItemOptions> > itemOptions;
             std::shared_ptr<ftk::Observable<DisplayOptions> > displayOptions;
             OTIO_NS::TimeRange timeRange;
@@ -357,6 +358,23 @@ namespace tl
             }
         }
 
+        const ItemColors& TimelineWidget::getItemColors() const
+        {
+            return _p->itemColors;
+        }
+
+        void TimelineWidget::setItemColors(const ItemColors& value)
+        {
+            FTK_P();
+            if (value == p.itemColors)
+                return;
+            p.itemColors = value;
+            if (p.timelineItem)
+            {
+                p.timelineItem->setItemColors(value);
+            }
+        }
+
         const ItemOptions& TimelineWidget::getItemOptions() const
         {
             return _p->itemOptions->get();
@@ -666,6 +684,7 @@ namespace tl
                         p.itemData);
                     p.timelineItem->setStopOnScrub(p.stopOnScrub->get());
                     p.timelineItem->setFrameMarkers(p.frameMarkers);
+                    p.timelineItem->setItemColors(p.itemColors);
                     p.scrollWidget->setScrollPos(scrollPos);
                     p.scrollWidget->setWidget(p.timelineItem);
 

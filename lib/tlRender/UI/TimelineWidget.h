@@ -125,6 +125,22 @@ namespace tl
 
             ///@}
 
+            //! \name Item Colors
+            ///@{
+
+            //! Get the item colors.
+            TL_API const ItemColors& getItemColors() const;
+
+            //! Set colors for items.
+            //!
+            //! For an embedder that knows something about the items the
+            //! timeline does not -- which of them a comparison found changed,
+            //! say. Kept outside the timeline because the players read it on
+            //! their own threads and it is not ours to write to.
+            TL_API void setItemColors(const ItemColors&);
+
+            ///@}
+
             //! \name Options
             ///@{
 

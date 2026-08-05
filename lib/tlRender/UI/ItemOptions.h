@@ -76,6 +76,12 @@ namespace tl
             TL_API bool operator != (const ItemOptions&) const;
         };
 
+        //! Colors for timeline items, keyed by track and then by where the
+        //! item starts within that track. Both are needed: tracks run over
+        //! the same times, so a start time on its own would color a video
+        //! clip and whatever the audio track happens to have beside it.
+        typedef std::map<int, std::map<OTIO_NS::RationalTime, ftk::Color4F> > ItemColors;
+
         //! Display options.
         struct TL_API_TYPE DisplayOptions
         {

@@ -30,6 +30,7 @@ namespace tl
             std::shared_ptr<ftk::Observable<bool> > scrub;
             std::shared_ptr<ftk::Observable<std::optional<OTIO_NS::RationalTime> > > timeScrub;
             std::vector<int> frameMarkers;
+            ItemColors itemColors;
 
             //! A clip or gap.
             struct Item
@@ -43,6 +44,11 @@ namespace tl
                 //! clipColors is a redraw rather than a rebuild.
                 ftk::Color4F defaultColor;
                 std::optional<ftk::Color4F> otioColor;
+
+                //! Set from outside the timeline, and preferred over both:
+                //! the caller knows something about this item that the
+                //! timeline does not.
+                std::optional<ftk::Color4F> overrideColor;
 
                 bool enabled = true;
                 std::string label;
@@ -111,6 +117,11 @@ namespace tl
             std::vector<Track> tracks;
             int firstVideoTrack = -1;
             int firstAudioTrack = -1;
+
+            //! Stamp the item colors onto the items. Done when either the
+            //! colors or the tracks change, so that a color asked for before
+            //! the timeline was read is not lost.
+            void itemColorsUpdate();
 
             //! A half open range of item indices within a track. Items within a
             //! track are ordered by time, so these come from a binary search
