@@ -23,11 +23,14 @@ namespace tl
 
         //! Timeline item.
         //!
-        //! This draws the whole timeline: the time ruler, the cache and in/out
-        //! bars, and every clip and gap. The clips and gaps are data rather
-        //! than widgets of their own, which keeps the cost of a frame
-        //! proportional to what is on screen instead of to the number of items
-        //! in the timeline.
+        //! This draws a timeline's tracks: every clip and gap, with the
+        //! thumbnails and waveforms in them. The clips and gaps are data
+        //! rather than widgets of their own, which keeps the cost of a frame
+        //! proportional to what is on screen instead of to the number of
+        //! items in the timeline.
+        //!
+        //! The time ruler is not here but above the items, in TimelineRuler:
+        //! timelines shown together share one.
         class TL_API_TYPE TimelineItem : public ftk::IMouseWidget
         {
         protected:
@@ -59,9 +62,8 @@ namespace tl
             //! Create a new item for a timeline that is not being played.
             //!
             //! For showing a timeline alongside the one being played -- an
-            //! earlier version of it, say. It is drawn without a playhead,
-            //! in/out points, or cache bar, since those belong to a player,
-            //! and it cannot be scrubbed: there is nothing to seek.
+            //! earlier version of it, say. It cannot be scrubbed: there is
+            //! nothing to seek.
             TL_API static std::shared_ptr<TimelineItem> create(
                 const std::shared_ptr<ftk::Context>&,
                 const std::shared_ptr<Timeline>&,
@@ -88,8 +90,8 @@ namespace tl
 
             //! Set the label naming this timeline.
             //!
-            //! Drawn above the time ruler when it is not empty, and taking up
-            //! no room when it is. A timeline shown on its own does not need
+            //! Drawn above the tracks when it is not empty, and taking up no
+            //! room when it is. A timeline shown on its own does not need
             //! naming; several drawn together do.
             TL_API void setLabel(const std::string&);
 
@@ -137,11 +139,7 @@ namespace tl
                 const ftk::Box2I&,
                 double scale);
 
-            std::string _timeLabel(const OTIO_NS::RationalTime&) const;
             std::string _getDurationLabel(const OTIO_NS::RationalTime&) const;
-
-            ftk::Size2I _getLabelMaxSize(const std::shared_ptr<ftk::FontSystem>&) const;
-            double _getSecondsInc(const std::shared_ptr<ftk::FontSystem>&);
 
             //! \name Items
             ///@{
@@ -164,25 +162,6 @@ namespace tl
                 const ftk::DrawEvent&);
 
             ///@}
-
-            void _drawInOutPoints(
-                const ftk::Box2I&,
-                const ftk::DrawEvent&);
-            void _drawFrameMarkers(
-                const ftk::Box2I&,
-                const ftk::DrawEvent&);
-            void _drawCacheInfo(
-                const ftk::Box2I&,
-                const ftk::DrawEvent&);
-            void _drawTimeLabels(
-                const ftk::Box2I&,
-                const ftk::DrawEvent&);
-            void _drawTimeTicks(
-                const ftk::Box2I&,
-                const ftk::DrawEvent&);
-            void _drawCurrentTime(
-                const ftk::Box2I&,
-                const ftk::DrawEvent&);
 
             void _tracksUpdate();
             void _textUpdate();

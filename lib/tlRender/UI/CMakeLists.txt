@@ -9,6 +9,7 @@ set(HEADERS
     TimeLabel.h
     TimeUnitsWidget.h
     TimelineItem.h
+    TimelineRuler.h
     TimelineWidget.h
     Viewport.h)
 set(HEADERS_PRIVATE
@@ -25,6 +26,7 @@ set(SOURCE
     TimeLabel.cpp
     TimeUnitsWidget.cpp
     TimelineItem.cpp
+    TimelineRuler.cpp
     TimelineWidget.cpp
     Viewport.cpp)
 

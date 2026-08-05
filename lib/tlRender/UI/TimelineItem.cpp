@@ -464,7 +464,6 @@ namespace tl
 
             int y =
                 p.size.labelHeight +
-                p.size.rulerHeight +
                 value.min.y;
             for (auto& track : p.tracks)
             {
@@ -582,11 +581,6 @@ namespace tl
             p.size.labelHeight = p.label.empty() ?
                 0 :
                 (p.size.margin * 2 + p.size.fontMetrics.lineHeight);
-            p.size.rulerHeight = p.player ?
-                (p.size.margin * 2 +
-                    p.size.fontMetrics.lineHeight +
-                    p.size.border * 5) :
-                0;
 
             // An item is as tall as its labels, its media, and its border. A
             // track is as tall as its tallest item, so a track of gaps is no
@@ -642,7 +636,6 @@ namespace tl
             p.size.sizeHint = ftk::Size2I(
                 _timeRange.duration().rescaled_to(1.0).value() * _scale,
                 p.size.labelHeight +
-                p.size.rulerHeight +
                 tracksHeight);
         }
 
@@ -768,34 +761,6 @@ namespace tl
                     event.style->getColorRole(ftk::ColorRole::Text));
             }
 
-            if (0 == p.size.rulerHeight)
-                return;
-
-            int y =
-                p.size.scrollArea.min.y +
-                p.size.labelHeight +
-                g.min.y;
-            int h =
-                p.size.margin +
-                p.size.fontMetrics.lineHeight +
-                p.size.margin +
-                p.size.border * 4;
-            event.render->drawRect(
-                ftk::Box2I(g.min.x, y, g.w(), h),
-                event.style->getColorRole(ftk::ColorRole::Base));
-
-            y = y + h;
-            h = p.size.border;
-            event.render->drawRect(
-                ftk::Box2I(g.min.x, y, g.w(), h),
-                event.style->getColorRole(ftk::ColorRole::Border));
-
-            _drawInOutPoints(drawRect, event);
-            _drawFrameMarkers(drawRect, event);
-            _drawCacheInfo(drawRect, event);
-            _drawTimeLabels(drawRect, event);
-            _drawTimeTicks(drawRect, event);
-            _drawCurrentTime(drawRect, event);
         }
 
         void TimelineItem::mouseMoveEvent(ftk::MouseMoveEvent& event)
@@ -909,15 +874,6 @@ namespace tl
             return out;
         }
 
-        std::string TimelineItem::_timeLabel(
-            const OTIO_NS::RationalTime& value) const
-        {
-            // A position, so it is named in the media's time. The frame the
-            // ruler counts off is not the frame the media calls it when the
-            // sequence was built out of the frames it has.
-            return _data->timeUnitsModel->getLabel(
-                _data->toMediaTime ? _data->toMediaTime(value) : value);
-        }
 
         std::string TimelineItem::_getDurationLabel(const OTIO_NS::RationalTime& value) const
         {
@@ -937,41 +893,7 @@ namespace tl
             return out;
         }
 
-        ftk::Size2I TimelineItem::_getLabelMaxSize(
-            const std::shared_ptr<ftk::FontSystem>& fontSystem) const
-        {
-            FTK_P();
-            const std::string labelMax = _data->timeUnitsModel->getLabel(_timeRange.duration());
-            const ftk::Size2I labelMaxSize = fontSystem->getSize(labelMax, p.size.fontInfo);
-            return labelMaxSize;
-        }
 
-        double TimelineItem::_getSecondsInc(
-            const std::shared_ptr<ftk::FontSystem>& fontSystem)
-        {
-            FTK_P();
-            double out = 0.0;
-            const int w = getSizeHint().w;
-            const double duration = _timeRange.duration().rescaled_to(1.0).value();
-            const int secondsTick = 1.0 / duration * w;
-            const int minutesTick = 60.0 / duration * w;
-            const int hoursTick = 3600.0 / duration * w;
-            const ftk::Size2I labelMaxSize = _getLabelMaxSize(fontSystem);
-            const int distanceMin = p.size.border + p.size.margin + labelMaxSize.w;
-            if (secondsTick >= distanceMin)
-            {
-                out = 1.0;
-            }
-            else if (minutesTick >= distanceMin)
-            {
-                out = 60.0;
-            }
-            else if (hoursTick >= distanceMin)
-            {
-                out = 3600.0;
-            }
-            return out;
-        }
 
         void TimelineItem::_itemsInit(const std::shared_ptr<ftk::Context>& context)
         {
@@ -1757,321 +1679,11 @@ namespace tl
             }
         }
 
-        void TimelineItem::_drawInOutPoints(
-            const ftk::Box2I& drawRect,
-            const ftk::DrawEvent& event)
-        {
-            FTK_P();
-            if (_p->inOutRange.has_value() &&
-                !compareExact(*_p->inOutRange, _timeRange))
-            {
-                const ftk::Box2I& g = getGeometry();
-                const ftk::Color4F color(.4F, .5F, .9F);
 
-                const int h = p.size.border * 2;
-                switch (_displayOptions.inOutDisplay)
-                {
-                case InOutDisplay::InsideRange:
-                {
-                    const int x0 = timeToPos(_p->inOutRange->start_time());
-                    const int x1 = timeToPos(_p->inOutRange->end_time_exclusive());
-                    const ftk::Box2I box(
-                        x0,
-                        p.size.scrollArea.min.y +
-                        p.size.labelHeight +
-                        g.min.y,
-                        x1 - x0 + 1,
-                        h);
-                    event.render->drawRect(box, color);
-                    break;
-                }
-                case InOutDisplay::OutsideRange:
-                {
-                    int x0 = timeToPos(_timeRange.start_time());
-                    int x1 = timeToPos(_p->inOutRange->start_time());
-                    ftk::Box2I box(
-                        x0,
-                        p.size.scrollArea.min.y +
-                        p.size.labelHeight +
-                        g.min.y,
-                        x1 - x0 + 1,
-                        h);
-                    event.render->drawRect(box, color);
-                    x0 = timeToPos(_p->inOutRange->end_time_exclusive());
-                    x1 = timeToPos(_timeRange.end_time_exclusive());
-                    box = ftk::Box2I(
-                        x0,
-                        p.size.scrollArea.min.y +
-                        p.size.labelHeight +
-                        g.min.y,
-                        x1 - x0 + 1,
-                        h);
-                    event.render->drawRect(box, color);
-                    break;
-                }
-                default: break;
-                }
-            }
-        }
 
-        void TimelineItem::_drawFrameMarkers(
-            const ftk::Box2I& drawRect,
-            const ftk::DrawEvent& event)
-        {
-            FTK_P();
-            const ftk::Box2I& g = getGeometry();
-            const double rate = _timeRange.duration().rate();
-            const ftk::Color4F color(.6F, .4F, .2F);
-            std::vector<ftk::Box2I> rects;
-            for (const auto& frameMarker : p.frameMarkers)
-            {
-                const ftk::Box2I g2(
-                    timeToPos(OTIO_NS::RationalTime(frameMarker, rate)),
-                    p.size.scrollArea.min.y +
-                    p.size.labelHeight +
-                    g.min.y,
-                    p.size.border * 2,
-                    p.size.margin +
-                    p.size.fontMetrics.lineHeight +
-                    p.size.margin +
-                    p.size.border * 4);
-                if (ftk::intersects(g2, drawRect))
-                {
-                    rects.emplace_back(g2);
-                }
-            }
-            if (!rects.empty())
-            {
-                event.render->drawRects(rects, color);
-            }
-        }
 
-        void TimelineItem::_drawCacheInfo(
-            const ftk::Box2I& drawRect,
-            const ftk::DrawEvent& event)
-        {
-            FTK_P();
 
-            const ftk::Box2I& g = getGeometry();
 
-            // Draw the video cache.
-            if (CacheDisplay::VideoAndAudio == _displayOptions.cacheDisplay ||
-                CacheDisplay::VideoOnly == _displayOptions.cacheDisplay)
-            {
-                ftk::TriMesh2F& mesh = p.draw.cache;
-                clearMesh(mesh);
-                for (const auto& t : p.cacheInfo.video)
-                {
-                    const int x0 = timeToPos(t.start_time());
-                    const int x1 = timeToPos(t.end_time_exclusive());
-                    const int h = CacheDisplay::VideoAndAudio == _displayOptions.cacheDisplay ?
-                        p.size.border * 2 :
-                        p.size.border * 4;
-                    const ftk::Box2I box(
-                        x0,
-                        p.size.scrollArea.min.y +
-                        p.size.labelHeight +
-                        g.min.y +
-                        p.size.margin +
-                        p.size.fontMetrics.lineHeight +
-                        p.size.margin,
-                        x1 - x0 + 1,
-                        h);
-                    if (ftk::intersects(box, drawRect))
-                    {
-                        addRect(mesh, box);
-                    }
-                }
-                if (!mesh.v.empty())
-                {
-                    event.render->drawMesh(mesh, ftk::Color4F(.2F, .4F, .4F));
-                }
-            }
-
-            // Draw the audio cache.
-            if (CacheDisplay::VideoAndAudio == _displayOptions.cacheDisplay)
-            {
-                ftk::TriMesh2F& mesh = p.draw.cache;
-                clearMesh(mesh);
-                for (const auto& t : p.cacheInfo.audio)
-                {
-                    const int x0 = timeToPos(t.start_time());
-                    const int x1 = timeToPos(t.end_time_exclusive());
-                    const ftk::Box2I box(
-                        x0,
-                        p.size.scrollArea.min.y +
-                        p.size.labelHeight +
-                        g.min.y +
-                        p.size.margin +
-                        p.size.fontMetrics.lineHeight +
-                        p.size.margin +
-                        p.size.border * 2,
-                        x1 - x0 + 1,
-                        p.size.border * 2);
-                    if (ftk::intersects(box, drawRect))
-                    {
-                        addRect(mesh, box);
-                    }
-                }
-                if (!mesh.v.empty())
-                {
-                    event.render->drawMesh(mesh, ftk::Color4F(.3F, .25F, .4F));
-                }
-            }
-        }
-
-        void TimelineItem::_drawTimeLabels(
-            const ftk::Box2I& drawRect,
-            const ftk::DrawEvent& event)
-        {
-            FTK_P();
-            if (_timeRange.duration().value() > 0.0)
-            {
-                const ftk::Box2I& g = getGeometry();
-                const double rate = _timeRange.duration().rate();
-                const double seconds = _getSecondsInc(event.fontSystem);
-                if (seconds > 0.0)
-                {
-                    const double t0 = std::floor(posToTime(drawRect.min.x).rescaled_to(1.0).value() / seconds) * seconds;
-                    const double t1 = std::ceil(posToTime(drawRect.max.x).rescaled_to(1.0).value() / seconds) * seconds;
-                    for (double t = t0; t <= t1; t += seconds)
-                    {
-                        const int x = timeToPos(OTIO_NS::RationalTime(t, 1.0));
-                        const std::string label = _timeLabel(
-                            OTIO_NS::RationalTime(t, 1.0).rescaled_to(rate));
-                        event.render->drawText(
-                            event.fontSystem->getGlyphs(label, p.size.fontInfo),
-                            p.size.fontMetrics,
-                            ftk::V2I(
-                                x +
-                                p.size.border +
-                                p.size.margin,
-                                p.size.scrollArea.min.y +
-                                p.size.labelHeight +
-                                g.min.y +
-                                p.size.margin),
-                            event.style->getColorRole(ftk::ColorRole::TextDisabled));
-                    }
-                }
-            }
-        }
-
-        void TimelineItem::_drawTimeTicks(
-            const ftk::Box2I& drawRect,
-            const ftk::DrawEvent& event)
-        {
-            FTK_P();
-            if (_timeRange.duration().value() > 0.0)
-            {
-                const ftk::Box2I& g = getGeometry();
-                const int w = getSizeHint().w;
-                const double duration = _timeRange.duration().rescaled_to(1.0).value();
-                std::vector<ftk::Box2I> rects;
-
-                // Compute the frame ticks.
-                const int frameTick = 1.0 / _timeRange.duration().value() * w;
-                if (duration > 0.0 && frameTick >= p.size.handle)
-                {
-                    const OTIO_NS::RationalTime t0 = posToTime(drawRect.min.x);
-                    const OTIO_NS::RationalTime t1 = posToTime(drawRect.max.x);
-                    const OTIO_NS::RationalTime inc(1.0, _timeRange.duration().rate());
-                    for (OTIO_NS::RationalTime t = t0; t <= t1; t += inc)
-                    {
-                        const int x = timeToPos(t);
-                        rects.emplace_back(ftk::Box2I(
-                            x,
-                            p.size.scrollArea.min.y +
-                            p.size.labelHeight +
-                            g.min.y +
-                            p.size.margin +
-                            p.size.fontMetrics.lineHeight,
-                            p.size.border,
-                            p.size.margin +
-                            p.size.border * 4));
-                    }
-                }
-
-                // Compute the time ticks.
-                const double seconds = _getSecondsInc(event.fontSystem);
-                if (duration > 0.0 && seconds > 0.0)
-                {
-                    const double t0 = std::floor(posToTime(drawRect.min.x).rescaled_to(1.0).value() / seconds) * seconds;
-                    const double t1 = std::ceil(posToTime(drawRect.max.x).rescaled_to(1.0).value() / seconds) * seconds;
-                    for (double t = t0; t <= t1; t += seconds)
-                    {
-                        const int x = timeToPos(OTIO_NS::RationalTime(t, 1.0));
-                        rects.emplace_back(ftk::Box2I(
-                            x,
-                            p.size.scrollArea.min.y +
-                            p.size.labelHeight +
-                            g.min.y +
-                            p.size.margin +
-                            p.size.fontMetrics.lineHeight,
-                            p.size.border,
-                            p.size.margin +
-                            p.size.fontMetrics.lineHeight +
-                            p.size.margin +
-                            p.size.border * 4));
-                    }
-                }
-
-                // Draw the ticks.
-                if (!rects.empty())
-                {
-                    event.render->drawRects(
-                        rects,
-                        event.style->getColorRole(ftk::ColorRole::TextDisabled));
-                }
-            }
-        }
-
-        void TimelineItem::_drawCurrentTime(
-            const ftk::Box2I& drawRect,
-            const ftk::DrawEvent& event)
-        {
-            FTK_P();
-
-            const ftk::Box2I& g = getGeometry();
-
-            if (p.currentTime.has_value())
-            {
-                const ftk::V2I pos(
-                    timeToPos(*p.currentTime),
-                    p.size.scrollArea.min.y +
-                    p.size.labelHeight +
-                    g.min.y);
-
-                event.render->drawRect(
-                    ftk::Box2I(
-                        pos.x,
-                        pos.y,
-                        p.size.border * 2,
-                        g.h()),
-                    event.style->getColorRole(ftk::ColorRole::Red));
-
-                const std::string label = _timeLabel(*p.currentTime);
-                ftk::V2I labelPos(
-                    pos.x + p.size.border * 2 + p.size.margin,
-                    pos.y + p.size.margin);
-                const ftk::Size2I labelSize = event.fontSystem->getSize(label, p.size.fontInfo);
-                const ftk::Box2I g2(p.size.scrollArea.min + g.min, p.size.scrollArea.size());
-                if (labelPos.x + labelSize.w > g2.max.x)
-                {
-                    const ftk::V2I labelPos2(
-                        pos.x - p.size.border * 2 - p.size.margin - labelSize.w,
-                        pos.y + p.size.margin);
-                    if (labelPos2.x > g2.min.x)
-                    {
-                        labelPos = labelPos2;
-                    }
-                }
-                event.render->drawText(
-                    event.fontSystem->getGlyphs(label, p.size.fontInfo),
-                    p.size.fontMetrics,
-                    labelPos,
-                    event.style->getColorRole(ftk::ColorRole::Text));
-            }
-        }
 
         void TimelineItem::_tracksUpdate()
         {

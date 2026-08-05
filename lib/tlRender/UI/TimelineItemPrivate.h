@@ -174,12 +174,6 @@ namespace tl
                 ftk::FontInfo itemFontInfo;
                 ftk::FontMetrics itemFontMetrics;
                 int labelHeight = 0;
-
-                //! The time ruler and the bars drawn with it. Zero without a
-                //! player: the playhead, the in/out points and the cache all
-                //! belong to one, which leaves a ruler of media times that is
-                //! not what a timeline being compared is read for.
-                int rulerHeight = 0;
                 ftk::Box2I scrollArea;
                 ftk::Size2I sizeHint;
             };

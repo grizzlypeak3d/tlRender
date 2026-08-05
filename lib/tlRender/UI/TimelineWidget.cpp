@@ -3,6 +3,8 @@
 
 #include <tlRender/UI/TimelineWidget.h>
 
+#include <tlRender/UI/TimelineRuler.h>
+
 #include <tlRender/Timeline/TimeUnits.h>
 
 #include <ftk/UI/RowLayout.h>
@@ -47,11 +49,14 @@ namespace tl
             double scale = 500.0;
             bool sizeInit = true;
             float displayScale = 0.F;
+            int border = 0;
 
             //! One scroll area for every timeline, so that they share a scroll
             //! position rather than being kept in step with each other. The
             //! first item is the player's; the rest are what it is being
             //! compared against.
+            std::shared_ptr<ftk::VerticalLayout> outerLayout;
+            std::shared_ptr<TimelineRuler> ruler;
             std::shared_ptr<ftk::ScrollWidget> scrollWidget;
             std::shared_ptr<ftk::VerticalLayout> layout;
             std::vector<std::shared_ptr<TimelineItem> > timelineItems;
@@ -99,10 +104,19 @@ namespace tl
             p.itemOptions = ftk::Observable<ItemOptions>::create();
             p.displayOptions = ftk::Observable<DisplayOptions>::create();
 
+            // The ruler is outside the scroll area so that it stays put while
+            // the timelines scroll under it, and follows their scale and
+            // scroll position instead.
+            p.outerLayout = ftk::VerticalLayout::create(context, shared_from_this());
+            p.outerLayout->setSpacingRole(ftk::SizeRole::None);
+
+            p.ruler = TimelineRuler::create(context, nullptr, p.outerLayout);
+
             p.scrollWidget = ftk::ScrollWidget::create(
                 context,
                 ftk::ScrollType::Both,
-                shared_from_this());
+                p.outerLayout);
+            p.scrollWidget->setVStretch(ftk::Stretch::Expanding);
             p.scrollWidget->setScrollBarsVisible(p.scrollBarsVisible->get());
             p.scrollWidget->setScrollEventsEnabled(false);
             p.scrollWidget->setBorder(false);
@@ -110,6 +124,12 @@ namespace tl
             p.layout = ftk::VerticalLayout::create(context);
             p.layout->setSpacingRole(ftk::SizeRole::None);
             p.scrollWidget->setWidget(p.layout);
+
+            p.scrollWidget->setScrollPosCallback(
+                [this](const ftk::V2I& value)
+                {
+                    _p->ruler->setScrollPos(value.x);
+                });
         }
 
         TimelineWidget::TimelineWidget() :
@@ -206,6 +226,9 @@ namespace tl
                     [this](const OTIO_NS::RationalTime& value)
                     {
                         _p->currentTime = value;
+                        _p->ruler->setScrollPos(
+                            _p->scrollWidget->getScrollPos().x);
+                        setDrawUpdate();
                         _scrollUpdate();
                     });
             }
@@ -361,10 +384,7 @@ namespace tl
             if (value == p.frameMarkers)
                 return;
             p.frameMarkers = value;
-            if (!p.timelineItems.empty())
-            {
-                p.timelineItems.front()->setFrameMarkers(value);
-            }
+            p.ruler->setFrameMarkers(value);
         }
 
         const ItemColors& TimelineWidget::getItemColors(int index) const
@@ -474,13 +494,14 @@ namespace tl
                 {
                     item->setDisplayOptions(value);
                 }
+                p.ruler->setDisplayOptions(value);
                 _scrollUpdate();
             }
         }
         
         ftk::Size2I TimelineWidget::getSizeHint() const
         {
-            return _p->scrollWidget->getSizeHint();
+            return _p->outerLayout->getSizeHint();
         }
 
         void TimelineWidget::setGeometry(const ftk::Box2I& value)
@@ -488,7 +509,7 @@ namespace tl
             const bool changed = value != getGeometry();
             IWidget::setGeometry(value);
             FTK_P();
-            p.scrollWidget->setGeometry(value);
+            p.outerLayout->setGeometry(value);
             if (p.sizeInit || (changed && p.frameView->get()))
             {
                 p.sizeInit = false;
@@ -508,6 +529,30 @@ namespace tl
             FTK_P();
             p.sizeInit |= event.displayScale != p.displayScale;
             p.displayScale = event.displayScale;
+            p.border = event.style->getSizeRole(
+                ftk::SizeRole::Border, event.displayScale);
+        }
+
+        void TimelineWidget::drawOverlayEvent(
+            const ftk::Box2I& drawRect,
+            const ftk::DrawEvent& event)
+        {
+            IWidget::drawOverlayEvent(drawRect, event);
+            FTK_P();
+            if (!p.player)
+                return;
+
+            // Over every timeline rather than only the one being played: the
+            // same instant marked down the stack is what says where the
+            // versions are being compared.
+            const ftk::Box2I& g = p.scrollWidget->getGeometry();
+            const int x = p.ruler->timeToPos(p.currentTime);
+            if (x >= g.min.x && x <= g.max.x)
+            {
+                event.render->drawRect(
+                    ftk::Box2I(x, g.min.y, p.border * 2, g.h()),
+                    event.style->getColorRole(ftk::ColorRole::Red));
+            }
         }
 
         void TimelineWidget::mouseEnterEvent(ftk::MouseEnterEvent& event)
@@ -703,6 +748,8 @@ namespace tl
             {
                 item->setScale(p.scale);
             }
+            p.ruler->setScale(p.scale);
+            p.ruler->setScrollPos(p.scrollWidget->getScrollPos().x);
         }
 
         void TimelineWidget::_scrollUpdate()
@@ -778,6 +825,7 @@ namespace tl
             }
             p.timelineItems.clear();
             p.itemData.clear();
+            p.ruler->setPlayer(nullptr);
 
             if (p.player)
             {
@@ -818,6 +866,15 @@ namespace tl
                         }
                     }
                     _labelsUpdate();
+
+                    // The ruler is the player's, so it names its times the
+                    // way the player's own timeline does.
+                    p.ruler->setItemData(p.itemData.front());
+                    p.ruler->setPlayer(p.player);
+                    p.ruler->setScale(p.scale);
+                    p.ruler->setFrameMarkers(p.frameMarkers);
+                    p.ruler->setDisplayOptions(p.displayOptions->get());
+
                     p.scrollWidget->setScrollPos(scrollPos);
 
                     // Only the player's item can be scrubbed, so it is the
