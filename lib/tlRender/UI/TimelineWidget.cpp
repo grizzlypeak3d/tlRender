@@ -10,6 +10,8 @@
 #include <ftk/UI/RowLayout.h>
 #include <ftk/UI/ScrollWidget.h>
 
+#include <algorithm>
+
 namespace tl
 {
     namespace ui
@@ -55,7 +57,6 @@ namespace tl
             //! position rather than being kept in step with each other. The
             //! first item is the player's; the rest are what it is being
             //! compared against.
-            std::shared_ptr<ftk::VerticalLayout> outerLayout;
             std::shared_ptr<TimelineRuler> ruler;
             std::shared_ptr<ftk::ScrollWidget> scrollWidget;
             std::shared_ptr<ftk::VerticalLayout> layout;
@@ -106,17 +107,16 @@ namespace tl
 
             // The ruler is outside the scroll area so that it stays put while
             // the timelines scroll under it, and follows their scale and
-            // scroll position instead.
-            p.outerLayout = ftk::VerticalLayout::create(context, shared_from_this());
-            p.outerLayout->setSpacingRole(ftk::SizeRole::None);
-
-            p.ruler = TimelineRuler::create(context, nullptr, p.outerLayout);
+            // scroll position instead. Laid out by hand rather than stacked
+            // in a layout: it has to end where the scrolled timelines end,
+            // and a vertical scroll bar takes width from them and not from a
+            // sibling above them.
+            p.ruler = TimelineRuler::create(context, nullptr, shared_from_this());
 
             p.scrollWidget = ftk::ScrollWidget::create(
                 context,
                 ftk::ScrollType::Both,
-                p.outerLayout);
-            p.scrollWidget->setVStretch(ftk::Stretch::Expanding);
+                shared_from_this());
             p.scrollWidget->setScrollBarsVisible(p.scrollBarsVisible->get());
             p.scrollWidget->setScrollEventsEnabled(false);
             p.scrollWidget->setBorder(false);
@@ -501,7 +501,10 @@ namespace tl
         
         ftk::Size2I TimelineWidget::getSizeHint() const
         {
-            return _p->outerLayout->getSizeHint();
+            FTK_P();
+            ftk::Size2I out = p.scrollWidget->getSizeHint();
+            out.h += p.ruler->getSizeHint().h;
+            return out;
         }
 
         void TimelineWidget::setGeometry(const ftk::Box2I& value)
@@ -509,7 +512,22 @@ namespace tl
             const bool changed = value != getGeometry();
             IWidget::setGeometry(value);
             FTK_P();
-            p.outerLayout->setGeometry(value);
+            const int rulerHeight = p.ruler->getSizeHint().h;
+            p.scrollWidget->setGeometry(ftk::Box2I(
+                value.min.x,
+                value.min.y + rulerHeight,
+                value.w(),
+                std::max(0, value.h() - rulerHeight)));
+
+            // After the scroll area, whose viewport is what says how much
+            // width the scroll bar left for the timelines.
+            const ftk::Box2I viewport = p.scrollWidget->getScrollInfo().viewport;
+            p.ruler->setGeometry(ftk::Box2I(
+                viewport.min.x,
+                value.min.y,
+                viewport.w(),
+                rulerHeight));
+
             if (p.sizeInit || (changed && p.frameView->get()))
             {
                 p.sizeInit = false;
