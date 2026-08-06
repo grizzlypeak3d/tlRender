@@ -47,6 +47,7 @@ namespace tl
             std::shared_ptr<Player> player;
             OTIO_NS::TimeRange timeRange;
             double scale = 500.0;
+            OTIO_NS::RationalTime offset;
             int scrollPos = 0;
             std::vector<int> frameMarkers;
             DisplayOptions displayOptions;
@@ -184,6 +185,15 @@ namespace tl
             setDrawUpdate();
         }
 
+        void TimelineRuler::setOffset(const OTIO_NS::RationalTime& value)
+        {
+            FTK_P();
+            if (compareExact(value, p.offset))
+                return;
+            p.offset = value;
+            setDrawUpdate();
+        }
+
         void TimelineRuler::setScrollPos(int value)
         {
             FTK_P();
@@ -293,7 +303,8 @@ namespace tl
             return
                 g.min.x -
                 p.scrollPos +
-                t.rescaled_to(1.0).value() * p.scale;
+                (t.rescaled_to(1.0).value() +
+                    p.offset.rescaled_to(1.0).value()) * p.scale;
         }
 
         OTIO_NS::RationalTime TimelineRuler::_posToTime(float value) const
@@ -305,7 +316,9 @@ namespace tl
             {
                 const ftk::Box2I& g = getGeometry();
                 const double normalized =
-                    (value - g.min.x + p.scrollPos) / (duration * p.scale);
+                    (value - g.min.x + p.scrollPos -
+                        p.offset.rescaled_to(1.0).value() * p.scale) /
+                    (duration * p.scale);
                 out = OTIO_NS::RationalTime(
                     p.timeRange.start_time() +
                     OTIO_NS::RationalTime(

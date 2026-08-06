@@ -48,6 +48,7 @@ namespace tl
             std::vector<int> frameMarkers;
             std::vector<ItemColors> itemColors;
             std::vector<std::string> labels;
+            std::vector<OTIO_NS::RationalTime> offsets;
             std::shared_ptr<ftk::Observable<ItemOptions> > itemOptions;
             std::shared_ptr<ftk::Observable<DisplayOptions> > displayOptions;
             OTIO_NS::TimeRange timeRange;
@@ -483,6 +484,41 @@ namespace tl
                 return;
             p.labels[index] = value;
             _labelsUpdate();
+        }
+
+        void TimelineWidget::setOffset(
+            int index,
+            const OTIO_NS::RationalTime& value)
+        {
+            FTK_P();
+            if (index < 0)
+                return;
+            if (index >= static_cast<int>(p.offsets.size()))
+            {
+                p.offsets.resize(index + 1);
+            }
+            if (compareExact(value, p.offsets[index]))
+                return;
+            p.offsets[index] = value;
+            _offsetsUpdate();
+        }
+
+        void TimelineWidget::_offsetsUpdate()
+        {
+            FTK_P();
+            for (size_t i = 0; i < p.timelineItems.size(); ++i)
+            {
+                p.timelineItems[i]->setOffset(
+                    i < p.offsets.size() ?
+                    p.offsets[i] :
+                    OTIO_NS::RationalTime());
+            }
+
+            // The ruler names the player's times, so it moves with the
+            // player's timeline and the times stay over the frames they name.
+            p.ruler->setOffset(!p.offsets.empty() ?
+                p.offsets.front() :
+                OTIO_NS::RationalTime());
         }
 
         void TimelineWidget::_labelsUpdate()
@@ -941,6 +977,7 @@ namespace tl
                         }
                     }
                     _labelsUpdate();
+                    _offsetsUpdate();
 
                     // The ruler is the player's, so it names its times the
                     // way the player's own timeline does.

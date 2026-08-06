@@ -57,6 +57,9 @@ namespace tl
             //! over the part of them it names.
             TL_API void setScrollPos(int);
 
+            //! Set how far along the timeline is drawn.
+            TL_API void setOffset(const OTIO_NS::RationalTime&);
+
             //! Set the frame markers.
             TL_API void setFrameMarkers(const std::vector<int>&);
 

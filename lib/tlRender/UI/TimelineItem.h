@@ -105,6 +105,15 @@ namespace tl
             //! Set the scale, in pixels per second.
             TL_API void setScale(double);
 
+            //! Set how far along the timeline is drawn.
+            //!
+            //! For lining several timelines up by what is in them rather than
+            //! by when it happens: a version with material added near the
+            //! head holds the same clips as the one before it, later, and an
+            //! offset puts them back under each other. Must not be negative;
+            //! there is nothing to the left of the start to draw into.
+            TL_API void setOffset(const OTIO_NS::RationalTime&);
+
             //! Set the options.
             TL_API void setOptions(const ItemOptions&);
 
@@ -171,6 +180,7 @@ namespace tl
             void _textUpdate();
 
             OTIO_NS::TimeRange _timeRange;
+            OTIO_NS::RationalTime _offset;
             double _scale = 500.0;
             ItemOptions _options;
             DisplayOptions _displayOptions;

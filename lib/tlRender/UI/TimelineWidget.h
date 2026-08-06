@@ -158,6 +158,19 @@ namespace tl
 
             ///@}
 
+            //! \name Alignment
+            ///@{
+
+            //! Set how far along the given timeline is drawn, zero being the
+            //! player's own and the rest what it is compared against.
+            //!
+            //! For lining the timelines up by what is in them rather than by
+            //! when it happens. The ruler follows the player's own, so the
+            //! times over a timeline still name the times in it.
+            TL_API void setOffset(int index, const OTIO_NS::RationalTime&);
+
+            ///@}
+
             //! \name Labels
             ///@{
 
@@ -226,6 +239,7 @@ namespace tl
 
             void _setItemScale();
             void _labelsUpdate();
+            void _offsetsUpdate();
 
             void _scrollUpdate();
             void _timelineUpdate();

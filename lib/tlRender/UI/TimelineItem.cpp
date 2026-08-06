@@ -454,6 +454,16 @@ namespace tl
             setDrawUpdate();
         }
 
+        void TimelineItem::setOffset(const OTIO_NS::RationalTime& value)
+        {
+            if (compareExact(value, _offset))
+                return;
+            _offset = value;
+            _itemsScaleUpdate();
+            setSizeUpdate();
+            setDrawUpdate();
+        }
+
         void TimelineItem::setDisplayOptions(const DisplayOptions& value)
         {
             FTK_P();
@@ -626,7 +636,9 @@ namespace tl
             {
                 track.visible = _isTrackVisible(track.index);
 
-                track.size.w = track.timeRange.duration().rescaled_to(1.0).value() * _scale;
+                track.size.w =
+                    (track.timeRange.duration().rescaled_to(1.0).value() +
+                        _offset.rescaled_to(1.0).value()) * _scale;
                 track.size.h = 0;
                 track.clipHeight = 0;
                 if (track.visible)
@@ -663,7 +675,8 @@ namespace tl
                 }
             }
             p.size.sizeHint = ftk::Size2I(
-                _timeRange.duration().rescaled_to(1.0).value() * _scale,
+                (_timeRange.duration().rescaled_to(1.0).value() +
+                    _offset.rescaled_to(1.0).value()) * _scale,
                 p.size.labelHeight +
                 tracksHeight);
         }
@@ -867,7 +880,8 @@ namespace tl
             const ftk::Box2I& g = getGeometry();
             if (g.w() > 0)
             {
-                const double normalized = (value - g.min.x) /
+                const double normalized =
+                    (value - g.min.x - _offset.rescaled_to(1.0).value() * _scale) /
                     static_cast<double>(_timeRange.duration().rescaled_to(1.0).value() * _scale);
                 out = OTIO_NS::RationalTime(
                     _timeRange.start_time() +
@@ -887,7 +901,9 @@ namespace tl
         {
             const ftk::Box2I& g = getGeometry();
             const OTIO_NS::RationalTime t = value - _timeRange.start_time();
-            return g.min.x + t.rescaled_to(1.0).value() * _scale;
+            return g.min.x +
+                (t.rescaled_to(1.0).value() +
+                    _offset.rescaled_to(1.0).value()) * _scale;
         }
 
         ftk::Box2I TimelineItem::_getClipRect(
@@ -1106,7 +1122,9 @@ namespace tl
             {
                 for (auto& item : track.items)
                 {
-                    item.x = item.timeRange.start_time().rescaled_to(1.0).value() * _scale;
+                    item.x =
+                        (item.timeRange.start_time().rescaled_to(1.0).value() +
+                            _offset.rescaled_to(1.0).value()) * _scale;
                     item.w = item.timeRange.duration().rescaled_to(1.0).value() * _scale;
                 }
             }
