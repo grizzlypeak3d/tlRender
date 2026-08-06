@@ -364,11 +364,33 @@ namespace tl
                         _p->droppedFrames->setIfChanged(value);
                     });
             }
-            else if (!p.videoFrame.empty())
+            else
             {
-                p.videoFrame.clear();
-                p.doRender = true;
-                setDrawUpdate();
+                // The position and zoom say where an image sat in the view,
+                // so with the media gone they describe nothing, and a large
+                // zoom left behind makes the next file opened look broken.
+                // Set the observables rather than calling
+                // setViewPosAndZoom(), which would take frame view off as a
+                // side effect of closing a file and leave the next one
+                // unframed.
+                bool changed = false;
+                const std::pair<ftk::V2I, double> reset(ftk::V2I(), 1.0);
+                if (p.viewPosZoom->setIfChanged(reset))
+                {
+                    p.viewPos->setIfChanged(reset.first);
+                    p.zoom->setIfChanged(reset.second);
+                    changed = true;
+                }
+                if (!p.videoFrame.empty())
+                {
+                    p.videoFrame.clear();
+                    changed = true;
+                }
+                if (changed)
+                {
+                    p.doRender = true;
+                    setDrawUpdate();
+                }
             }
         }
 
