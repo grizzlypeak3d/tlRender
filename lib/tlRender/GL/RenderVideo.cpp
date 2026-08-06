@@ -724,8 +724,12 @@ namespace tl
             GLint viewportPrev[4] = { 0, 0, 0, 0 };
             glGetIntegerv(GL_VIEWPORT, viewportPrev);
 
-            auto imageShader = p.baseRender->getShader("image");
-            imageShader->bind();
+            // Through setTransform() rather than by setting the uniform on
+            // the image shader: anything the draws below call has no other way
+            // to find out what space it is drawing in, and a resample that
+            // believes it is drawing to the view rather than to this buffer
+            // puts the picture in a corner of it.
+            const ftk::M44F previousTransform = p.baseRender->getTransform();
             const auto transform = ftk::ortho(
                 0.F,
                 static_cast<float>(box.w()),
@@ -733,7 +737,7 @@ namespace tl
                 0.F,
                 -1.F,
                 1.F);
-            imageShader->setUniform("transform.mvp", transform);
+            p.baseRender->setTransform(transform);
 
             const ftk::Size2I& offscreenBufferSize = box.size();
 
@@ -930,6 +934,8 @@ namespace tl
                 }
             }
 
+            p.baseRender->setTransform(previousTransform);
+
             // The picture has been drawn at its own size; the view's zoom is
             // applied by the draw below. When that is a large reduction the
             // four texels a linear fetch reads miss most of it, so reduce the
@@ -1089,8 +1095,7 @@ namespace tl
                 }
             }
 
-            imageShader->bind();
-            imageShader->setUniform("transform.mvp", getTransform());
+            p.baseRender->setTransform(previousTransform);
         }
 
         void Render::drawForeground(
