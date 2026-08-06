@@ -71,8 +71,6 @@ namespace tl
             //displayOptions.color.contrast.z = .1F;
             //displayOptions.exposure.enabled = true;
             //displayOptions.exposure.exposure = 10.F;
-            //displayOptions.imageFilters.minify = ftk::ImageFilter::Nearest;
-            //displayOptions.imageFilters.magnify = ftk::ImageFilter::Nearest;
             //_viewport->setDisplayOptions({ displayOptions, displayOptions });
             _viewport->setColorBuffer(ftk::gl::TextureType::RGBA_F32);
 

@@ -138,6 +138,21 @@ namespace tl
             }
         }
 
+        namespace
+        {
+            // The filters for one of the images being drawn, which is where
+            // they live now: how a picture is sampled is a fact about the
+            // picture, not about the colours it is shown in.
+            ftk::ImageFilters imageFilters(
+                const std::vector<ftk::ImageOptions>& imageOptions,
+                size_t index)
+            {
+                return index < imageOptions.size() ?
+                    imageOptions[index].imageFilters :
+                    ftk::ImageFilters();
+            }
+        }
+
         void Render::drawVideo(
             const std::vector<VideoFrame>& videoFrame,
             const std::vector<ftk::Box2I>& boxes,
@@ -404,7 +419,7 @@ namespace tl
                 ftk::gl::OffscreenBufferOptions offscreenBufferOptions;
                 if (!displayOptions.empty())
                 {
-                    offscreenBufferOptions.colorFilters = displayOptions[0].imageFilters;
+                    offscreenBufferOptions.colorFilters = imageFilters(imageOptions, 0);
                 }
                 if (doCreate(
                     p.buffers["overlay"],
@@ -504,7 +519,7 @@ namespace tl
                 ftk::gl::OffscreenBufferOptions offscreenBufferOptions;
                 if (!displayOptions.empty())
                 {
-                    offscreenBufferOptions.colorFilters = displayOptions[0].imageFilters;
+                    offscreenBufferOptions.colorFilters = imageFilters(imageOptions, 0);
                 }
                 if (doCreate(
                     p.buffers["difference0"],
@@ -558,7 +573,7 @@ namespace tl
                     offscreenBufferOptions = ftk::gl::OffscreenBufferOptions();
                     if (displayOptions.size() > 1)
                     {
-                        offscreenBufferOptions.colorFilters = displayOptions[1].imageFilters;
+                        offscreenBufferOptions.colorFilters = imageFilters(imageOptions, 1);
                     }
                     if (doCreate(
                         p.buffers["difference1"],
@@ -748,7 +763,10 @@ namespace tl
             };
 
             ftk::gl::OffscreenBufferOptions offscreenBufferOptions;
-            offscreenBufferOptions.colorFilters = displayOptions.imageFilters;
+            const ftk::ImageFilters filters = imageOptions.get() ?
+                imageOptions->imageFilters :
+                ftk::ImageFilters();
+            offscreenBufferOptions.colorFilters = filters;
             if (doCreate(
                 p.buffers["video"],
                 offscreenBufferSize,
@@ -922,7 +940,7 @@ namespace tl
             // ones, and the transform then runs over the smaller picture.
             unsigned int videoID = p.buffers["video"] ? p.buffers["video"]->getColorID() : 0;
             if (p.buffers["video"] &&
-                ftk::ImageFilter::HighQuality == displayOptions.imageFilters.minify)
+                ftk::ImageFilter::HighQuality == filters.minify)
             {
                 // What the box comes to on screen, which is the render
                 // transform applied to its corners.

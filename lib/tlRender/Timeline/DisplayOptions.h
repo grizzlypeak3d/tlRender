@@ -160,7 +160,6 @@ namespace tl
         Levels              levels;
         Exposure            exposure;
         SoftClip            softClip;
-        ftk::ImageFilters   imageFilters;
 
         TL_API bool operator == (const DisplayOptions&) const;
         TL_API bool operator != (const DisplayOptions&) const;
