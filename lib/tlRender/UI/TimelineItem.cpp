@@ -164,11 +164,22 @@ namespace tl
                     item.markerColor.reset();
                     if (trackColors != itemColors.end())
                     {
-                        const auto i = trackColors->second.find(
-                            item.timeRange.start_time());
-                        if (i != trackColors->second.end())
+                        // Compared in seconds with a little room rather than
+                        // looked up: one instant on a track of mixed rates is
+                        // written differently depending on which clip's rate
+                        // it was taken from -- 71.94 at 23.98 and 90 at 30 are
+                        // both three seconds -- and at a rate that is not a
+                        // whole number neither is exactly the other.
+                        const double t =
+                            item.timeRange.start_time().rescaled_to(1.0).value();
+                        for (const auto& i : trackColors->second)
                         {
-                            item.markerColor = i->second;
+                            if (std::abs(
+                                i.first.rescaled_to(1.0).value() - t) < 1e-6)
+                            {
+                                item.markerColor = i.second;
+                                break;
+                            }
                         }
                     }
                 }
