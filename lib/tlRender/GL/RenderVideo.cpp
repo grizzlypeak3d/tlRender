@@ -945,6 +945,8 @@ namespace tl
             // resample weighs the working values rather than display referred
             // ones, and the transform then runs over the smaller picture.
             unsigned int videoID = p.buffers["video"] ? p.buffers["video"]->getColorID() : 0;
+            unsigned int videoScaledID = 0;
+            ftk::Size2I scaledBufferSize;
             if (p.buffers["video"] &&
                 ftk::ImageFilter::HighQuality == filters.minify)
             {
@@ -994,6 +996,8 @@ namespace tl
                             ftk::Box2I(0, 0, scaledSize.w, scaledSize.h));
                         p.baseRender->setTransform(saved);
                         videoID = p.buffers["videoScaled"]->getColorID();
+                        videoScaledID = videoID;
+                        scaledBufferSize = scaledSize;
                     }
                 }
             }
@@ -1010,6 +1014,18 @@ namespace tl
 
                 p.shaders["display"]->bind();
                 p.shaders["display"]->setUniform("textureSampler", 0);
+                // Enlarging is sampled here rather than resampled into a
+                // buffer first, so this is where the view's magnify setting
+                // is answered.
+                const ftk::Size2I displaySize = videoID == videoScaledID ?
+                    scaledBufferSize :
+                    offscreenBufferSize;
+                p.shaders["display"]->setUniform(
+                    "magnifyHighQuality",
+                    ftk::ImageFilter::HighQuality == filters.magnify);
+                p.shaders["display"]->setUniform(
+                    "textureSize",
+                    ftk::V2F(displaySize.w, displaySize.h));
                 p.shaders["display"]->setUniform("channels", static_cast<int>(displayOptions.channels));
                 p.shaders["display"]->setUniform("negative", displayOptions.negative);
                 p.shaders["display"]->setUniform("mirrorX", displayOptions.mirror.x);
