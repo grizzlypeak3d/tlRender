@@ -56,6 +56,12 @@ namespace tl
             OTIO_NS::RationalTime currentTime;
             double scale = 500.0;
             bool sizeInit = true;
+
+            //! The width the timelines were last framed against. A scroll bar
+            //! appearing takes width from them without the widget's own size
+            //! changing, so this is what says the framing is stale, and the
+            //! widget's geometry is not.
+            int frameViewWidth = -1;
             float displayScale = 0.F;
             int border = 0;
 
@@ -602,7 +608,6 @@ namespace tl
 
         void TimelineWidget::setGeometry(const ftk::Box2I& value)
         {
-            const bool changed = value != getGeometry();
             IWidget::setGeometry(value);
             FTK_P();
             const int rulerHeight = p.ruler->getSizeHint().h;
@@ -621,16 +626,20 @@ namespace tl
                 viewport.w(),
                 rulerHeight));
 
-            if (p.sizeInit || (changed && p.frameView->get()))
+            if (p.sizeInit ||
+                (p.frameView->get() && viewport.w() != p.frameViewWidth))
             {
                 p.sizeInit = false;
+                p.frameViewWidth = viewport.w();
                 frameView();
             }
             else if (!p.timelineItems.empty() &&
-                p.layout->getSizeHint().w <
-                p.scrollWidget->getScrollInfo().viewport.w())
+                p.layout->getSizeHint().w < viewport.w())
             {
+                // Zoomed out past the whole of them, so there is nothing left
+                // to look closely at and framing them is what was wanted.
                 setFrameView(true);
+                p.frameViewWidth = viewport.w();
                 frameView();
             }
         }
@@ -937,6 +946,9 @@ namespace tl
             p.timelineItems.clear();
             p.itemData.clear();
             p.ruler->setPlayer(nullptr);
+
+            // Different timelines are a different width to frame.
+            p.frameViewWidth = -1;
 
             if (p.player)
             {
