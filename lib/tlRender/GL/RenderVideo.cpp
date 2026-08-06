@@ -936,6 +936,11 @@ namespace tl
 
             p.baseRender->setTransform(previousTransform);
 
+            unsigned int videoID = p.buffers["video"] ? p.buffers["video"]->getColorID() : 0;
+            unsigned int videoScaledID = 0;
+            ftk::Size2I scaledBufferSize;
+
+#if !defined(FTK_API_GLES_2)
             // The picture has been drawn at its own size; the view's zoom is
             // applied by the draw below. When that is a large reduction the
             // four texels a linear fetch reads miss most of it, so reduce the
@@ -944,9 +949,6 @@ namespace tl
             // Before the display transform rather than after: this way the
             // resample weighs the working values rather than display referred
             // ones, and the transform then runs over the smaller picture.
-            unsigned int videoID = p.buffers["video"] ? p.buffers["video"]->getColorID() : 0;
-            unsigned int videoScaledID = 0;
-            ftk::Size2I scaledBufferSize;
             if (p.buffers["video"] &&
                 ftk::ImageFilter::HighQuality == filters.minify)
             {
@@ -1002,6 +1004,8 @@ namespace tl
                 }
             }
 
+#endif // FTK_API_GLES_2
+
             if (p.buffers["video"])
             {
                 glBlendFuncSeparate(GL_ONE, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
@@ -1017,6 +1021,9 @@ namespace tl
                 // Enlarging is sampled here rather than resampled into a
                 // buffer first, so this is where the view's magnify setting
                 // is answered.
+#if !defined(FTK_API_GLES_2)
+                // The GLES 2 display shader has no kernel to answer this with;
+                // see ftk's drawTextureScaled().
                 const ftk::Size2I displaySize = videoID == videoScaledID ?
                     scaledBufferSize :
                     offscreenBufferSize;
@@ -1026,6 +1033,7 @@ namespace tl
                 p.shaders["display"]->setUniform(
                     "textureSize",
                     ftk::V2F(displaySize.w, displaySize.h));
+#endif // FTK_API_GLES_2
                 p.shaders["display"]->setUniform("channels", static_cast<int>(displayOptions.channels));
                 p.shaders["display"]->setUniform("negative", displayOptions.negative);
                 p.shaders["display"]->setUniform("mirrorX", displayOptions.mirror.x);
