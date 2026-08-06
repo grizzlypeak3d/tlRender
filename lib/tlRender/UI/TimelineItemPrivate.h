@@ -179,6 +179,11 @@ namespace tl
                 ftk::FontInfo labelFontInfo;
                 ftk::FontMetrics labelFontMetrics;
 
+                //! Wider than the margin inside the tracks: the name sits on
+                //! a band of its own with drawing above and below it, and
+                //! needs the room to read as separate from both.
+                int labelMargin = 0;
+
                 ftk::FontInfo itemFontInfo;
                 ftk::FontMetrics itemFontMetrics;
                 int labelHeight = 0;
