@@ -67,7 +67,6 @@ namespace tl
                 .def_readwrite("levels", &DisplayOptions::levels)
                 .def_readwrite("exposure", &DisplayOptions::exposure)
                 .def_readwrite("softClip", &DisplayOptions::softClip)
-                .def_readwrite("imageFilters", &DisplayOptions::imageFilters)
                 .def(pybind11::self == pybind11::self)
                 .def(pybind11::self != pybind11::self);
 

@@ -721,9 +721,9 @@ namespace tl
                     // Create the main buffer.
                     offscreenBufferOptions.colorFilters.minify = ftk::ImageFilter::Linear;
                     offscreenBufferOptions.colorFilters.magnify = ftk::ImageFilter::Linear;
-                    if (!p.displayOptions->isEmpty())
+                    if (!p.imageOptions->isEmpty())
                     {
-                        offscreenBufferOptions.colorFilters = p.displayOptions->getItem(0).imageFilters;
+                        offscreenBufferOptions.colorFilters = p.imageOptions->getItem(0).imageFilters;
                     }
 #if defined(FTK_API_GL_4_1)
                     offscreenBufferOptions.depth = ftk::gl::OffscreenDepth::_24;

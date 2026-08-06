@@ -858,6 +858,8 @@ namespace tl
                                         p.thumbnailThread.render->begin(size);
                                         ftk::ImageOptions imageOptions;
                                         imageOptions.cache = false;
+                                        imageOptions.imageFilters.minify =
+                                            ftk::ImageFilter::HighQuality;
                                         p.thumbnailThread.render->IRender::drawImage(
                                             videoData.image,
                                             ftk::Box2I(0, 0, size.w, size.h),

@@ -138,6 +138,21 @@ namespace tl
             }
         }
 
+        namespace
+        {
+            // The filters for one of the images being drawn, which is where
+            // they live now: how a picture is sampled is a fact about the
+            // picture, not about the colours it is shown in.
+            ftk::ImageFilters imageFilters(
+                const std::vector<ftk::ImageOptions>& imageOptions,
+                size_t index)
+            {
+                return index < imageOptions.size() ?
+                    imageOptions[index].imageFilters :
+                    ftk::ImageFilters();
+            }
+        }
+
         void Render::drawVideo(
             const std::vector<VideoFrame>& videoFrame,
             const std::vector<ftk::Box2I>& boxes,
@@ -404,7 +419,7 @@ namespace tl
                 ftk::gl::OffscreenBufferOptions offscreenBufferOptions;
                 if (!displayOptions.empty())
                 {
-                    offscreenBufferOptions.colorFilters = displayOptions[0].imageFilters;
+                    offscreenBufferOptions.colorFilters = imageFilters(imageOptions, 0);
                 }
                 if (doCreate(
                     p.buffers["overlay"],
@@ -504,7 +519,7 @@ namespace tl
                 ftk::gl::OffscreenBufferOptions offscreenBufferOptions;
                 if (!displayOptions.empty())
                 {
-                    offscreenBufferOptions.colorFilters = displayOptions[0].imageFilters;
+                    offscreenBufferOptions.colorFilters = imageFilters(imageOptions, 0);
                 }
                 if (doCreate(
                     p.buffers["difference0"],
@@ -558,7 +573,7 @@ namespace tl
                     offscreenBufferOptions = ftk::gl::OffscreenBufferOptions();
                     if (displayOptions.size() > 1)
                     {
-                        offscreenBufferOptions.colorFilters = displayOptions[1].imageFilters;
+                        offscreenBufferOptions.colorFilters = imageFilters(imageOptions, 1);
                     }
                     if (doCreate(
                         p.buffers["difference1"],
@@ -709,8 +724,12 @@ namespace tl
             GLint viewportPrev[4] = { 0, 0, 0, 0 };
             glGetIntegerv(GL_VIEWPORT, viewportPrev);
 
-            auto imageShader = p.baseRender->getShader("image");
-            imageShader->bind();
+            // Through setTransform() rather than by setting the uniform on
+            // the image shader: anything the draws below call has no other way
+            // to find out what space it is drawing in, and a resample that
+            // believes it is drawing to the view rather than to this buffer
+            // puts the picture in a corner of it.
+            const ftk::M44F previousTransform = p.baseRender->getTransform();
             const auto transform = ftk::ortho(
                 0.F,
                 static_cast<float>(box.w()),
@@ -718,7 +737,7 @@ namespace tl
                 0.F,
                 -1.F,
                 1.F);
-            imageShader->setUniform("transform.mvp", transform);
+            p.baseRender->setTransform(transform);
 
             const ftk::Size2I& offscreenBufferSize = box.size();
 
@@ -748,7 +767,10 @@ namespace tl
             };
 
             ftk::gl::OffscreenBufferOptions offscreenBufferOptions;
-            offscreenBufferOptions.colorFilters = displayOptions.imageFilters;
+            const ftk::ImageFilters filters = imageOptions.get() ?
+                imageOptions->imageFilters :
+                ftk::ImageFilters();
+            offscreenBufferOptions.colorFilters = filters;
             if (doCreate(
                 p.buffers["video"],
                 offscreenBufferSize,
@@ -912,6 +934,74 @@ namespace tl
                 }
             }
 
+            p.baseRender->setTransform(previousTransform);
+
+            // The picture has been drawn at its own size; the view's zoom is
+            // applied by the draw below. When that is a large reduction the
+            // four texels a linear fetch reads miss most of it, so reduce the
+            // buffer first, with the filter the View tool asks for.
+            //
+            // Before the display transform rather than after: this way the
+            // resample weighs the working values rather than display referred
+            // ones, and the transform then runs over the smaller picture.
+            unsigned int videoID = p.buffers["video"] ? p.buffers["video"]->getColorID() : 0;
+            unsigned int videoScaledID = 0;
+            ftk::Size2I scaledBufferSize;
+            if (p.buffers["video"] &&
+                ftk::ImageFilter::HighQuality == filters.minify)
+            {
+                // What the box comes to on screen, which is the render
+                // transform applied to its corners.
+                const ftk::M44F& m = p.baseRender->getTransform();
+                const ftk::Size2I renderSize = p.baseRender->getRenderSize();
+                const auto toPixels = [&m, &renderSize](float x, float y)
+                {
+                    const ftk::V4F v = m * ftk::V4F(x, y, 0.F, 1.F);
+                    return ftk::V2F(
+                        (v.x + 1.F) * .5F * renderSize.w,
+                        (v.y + 1.F) * .5F * renderSize.h);
+                };
+                const ftk::V2F a = toPixels(box.min.x, box.min.y);
+                const ftk::V2F b = toPixels(box.max.x + 1, box.max.y + 1);
+                const ftk::Size2I onScreen(
+                    static_cast<int>(std::round(std::fabs(b.x - a.x))),
+                    static_cast<int>(std::round(std::fabs(b.y - a.y))));
+                if (onScreen.isValid() &&
+                    (onScreen.w < offscreenBufferSize.w ||
+                     onScreen.h < offscreenBufferSize.h))
+                {
+                    const ftk::Size2I scaledSize(
+                        std::min(onScreen.w, offscreenBufferSize.w),
+                        std::min(onScreen.h, offscreenBufferSize.h));
+                    ftk::gl::OffscreenBufferOptions scaledOptions;
+                    if (doCreate(p.buffers["videoScaled"], scaledSize, colorBuffer, scaledOptions))
+                    {
+                        p.buffers["videoScaled"] = ftk::gl::OffscreenBuffer::create(
+                            scaledSize, colorBuffer, scaledOptions);
+                    }
+                    if (p.buffers["videoScaled"])
+                    {
+                        const ftk::gl::SetAndRestore scissorTest(GL_SCISSOR_TEST, GL_FALSE);
+                        ftk::gl::OffscreenBufferBinding binding(p.buffers["videoScaled"]);
+                        const ftk::M44F saved = p.baseRender->getTransform();
+                        glViewport(0, 0, scaledSize.w, scaledSize.h);
+                        glClearColor(0.F, 0.F, 0.F, 0.F);
+                        glClear(GL_COLOR_BUFFER_BIT);
+                        p.baseRender->setTransform(ftk::ortho(
+                            0.F, static_cast<float>(scaledSize.w),
+                            static_cast<float>(scaledSize.h), 0.F, -1.F, 1.F));
+                        p.baseRender->drawTextureScaled(
+                            videoID,
+                            offscreenBufferSize,
+                            ftk::Box2I(0, 0, scaledSize.w, scaledSize.h));
+                        p.baseRender->setTransform(saved);
+                        videoID = p.buffers["videoScaled"]->getColorID();
+                        videoScaledID = videoID;
+                        scaledBufferSize = scaledSize;
+                    }
+                }
+            }
+
             if (p.buffers["video"])
             {
                 glBlendFuncSeparate(GL_ONE, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
@@ -924,6 +1014,18 @@ namespace tl
 
                 p.shaders["display"]->bind();
                 p.shaders["display"]->setUniform("textureSampler", 0);
+                // Enlarging is sampled here rather than resampled into a
+                // buffer first, so this is where the view's magnify setting
+                // is answered.
+                const ftk::Size2I displaySize = videoID == videoScaledID ?
+                    scaledBufferSize :
+                    offscreenBufferSize;
+                p.shaders["display"]->setUniform(
+                    "magnifyHighQuality",
+                    ftk::ImageFilter::HighQuality == filters.magnify);
+                p.shaders["display"]->setUniform(
+                    "textureSize",
+                    ftk::V2F(displaySize.w, displaySize.h));
                 p.shaders["display"]->setUniform("channels", static_cast<int>(displayOptions.channels));
                 p.shaders["display"]->setUniform("negative", displayOptions.negative);
                 p.shaders["display"]->setUniform("mirrorX", displayOptions.mirror.x);
@@ -969,7 +1071,7 @@ namespace tl
                     displayOptions.softClip.enabled ? displayOptions.softClip.value : 0.F);
 
                 glActiveTexture(static_cast<GLenum>(GL_TEXTURE0));
-                glBindTexture(GL_TEXTURE_2D, p.buffers["video"]->getColorID());
+                glBindTexture(GL_TEXTURE_2D, videoID);
                 size_t texturesOffset = 1;
 #if defined(TLRENDER_OCIO)
                 if (p.ocioData)
@@ -1009,8 +1111,7 @@ namespace tl
                 }
             }
 
-            imageShader->bind();
-            imageShader->setUniform("transform.mvp", getTransform());
+            p.baseRender->setTransform(previousTransform);
         }
 
         void Render::drawForeground(

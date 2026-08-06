@@ -147,8 +147,7 @@ namespace tl
             color == other.color &&
             levels == other.levels &&
             exposure == other.exposure &&
-            softClip == other.softClip &&
-            imageFilters == other.imageFilters;
+            softClip == other.softClip;
     }
 
     bool DisplayOptions::operator != (const DisplayOptions& other) const
@@ -333,7 +332,6 @@ namespace tl
         json["Levels"] = in.levels;
         json["Exposure"] = in.exposure;
         json["SoftClip"] = in.softClip;
-        json["ImageFilters"] = in.imageFilters;
     }
 
     void from_json(const nlohmann::json& json, Color& out)
@@ -394,6 +392,5 @@ namespace tl
         json.at("Levels").get_to(out.levels);
         json.at("Exposure").get_to(out.exposure);
         json.at("SoftClip").get_to(out.softClip);
-        json.at("ImageFilters").get_to(out.imageFilters);
     }
 }
