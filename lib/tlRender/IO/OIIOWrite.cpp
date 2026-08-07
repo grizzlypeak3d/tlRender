@@ -21,8 +21,13 @@ namespace tl
             //! everything after that through the output object's own. Reading
             //! the global one for an open() failure is why a missing output
             //! directory used to raise an exception with no message at all.
+            //!
+            //! OIIO's message is the reason, when it gave one; its text already
+            //! names the file, so the name is only added when it did not. Which
+            //! call failed is not worth reporting -- from the outside all three
+            //! mean the file could not be written.
             std::string oiioError(
-                const std::string& message,
+                const std::string& fileName,
                 const std::unique_ptr<OIIO::ImageOutput>& output)
             {
                 std::string error = output ? output->geterror() : std::string();
@@ -31,8 +36,8 @@ namespace tl
                     error = OIIO::geterror();
                 }
                 return error.empty() ?
-                    message :
-                    ftk::Format("{0}: {1}").arg(message).arg(error).str();
+                    ftk::Format("Cannot write: \"{0}\"").arg(fileName).str() :
+                    ftk::Format("Cannot write: {0}").arg(error).str();
             }
         }
 
@@ -115,9 +120,7 @@ namespace tl
             auto oiioOutput = OIIO::ImageOutput::create(fileName);
             if (!oiioOutput)
             {
-                throw std::runtime_error(oiioError(
-                    ftk::Format("Cannot write: \"{0}\"").arg(fileName).str(),
-                    oiioOutput));
+                throw std::runtime_error(oiioError(fileName, oiioOutput));
             }
             const std::string format = oiioOutput->format_name();
 
@@ -150,9 +153,7 @@ namespace tl
             }
             if (!oiioOutput->open(fileName, oiioSpec))
             {
-                throw std::runtime_error(oiioError(
-                    ftk::Format("Cannot open: \"{0}\"").arg(fileName).str(),
-                    oiioOutput));
+                throw std::runtime_error(oiioError(fileName, oiioOutput));
             }
 
             // Write the image.
@@ -164,9 +165,7 @@ namespace tl
                 -scanlineByteCount,
                 OIIO::AutoStride))
             {
-                throw std::runtime_error(oiioError(
-                    ftk::Format("Cannot write: \"{0}\"").arg(fileName).str(),
-                    oiioOutput));
+                throw std::runtime_error(oiioError(fileName, oiioOutput));
             }
         }
     }
