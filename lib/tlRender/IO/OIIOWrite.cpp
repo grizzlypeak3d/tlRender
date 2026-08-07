@@ -22,10 +22,9 @@ namespace tl
             //! the global one for an open() failure is why a missing output
             //! directory used to raise an exception with no message at all.
             //!
-            //! OIIO's message is the reason, when it gave one; its text already
-            //! names the file, so the name is only added when it did not. Which
-            //! call failed is not worth reporting -- from the outside all three
-            //! mean the file could not be written.
+            //! OIIO's message is the reason, when it gave one. Which call
+            //! failed is not worth reporting -- from the outside all three mean
+            //! the file could not be written.
             std::string oiioError(
                 const std::string& fileName,
                 const std::unique_ptr<OIIO::ImageOutput>& output)
@@ -35,9 +34,17 @@ namespace tl
                 {
                     error = OIIO::geterror();
                 }
-                return error.empty() ?
-                    ftk::Format("Cannot write: \"{0}\"").arg(fileName).str() :
-                    ftk::Format("Cannot write: {0}").arg(error).str();
+                if (error.empty())
+                {
+                    return ftk::Format("Cannot write: \"{0}\"").arg(fileName).str();
+                }
+                // OIIO usually names the file itself, so only add it when this
+                // message has not. Looking for the name is not the same as
+                // matching on OIIO's wording: the worst this can get wrong is
+                // saying the path twice, never dropping it.
+                return error.find(fileName) != std::string::npos ?
+                    ftk::Format("Cannot write: {0}").arg(error).str() :
+                    ftk::Format("Cannot write: \"{0}\": {1}").arg(fileName).arg(error).str();
             }
         }
 
