@@ -149,6 +149,40 @@ namespace tl
                 }
             }
 
+            // A clip whose media cannot be read must contribute no audio
+            // layer at all, not an empty one. An empty layer reaches the
+            // player as a stream that never produces a sample, and playback
+            // is timed by the audio, so the clock stops and the video stops
+            // with it: MissingMedia.otio would not play from its start, while
+            // scrubbing still worked.
+            try
+            {
+                const ftk::Path path(TLRENDER_SAMPLE_DATA, "MissingMedia.otio");
+                _print(ftk::Format("Path: {0}").arg(path.get()));
+                auto timeline = Timeline::create(_context, path);
+
+                // The first second, where the audio track's clip has no media.
+                auto request = timeline->getAudio(0);
+                const AudioFrame frame = request.future.get();
+                for (const auto& layer : frame.layers)
+                {
+                    FTK_CHECK(layer.audio);
+                }
+
+                // The second half has audio, so it still arrives.
+                auto request2 = timeline->getAudio(4);
+                const AudioFrame frame2 = request2.future.get();
+                FTK_CHECK(!frame2.layers.empty());
+                for (const auto& layer : frame2.layers)
+                {
+                    FTK_CHECK(layer.audio);
+                }
+            }
+            catch (const std::exception& e)
+            {
+                _error(e.what());
+            }
+
             // Timelines without spatial coordinates are laid out from the
             // image sizes as before.
             try

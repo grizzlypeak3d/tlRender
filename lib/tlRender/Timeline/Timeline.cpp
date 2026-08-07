@@ -2647,9 +2647,21 @@ namespace tl
                                     }
                                     catch (const std::exception&)
                                     {
-                                        //! \todo How should this be handled?
+                                        // Left with no audio, and handled
+                                        // below by not contributing a layer.
                                     }
-                                    request->layerData.push_back(std::move(audioData));
+                                    // A clip whose media cannot be read
+                                    // contributes nothing, the same as a gap.
+                                    // An empty layer is not the same as no
+                                    // layer: it reaches the player as a
+                                    // stream that never produces a sample,
+                                    // and playback is timed by the audio, so
+                                    // the clock stops and the video stops
+                                    // with it.
+                                    if (audioData.audio.valid())
+                                    {
+                                        request->layerData.push_back(std::move(audioData));
+                                    }
                                 }
                             }
                         }
