@@ -45,7 +45,7 @@ namespace tl
             std::shared_ptr<ftk::HorizontalLayout> _layout;
             std::map<std::string, std::shared_ptr<ftk::Label> > _labels;
             std::shared_ptr<ftk::Timer> _messagesTimer;
-            std::shared_ptr<ftk::ListObserver<std::string> > _messagesObserver;
+            std::shared_ptr<ftk::ListObserver<ftk::LogItem> > _messagesObserver;
             std::shared_ptr<ftk::Observer<std::shared_ptr<Player> > > _playerObserver;
         };
     }
