@@ -14,9 +14,11 @@ namespace tl
         ReadAudio::ReadAudio(
             const std::string& fileName,
             const std::vector<ftk::MemFile>& memory,
-            const ReadOptions& options) :
+            const ReadOptions& options,
+            const std::shared_ptr<std::atomic_bool>& cancellation) :
             _fileName(fileName),
-            _options(options)
+            _options(options),
+            _cancellation(cancellation)
         {
             try
             {
@@ -50,9 +52,20 @@ namespace tl
                     _avFormatContext->pb = _avIOContext;
                 }
 
+                if (!_avFormatContext)
+                {
+                    _avFormatContext = avformat_alloc_context();
+                    if (!_avFormatContext)
+                    {
+                        throw std::runtime_error(ftk::Format("Cannot allocate format context: \"{0}\"").arg(fileName));
+                    }
+                }
+                _avFormatContext->interrupt_callback.callback = avIOInterrupt;
+                _avFormatContext->interrupt_callback.opaque = _cancellation.get();
+
                 int r = avformat_open_input(
                     &_avFormatContext,
-                    !_avFormatContext ? fileName.c_str() : nullptr,
+                    memory.empty() ? fileName.c_str() : nullptr,
                     nullptr,
                     nullptr);
                 if (r < 0)

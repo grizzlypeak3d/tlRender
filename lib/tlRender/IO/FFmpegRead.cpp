@@ -19,6 +19,12 @@ namespace tl
 {
     namespace ffmpeg
     {
+        int avIOInterrupt(void* opaque)
+        {
+            const auto cancelled = static_cast<std::atomic_bool*>(opaque);
+            return cancelled && cancelled->load(std::memory_order_acquire) ? 1 : 0;
+        }
+
         AVIOBufferData::AVIOBufferData(const uint8_t* p, size_t size) :
             p(p),
             size(size)
@@ -181,13 +187,15 @@ namespace tl
                 [this, path]
                 {
                     FTK_P();
+                    _bindIOCancellation();
                     try
                     {
                         p.readVideo = std::make_shared<ReadVideo>(
                             getFileName(path),
                             _mem,
                             p.options,
-                            _logSystem.lock());
+                            _logSystem.lock(),
+                            _getIOCancellationFlag());
                         const auto& videoInfo = p.readVideo->getInfo();
                         if (videoInfo.isValid())
                         {
@@ -217,6 +225,7 @@ namespace tl
 
                     // The epilogue.
                     p.condition.stopQueues();
+                    _unbindIOCancellation();
                 });
         }
 
@@ -227,7 +236,7 @@ namespace tl
         VideoRead::~VideoRead()
         {
             FTK_P();
-
+            cancelIO();
             // Stop the condition and wake the thread so that shutdown does
             // not have to wait for the request timeout.
             p.condition.stop();
@@ -413,12 +422,14 @@ namespace tl
                 [this, path]
                 {
                     FTK_P();
+                    _bindIOCancellation();
                     try
                     {
                         p.readAudio = std::make_shared<ReadAudio>(
                             getFileName(path),
                             _mem,
-                            p.options);
+                            p.options,
+                            _getIOCancellationFlag());
                         p.info.audio = p.readAudio->getInfo();
                         p.info.audioTime = p.readAudio->getTimeRange();
                         p.info.tags = p.readAudio->getTags();
@@ -454,6 +465,7 @@ namespace tl
 
                     // The epilogue.
                     p.condition.stopQueues();
+                    _unbindIOCancellation();
                 });
         }
 
@@ -465,6 +477,7 @@ namespace tl
         {
             FTK_P();
 
+            cancelIO();
             // Stop the condition and wake the thread so that shutdown does
             // not have to wait for the request timeout.
             p.condition.stop();

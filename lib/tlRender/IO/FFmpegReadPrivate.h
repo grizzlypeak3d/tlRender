@@ -25,6 +25,8 @@ namespace tl
 {
     namespace ffmpeg
     {
+        int avIOInterrupt(void*);
+
         struct AVIOBufferData
         {
             AVIOBufferData() = default;
@@ -64,7 +66,8 @@ namespace tl
                 const std::string& fileName,
                 const std::vector<ftk::MemFile>& memory,
                 const ReadOptions& options,
-                const std::shared_ptr<ftk::LogSystem>& logSystem);
+                const std::shared_ptr<ftk::LogSystem>& logSystem,
+                const std::shared_ptr<std::atomic_bool>& cancellation);
 
             ~ReadVideo();
 
@@ -120,6 +123,7 @@ namespace tl
             bool _hwAccel = false;
             bool _hwLogged = false;
             std::weak_ptr<ftk::LogSystem> _logSystem;
+            std::shared_ptr<std::atomic_bool> _cancellation;
             std::list<std::shared_ptr<ftk::Image> > _buffer;
             bool _eof = false;
             size_t _errorCount = 0;
@@ -132,7 +136,8 @@ namespace tl
             ReadAudio(
                 const std::string& fileName,
                 const std::vector<ftk::MemFile>&,
-                const ReadOptions&);
+                const ReadOptions&,
+                const std::shared_ptr<std::atomic_bool>& cancellation);
 
             ~ReadAudio();
 
@@ -175,6 +180,7 @@ namespace tl
             std::map<int, AVCodecContext*> _avCodecContext;
             AVFrame* _avFrame = nullptr;
             SwrContext* _swrContext = nullptr;
+            std::shared_ptr<std::atomic_bool> _cancellation;
             std::list<std::shared_ptr<Audio> > _buffer;
             bool _eof = false;
             size_t _errorCount = 0;

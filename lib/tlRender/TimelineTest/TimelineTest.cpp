@@ -57,6 +57,7 @@ namespace tl
 
         void TimelineTest::run()
         {
+            _cancellation();
             _enums();
             _options();
             _util();
@@ -71,6 +72,18 @@ namespace tl
             _separateAudio();
             _spatial();
             _mediaReferences();
+        }
+
+        void TimelineTest::_cancellation()
+        {
+            TimelineInitCancellation cancellation;
+            FTK_ASSERT(!cancellation.isCancelled());
+            cancellation.cancel();
+            FTK_ASSERT(cancellation.isCancelled());
+
+            // Cancellation is irreversible and safe to request repeatedly.
+            cancellation.cancel();
+            FTK_ASSERT(cancellation.isCancelled());
         }
 
         void TimelineTest::_spatial()

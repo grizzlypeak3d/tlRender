@@ -6,6 +6,9 @@
 #include <tlRender/IO/Decode.h>
 #include <tlRender/IO/Plugin.h>
 
+#include <atomic>
+#include <memory>
+
 namespace tl
 {
     //! Base class for readers.
@@ -28,6 +31,13 @@ namespace tl
     public:
         TL_API virtual ~IRead();
 
+        //! Irreversibly cancel blocking I/O owned by this reader. Unlike
+        //! cancelRequests(), this is intended for initialization or shutdown.
+        TL_API void cancelIO();
+
+        //! Whether blocking I/O cancellation has been requested.
+        TL_API bool isIOCancellationRequested() const;
+
         //! Get the information.
         TL_API virtual std::future<IOInfo> getInfo() = 0;
 
@@ -44,7 +54,18 @@ namespace tl
         TL_API virtual size_t getErrorCount() const;
 
     protected:
+        //! Bind/unbind a worker so Windows synchronous filesystem I/O can be
+        //! interrupted during cancellation. These calls are no-ops elsewhere.
+        void _bindIOCancellation();
+        void _unbindIOCancellation();
+
+        const std::shared_ptr<std::atomic_bool>& _getIOCancellationFlag() const;
+
         std::vector<ftk::MemFile> _mem;
+
+    private:
+        struct CancellationState;
+        std::shared_ptr<CancellationState> _cancellation;
     };
 
     //! Base class for video readers.

@@ -20,6 +20,7 @@ namespace tl
             void run() override;
 
         private:
+            void _cancellation();
             void _videoData();
             void _ioSystem();
             void _decode();

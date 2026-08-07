@@ -26,6 +26,26 @@ namespace ftk
 
 namespace tl
 {
+    //! Cancellation handle for timeline initialization. Cancellation is
+    //! irreversible and interrupts any readers currently probing media.
+    class TL_API_TYPE TimelineInitCancellation
+    {
+    public:
+        TL_API TimelineInitCancellation();
+        TL_API ~TimelineInitCancellation();
+
+        TL_API void cancel();
+        TL_API bool isCancelled() const;
+
+    private:
+        void _bind(const std::shared_ptr<IRead>&);
+        void _unbind(const std::shared_ptr<IRead>&);
+
+        struct Private;
+        std::unique_ptr<Private> _p;
+        friend class Timeline;
+    };
+
     //! Video request.
     struct TL_API_TYPE VideoRequest
     {
@@ -50,11 +70,13 @@ namespace tl
             const std::shared_ptr<ftk::Context>&,
             const ftk::Path& inputPath,
             const ftk::Path& inputAudioPath,
-            const Options&);
+            const Options&,
+            const std::shared_ptr<TimelineInitCancellation>&);
         void _init(
             const std::shared_ptr<ftk::Context>&,
             const OTIO_NS::SerializableObject::Retainer<OTIO_NS::Timeline>&,
-            const Options&);
+            const Options&,
+            const std::shared_ptr<TimelineInitCancellation>&);
 
         Timeline();
 
@@ -72,7 +94,8 @@ namespace tl
         TL_API static std::shared_ptr<Timeline> create(
             const std::shared_ptr<ftk::Context>&,
             const ftk::Path&,
-            const Options& = Options());
+            const Options& = Options(),
+            const std::shared_ptr<TimelineInitCancellation>& = nullptr);
 
         //! Create a new timeline from a path and audio path. The path can
         //! point to an .otio file, movie file, or image sequence.
@@ -80,7 +103,8 @@ namespace tl
             const std::shared_ptr<ftk::Context>&,
             const ftk::Path& path,
             const ftk::Path& audioPath,
-            const Options& = Options());
+            const Options& = Options(),
+            const std::shared_ptr<TimelineInitCancellation>& = nullptr);
 
         //! Create a new timeline from a file name. The file name can point
         //! to an .otio file, movie file, or image sequence.

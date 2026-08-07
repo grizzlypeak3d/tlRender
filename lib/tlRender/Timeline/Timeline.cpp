@@ -314,9 +314,15 @@ namespace tl
         const std::shared_ptr<ftk::Context>& context,
         const ftk::Path& inputPath,
         const ftk::Path& inputAudioPath,
-        const Options& options)
+        const Options& options,
+        const std::shared_ptr<TimelineInitCancellation>& cancellation)
     {
         FTK_P();
+
+        if (cancellation && cancellation->isCancelled())
+        {
+            throw std::runtime_error("Timeline initialization cancelled");
+        }
 
         ftk::Path path = inputPath;
         ftk::Path audioPath = inputAudioPath;
@@ -370,8 +376,16 @@ namespace tl
         {
             if (auto decode = plugin->decode(options.ioOptions))
             {
+                if (cancellation && cancellation->isCancelled())
+                {
+                    throw std::runtime_error("Timeline initialization cancelled");
+                }
                 info = SeqDecode::create(
                     path, {}, decode, options.ioOptions)->getInfo();
+                if (cancellation && cancellation->isCancelled())
+                {
+                    throw std::runtime_error("Timeline initialization cancelled");
+                }
                 infoValid = true;
             }
         }
@@ -382,31 +396,57 @@ namespace tl
             // timeline goes on to read is decided by the tracks below.
             auto videoRead = ioSystem->videoRead(path, options.ioOptions);
             auto audioRead = ioSystem->audioRead(path, options.ioOptions);
-            std::future<IOInfo> videoFuture;
-            std::future<IOInfo> audioFuture;
-            if (videoRead)
+            if (cancellation)
             {
-                videoFuture = videoRead->getInfo();
+                cancellation->_bind(videoRead);
+                cancellation->_bind(audioRead);
             }
-            if (audioRead)
+            try
             {
-                audioFuture = audioRead->getInfo();
+                std::future<IOInfo> videoFuture;
+                std::future<IOInfo> audioFuture;
+                if (videoRead)
+                {
+                    videoFuture = videoRead->getInfo();
+                }
+                if (audioRead)
+                {
+                    audioFuture = audioRead->getInfo();
+                }
+                IOInfo videoInfo;
+                if (videoFuture.valid())
+                {
+                    videoInfo = videoFuture.get();
+                    infoValid = true;
+                }
+                IOInfo audioInfo;
+                if (audioFuture.valid())
+                {
+                    audioInfo = audioFuture.get();
+                    infoValid = true;
+                }
+                if (infoValid)
+                {
+                    info = merge(videoInfo, audioInfo);
+                }
             }
-            IOInfo videoInfo;
-            if (videoFuture.valid())
+            catch (...)
             {
-                videoInfo = videoFuture.get();
-                infoValid = true;
+                if (cancellation)
+                {
+                    cancellation->_unbind(videoRead);
+                    cancellation->_unbind(audioRead);
+                }
+                throw;
             }
-            IOInfo audioInfo;
-            if (audioFuture.valid())
+            if (cancellation)
             {
-                audioInfo = audioFuture.get();
-                infoValid = true;
+                cancellation->_unbind(videoRead);
+                cancellation->_unbind(audioRead);
             }
-            if (infoValid)
+            if (cancellation && cancellation->isCancelled())
             {
-                info = merge(videoInfo, audioInfo);
+                throw std::runtime_error("Timeline initialization cancelled");
             }
         }
         if (infoValid)
@@ -530,7 +570,22 @@ namespace tl
             {
                 if (auto audioRead = ioSystem->audioRead(audioPath, options.ioOptions))
                 {
-                    const auto audioInfo = audioRead->getInfo().get();
+                    if (cancellation) cancellation->_bind(audioRead);
+                    IOInfo audioInfo;
+                    try
+                    {
+                        audioInfo = audioRead->getInfo().get();
+                    }
+                    catch (...)
+                    {
+                        if (cancellation) cancellation->_unbind(audioRead);
+                        throw;
+                    }
+                    if (cancellation) cancellation->_unbind(audioRead);
+                    if (cancellation && cancellation->isCancelled())
+                    {
+                        throw std::runtime_error("Timeline initialization cancelled");
+                    }
 
                     auto audioClip = new OTIO_NS::Clip;
                     audioClip->set_source_range(*audioInfo.audioTime);
@@ -740,13 +795,14 @@ namespace tl
         dict["audioPath"] = audioPath.get();
         otioTimeline->metadata()["tlRender"] = dict;
 
-        _init(context, otioTimeline, options);
+        _init(context, otioTimeline, options, cancellation);
     }
 
     void Timeline::_init(
         const std::shared_ptr<ftk::Context>& context,
         const OTIO_NS::SerializableObject::Retainer<OTIO_NS::Timeline>& otioTimeline,
-        const Options& options)
+        const Options& options,
+        const std::shared_ptr<TimelineInitCancellation>& cancellation)
     {
         FTK_P();
 
@@ -801,6 +857,11 @@ namespace tl
             {}
         }
         p.options = options;
+        p.initCancellation = cancellation;
+        if (p.initCancellation && p.initCancellation->isCancelled())
+        {
+            throw std::runtime_error("Timeline initialization cancelled");
+        }
         p.videoReadCache.setMax(p.options.readCacheMax);
         p.audioReadCache.setMax(p.options.readCacheMax);
         p.seqCache.setMax(p.options.seqCacheMax);
@@ -943,6 +1004,11 @@ namespace tl
             arg(p.ioInfo.audio.type).
             arg(p.ioInfo.audio.sampleRate));
 
+        if (p.initCancellation && p.initCancellation->isCancelled())
+        {
+            throw std::runtime_error("Timeline initialization cancelled");
+        }
+
         // Create a new thread.
         p.thread.running = true;
         p.thread.logTimer = std::chrono::steady_clock::now();
@@ -959,6 +1025,7 @@ namespace tl
                     _finishRequests();
                 });
         }
+        p.initCancellation.reset();
     }
 
     namespace
@@ -1002,17 +1069,18 @@ namespace tl
         const Options& options)
     {
         auto out = std::shared_ptr<Timeline>(new Timeline);
-        out->_init(context, timeline, options);
+        out->_init(context, timeline, options, nullptr);
         return out;
     }
 
     std::shared_ptr<Timeline> Timeline::create(
         const std::shared_ptr<ftk::Context>& context,
         const ftk::Path& path,
-        const Options& options)
+        const Options& options,
+        const std::shared_ptr<TimelineInitCancellation>& cancellation)
     {
         auto out = std::shared_ptr<Timeline>(new Timeline);
-        out->_init(context, path, ftk::Path(), options);
+        out->_init(context, path, ftk::Path(), options, cancellation);
         return out;
     }
 
@@ -1020,10 +1088,11 @@ namespace tl
         const std::shared_ptr<ftk::Context>& context,
         const ftk::Path& path,
         const ftk::Path& audioPath,
-        const Options& options)
+        const Options& options,
+        const std::shared_ptr<TimelineInitCancellation>& cancellation)
     {
         auto out = std::shared_ptr<Timeline>(new Timeline);
-        out->_init(context, path, audioPath, options);
+        out->_init(context, path, audioPath, options, cancellation);
         return out;
     }
 
@@ -1037,7 +1106,8 @@ namespace tl
             context,
             ftk::Path(fileName, options.pathOptions),
             ftk::Path(),
-            options);
+            options,
+            nullptr);
         return out;
     }
 
@@ -1052,7 +1122,8 @@ namespace tl
             context,
             ftk::Path(fileName, options.pathOptions),
             ftk::Path(audioFileName, options.pathOptions),
-            options);
+            options,
+            nullptr);
         return out;
     }
 
@@ -2010,14 +2081,46 @@ namespace tl
         const IOOptions& ioOptions,
         IOInfo& out)
     {
+        FTK_P();
         if (auto seq = _getSeqDecode(mediaReference, ioOptions))
         {
+            if (p.initCancellation && p.initCancellation->isCancelled())
+            {
+                throw std::runtime_error("Timeline initialization cancelled");
+            }
             out = seq->getInfo();
+            if (p.initCancellation && p.initCancellation->isCancelled())
+            {
+                throw std::runtime_error("Timeline initialization cancelled");
+            }
             return true;
         }
         if (auto videoRead = _getVideoRead(mediaReference, ioOptions))
         {
-            out = videoRead->getInfo().get();
+            if (p.initCancellation)
+            {
+                p.initCancellation->_bind(videoRead);
+            }
+            try
+            {
+                out = videoRead->getInfo().get();
+            }
+            catch (...)
+            {
+                if (p.initCancellation)
+                {
+                    p.initCancellation->_unbind(videoRead);
+                }
+                throw;
+            }
+            if (p.initCancellation)
+            {
+                p.initCancellation->_unbind(videoRead);
+                if (p.initCancellation->isCancelled())
+                {
+                    throw std::runtime_error("Timeline initialization cancelled");
+                }
+            }
             return true;
         }
         return false;
@@ -2028,10 +2131,34 @@ namespace tl
         const IOOptions& ioOptions,
         IOInfo& out)
     {
+        FTK_P();
         // Audio is never a sequence of stateless files.
         if (auto audioRead = _getAudioRead(mediaReference, ioOptions))
         {
-            out = audioRead->getInfo().get();
+            if (p.initCancellation)
+            {
+                p.initCancellation->_bind(audioRead);
+            }
+            try
+            {
+                out = audioRead->getInfo().get();
+            }
+            catch (...)
+            {
+                if (p.initCancellation)
+                {
+                    p.initCancellation->_unbind(audioRead);
+                }
+                throw;
+            }
+            if (p.initCancellation)
+            {
+                p.initCancellation->_unbind(audioRead);
+                if (p.initCancellation->isCancelled())
+                {
+                    throw std::runtime_error("Timeline initialization cancelled");
+                }
+            }
             return true;
         }
         return false;
@@ -2042,40 +2169,80 @@ namespace tl
         const IOOptions& ioOptions,
         IOInfo& out)
     {
+        FTK_P();
         if (auto seq = _getSeqDecode(mediaReference, ioOptions))
         {
+            if (p.initCancellation && p.initCancellation->isCancelled())
+            {
+                throw std::runtime_error("Timeline initialization cancelled");
+            }
             out = seq->getInfo();
+            if (p.initCancellation && p.initCancellation->isCancelled())
+            {
+                throw std::runtime_error("Timeline initialization cancelled");
+            }
             return true;
         }
         // Both requests go out before either is waited on, so that the two
         // readers open the file at the same time.
         auto videoRead = _getVideoRead(mediaReference, ioOptions);
         auto audioRead = _getAudioRead(mediaReference, ioOptions);
-        std::future<IOInfo> videoFuture;
-        std::future<IOInfo> audioFuture;
-        if (videoRead)
+        if (p.initCancellation)
         {
-            videoFuture = videoRead->getInfo();
+            p.initCancellation->_bind(videoRead);
+            p.initCancellation->_bind(audioRead);
         }
-        if (audioRead)
+        try
         {
-            audioFuture = audioRead->getInfo();
+            std::future<IOInfo> videoFuture;
+            std::future<IOInfo> audioFuture;
+            if (videoRead)
+            {
+                videoFuture = videoRead->getInfo();
+            }
+            if (audioRead)
+            {
+                audioFuture = audioRead->getInfo();
+            }
+            if (!videoFuture.valid() && !audioFuture.valid())
+            {
+                if (p.initCancellation)
+                {
+                    p.initCancellation->_unbind(videoRead);
+                    p.initCancellation->_unbind(audioRead);
+                }
+                return false;
+            }
+            IOInfo videoInfo;
+            if (videoFuture.valid())
+            {
+                videoInfo = videoFuture.get();
+            }
+            IOInfo audioInfo;
+            if (audioFuture.valid())
+            {
+                audioInfo = audioFuture.get();
+            }
+            out = merge(videoInfo, audioInfo);
         }
-        if (!videoFuture.valid() && !audioFuture.valid())
+        catch (...)
         {
-            return false;
+            if (p.initCancellation)
+            {
+                p.initCancellation->_unbind(videoRead);
+                p.initCancellation->_unbind(audioRead);
+            }
+            throw;
         }
-        IOInfo videoInfo;
-        if (videoFuture.valid())
+        if (p.initCancellation)
         {
-            videoInfo = videoFuture.get();
+            p.initCancellation->_unbind(videoRead);
+            p.initCancellation->_unbind(audioRead);
+            if (p.initCancellation->isCancelled())
+            {
+                throw std::runtime_error("Timeline initialization cancelled");
+            }
         }
-        IOInfo audioInfo;
-        if (audioFuture.valid())
-        {
-            audioInfo = audioFuture.get();
-        }
-        out = merge(videoInfo, audioInfo);
         return true;
     }
 
