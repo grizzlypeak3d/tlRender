@@ -23,7 +23,7 @@ namespace tl
     namespace io_tests
     {
         IOTest::IOTest(const std::shared_ptr<ftk::Context>& context) :
-            ITest(context, "IOTest::IOTest")
+            ITest(context, "io_tests::IOTest")
         {}
 
         std::shared_ptr<IOTest> IOTest::create(const std::shared_ptr<ftk::Context>& context)
