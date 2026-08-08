@@ -3,11 +3,6 @@
 
 #include "tl-test.h"
 
-#if defined(TLRENDER_QT6)
-#include <tlRender/QtTest/TimeObjectTest.h>
-#include <tlRender/Qt/Init.h>
-#endif // TLRENDER_QT6
-
 #include <tlRender/UITest/ThumbnailSystemTest.h>
 
 #include <tlRender/TimelineTest/AudioSystemTest.h>
@@ -76,13 +71,7 @@ namespace tl
                 "Test application",
                 { p.testNames });
             p.startTime = std::chrono::steady_clock::now();
-#if defined(TLRENDER_QT6)
-            qt::init(
-                context,
-                qt::DefaultSurfaceFormat::OpenGL_4_1_CoreProfile);
-#else // TLRENDER_QT6
             ui::init(context);
-#endif // TLRENDER_QT6
 
             // Core tests.
             p.tests.push_back(core_tests::AudioTest::create(context));
@@ -115,11 +104,6 @@ namespace tl
 
             // UI tests.
             p.tests.push_back(ui_tests::ThumbnailSystemTest::create(context));
-
-#if defined(TLRENDER_QT6)
-            // Qt tests.
-            p.tests.push_back(qt_tests::TimeObjectTest::create(context));
-#endif // TLRENDER_QT6
         }
 
         App::App() :

@@ -130,14 +130,6 @@ endif()
 # feather-tk dependencies
 find_package(ftk REQUIRED)
 
-# Qt dependencies
-if(@TLRENDER_QT6@)
-    set(CMAKE_AUTOMOC ON)
-    set(CMAKE_AUTORCC ON)
-    set(CMAKE_AUTOUIC ON)
-    find_package(Qt6 REQUIRED COMPONENTS Quick Widgets OpenGLWidgets Svg HINTS "$ENV{QTDIR}")
-endif()
-
 include("${CMAKE_CURRENT_LIST_DIR}/tlResourceTargets.cmake")
 include("${CMAKE_CURRENT_LIST_DIR}/tlCoreTargets.cmake")
 include("${CMAKE_CURRENT_LIST_DIR}/tlIOTargets.cmake")
@@ -145,11 +137,6 @@ include("${CMAKE_CURRENT_LIST_DIR}/tlTimelineTargets.cmake")
 include("${CMAKE_CURRENT_LIST_DIR}/tlGLTargets.cmake")
 include("${CMAKE_CURRENT_LIST_DIR}/tlDeviceTargets.cmake")
 include("${CMAKE_CURRENT_LIST_DIR}/tlUITargets.cmake")
-if(@TLRENDER_QT6@)
-    include("${CMAKE_CURRENT_LIST_DIR}/tlQtTargets.cmake")
-    include("${CMAKE_CURRENT_LIST_DIR}/tlQtWidgetTargets.cmake")
-    include("${CMAKE_CURRENT_LIST_DIR}/tlQtQuickTargets.cmake")
-endif()
 
 # \todo Is this the correct way to add the include directory?
 include_directories("@PACKAGE_INCLUDE_INSTALL_DIR@")

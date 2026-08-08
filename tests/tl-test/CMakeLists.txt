@@ -11,9 +11,6 @@ target_link_libraries(tl-test
     tlIOTest
     tlTimelineTest
     tlUITest)
-if(TLRENDER_QT6)
-    target_link_libraries(tl-test tlQtTest)
-endif()
 
 set_target_properties(tl-test PROPERTIES FOLDER tests)
 

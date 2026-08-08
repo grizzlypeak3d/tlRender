@@ -34,7 +34,6 @@ set(TLRENDER_FFMPEG_PLUGIN ON CACHE BOOL "Enable support for FFmpeg I/O")
 set(TLRENDER_FFMPEG_CMD OFF CACHE BOOL "Enable support for FFmpeg I/O with the command line application")
 set(TLRENDER_OIIO ON CACHE BOOL "Enable support for OpenImageIO")
 set(TLRENDER_USD OFF CACHE BOOL "Enable support for USD")
-set(TLRENDER_QT6 OFF CACHE BOOL "Enable support for Qt6")
 set(TLRENDER_PYTHON OFF CACHE BOOL "Enable support for Python")
 set(TLRENDER_PROGRAMS ON CACHE BOOL "Build programs")
 set(TLRENDER_EXAMPLES ON CACHE BOOL "Build examples")
@@ -216,14 +215,6 @@ endif()
 if(TLRENDER_USD)
     find_package(OpenGL REQUIRED)
     find_package(pxr REQUIRED)
-endif()
-
-# Qt dependencies
-if(TLRENDER_QT6)
-    set(CMAKE_AUTOMOC ON)
-    set(CMAKE_AUTORCC ON)
-    set(CMAKE_AUTOUIC ON)
-    find_package(Qt6 REQUIRED COMPONENTS Quick Widgets OpenGLWidgets Svg HINTS "$ENV{QTDIR}")
 endif()
 
 # Python dependencies

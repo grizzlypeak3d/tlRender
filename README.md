@@ -8,7 +8,7 @@ applications for visual effects, film, and animation.
 
 The library can render and playback timelines with multiple video clips,
 image sequences, audio clips, and transitions. Examples are provided for
-integrating the library with Qt and OpenGL applications.
+integrating the library with OpenGL applications.
 
 The library is written in C++ and uses the CMake build system.
 
@@ -30,8 +30,7 @@ Features:
 ## Building Dependencies
 
 A CMake super build script is provided to build all of the dependencies from
-source except for Qt. If building with Qt is enabled, it needs to be installed
-separately.
+source.
 
 Required dependencies:
 * [feather-tk](https://github.com/grizzlypeak3d/feather-tk)
@@ -51,7 +50,6 @@ Optional dependencies:
 * [OpenEXR](https://www.openexr.com/)
 * [FFmpeg](https://ffmpeg.org)
 * [OpenUSD](https://github.com/PixarAnimationStudios/OpenUSD)
-* [Qt version 5 or 6](https://www.qt.io)
 
 
 ## Building on Linux
@@ -106,9 +104,6 @@ Try running the `tlplay` application:
 ./build-Release/bin/tlplay/tlplay tlRender/etc/SampleData/MultipleClips.otio
 ```
 
-To build with Qt 6 add the Qt location to `CMAKE_PREFIX_PATH` (place double
-quotes around the list of paths) and enable `TLRENDER_QT6`.
-
 Example running gcovr for code coverage:
 ```
 gcovr -r ../../../../lib --html --object-directory lib --html-details --output gcov.html lib/tlCore lib/tlIO lib/tlTimeline
@@ -136,9 +131,6 @@ Try running the `tlplay` application:
 ```
 ./build-Release/bin/tlplay/tlplay tlRender/etc/SampleData/MultipleClips.otio
 ```
-
-To build with Qt 6 add the Qt location to `CMAKE_PREFIX_PATH` (place double
-quotes around the list of paths) and enable `TLRENDER_QT6`.
 
 These aliases are convenient for switching between architectures:
 ```
@@ -178,6 +170,3 @@ set PATH=%CD%\install-Release\bin;%PATH%
 ```
 .\build-Release\bin\tlplay\Release\tlplay tlRender\etc\SampleData\MultipleClips.otio
 ```
-
-To build with Qt 6 add the Qt location to `CMAKE_PREFIX_PATH` (place double
-quotes around the list of paths) and enable `TLRENDER_QT6`.

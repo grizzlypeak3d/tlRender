@@ -5,7 +5,7 @@
 # now a config file and the environment no longer carries it: an unset variable
 # here was a shell error, not a skipped branch.
 #
-# Usage: sh setup-gha.sh [extra ...]   where extra is "lcov" or "qt6"
+# Usage: sh setup-gha.sh [extra ...]   where extra is "lcov"
 
 set -x
 
@@ -20,9 +20,6 @@ for EXTRA in "$@"; do
     case $EXTRA in
         lcov)
             sudo apt-get install lcov
-            ;;
-        qt6)
-            sudo apt-get install qt6-base-dev qt6-5compat-dev qt6-declarative-dev qt6-svg-dev
             ;;
         *)
             echo "setup-gha.sh: unknown extra: $EXTRA" >&2

@@ -24,7 +24,6 @@ set(LEGAL
     LICENSE_OpenUSD.txt
     LICENSE_oneTBB.txt
     LICENSE_pystring.txt
-    LICENSE_Qt.txt
     LICENSE_subprocess.txt
     LICENSE_svt-av1.txt
     LICENSE_tlRender.txt
