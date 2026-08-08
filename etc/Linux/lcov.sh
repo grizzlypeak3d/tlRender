@@ -9,7 +9,11 @@
 lcov -c -b . -d . -o coverage.info --ignore-errors mismatch
 lcov -r coverage.info '*/usr/*' -o coverage_filtered.info
 lcov -r coverage_filtered.info '*/install/*' -o coverage_filtered.info
+# tests/ is the runner; the test suites themselves are libraries under lib.
+# Both are excluded because running a test is what covers it, so leaving them
+# in measures the tests with themselves and puts a floor under the result.
 lcov -r coverage_filtered.info '*/tests/*' -o coverage_filtered.info
+lcov -r coverage_filtered.info '*Test/*' -o coverage_filtered.info
 # deps is feather-tk, which measures its own coverage in its own CI, and the
 # vendored loaders it carries below that. Neither is tlRender's to report.
 lcov -r coverage_filtered.info '*/deps/*' -o coverage_filtered.info
