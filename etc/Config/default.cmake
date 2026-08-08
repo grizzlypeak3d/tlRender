@@ -23,6 +23,9 @@ set(TLRENDER_FFMPEG ON CACHE BOOL "")
 set(TLRENDER_FFMPEG_MINIMAL OFF CACHE BOOL "")
 set(TLRENDER_FFMPEG_PLUGIN ON CACHE BOOL "")
 set(TLRENDER_FFMPEG_CMD OFF CACHE BOOL "")
+# The subprocess dependency exists to run the command line tool, so it
+# follows TLRENDER_FFMPEG_CMD. The SuperBuild defaults it ON on its own.
+set(TLRENDER_SUBPROCESS OFF CACHE BOOL "")
 set(TLRENDER_NASM ON CACHE BOOL "")
 set(TLRENDER_OIIO ON CACHE BOOL "")
 set(TLRENDER_USD OFF CACHE BOOL "")

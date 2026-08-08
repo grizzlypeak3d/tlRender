@@ -40,3 +40,7 @@ cmake \
     -DCMAKE_INSTALL_PREFIX=$PWD/install-$BUILD_TYPE \
     -DCMAKE_PREFIX_PATH=$PWD/install-$BUILD_TYPE
 cmake --build build-$BUILD_TYPE --config $BUILD_TYPE
+
+# The install directory is how everything downstream finds what was built:
+# the tests import ftkPy from there, and packaging reads it.
+cmake --build build-$BUILD_TYPE --config $BUILD_TYPE --target install
