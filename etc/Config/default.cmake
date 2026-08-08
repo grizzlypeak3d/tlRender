@@ -37,6 +37,9 @@ set(ftk_API "GL_4_1" CACHE STRING "")
 set(BUILD_SHARED_LIBS OFF CACHE BOOL "")
 
 if(APPLE)
+    # The deployment target is policy: the oldest system that is supported.
+    # The architecture is not -- it is whatever the machine building is, and
+    # naming one here cross compiles on any other. Packages name it, because a
+    # package has to decide; a build discovers it.
     set(CMAKE_OSX_DEPLOYMENT_TARGET "10.15" CACHE STRING "")
-    set(CMAKE_OSX_ARCHITECTURES "arm64" CACHE STRING "")
 endif()
