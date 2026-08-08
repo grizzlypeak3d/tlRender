@@ -7,30 +7,7 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      JOBS: 4
-      TLRENDER_NET: OFF
-      TLRENDER_OCIO: ON
-      TLRENDER_JPEG: ON
-      TLRENDER_TIFF: ON
-      TLRENDER_EXR: ON
-      TLRENDER_AOM: ON
-      TLRENDER_SVTAV1: ON
-      TLRENDER_FFMPEG: ON
-      TLRENDER_FFMPEG_MINIMAL: OFF
-      TLRENDER_FFMPEG_PLUGIN: ON
-      TLRENDER_FFMPEG_CMD: OFF
-      TLRENDER_NASM: ON
-      TLRENDER_OIIO: ON
-      TLRENDER_USD: OFF
-      TLRENDER_QT6: ON
-      TLRENDER_QT5: OFF
-      TLRENDER_PYTHON: ON
-      TLRENDER_PROGRAMS: ON
-      TLRENDER_EXAMPLES: ON
-      TLRENDER_TESTS: ON
-      TLRENDER_GCOV: ON
-      FTK_API: GL_4_1
-      BUILD_SHARED_LIBS: OFF
+      CMAKE_BUILD_PARALLEL_LEVEL: 4
 
     steps:
     - uses: actions/checkout@v6
@@ -48,11 +25,11 @@ jobs:
         echo "PYTHONPATH=$PWD/install-Debug/lib:$PYTHONPATH" >> $GITHUB_ENV
         cmake --version
         python --version
-        sh tl/etc/Linux/setup-gha.sh
+        sh tl/etc/Linux/setup-gha.sh lcov qt6
 
     - name: Build tlRender
       run: |
-        sh tl/etc/Linux/sbuild.sh tl Debug
+        sh tl/etc/Linux/sbuild.sh tl Debug ci-linux
 
     - name: Run tests
       run: |
@@ -60,7 +37,6 @@ jobs:
         xvfb-run ctest --verbose --rerun-failed --output-on-failure -C Debug
     
     - name: Code coverage
-      if: env.TLRENDER_GCOV == 'ON'
       run: |
         cd build-Debug
         sh ../tl/etc/Linux/lcov.sh
@@ -69,27 +45,7 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      JOBS: 4
-      TLRENDER_NET: OFF
-      TLRENDER_OCIO: OFF
-      TLRENDER_JPEG: OFF
-      TLRENDER_TIFF: OFF
-      TLRENDER_EXR: OFF
-      TLRENDER_AOM: OFF
-      TLRENDER_SVTAV1: OFF
-      TLRENDER_FFMPEG: OFF
-      TLRENDER_FFMPEG_MINIMAL: OFF
-      TLRENDER_FFMPEG_PLUGIN: OFF
-      TLRENDER_FFMPEG_CMD: OFF
-      TLRENDER_NASM: OFF
-      TLRENDER_OIIO: OFF
-      TLRENDER_USD: OFF
-      TLRENDER_QT6: OFF
-      TLRENDER_QT5: OFF
-      TLRENDER_PYTHON: OFF
-      TLRENDER_TESTS: ON
-      FTK_API: GL_4_1
-      BUILD_SHARED_LIBS: OFF
+      CMAKE_BUILD_PARALLEL_LEVEL: 4
 
     steps:
     - uses: actions/checkout@v6
@@ -111,7 +67,7 @@ jobs:
 
     - name: Build tlRender
       run: |
-        sh tl/etc/Linux/sbuild.sh tl Debug
+        sh tl/etc/Linux/sbuild.sh tl Debug minimal
 
     - name: Run tests
       run: |
@@ -122,27 +78,7 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      JOBS: 4
-      TLRENDER_NET: OFF
-      TLRENDER_OCIO: OFF
-      TLRENDER_JPEG: OFF
-      TLRENDER_TIFF: OFF
-      TLRENDER_EXR: ON
-      TLRENDER_AOM: OFF
-      TLRENDER_SVTAV1: OFF
-      TLRENDER_FFMPEG: OFF
-      TLRENDER_FFMPEG_MINIMAL: OFF
-      TLRENDER_FFMPEG_PLUGIN: OFF
-      TLRENDER_FFMPEG_CMD: OFF
-      TLRENDER_NASM: OFF
-      TLRENDER_OIIO: OFF
-      TLRENDER_USD: OFF
-      TLRENDER_QT6: OFF
-      TLRENDER_QT5: OFF
-      TLRENDER_PYTHON: OFF
-      TLRENDER_TESTS: ON
-      FTK_API: GLES_2
-      BUILD_SHARED_LIBS: OFF
+      CMAKE_BUILD_PARALLEL_LEVEL: 4
 
     steps:
     - uses: actions/checkout@v6
@@ -164,7 +100,7 @@ jobs:
 
     - name: Build tlRender
       run: |
-        sh tl/etc/Linux/sbuild.sh tl Debug
+        sh tl/etc/Linux/sbuild.sh tl Debug minimal-gles2
 
     - name: Run tests
       run: |
@@ -175,29 +111,7 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      JOBS: 4
-      TLRENDER_NET: OFF
-      TLRENDER_OCIO: ON
-      TLRENDER_JPEG: ON
-      TLRENDER_TIFF: ON
-      TLRENDER_EXR: ON
-      TLRENDER_AOM: ON
-      TLRENDER_SVTAV1: ON
-      TLRENDER_FFMPEG: ON
-      TLRENDER_FFMPEG_MINIMAL: ON
-      TLRENDER_FFMPEG_PLUGIN: OFF
-      TLRENDER_FFMPEG_CMD: ON
-      TLRENDER_NASM: ON
-      TLRENDER_OIIO: ON
-      TLRENDER_USD: OFF
-      TLRENDER_QT6: ON
-      TLRENDER_QT5: OFF
-      TLRENDER_PYTHON: ON
-      TLRENDER_PROGRAMS: ON
-      TLRENDER_EXAMPLES: OFF
-      TLRENDER_TESTS: OFF
-      FTK_API: GL_4_1
-      BUILD_SHARED_LIBS: OFF
+      CMAKE_BUILD_PARALLEL_LEVEL: 4
 
     steps:
     - uses: actions/checkout@v6
@@ -215,11 +129,11 @@ jobs:
         echo "PYTHONPATH=$PWD/install-Release/lib:$PYTHONPATH" >> $GITHUB_ENV
         cmake --version
         python --version
-        sh tl/etc/Linux/setup-gha.sh
+        sh tl/etc/Linux/setup-gha.sh qt6
 
     - name: Build tlRender
       run: |
-        sh tl/etc/Linux/sbuild.sh tl Release
+        sh tl/etc/Linux/sbuild.sh tl Release package-linux
 
     - name: Package
       run: |
@@ -235,32 +149,7 @@ jobs:
     runs-on: macos-latest
 
     env:
-      JOBS: 4
-      TLRENDER_NET: OFF
-      TLRENDER_OCIO: ON
-      TLRENDER_JPEG: ON
-      TLRENDER_TIFF: ON
-      TLRENDER_EXR: ON
-      TLRENDER_AOM: ON
-      TLRENDER_SVTAV1: ON
-      TLRENDER_FFMPEG: ON
-      TLRENDER_FFMPEG_MINIMAL: OFF
-      TLRENDER_FFMPEG_PLUGIN: ON
-      TLRENDER_FFMPEG_CMD: OFF
-      TLRENDER_NASM: ON
-      TLRENDER_OIIO: ON
-      TLRENDER_USD: OFF
-      TLRENDER_QT6: OFF
-      TLRENDER_QT5: OFF
-      TLRENDER_PYTHON: ON
-      TLRENDER_PROGRAMS: ON
-      TLRENDER_EXAMPLES: ON
-      TLRENDER_TESTS: ON
-      TLRENDER_GCOV: OFF
-      FTK_API: GL_4_1
-      BUILD_SHARED_LIBS: OFF
-      CMAKE_OSX_DEPLOYMENT_TARGET: 14
-      CMAKE_OSX_ARCHITECTURES: arm64
+      CMAKE_BUILD_PARALLEL_LEVEL: 4
 
     steps:
     - uses: actions/checkout@v6
@@ -283,7 +172,7 @@ jobs:
     - name: Build tlRender
       run: |
         export DYLD_LIBRARY_PATH=$PWD/install-Debug/lib:$DYLD_LIBRARY_PATH
-        sh tl/etc/macOS/sbuild.sh tl Debug
+        sh tl/etc/macOS/sbuild.sh tl Debug ci-macos
 
     # \bug Disable tests since macOS CI doesn't work with OpenGL?
     #- name: Run tests
@@ -296,31 +185,7 @@ jobs:
     runs-on: macos-latest
 
     env:
-      JOBS: 4
-      TLRENDER_NET: OFF
-      TLRENDER_OCIO: ON
-      TLRENDER_JPEG: ON
-      TLRENDER_TIFF: ON
-      TLRENDER_EXR: ON
-      TLRENDER_AOM: ON
-      TLRENDER_SVTAV1: ON
-      TLRENDER_FFMPEG: ON
-      TLRENDER_FFMPEG_MINIMAL: ON
-      TLRENDER_FFMPEG_PLUGIN: OFF
-      TLRENDER_FFMPEG_CMD: ON
-      TLRENDER_NASM: ON
-      TLRENDER_OIIO: ON
-      TLRENDER_USD: OFF
-      TLRENDER_QT6: OFF
-      TLRENDER_QT5: OFF
-      TLRENDER_PYTHON: ON
-      TLRENDER_PROGRAMS: ON
-      TLRENDER_EXAMPLES: OFF
-      TLRENDER_TESTS: OFF
-      BUILD_SHARED_LIBS: OFF
-      FTK_API: GL_4_1
-      CMAKE_OSX_DEPLOYMENT_TARGET: 10.15
-      CMAKE_OSX_ARCHITECTURES: arm64
+      CMAKE_BUILD_PARALLEL_LEVEL: 4
 
     steps:
     - uses: actions/checkout@v6
@@ -343,7 +208,7 @@ jobs:
     - name: Build tlRender
       run: |
         export DYLD_LIBRARY_PATH=$PWD/install-Release/lib:$DYLD_LIBRARY_PATH
-        sh tl/etc/macOS/sbuild.sh tl Release
+        sh tl/etc/macOS/sbuild.sh tl Release package-macos
 
     # \bug Sometimes the CI runs out of disk space when building the macOS
     # package, so free some up by removing the super build directory.
@@ -363,29 +228,7 @@ jobs:
     runs-on: windows-latest
 
     env:
-      JOBS: 2
-      TLRENDER_NET: OFF
-      TLRENDER_OCIO: ON
-      TLRENDER_JPEG: ON
-      TLRENDER_TIFF: ON
-      TLRENDER_EXR: ON
-      TLRENDER_AOM: OFF
-      TLRENDER_SVTAV1: OFF
-      TLRENDER_FFMPEG: ON
-      TLRENDER_FFMPEG_MINIMAL: OFF
-      TLRENDER_FFMPEG_PLUGIN: ON
-      TLRENDER_FFMPEG_CMD: OFF
-      TLRENDER_NASM: OFF
-      TLRENDER_OIIO: ON
-      TLRENDER_USD: OFF
-      TLRENDER_QT6: OFF
-      TLRENDER_QT5: OFF
-      TLRENDER_PYTHON: ON
-      TLRENDER_PROGRAMS: ON
-      TLRENDER_EXAMPLES: ON
-      TLRENDER_TESTS: ON
-      BUILD_SHARED_LIBS: OFF
-      FTK_API: GL_4_1
+      CMAKE_BUILD_PARALLEL_LEVEL: 2
 
     steps:
     - uses: actions/checkout@v6
@@ -410,7 +253,7 @@ jobs:
     - name: Build tlRender
       shell: cmd
       run: |
-        tl\etc\Windows\sbuild.bat tl Debug
+        tl\etc\Windows\sbuild.bat tl Debug ci-windows
 
     # \bug Disable tests since Windows CI doesn't work with OpenGL?
     #- name: Run tests
@@ -423,29 +266,7 @@ jobs:
     runs-on: windows-latest
 
     env:
-      JOBS: 2
-      TLRENDER_NET: OFF
-      TLRENDER_OCIO: ON
-      TLRENDER_JPEG: ON
-      TLRENDER_TIFF: ON
-      TLRENDER_EXR: ON
-      TLRENDER_AOM: OFF
-      TLRENDER_SVTAV1: OFF
-      TLRENDER_FFMPEG: ON
-      TLRENDER_FFMPEG_MINIMAL: ON
-      TLRENDER_FFMPEG_PLUGIN: OFF
-      TLRENDER_FFMPEG_CMD: ON
-      TLRENDER_NASM: OFF
-      TLRENDER_OIIO: ON
-      TLRENDER_USD: OFF
-      TLRENDER_QT6: OFF
-      TLRENDER_QT5: OFF
-      TLRENDER_PYTHON: ON
-      TLRENDER_PROGRAMS: ON
-      TLRENDER_EXAMPLES: OFF
-      TLRENDER_TESTS: OFF
-      BUILD_SHARED_LIBS: OFF
-      FTK_API: GL_4_1
+      CMAKE_BUILD_PARALLEL_LEVEL: 2
 
     steps:
     - uses: actions/checkout@v6
@@ -470,7 +291,7 @@ jobs:
     - name: Build tlRender
       shell: cmd
       run: |
-        tl\etc\Windows\sbuild.bat tl Release
+        tl\etc\Windows\sbuild.bat tl Release package-windows
 
     - name: Package
       shell: cmd

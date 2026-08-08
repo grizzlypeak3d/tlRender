@@ -1,33 +1,9 @@
 #!/bin/sh
 
-set -x
+# Usage: sh sbuild-linux.sh [source directory] [build type] [config]
+#
+# The config names a file in etc/Config; "default" builds everything. Personal
+# settings go in etc/Config/local.cmake, which is not tracked. For the number
+# of build jobs, export CMAKE_BUILD_PARALLEL_LEVEL.
 
-SOURCE_DIR=${1:-tlRender}
-BUILD_TYPE=${2:-Release}
-
-export JOBS=4
-export TLRENDER_NET=OFF
-export TLRENDER_OCIO=ON
-export TLRENDER_JPEG=ON
-export TLRENDER_TIFF=ON
-export TLRENDER_EXR=ON
-export TLRENDER_AOM=ON
-export TLRENDER_SVTAV1=ON
-export TLRENDER_FFMPEG=ON
-export TLRENDER_FFMPEG_MINIMAL=OFF
-export TLRENDER_FFMPEG_PLUGIN=ON
-export TLRENDER_FFMPEG_CMD=OFF
-export TLRENDER_NASM=ON
-export TLRENDER_OIIO=ON
-export TLRENDER_USD=OFF
-export TLRENDER_QT6=OFF
-export TLRENDER_QT6_DIR=
-export TLRENDER_PYTHON=OFF
-export TLRENDER_PROGRAMS=ON
-export TLRENDER_EXAMPLES=ON
-export TLRENDER_TESTS=ON
-export TLRENDER_GCOV=OFF
-export FTK_API=GL_4_1
-export BUILD_SHARED_LIBS=OFF
-
-sh $SOURCE_DIR/etc/Linux/sbuild.sh $SOURCE_DIR $BUILD_TYPE
+sh ${1:-tlRender}/etc/Linux/sbuild.sh ${1:-tlRender} ${2:-Release} ${3:-default}

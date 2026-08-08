@@ -9,3 +9,6 @@ doc/doxygen
 .DS_Store
 .cache
 __pycache__
+
+# Personal build settings, read by etc/Config/default.cmake.
+etc/Config/local.cmake

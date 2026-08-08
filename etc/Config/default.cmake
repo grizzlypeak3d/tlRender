@@ -1,0 +1,42 @@
+# Build configuration: what to build, in one file for every platform.
+# 
+# Used with "cmake -C", which reads it before the project, so everything here
+# lands in the cache as a default. Plain CMake rather than shell, so the same
+# file serves Linux, macOS, Windows and CI.
+# 
+# Personal settings go in etc/Config/local.cmake, which is not tracked. It is
+# included first, and a plain cache set does not overwrite a value already
+# there, so anything it sets wins. Files below layer the same way: their own
+# values come before the file they are based on.
+# 
+# For the number of build jobs, set CMAKE_BUILD_PARALLEL_LEVEL.
+include("${CMAKE_CURRENT_LIST_DIR}/local.cmake" OPTIONAL)
+
+set(TLRENDER_NET OFF CACHE BOOL "")
+set(TLRENDER_OCIO ON CACHE BOOL "")
+set(TLRENDER_JPEG ON CACHE BOOL "")
+set(TLRENDER_TIFF ON CACHE BOOL "")
+set(TLRENDER_EXR ON CACHE BOOL "")
+set(TLRENDER_AOM ON CACHE BOOL "")
+set(TLRENDER_SVTAV1 ON CACHE BOOL "")
+set(TLRENDER_FFMPEG ON CACHE BOOL "")
+set(TLRENDER_FFMPEG_MINIMAL OFF CACHE BOOL "")
+set(TLRENDER_FFMPEG_PLUGIN ON CACHE BOOL "")
+set(TLRENDER_FFMPEG_CMD OFF CACHE BOOL "")
+set(TLRENDER_NASM ON CACHE BOOL "")
+set(TLRENDER_OIIO ON CACHE BOOL "")
+set(TLRENDER_USD OFF CACHE BOOL "")
+set(TLRENDER_QT6 OFF CACHE BOOL "")
+set(TLRENDER_PYTHON OFF CACHE BOOL "")
+set(ftk_PYTHON OFF CACHE BOOL "")
+set(TLRENDER_PROGRAMS ON CACHE BOOL "")
+set(TLRENDER_EXAMPLES ON CACHE BOOL "")
+set(TLRENDER_TESTS ON CACHE BOOL "")
+set(TLRENDER_GCOV OFF CACHE BOOL "")
+set(ftk_API "GL_4_1" CACHE STRING "")
+set(BUILD_SHARED_LIBS OFF CACHE BOOL "")
+
+if(APPLE)
+    set(CMAKE_OSX_DEPLOYMENT_TARGET "10.15" CACHE STRING "")
+    set(CMAKE_OSX_ARCHITECTURES "arm64" CACHE STRING "")
+endif()

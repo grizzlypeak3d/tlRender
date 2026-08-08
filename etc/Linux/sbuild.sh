@@ -1,69 +1,42 @@
 #!/bin/sh
 
+# Build the dependencies and then tlRender, into directories beside the
+# current one. What to build is in etc/Config/*.cmake rather than here: this
+# script is only the part that differs between platforms.
+
+set -e
 set -x
 
 SOURCE_DIR=$1
 BUILD_TYPE=$2
+CONFIG=${3:-default}
+CONFIG_FILE=$SOURCE_DIR/etc/Config/$CONFIG.cmake
+
+# Build with every core unless told otherwise; "cmake --build" reads this.
+if [ -z "$CMAKE_BUILD_PARALLEL_LEVEL" ]; then
+    CMAKE_BUILD_PARALLEL_LEVEL=$(nproc)
+    export CMAKE_BUILD_PARALLEL_LEVEL
+fi
 
 git -C $SOURCE_DIR submodule update --init --recursive
 
-cmake \
-    -S $SOURCE_DIR/deps/ftk/etc/SuperBuild \
-    -B ftk-$BUILD_TYPE \
-    -Dftk_PYTHON=$TLRENDER_PYTHON \
-    -DBUILD_SHARED_LIBS=$BUILD_SHARED_LIBS \
-    -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
-    -DCMAKE_INSTALL_PREFIX=$PWD/install-$BUILD_TYPE \
-    -DCMAKE_PREFIX_PATH=$PWD/install-$BUILD_TYPE
-cmake --build ftk-$BUILD_TYPE -j $JOBS --config $BUILD_TYPE
-
-cmake \
-    -S $SOURCE_DIR/etc/SuperBuild \
-    -B tl-$BUILD_TYPE \
-    -DTLRENDER_NET=$TLRENDER_NET \
-    -DTLRENDER_OCIO=$TLRENDER_OCIO \
-    -DTLRENDER_JPEG=$TLRENDER_JPEG \
-    -DTLRENDER_TIFF=$TLRENDER_TIFF \
-    -DTLRENDER_EXR=$TLRENDER_EXR \
-    -DTLRENDER_AOM=$TLRENDER_AOM \
-    -DTLRENDER_SVTAV1=$TLRENDER_SVTAV1 \
-    -DTLRENDER_FFMPEG=$TLRENDER_FFMPEG \
-    -DTLRENDER_FFMPEG_MINIMAL=$TLRENDER_FFMPEG_MINIMAL \
-    -DTLRENDER_SUBPROCESS=$TLRENDER_FFMPEG_CMD \
-    -DTLRENDER_NASM=$TLRENDER_NASM \
-    -DTLRENDER_OIIO=$TLRENDER_OIIO \
-    -DTLRENDER_USD=$TLRENDER_USD \
-    -DTLRENDER_PYTHON=$TLRENDER_PYTHON \
-    -Dftk_API=$FTK_API \
-    -DBUILD_SHARED_LIBS=$BUILD_SHARED_LIBS \
-    -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
-    -DCMAKE_INSTALL_PREFIX=$PWD/install-$BUILD_TYPE \
-    -DCMAKE_PREFIX_PATH="$PWD/install-$BUILD_TYPE;$TLRENDER_QT6_DIR"
-cmake --build tl-$BUILD_TYPE -j $JOBS --config $BUILD_TYPE
+for STAGE in "deps/ftk/etc/SuperBuild ftk" "etc/SuperBuild tl"; do
+    set -- $STAGE
+    cmake \
+        -S $SOURCE_DIR/$1 \
+        -B $2-$BUILD_TYPE \
+        -C $CONFIG_FILE \
+        -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
+        -DCMAKE_INSTALL_PREFIX=$PWD/install-$BUILD_TYPE \
+        -DCMAKE_PREFIX_PATH=$PWD/install-$BUILD_TYPE
+    cmake --build $2-$BUILD_TYPE --config $BUILD_TYPE
+done
 
 cmake \
     -S $SOURCE_DIR \
     -B build-$BUILD_TYPE \
-    -DTLRENDER_NET=$TLRENDER_NET \
-    -DTLRENDER_OCIO=$TLRENDER_OCIO \
-    -DTLRENDER_JPEG=$TLRENDER_JPEG \
-    -DTLRENDER_TIFF=$TLRENDER_TIFF \
-    -DTLRENDER_EXR=$TLRENDER_EXR \
-    -DTLRENDER_FFMPEG=$TLRENDER_FFMPEG \
-    -DTLRENDER_FFMPEG_PLUGIN=$TLRENDER_FFMPEG_PLUGIN \
-    -DTLRENDER_FFMPEG_CMD=$TLRENDER_FFMPEG_CMD \
-    -DTLRENDER_OIIO=$TLRENDER_OIIO \
-    -DTLRENDER_USD=$TLRENDER_USD \
-    -DTLRENDER_QT6=$TLRENDER_QT6 \
-    -DTLRENDER_PYTHON=$TLRENDER_PYTHON \
-    -DTLRENDER_PROGRAMS=$TLRENDER_PROGRAMS \
-    -DTLRENDER_EXAMPLES=$TLRENDER_EXAMPLES \
-    -DTLRENDER_TESTS=$TLRENDER_TESTS \
-    -DTLRENDER_GCOV=$TLRENDER_GCOV \
-    -Dftk_API=$FTK_API \
-    -DBUILD_SHARED_LIBS=$BUILD_SHARED_LIBS \
+    -C $CONFIG_FILE \
+    -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
     -DCMAKE_INSTALL_PREFIX=$PWD/install-$BUILD_TYPE \
-    -DCMAKE_PREFIX_PATH="$PWD/install-$BUILD_TYPE;$TLRENDER_QT6_DIR" \
-    -DCMAKE_BUILD_TYPE=$BUILD_TYPE
-cmake --build build-$BUILD_TYPE -j $JOBS --config $BUILD_TYPE
-cmake --build build-$BUILD_TYPE --config $BUILD_TYPE --target install
+    -DCMAKE_PREFIX_PATH=$PWD/install-$BUILD_TYPE
+cmake --build build-$BUILD_TYPE --config $BUILD_TYPE
