@@ -32,7 +32,7 @@ namespace tl
             const std::shared_ptr<TimeUnitsModel>& timeUnitsModel,
             const std::shared_ptr<IWidget>& parent)
         {
-            IWidget::_init(context, "tl::ui::TimeEdit", parent);
+            IContainer::_init(context, "tl::ui::TimeEdit", parent);
             FTK_P();
 
             p.timeUnitsModel = timeUnitsModel;
@@ -48,7 +48,8 @@ namespace tl
 
             p.incButtons = ftk::IncButtons::create(context);
 
-            p.layout = ftk::HorizontalLayout::create(context, shared_from_this());
+            p.layout = ftk::HorizontalLayout::create(context);
+            _setWidget(p.layout);
             p.layout->setSpacingRole(ftk::SizeRole::SpacingTool);
             p.lineEdit->setParent(p.layout);
             p.incButtons->setParent(p.layout);
@@ -155,16 +156,9 @@ namespace tl
             _p->lineEdit->setFont(value);
         }
         
-        ftk::Size2I TimeEdit::getSizeHint() const
-        {
-            return _p->layout->getSizeHint();
-        }
+        
 
-        void TimeEdit::setGeometry(const ftk::Box2I& value)
-        {
-            IWidget::setGeometry(value);
-            _p->layout->setGeometry(value);
-        }
+        
 
         void TimeEdit::takeKeyFocus()
         {

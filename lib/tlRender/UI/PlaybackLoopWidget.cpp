@@ -122,10 +122,11 @@ namespace tl
             const std::shared_ptr<ftk::Context>& context,
             const std::shared_ptr<IWidget>& parent)
         {
-            IWidget::_init(context, "tl::ui::PlaybackLoopWidget", parent);
+            IContainer::_init(context, "tl::ui::PlaybackLoopWidget", parent);
             FTK_P();
 
-            p.button = ftk::ToolButton::create(context, shared_from_this());
+            p.button = ftk::ToolButton::create(context);
+            _setWidget(p.button);
             p.button->setPopupIcon(true);
 
             _widgetUpdate();
@@ -172,16 +173,9 @@ namespace tl
             _p->callback = value;
         }
 
-        ftk::Size2I PlaybackLoopWidget::getSizeHint() const
-        {
-            return _p->button->getSizeHint();
-        }
+        
 
-        void PlaybackLoopWidget::setGeometry(const ftk::Box2I& value)
-        {
-            IWidget::setGeometry(value);
-            _p->button->setGeometry(value);
-        }
+        
 
         void PlaybackLoopWidget::_widgetUpdate()
         {

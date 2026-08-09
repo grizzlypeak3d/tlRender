@@ -5,6 +5,7 @@
 
 #include <tlRender/Core/Export.h>
 
+#include <ftk/UI/IContainer.h>
 #include <ftk/UI/IWidget.h>
 
 #include <opentimelineio/version.h>
@@ -28,7 +29,7 @@ namespace tl
         };
 
         //! Time value editor.
-        class TL_API_TYPE TimeEdit : public ftk::IWidget
+        class TL_API_TYPE TimeEdit : public ftk::IContainer
         {
             FTK_NON_COPYABLE(TimeEdit);
 
@@ -71,8 +72,6 @@ namespace tl
             //! Set the font.
             TL_API void setFont(ftk::FontType);
 
-            TL_API ftk::Size2I getSizeHint() const override;
-            TL_API void setGeometry(const ftk::Box2I&) override;
             TL_API void takeKeyFocus() override;
             TL_API void keyPressEvent(ftk::KeyEvent&) override;
             TL_API void keyReleaseEvent(ftk::KeyEvent&) override;

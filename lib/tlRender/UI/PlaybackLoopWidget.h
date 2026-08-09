@@ -5,6 +5,7 @@
 
 #include <tlRender/Timeline/Player.h>
 
+#include <ftk/UI/IContainer.h>
 #include <ftk/UI/IWidget.h>
 
 namespace tl
@@ -12,7 +13,7 @@ namespace tl
     namespace ui
     {
         //! Time label.
-        class TL_API_TYPE PlaybackLoopWidget : public ftk::IWidget
+        class TL_API_TYPE PlaybackLoopWidget : public ftk::IContainer
         {
             FTK_NON_COPYABLE(PlaybackLoopWidget);
 
@@ -40,8 +41,6 @@ namespace tl
             //! Set the callback.
             TL_API void setCallback(const std::function<void(Loop)>&);
 
-            TL_API ftk::Size2I getSizeHint() const override;
-            TL_API void setGeometry(const ftk::Box2I&) override;
 
         private:
             void _widgetUpdate();

@@ -5,6 +5,7 @@
 
 #include <tlRender/Timeline/TimeUnits.h>
 
+#include <ftk/UI/IContainer.h>
 #include <ftk/UI/IWidget.h>
 
 namespace tl
@@ -12,7 +13,7 @@ namespace tl
     namespace ui
     {
         //! Time units widget.
-        class TL_API_TYPE TimeUnitsWidget : public ftk::IWidget
+        class TL_API_TYPE TimeUnitsWidget : public ftk::IContainer
         {
             FTK_NON_COPYABLE(TimeUnitsWidget);
 
@@ -33,8 +34,6 @@ namespace tl
                 const std::shared_ptr<TimeUnitsModel>&,
                 const std::shared_ptr<IWidget>& parent = nullptr);
 
-            TL_API ftk::Size2I getSizeHint() const override;
-            TL_API void setGeometry(const ftk::Box2I&) override;
 
         private:
             FTK_PRIVATE();

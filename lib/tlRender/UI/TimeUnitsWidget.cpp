@@ -25,12 +25,13 @@ namespace tl
             const std::shared_ptr<TimeUnitsModel>& model,
             const std::shared_ptr<IWidget>& parent)
         {
-            IWidget::_init(context, "tl::ui::TimeUnitsWidget", parent);
+            IContainer::_init(context, "tl::ui::TimeUnitsWidget", parent);
             FTK_P();
 
             p.model = model;
 
-            p.button = ftk::ToolButton::create(context, shared_from_this());
+            p.button = ftk::ToolButton::create(context);
+            _setWidget(p.button);
             p.button->setIcon("Time");
             p.button->setPopupIcon(true);
 
@@ -101,15 +102,8 @@ namespace tl
             return out;
         }
 
-        ftk::Size2I TimeUnitsWidget::getSizeHint() const
-        {
-            return _p->button->getSizeHint();
-        }
+        
 
-        void TimeUnitsWidget::setGeometry(const ftk::Box2I& value)
-        {
-            IWidget::setGeometry(value);
-            _p->button->setGeometry(value);
-        }
+        
     }
 }
