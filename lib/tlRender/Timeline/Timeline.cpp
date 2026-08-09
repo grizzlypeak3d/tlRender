@@ -1324,10 +1324,6 @@ namespace tl
     {
         FTK_P();
         std::optional<MediaAt> out;
-        if (!p.otioTimeline)
-        {
-            return out;
-        }
         // The same lookup the request thread makes: the timeline's own start is
         // taken off, and the first enabled video track holding that time wins.
         // Bisected rather than walked, because this is asked for the playhead
@@ -1417,10 +1413,6 @@ namespace tl
     {
         FTK_P();
         std::vector<MediaAt> out;
-        if (!p.otioTimeline)
-        {
-            return out;
-        }
         for (const auto& otioTrack : p.otioTimeline->video_tracks())
         {
             if (!otioTrack->enabled())
@@ -1516,6 +1508,46 @@ namespace tl
             out = _fromMediaTime(*mediaAt, frame);
         }
         return out;
+    }
+
+    bool Timeline::isMediaTimeContinuous() const
+    {
+        FTK_P();
+        std::optional<std::string> path;
+        std::optional<OTIO_NS::RationalTime> end;
+        size_t count = 0;
+        for (const auto& otioTrack : p.otioTimeline->video_tracks())
+        {
+            if (!otioTrack->enabled())
+            {
+                continue;
+            }
+            for (const auto& otioChild : otioTrack->children())
+            {
+                auto otioClip = dynamic_cast<const OTIO_NS::Clip*>(otioChild.value);
+                if (!otioClip)
+                {
+                    continue;
+                }
+                const std::string clipPath = tl::getPath(
+                    p.mediaReference(otioClip),
+                    p.path.getDir(),
+                    p.options.pathOptions).get();
+                if (path.has_value() && clipPath != path.value())
+                {
+                    return false;
+                }
+                path = clipPath;
+                const OTIO_NS::TimeRange range = otioClip->trimmed_range();
+                if (end.has_value() && range.start_time() < end.value())
+                {
+                    return false;
+                }
+                end = range.end_time_exclusive();
+                ++count;
+            }
+        }
+        return count > 0;
     }
 
     std::optional<OTIO_NS::RationalTime> Timeline::getTimelineTime(
