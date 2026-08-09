@@ -81,6 +81,7 @@ namespace tl
             wipeCenter == other.wipeCenter &&
             wipeRotation == other.wipeRotation &&
             overlay == other.overlay &&
+            differenceGain == other.differenceGain &&
             sameSize == other.sameSize;
     }
 
@@ -301,6 +302,7 @@ namespace tl
         json["WipeCenter"] = in.wipeCenter;
         json["WipeRotation"] = in.wipeRotation;
         json["Overlay"] = in.overlay;
+        json["DifferenceGain"] = in.differenceGain;
         json["SameSize"] = in.sameSize;
     }
 
@@ -310,6 +312,13 @@ namespace tl
         json.at("WipeCenter").get_to(out.wipeCenter);
         json.at("WipeRotation").get_to(out.wipeRotation);
         json.at("Overlay").get_to(out.overlay);
+        // Added after the others, so a settings file written before it has
+        // no such key; reading it with at() would throw and take the rest of
+        // the comparison settings with it.
+        if (json.contains("DifferenceGain"))
+        {
+            json.at("DifferenceGain").get_to(out.differenceGain);
+        }
         json.at("SameSize").get_to(out.sameSize);
     }
 }

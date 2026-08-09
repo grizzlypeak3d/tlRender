@@ -639,6 +639,9 @@ namespace tl
                     p.shaders["difference"]->bind();
                     p.shaders["difference"]->setUniform("textureSampler", 0);
                     p.shaders["difference"]->setUniform("textureSamplerB", 1);
+                    p.shaders["difference"]->setUniform(
+                        "gain",
+                        compareOptions.differenceGain);
 
                     glActiveTexture(static_cast<GLenum>(GL_TEXTURE0));
                     glBindTexture(GL_TEXTURE_2D, p.buffers["difference0"]->getColorID());

@@ -48,6 +48,13 @@ namespace tl
         ftk::V2F wipeCenter   = ftk::V2F(.5F, .5F);
         float    wipeRotation = 0.F;
         float    overlay      = .5F;
+
+        //! What the difference is multiplied by before it is shown. The
+        //! differences worth looking for are often a code value or two --
+        //! what a compressed version differs from its source by -- and at
+        //! their own size they are indistinguishable from black.
+        float    differenceGain = 1.F;
+
         bool     sameSize     = true;
 
         TL_API bool operator == (const CompareOptions&) const;

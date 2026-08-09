@@ -367,14 +367,15 @@ namespace tl
                 "\n"
                 "uniform sampler2D textureSampler;\n"
                 "uniform sampler2D textureSamplerB;\n"
+                "uniform float     gain;\n"
                 "\n"
                 "void main()\n"
                 "{\n"
                 "    vec4 c = texture(textureSampler, fTexture);\n"
                 "    vec4 cB = texture(textureSamplerB, fTexture);\n"
-                "    outColor.r = abs(c.r - cB.r);\n"
-                "    outColor.g = abs(c.g - cB.g);\n"
-                "    outColor.b = abs(c.b - cB.b);\n"
+                "    outColor.r = abs(c.r - cB.r) * gain;\n"
+                "    outColor.g = abs(c.g - cB.g) * gain;\n"
+                "    outColor.b = abs(c.b - cB.b) * gain;\n"
                 "    outColor.a = max(c.a, cB.a);\n"
                 "}\n";
         }
