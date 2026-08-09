@@ -331,6 +331,26 @@ namespace tl
             arg(path.get()).
             arg(audioPath.get()));
 
+        // A file that is not there, said the same way whatever the file is.
+        // Every format arrives here, while the failure itself surfaces much
+        // further down and differently in each of them -- from ftk's file
+        // I/O for OpenEXR, from a check of its own in OpenImageIO, from a
+        // thread in FFmpeg -- so the one thing a person is most likely to
+        // hit read five different ways depending on the extension.
+        //
+        // Not for a sequence, whose path is a pattern rather than a file and
+        // whose missing frames are the sequence's own business, nor for a
+        // protocol, which is not the filesystem's to answer for.
+        if (!path.hasProtocol() &&
+            !path.isSeq() &&
+            !std::filesystem::exists(
+                std::filesystem::u8path(path.getFileName(true))))
+        {
+            throw std::runtime_error(
+                ftk::Format("No such file or directory: \"{0}\"").
+                arg(path.get()).str());
+        }
+
         OTIO_NS::SerializableObject::Retainer<OTIO_NS::Timeline> otioTimeline;
 
         // Is the input a sequence?
@@ -366,6 +386,9 @@ namespace tl
         auto ioSystem = context->getSystem<ReadSystem>();
         IOInfo info;
         bool infoValid = false;
+        // What a reader said went wrong, when it said it somewhere other than
+        // by throwing.
+        std::string readError;
         if (auto plugin = ioSystem->getPlugin(path))
         {
             if (auto decode = plugin->decode(options.ioOptions))
@@ -396,17 +419,32 @@ namespace tl
             if (videoFuture.valid())
             {
                 videoInfo = videoFuture.get();
-                infoValid = true;
             }
             IOInfo audioInfo;
             if (audioFuture.valid())
             {
                 audioInfo = audioFuture.get();
-                infoValid = true;
             }
-            if (infoValid)
+            info = merge(videoInfo, audioInfo);
+
+            // Whether anything was read, rather than whether there was a
+            // reader to ask. A reader that reports its failure on its own
+            // thread -- FFmpeg does -- answers the information request with
+            // nothing instead of throwing, and taking that for a readable
+            // file built a timeline with no tracks in it: opening a movie
+            // that is not there gave an empty tab rather than an error.
+            infoValid = !info.video.empty() || info.audio.isValid();
+            if (!infoValid)
             {
-                info = merge(videoInfo, audioInfo);
+                // The reader's own account of it, so that a file that is
+                // missing says so rather than being reported as unreadable
+                // for reasons unknown.
+                const std::string error = videoRead ?
+                    videoRead->getError() :
+                    std::string();
+                readError = !error.empty() ?
+                    error :
+                    (audioRead ? audioRead->getError() : std::string());
             }
         }
         if (infoValid)
@@ -726,13 +764,15 @@ namespace tl
             // Whether that is because the format is not supported at all or
             // because a supported file could not be read is the difference
             // between "try another application" and "this file is damaged",
-            // so say which.
+            // so say which -- and when the reader said why, say that instead.
             throw std::runtime_error(
-                ioSystem->getPlugin(path) ?
+                !readError.empty() ?
+                readError :
+                (ioSystem->getPlugin(path) ?
                 ftk::Format("Cannot read the file: \"{0}\"").
                 arg(path.get()).str() :
                 ftk::Format("Unsupported file format: \"{0}\"").
-                arg(path.get()).str());
+                arg(path.get()).str()));
         }
 
         OTIO_NS::AnyDictionary dict;
