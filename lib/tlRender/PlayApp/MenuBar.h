@@ -5,6 +5,7 @@
 
 #include <tlRender/Timeline/Player.h>
 
+#include <ftk/UI/ActionGroup.h>
 #include <ftk/UI/Menu.h>
 #include <ftk/UI/MenuBar.h>
 
