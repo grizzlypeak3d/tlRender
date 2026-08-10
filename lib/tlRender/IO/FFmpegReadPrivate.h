@@ -71,6 +71,7 @@ namespace tl
             bool isValid() const;
             const ftk::ImageInfo& getInfo() const;
             const OTIO_NS::TimeRange& getTimeRange() const;
+            const VideoSourceInfo& getSource() const;
             const ftk::ImageTags& getTags() const;
 
             void start();
@@ -99,6 +100,7 @@ namespace tl
             ReadOptions _options;
             ftk::ImageInfo _info;
             OTIO_NS::TimeRange _timeRange;
+            VideoSourceInfo _source;
             ftk::ImageTags _tags;
 
             AVFormatContext* _avFormatContext = nullptr;
@@ -139,6 +141,7 @@ namespace tl
             bool isValid() const;
             const AudioInfo& getInfo() const;
             const OTIO_NS::TimeRange& getTimeRange() const;
+            const AudioSourceInfo& getSource() const;
             const ftk::ImageTags& getTags() const;
 
             void start();
@@ -164,6 +167,7 @@ namespace tl
             ReadOptions _options;
             AudioInfo _info;
             OTIO_NS::TimeRange _timeRange;
+            AudioSourceInfo _source;
             ftk::ImageTags _tags;
 
             AVFormatContext* _avFormatContext = nullptr;

@@ -953,6 +953,7 @@ namespace tl
             IOInfo ioInfo = p.ioInfo;
             ioInfo.video = i.second.video;
             ioInfo.videoTime = i.second.videoTime;
+            ioInfo.videoSource = i.second.videoSource;
             for (const auto& tag : i.second.tags)
             {
                 ioInfo.tags[tag.first] = tag.second;
@@ -2306,6 +2307,7 @@ namespace tl
                 {
                     p.ioInfo.video = ioInfo.video;
                     p.ioInfo.videoTime = ioInfo.videoTime;
+                    p.ioInfo.videoSource = ioInfo.videoSource;
                     p.ioInfo.tags.insert(ioInfo.tags.begin(), ioInfo.tags.end());
 
                     // Find the largest resolution among the clip's media
@@ -2464,6 +2466,7 @@ namespace tl
                 {
                     p.ioInfo.audio = ioInfo.audio;
                     p.ioInfo.audioTime = ioInfo.audioTime;
+                    p.ioInfo.audioSource = ioInfo.audioSource;
                     p.ioInfo.tags.insert(ioInfo.tags.begin(), ioInfo.tags.end());
                     return true;
                 }

@@ -193,6 +193,7 @@ namespace tl
                         {
                             p.info.video.push_back(videoInfo);
                             p.info.videoTime = p.readVideo->getTimeRange();
+                            p.info.videoSource = p.readVideo->getSource();
                             p.info.tags = p.readVideo->getTags();
                         }
 
@@ -421,6 +422,7 @@ namespace tl
                             p.options);
                         p.info.audio = p.readAudio->getInfo();
                         p.info.audioTime = p.readAudio->getTimeRange();
+                        p.info.audioSource = p.readAudio->getSource();
                         p.info.tags = p.readAudio->getTags();
 
                         if (!p.info.audio.isValid())

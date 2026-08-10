@@ -527,44 +527,15 @@ namespace tl
 
                             out.video.push_back(info);
 
-                            {
-                                std::stringstream ss;
-                                ss << info.size.w << " " << info.size.h;
-                                out.tags["Video Resolution"] = ss.str();
-                            }
-                            {
-                                std::stringstream ss;
-                                ss.precision(2);
-                                ss << std::fixed;
-                                ss << info.pixelAspectRatio;
-                                out.tags["Video Pixel Aspect Ratio"] = ss.str();
-                            }
-                            {
-                                std::stringstream ss;
-                                ss << info.type;
-                                out.tags["Video Pixel Type"] = ss.str();
-                            }
                             k = j.find("codec_name");
                             if (k != j.end())
                             {
-                                out.tags["Video Codec"] = k->get<std::string>();
+                                out.videoSource.codec = k->get<std::string>();
                             }
+                            k = j.find("pix_fmt");
+                            if (k != j.end())
                             {
-                                std::stringstream ss;
-                                ss << out.videoTime->start_time().to_timecode();
-                                out.tags["Video Start Time"] = ss.str();
-                            }
-                            {
-                                std::stringstream ss;
-                                ss << out.videoTime->duration().to_timecode();
-                                out.tags["Video Duration"] = ss.str();
-                            }
-                            {
-                                std::stringstream ss;
-                                ss.precision(2);
-                                ss << std::fixed;
-                                ss << videoRate << " FPS";
-                                out.tags["Video Speed"] = ss.str();
+                                out.videoSource.pixelFormat = k->get<std::string>();
                             }
                             break;
                         }
@@ -642,42 +613,14 @@ namespace tl
                                 startTime,
                                 OTIO_NS::RationalTime(duration * sampleRate, sampleRate));
 
-                            {
-                                std::stringstream ss;
-                                ss << static_cast<int>(fileChannelCount);
-                                out.tags["Audio Channels"] = ss.str();
-                            }
-                            {
-                                std::stringstream ss;
-                                ss << fileAudioType;
-                                out.tags["Audio Type"] = ss.str();
-                            }
-                            {
-                                std::stringstream ss;
-                                ss.precision(1);
-                                ss << std::fixed;
-                                ss << fileSampleRate / 1000.F << "kHz";
-                                out.tags["Audio Sample Rate"] = ss.str();
-                            }
-                            {
-                                std::stringstream ss;
-                                ss.precision(2);
-                                ss << std::fixed;
-                                ss << startTime.rescaled_to(1.0).value() << " seconds";
-                                out.tags["Audio Start Time"] = ss.str();
-                            }
-                            {
-                                std::stringstream ss;
-                                ss.precision(2);
-                                ss << std::fixed;
-                                ss << out.audioTime->duration().rescaled_to(1.0).value() << " seconds";
-                                out.tags["Audio Duration"] = ss.str();
-                            }
                             k = j.find("codec_name");
                             if (k != j.end())
                             {
-                                out.tags["Audio Codec"] = k->get<std::string>();
+                                out.audioSource.codec = k->get<std::string>();
                             }
+                            out.audioSource.type = fileAudioType;
+                            out.audioSource.channelCount = fileChannelCount;
+                            out.audioSource.sampleRate = fileSampleRate;
                             break;
                         }
                     }

@@ -64,7 +64,6 @@ namespace tl
         _info.videoTime = OTIO_NS::TimeRange::range_from_start_end_time_inclusive(
             OTIO_NS::RationalTime(_startFrame, speed),
             OTIO_NS::RationalTime(_endFrame, speed));
-        addVideoTags(_info);
     }
 
     SeqDecode::SeqDecode()
