@@ -63,6 +63,12 @@ namespace tl
                 _actions[labels[i]]->setTooltip(tooltips[i]);
             }
 
+            _compareGroup = ftk::ActionGroup::create(ftk::ActionGroupType::Radio);
+            for (size_t i = 0; i < labels.size(); ++i)
+            {
+                _compareGroup->addAction(_actions[labels[i]]);
+            }
+
             _playersObserver = ftk::ListObserver<std::shared_ptr<Player> >::create(
                 app->getFilesModel()->observePlayers(),
                 [this](const std::vector<std::shared_ptr<Player> >& value)
@@ -77,10 +83,7 @@ namespace tl
                 app->getFilesModel()->observeCompare(),
                 [this](Compare value)
                 {
-                    for (auto compare : getCompareEnums())
-                    {
-                        _actions[getLabel(compare)]->setChecked(value == compare);
-                    }
+                    _compareGroup->setChecked(static_cast<int>(value));
                 });
         }
 

@@ -45,6 +45,10 @@ namespace tl
         private:
             int _playerIndex = -1;
             std::vector<std::shared_ptr<ftk::Action> > _activeActions;
+
+            //! Rebuilt whenever the files change, so the group is cleared and
+            //! refilled rather than made once.
+            std::shared_ptr<ftk::ActionGroup> _activeGroup;
             std::shared_ptr<ftk::Menu> _activeMenu;
             std::vector<std::shared_ptr<ftk::Action> > _recentActions;
             std::shared_ptr<ftk::Menu> _recentMenu;
@@ -78,6 +82,10 @@ namespace tl
 
         private:
             std::vector<std::shared_ptr<ftk::Action> > _bFileActions;
+
+            //! Toggle rather than Radio: turning the current B file off means
+            //! there is no B file, which is a thing that can be.
+            std::shared_ptr<ftk::ActionGroup> _bFileGroup;
             std::shared_ptr<ftk::Menu> _bFileMenu;
             int _bPlayerIndex = -1;
             std::shared_ptr<ftk::ListObserver<std::shared_ptr<Player> > > _playersObserver;

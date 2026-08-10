@@ -5,7 +5,7 @@
 
 #include <tlRender/Timeline/Player.h>
 
-#include <ftk/UI/Action.h>
+#include <ftk/UI/ActionGroup.h>
 
 namespace tl
 {
@@ -36,6 +36,7 @@ namespace tl
 
         private:
             std::map<std::string, std::shared_ptr<ftk::Action> > _actions;
+            std::shared_ptr<ftk::ActionGroup> _compareGroup;
             std::shared_ptr<ftk::ListObserver<std::shared_ptr<Player> > > _playersObserver;
             std::shared_ptr<ftk::Observer<Compare> > _compareObserver;
         };

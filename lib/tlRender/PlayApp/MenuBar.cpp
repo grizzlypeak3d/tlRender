@@ -38,12 +38,15 @@ namespace tl
             addDivider();
             addAction(actions["Exit"]);
 
+            _activeGroup = ftk::ActionGroup::create(ftk::ActionGroupType::Radio);
+
             std::weak_ptr<App> appWeak(app);
             _playersObserver = ftk::ListObserver<std::shared_ptr<Player> >::create(
                 app->getFilesModel()->observePlayers(),
                 [this, appWeak](const std::vector<std::shared_ptr<Player> >& players)
                 {
                     _activeActions.clear();
+                    _activeGroup->clear();
                     _activeMenu->clear();
                     for (size_t i = 0; i < players.size(); ++i)
                     {
@@ -57,10 +60,11 @@ namespace tl
                                 }
                                 close();
                             });
-                        action->setChecked(static_cast<int>(i) == _playerIndex);
                         _activeActions.push_back(action);
+                        _activeGroup->addAction(action);
                         _activeMenu->addAction(action);
                     }
+                    _activeGroup->setChecked(_playerIndex);
                 });
 
             _playerIndexObserver = ftk::Observer<int>::create(
@@ -68,10 +72,7 @@ namespace tl
                 [this](int value)
                 {
                     _playerIndex = value;
-                    for (size_t i = 0; i < _activeActions.size(); ++i)
-                    {
-                        _activeActions[i]->setChecked(static_cast<int>(i) == value);
-                    }
+                    _activeGroup->setChecked(value);
                 });
 
             _recentObserver = ftk::ListObserver<std::filesystem::path>::create(
@@ -127,12 +128,15 @@ namespace tl
                 addAction(actions[label]);
             }
 
+            _bFileGroup = ftk::ActionGroup::create(ftk::ActionGroupType::Toggle);
+
             std::weak_ptr<App> appWeak(app);
             _playersObserver = ftk::ListObserver<std::shared_ptr<Player> >::create(
                 app->getFilesModel()->observePlayers(),
                 [this, appWeak](const std::vector<std::shared_ptr<Player> >& players)
                 {
                     _bFileActions.clear();
+                    _bFileGroup->clear();
                     _bFileMenu->clear();
                     for (size_t i = 0; i < players.size(); ++i)
                     {
@@ -146,10 +150,11 @@ namespace tl
                                     app->getFilesModel()->setB(value ? static_cast<int>(i) : -1);
                                 }
                             });
-                        action->setChecked(static_cast<int>(i) == _bPlayerIndex);
                         _bFileActions.push_back(action);
+                        _bFileGroup->addAction(action);
                         _bFileMenu->addAction(action);
                     }
+                    _bFileGroup->setChecked(_bPlayerIndex);
                 });
 
             _bPlayerIndexObserver = ftk::Observer<int>::create(
@@ -157,10 +162,7 @@ namespace tl
                 [this](int value)
                 {
                     _bPlayerIndex = value;
-                    for (size_t i = 0; i < _bFileActions.size(); ++i)
-                    {
-                        _bFileActions[i]->setChecked(static_cast<int>(i) == value);
-                    }
+                    _bFileGroup->setChecked(value);
                 });
         }
 
