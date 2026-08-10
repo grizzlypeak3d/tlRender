@@ -180,6 +180,12 @@ namespace tl
             // Windows does not need any of this: subprocess_create() clears
             // HANDLE_FLAG_INHERIT on the ends it keeps, before it starts the
             // process.
+            //
+            // Reported upstream, with a patch:
+            // https://github.com/sheredom/subprocess.h/issues/114
+            // If it lands, the flag here becomes redundant. The lock does
+            // not: the patch sets the flag atomically only where pipe2()
+            // exists, which is not macOS.
             std::mutex& createMutex()
             {
                 static std::mutex out;
