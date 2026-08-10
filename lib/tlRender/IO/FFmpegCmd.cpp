@@ -11,8 +11,11 @@
 
 #include <mutex>
 
-#include <fcntl.h>
 #include <regex>
+
+#if !defined(_WIN32)
+#include <fcntl.h>
+#endif
 
 namespace tl
 {
@@ -157,12 +160,12 @@ namespace tl
             // Starting a process is serialized, and the pipes it leaves behind
             // are closed on exec.
             //
-            // subprocess_create() makes its pipes with pipe(), which does not
-            // set close-on-exec, so every process started afterwards inherits
-            // the pipes of the ones still open. The readers here are long
-            // lived -- a movie keeps its decoder for as long as it is open --
-            // so a decoder ends up holding the pipe of a probe that has
-            // already exited, and that pipe never reaches the end of the
+            // On POSIX subprocess_create() makes its pipes with pipe(), which
+            // does not set close-on-exec, so every process started afterwards
+            // inherits the pipes of the ones still open. The readers here are
+            // long lived -- a movie keeps its decoder for as long as it is
+            // open -- so a decoder ends up holding the pipe of a probe that
+            // has already exited, and that pipe never reaches the end of the
             // file. Whoever was reading it waits forever: one stuck read took
             // the information thread with it, which stopped every thumbnail
             // and hung the exit on a thread that would never finish.
@@ -173,12 +176,17 @@ namespace tl
             // set on them here, which another thread starting a process would
             // otherwise fit through. macOS has no pipe2(), so there is no way
             // to ask for the flag at the point the pipes are made.
+            //
+            // Windows does not need any of this: subprocess_create() clears
+            // HANDLE_FLAG_INHERIT on the ends it keeps, before it starts the
+            // process.
             std::mutex& createMutex()
             {
                 static std::mutex out;
                 return out;
             }
 
+#if !defined(_WIN32)
             void setCloseOnExec(FILE* file)
             {
                 if (file)
@@ -194,6 +202,7 @@ namespace tl
                     }
                 }
             }
+#endif // !_WIN32
         }
 
         Pipe::Pipe(const std::vector<std::string>& cmd) :
@@ -216,12 +225,14 @@ namespace tl
                     subprocess_option_enable_async |
                     subprocess_option_no_window,
                     &p.subprocess);
+#if !defined(_WIN32)
                 if (0 == r)
                 {
                     setCloseOnExec(p.subprocess.stdin_file);
                     setCloseOnExec(p.subprocess.stdout_file);
                     setCloseOnExec(p.subprocess.stderr_file);
                 }
+#endif // !_WIN32
             }
             if (r != 0)
             {
