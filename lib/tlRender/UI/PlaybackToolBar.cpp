@@ -7,7 +7,7 @@
 
 #include <tlRender/Timeline/Player.h>
 
-#include <ftk/UI/Action.h>
+#include <ftk/UI/ActionGroup.h>
 
 namespace tl
 {
@@ -19,6 +19,9 @@ namespace tl
             std::shared_ptr<PlaybackLoopWidget> loopWidget;
             std::shared_ptr<Player> player;
             std::shared_ptr<ftk::Observer<Loop> > loopObserver;
+            //! Stop, forward and reverse are one of three: a player is always
+            //! doing exactly one of them.
+            std::shared_ptr<ftk::ActionGroup> playbackGroup;
             std::shared_ptr<ftk::Observer<Playback> > playbackObserver;
         };
 
@@ -70,6 +73,13 @@ namespace tl
 
             p.loopWidget = PlaybackLoopWidget::create(context);
             p.loopWidget->setTooltip("Playback loop mode.");
+
+            // Added in the enumeration's order rather than the tool bar's, so
+            // that the group's index is the Playback value.
+            p.playbackGroup = ftk::ActionGroup::create(ftk::ActionGroupType::Radio);
+            p.playbackGroup->addAction(p.actions["Stop"]);
+            p.playbackGroup->addAction(p.actions["Forward"]);
+            p.playbackGroup->addAction(p.actions["Reverse"]);
 
             addAction(p.actions["Reverse"]);
             addAction(p.actions["Stop"]);
@@ -131,9 +141,7 @@ namespace tl
                     player->observePlayback(),
                     [this](Playback value)
                     {
-                        _p->actions["Stop"]->setChecked(Playback::Stop == value);
-                        _p->actions["Forward"]->setChecked(Playback::Forward == value);
-                        _p->actions["Reverse"]->setChecked(Playback::Reverse == value);
+                        _p->playbackGroup->setChecked(static_cast<int>(value));
                     });
             }
             else

@@ -188,6 +188,11 @@ namespace tl
                 });
             _actions["ResetOutPoint"]->setTooltip("Reset the playback out point.");
 
+            _playbackGroup = ftk::ActionGroup::create(ftk::ActionGroupType::Radio);
+            _playbackGroup->addAction(_actions["Stop"]);
+            _playbackGroup->addAction(_actions["Forward"]);
+            _playbackGroup->addAction(_actions["Reverse"]);
+
             _playerObserver = ftk::Observer<std::shared_ptr<Player> >::create(
                 app->getFilesModel()->observePlayer(),
                 [this](const std::shared_ptr<Player>& value)
@@ -200,18 +205,16 @@ namespace tl
                             value->observePlayback(),
                             [this](Playback value)
                             {
-                                _actions["Stop"]->setChecked(Playback::Stop == value);
-                                _actions["Forward"]->setChecked(Playback::Forward == value);
-                                _actions["Reverse"]->setChecked(Playback::Reverse == value);
+                                _playbackGroup->setChecked(
+                                    static_cast<int>(value));
                             });
                     }
                     else
                     {
                         _playbackObserver.reset();
 
-                        _actions["Stop"]->setChecked(true);
-                        _actions["Forward"]->setChecked(false);
-                        _actions["Reverse"]->setChecked(false);
+                        _playbackGroup->setChecked(
+                            static_cast<int>(Playback::Stop));
                     }
 
                     _actions["Stop"]->setEnabled(value.get());
