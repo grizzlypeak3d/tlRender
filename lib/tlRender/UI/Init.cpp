@@ -19,6 +19,7 @@ namespace tl_resource
     extern std::vector<uint8_t> ColorPicker;
     extern std::vector<uint8_t> CompareA;
     extern std::vector<uint8_t> CompareB;
+    extern std::vector<uint8_t> CompareButterfly;
     extern std::vector<uint8_t> CompareDifference;
     extern std::vector<uint8_t> CompareHorizontal;
     extern std::vector<uint8_t> CompareOverlay;
@@ -58,6 +59,7 @@ namespace tl
             iconSystem->add("ColorPicker", tl_resource::ColorPicker);
             iconSystem->add("CompareA", tl_resource::CompareA);
             iconSystem->add("CompareB", tl_resource::CompareB);
+            iconSystem->add("CompareButterfly", tl_resource::CompareButterfly);
             iconSystem->add("CompareDifference", tl_resource::CompareDifference);
             iconSystem->add("CompareHorizontal", tl_resource::CompareHorizontal);
             iconSystem->add("CompareOverlay", tl_resource::CompareOverlay);

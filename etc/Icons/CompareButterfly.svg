@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   width="20"
+   height="20"
+   viewBox="0 0 5.2916665 5.2916666"
+   version="1.1"
+   id="svg8"
+   sodipodi:docname="CompareButterfly.svg"
+   inkscape:version="1.4.4 (dcaf3e7, 2026-05-05)"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <defs
+     id="defs1" />
+  <sodipodi:namedview
+     id="namedview1"
+     pagecolor="#ffffff"
+     bordercolor="#666666"
+     borderopacity="1.0"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1"
+     showgrid="true"
+     inkscape:zoom="31.041988"
+     inkscape:cx="11.162301"
+     inkscape:cy="10.211975"
+     inkscape:window-width="1736"
+     inkscape:window-height="1027"
+     inkscape:window-x="0"
+     inkscape:window-y="25"
+     inkscape:window-maximized="0"
+     inkscape:current-layer="svg8">
+    <inkscape:grid
+       id="grid1"
+       units="px"
+       originx="0"
+       originy="0"
+       spacingx="0.26458332"
+       spacingy="0.26458333"
+       empcolor="#0099e5"
+       empopacity="0.30196078"
+       color="#0099e5"
+       opacity="0.14901961"
+       empspacing="5"
+       enabled="true"
+       visible="true" />
+  </sodipodi:namedview>
+  <path
+     id="rect1020-2"
+     style="fill:#f0f0f0;stroke-width:0.529167"
+     d="m 4.7624999,1.32292 -1.8520834,0.7937465 0,1.0583333 1.8520834,0.7937502 z"
+     sodipodi:nodetypes="ccccc" />
+  <path
+     style="baseline-shift:baseline;display:inline;overflow:visible;vector-effect:none;fill:#f0f0f0;enable-background:accumulate;stop-color:#000000;stop-opacity:1;opacity:1"
+     d="m 0.39648438,1.2421875 v 2.796875 l 1.98437502,-0.875 V 2.1269531 Z M 0.66210937,1.6503906 2.1171875,2.2988281 v 0.6933594 l -1.45507813,0.640625 z"
+     id="rect2" />
+</svg>

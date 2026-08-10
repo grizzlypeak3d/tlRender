@@ -357,6 +357,34 @@ namespace tl
                 "}\n";
         }
 
+        std::string butterflyFragmentSource()
+        {
+            return
+                "#version 410\n"
+                "\n"
+                "in vec2 fTexture;\n"
+                "out vec4 outColor;\n"
+                "\n"
+                "uniform sampler2D textureSampler;\n"
+                "uniform sampler2D textureSamplerB;\n"
+                "\n"
+                "void main()\n"
+                "{\n"
+                // The same half of both, the second one mirrored, so that
+                // the middle of the picture is on both sides of the seam.
+                "    if (fTexture.x < .5)\n"
+                "    {\n"
+                "        outColor = texture(textureSampler, fTexture);\n"
+                "    }\n"
+                "    else\n"
+                "    {\n"
+                "        outColor = texture(\n"
+                "            textureSamplerB,\n"
+                "            vec2(1.0 - fTexture.x, fTexture.y));\n"
+                "    }\n"
+                "}\n";
+        }
+
         std::string differenceFragmentSource()
         {
             return

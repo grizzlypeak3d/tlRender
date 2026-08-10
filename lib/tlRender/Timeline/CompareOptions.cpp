@@ -21,6 +21,7 @@ namespace tl
         "None",
         "B",
         "Wipe",
+        "Butterfly",
         "Overlay",
         "Difference",
         "Horizontal",

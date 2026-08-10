@@ -147,6 +147,13 @@ namespace tl
                 const std::vector<DisplayOptions>&,
                 const CompareOptions&,
                 ftk::gl::TextureType colorBuffer);
+            void _drawVideoButterfly(
+                const std::vector<VideoFrame>&,
+                const std::vector<ftk::Box2I>&,
+                const std::vector<ftk::ImageOptions>&,
+                const std::vector<DisplayOptions>&,
+                const CompareOptions&,
+                ftk::gl::TextureType colorBuffer);
             void _drawVideoDifference(
                 const std::vector<VideoFrame>&,
                 const std::vector<ftk::Box2I>&,
@@ -154,6 +161,19 @@ namespace tl
                 const std::vector<DisplayOptions>&,
                 const CompareOptions&,
                 ftk::gl::TextureType colorBuffer);
+            //! Draw both files into a pair of offscreen buffers, for the
+            //! comparisons that combine them a pixel at a time. Answers
+            //! whether there are two to combine.
+            bool _drawVideoPair(
+                const std::vector<VideoFrame>&,
+                const std::vector<ftk::Box2I>&,
+                const std::vector<ftk::ImageOptions>&,
+                const std::vector<DisplayOptions>&,
+                ftk::gl::TextureType colorBuffer);
+            //! Draw the pair through a shader that samples both.
+            void _drawVideoPairShader(
+                const std::string& shader,
+                const ftk::Box2I&);
             void _drawVideoTile(
                 const std::vector<VideoFrame>&,
                 const std::vector<ftk::Box2I>&,

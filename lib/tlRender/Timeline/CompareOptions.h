@@ -19,6 +19,13 @@ namespace tl
         None,
         B,
         Wipe,
+
+        //! The same half of each file, one of them mirrored, so that the two
+        //! meet at the middle on the same picture. What a side by side
+        //! comparison cannot do is put the same thing next to itself, which
+        //! is what judging a colour adjustment needs.
+        Butterfly,
+
         Overlay,
         Difference,
         Horizontal,

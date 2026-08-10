@@ -92,6 +92,12 @@ namespace tl
                     vertexSource(),
                     textureFragmentSource());
             }
+            if (!p.shaders["butterfly"])
+            {
+                p.shaders["butterfly"] = ftk::gl::Shader::create(
+                    vertexSource(),
+                    butterflyFragmentSource());
+            }
             if (!p.shaders["difference"])
             {
                 p.shaders["difference"] = ftk::gl::Shader::create(

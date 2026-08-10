@@ -190,6 +190,28 @@ namespace tl
                     compareOptions,
                     colorBuffer);
                 break;
+            case Compare::Butterfly:
+                if (videoFrame.size() > 1)
+                {
+                    _drawVideoButterfly(
+                        videoFrame,
+                        boxes,
+                        imageOptions,
+                        displayOptions,
+                        compareOptions,
+                        colorBuffer);
+                }
+                else
+                {
+                    _drawVideoA(
+                        videoFrame,
+                        boxes,
+                        imageOptions,
+                        displayOptions,
+                        compareOptions,
+                        colorBuffer);
+                }
+                break;
             case Compare::Overlay:
                 _drawVideoOverlay(
                     videoFrame,
@@ -502,6 +524,145 @@ namespace tl
             }
         }
 
+        bool Render::_drawVideoPair(
+            const std::vector<VideoFrame>& videoFrame,
+            const std::vector<ftk::Box2I>& boxes,
+            const std::vector<ftk::ImageOptions>& imageOptions,
+            const std::vector<DisplayOptions>& displayOptions,
+            ftk::gl::TextureType colorBuffer)
+        {
+            FTK_P();
+            const ftk::Size2I offscreenBufferSize(boxes[0].w(), boxes[0].h());
+
+            // Each file into a buffer of its own, drawn through the whole
+            // display pipeline so that what is combined is what would have
+            // been shown.
+            for (size_t i = 0; i < 2; ++i)
+            {
+                const std::string name = ftk::Format("compare{0}").arg(i);
+                if (i > 0 && videoFrame.size() <= i)
+                {
+                    p.buffers[name].reset();
+                    continue;
+                }
+                ftk::gl::OffscreenBufferOptions offscreenBufferOptions;
+                if (displayOptions.size() > i)
+                {
+                    offscreenBufferOptions.colorFilters = imageFilters(imageOptions, i);
+                }
+                if (doCreate(
+                    p.buffers[name],
+                    offscreenBufferSize,
+                    colorBuffer,
+                    offscreenBufferOptions))
+                {
+                    p.buffers[name] = ftk::gl::OffscreenBuffer::create(
+                        offscreenBufferSize,
+                        colorBuffer,
+                        offscreenBufferOptions);
+                }
+                if (!p.buffers[name])
+                {
+                    continue;
+                }
+
+                const ftk::gl::SetAndRestore scissorTest(GL_SCISSOR_TEST, GL_FALSE);
+                ftk::gl::OffscreenBufferBinding binding(p.buffers[name]);
+                glViewport(
+                    0,
+                    0,
+                    offscreenBufferSize.w,
+                    offscreenBufferSize.h);
+                glClearColor(0.F, 0.F, 0.F, 0.F);
+                glClear(GL_COLOR_BUFFER_BIT);
+
+                p.shaders["display"]->bind();
+                p.shaders["display"]->setUniform(
+                    "transform.mvp",
+                    ftk::ortho(
+                        0.F,
+                        static_cast<float>(offscreenBufferSize.w),
+                        static_cast<float>(offscreenBufferSize.h),
+                        0.F,
+                        -1.F,
+                        1.F));
+
+                _drawVideo(
+                    videoFrame[i],
+                    boxes[i],
+                    imageOptions.size() > i ?
+                        std::make_shared<ftk::ImageOptions>(imageOptions[i]) :
+                        nullptr,
+                    displayOptions.size() > i ?
+                        displayOptions[i] :
+                        DisplayOptions(),
+                    colorBuffer);
+
+                // Restored because the buffer above replaced it, and the
+                // caller draws with the transform it came in with.
+                p.shaders["display"]->bind();
+                p.shaders["display"]->setUniform("transform.mvp", getTransform());
+            }
+
+            return p.buffers["compare0"] && p.buffers["compare1"];
+        }
+
+        void Render::_drawVideoPairShader(
+            const std::string& shader,
+            const ftk::Box2I& box)
+        {
+            FTK_P();
+            glBlendFuncSeparate(GL_ONE, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE);
+
+            const ftk::Size2I renderSize = getRenderSize();
+            const ftk::Box2I viewport = getViewport();
+            glViewport(
+                viewport.x(),
+                renderSize.h - viewport.h() - viewport.y(),
+                viewport.w(),
+                viewport.h());
+
+            p.shaders[shader]->bind();
+            p.shaders[shader]->setUniform("textureSampler", 0);
+            p.shaders[shader]->setUniform("textureSamplerB", 1);
+
+            glActiveTexture(static_cast<GLenum>(GL_TEXTURE0));
+            glBindTexture(GL_TEXTURE_2D, p.buffers["compare0"]->getColorID());
+
+            glActiveTexture(static_cast<GLenum>(GL_TEXTURE1));
+            glBindTexture(GL_TEXTURE_2D, p.buffers["compare1"]->getColorID());
+
+            if (p.vbos["video"])
+            {
+                p.vbos["video"]->copy(convert(
+                    ftk::mesh(box, true),
+                    p.vbos["video"]->getType()));
+            }
+            if (p.vaos["video"])
+            {
+                p.vaos["video"]->bind();
+                p.vaos["video"]->draw(GL_TRIANGLES, 0, p.vbos["video"]->getSize());
+            }
+        }
+
+        void Render::_drawVideoButterfly(
+            const std::vector<VideoFrame>& videoFrame,
+            const std::vector<ftk::Box2I>& boxes,
+            const std::vector<ftk::ImageOptions>& imageOptions,
+            const std::vector<DisplayOptions>& displayOptions,
+            const CompareOptions& compareOptions,
+            ftk::gl::TextureType colorBuffer)
+        {
+            FTK_P();
+            if (videoFrame.empty() || boxes.empty())
+                return;
+            if (_drawVideoPair(
+                videoFrame, boxes, imageOptions, displayOptions, colorBuffer))
+            {
+                _drawVideoPairShader("butterfly", boxes[0]);
+            }
+        }
+
         void Render::_drawVideoDifference(
             const std::vector<VideoFrame>& videoFrame,
             const std::vector<ftk::Box2I>& boxes,
@@ -511,156 +672,16 @@ namespace tl
             ftk::gl::TextureType colorBuffer)
         {
             FTK_P();
-            if (!videoFrame.empty() && !boxes.empty())
+            if (videoFrame.empty() || boxes.empty())
+                return;
+            if (_drawVideoPair(
+                videoFrame, boxes, imageOptions, displayOptions, colorBuffer))
             {
-                const ftk::Size2I offscreenBufferSize(
-                    boxes[0].w(),
-                    boxes[0].h());
-                ftk::gl::OffscreenBufferOptions offscreenBufferOptions;
-                if (!displayOptions.empty())
-                {
-                    offscreenBufferOptions.colorFilters = imageFilters(imageOptions, 0);
-                }
-                if (doCreate(
-                    p.buffers["difference0"],
-                    offscreenBufferSize,
-                    colorBuffer,
-                    offscreenBufferOptions))
-                {
-                    p.buffers["difference0"] = ftk::gl::OffscreenBuffer::create(
-                        offscreenBufferSize,
-                        colorBuffer,
-                        offscreenBufferOptions);
-                }
-
-                if (p.buffers["difference0"])
-                {
-                    const ftk::gl::SetAndRestore scissorTest(GL_SCISSOR_TEST, GL_FALSE);
-
-                    ftk::gl::OffscreenBufferBinding binding(p.buffers["difference0"]);
-                    glViewport(
-                        0,
-                        0,
-                        offscreenBufferSize.w,
-                        offscreenBufferSize.h);
-                    glClearColor(0.F, 0.F, 0.F, 0.F);
-                    glClear(GL_COLOR_BUFFER_BIT);
-
-                    p.shaders["display"]->bind();
-                    p.shaders["display"]->setUniform(
-                        "transform.mvp",
-                        ftk::ortho(
-                            0.F,
-                            static_cast<float>(offscreenBufferSize.w),
-                            static_cast<float>(offscreenBufferSize.h),
-                            0.F,
-                            -1.F,
-                            1.F));
-
-                    _drawVideo(
-                        videoFrame[0],
-                        boxes[0],
-                        !imageOptions.empty() ? std::make_shared<ftk::ImageOptions>(imageOptions[0]) : nullptr,
-                        !displayOptions.empty() ? displayOptions[0] : DisplayOptions(),
-                        colorBuffer);
-
-                    p.shaders["display"]->bind();
-                    p.shaders["display"]->setUniform("transform.mvp", getTransform());
-                }
-
-                if (videoFrame.size() > 1)
-                {
-                    offscreenBufferOptions = ftk::gl::OffscreenBufferOptions();
-                    if (displayOptions.size() > 1)
-                    {
-                        offscreenBufferOptions.colorFilters = imageFilters(imageOptions, 1);
-                    }
-                    if (doCreate(
-                        p.buffers["difference1"],
-                        offscreenBufferSize,
-                        colorBuffer,
-                        offscreenBufferOptions))
-                    {
-                        p.buffers["difference1"] = ftk::gl::OffscreenBuffer::create(
-                            offscreenBufferSize,
-                            colorBuffer,
-                            offscreenBufferOptions);
-                    }
-
-                    if (p.buffers["difference1"])
-                    {
-                        const ftk::gl::SetAndRestore scissorTest(GL_SCISSOR_TEST, GL_FALSE);
-
-                        ftk::gl::OffscreenBufferBinding binding(p.buffers["difference1"]);
-                        glViewport(
-                            0,
-                            0,
-                            offscreenBufferSize.w,
-                            offscreenBufferSize.h);
-                        glClearColor(0.F, 0.F, 0.F, 0.F);
-                        glClear(GL_COLOR_BUFFER_BIT);
-
-                        p.shaders["display"]->bind();
-                        p.shaders["display"]->setUniform(
-                            "transform.mvp",
-                            ftk::ortho(
-                                0.F,
-                                static_cast<float>(offscreenBufferSize.w),
-                                static_cast<float>(offscreenBufferSize.h),
-                                0.F,
-                                -1.F,
-                                1.F));
-
-                        _drawVideo(
-                            videoFrame[1],
-                            boxes[1],
-                            imageOptions.size() > 1 ? std::make_shared<ftk::ImageOptions>(imageOptions[1]) : nullptr,
-                            displayOptions.size() > 1 ? displayOptions[1] : DisplayOptions(),
-                            colorBuffer);
-                    }
-                }
-                else
-                {
-                    p.buffers["difference1"].reset();
-                }
-
-                if (p.buffers["difference0"] && p.buffers["difference1"])
-                {
-                    glBlendFuncSeparate(GL_ONE, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE);
-
-                    const ftk::Size2I renderSize = getRenderSize();
-                    const ftk::Box2I viewport = getViewport();
-                    glViewport(
-                        viewport.x(),
-                        renderSize.h - viewport.h() - viewport.y(),
-                        viewport.w(),
-                        viewport.h());
-
-                    p.shaders["difference"]->bind();
-                    p.shaders["difference"]->setUniform("textureSampler", 0);
-                    p.shaders["difference"]->setUniform("textureSamplerB", 1);
-                    p.shaders["difference"]->setUniform(
-                        "gain",
-                        compareOptions.differenceGain);
-
-                    glActiveTexture(static_cast<GLenum>(GL_TEXTURE0));
-                    glBindTexture(GL_TEXTURE_2D, p.buffers["difference0"]->getColorID());
-
-                    glActiveTexture(static_cast<GLenum>(GL_TEXTURE1));
-                    glBindTexture(GL_TEXTURE_2D, p.buffers["difference1"]->getColorID());
-
-                    if (p.vbos["video"])
-                    {
-                        p.vbos["video"]->copy(convert(
-                            ftk::mesh(boxes[0], true),
-                            p.vbos["video"]->getType()));
-                    }
-                    if (p.vaos["video"])
-                    {
-                        p.vaos["video"]->bind();
-                        p.vaos["video"]->draw(GL_TRIANGLES, 0, p.vbos["video"]->getSize());
-                    }
-                }
+                p.shaders["difference"]->bind();
+                p.shaders["difference"]->setUniform(
+                    "gain",
+                    compareOptions.differenceGain);
+                _drawVideoPairShader("difference", boxes[0]);
             }
         }
 
@@ -1137,6 +1158,7 @@ namespace tl
             {
                 case Compare::None:
                 case Compare::Wipe:
+                case Compare::Butterfly:
                 case Compare::Overlay:
                 case Compare::Difference:
                     if (!boxes.empty())
