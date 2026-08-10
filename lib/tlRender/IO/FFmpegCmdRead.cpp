@@ -363,7 +363,11 @@ namespace tl
                     if (auto j = i.value().find("duration");
                         j != i.value().end())
                     {
-                        duration = atoi(j->get<std::string>().c_str());
+                        // Not atoi(): ffprobe gives this as a decimal, and
+                        // truncating it to whole seconds is what made the
+                        // duration wrong for the files that have no frame
+                        // count of their own to use instead.
+                        duration = atof(j->get<std::string>().c_str());
                     }
 
                     // Get the metadata tags.
