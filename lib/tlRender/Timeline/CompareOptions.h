@@ -19,6 +19,13 @@ namespace tl
         None,
         B,
         Wipe,
+
+        //! The same half of each file, one of them mirrored, so that the two
+        //! meet at the middle on the same picture. What a side by side
+        //! comparison cannot do is put the same thing next to itself, which
+        //! is what judging a colour adjustment needs.
+        Butterfly,
+
         Overlay,
         Difference,
         Horizontal,
@@ -48,6 +55,13 @@ namespace tl
         ftk::V2F wipeCenter   = ftk::V2F(.5F, .5F);
         float    wipeRotation = 0.F;
         float    overlay      = .5F;
+
+        //! What the difference is multiplied by before it is shown. The
+        //! differences worth looking for are often a code value or two --
+        //! what a compressed version differs from its source by -- and at
+        //! their own size they are indistinguishable from black.
+        float    differenceGain = 1.F;
+
         bool     sameSize     = true;
 
         TL_API bool operator == (const CompareOptions&) const;

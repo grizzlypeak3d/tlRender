@@ -357,7 +357,7 @@ namespace tl
                 "}\n";
         }
 
-        std::string differenceFragmentSource()
+        std::string butterflyFragmentSource()
         {
             return
                 "#version 410\n"
@@ -370,11 +370,40 @@ namespace tl
                 "\n"
                 "void main()\n"
                 "{\n"
+                // The same half of both, the second one mirrored, so that
+                // the middle of the picture is on both sides of the seam.
+                "    if (fTexture.x < .5)\n"
+                "    {\n"
+                "        outColor = texture(textureSampler, fTexture);\n"
+                "    }\n"
+                "    else\n"
+                "    {\n"
+                "        outColor = texture(\n"
+                "            textureSamplerB,\n"
+                "            vec2(1.0 - fTexture.x, fTexture.y));\n"
+                "    }\n"
+                "}\n";
+        }
+
+        std::string differenceFragmentSource()
+        {
+            return
+                "#version 410\n"
+                "\n"
+                "in vec2 fTexture;\n"
+                "out vec4 outColor;\n"
+                "\n"
+                "uniform sampler2D textureSampler;\n"
+                "uniform sampler2D textureSamplerB;\n"
+                "uniform float     gain;\n"
+                "\n"
+                "void main()\n"
+                "{\n"
                 "    vec4 c = texture(textureSampler, fTexture);\n"
                 "    vec4 cB = texture(textureSamplerB, fTexture);\n"
-                "    outColor.r = abs(c.r - cB.r);\n"
-                "    outColor.g = abs(c.g - cB.g);\n"
-                "    outColor.b = abs(c.b - cB.b);\n"
+                "    outColor.r = abs(c.r - cB.r) * gain;\n"
+                "    outColor.g = abs(c.g - cB.g) * gain;\n"
+                "    outColor.b = abs(c.b - cB.b) * gain;\n"
                 "    outColor.a = max(c.a, cB.a);\n"
                 "}\n";
         }

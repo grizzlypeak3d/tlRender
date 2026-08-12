@@ -132,9 +132,8 @@ namespace tl
                     throw std::runtime_error(ftk::Format(
                         "No such file or directory: \"{0}\"").arg(fileName).str());
                 }
-                std::stringstream ss;
-                ss << "Cannot open file: " << fileName;
-                throw std::runtime_error(oiioError(ss.str()));
+                throw std::runtime_error(oiioError(
+                    ftk::Format("Cannot open file: \"{0}\"").arg(fileName)));
             }
 
             // Get file information.
@@ -150,9 +149,8 @@ namespace tl
                 const ftk::ImageType imageType = fromOIIO(oiioSpec);
                 if (ftk::ImageType::None == imageType)
                 {
-                    std::stringstream ss;
-                    ss << "Unsupported file: " << fileName;
-                    throw std::runtime_error(ss.str());
+                    throw std::runtime_error(
+                        ftk::Format("Unsupported file: \"{0}\"").arg(fileName).str());
                 }
                 ftk::ImageInfo imageInfo(oiioSpec.width, oiioSpec.height, imageType);
                 if (const auto param = oiioSpec.find_attribute("oiio:subimagename"))
@@ -202,9 +200,8 @@ namespace tl
                     throw std::runtime_error(ftk::Format(
                         "No such file or directory: \"{0}\"").arg(fileName).str());
                 }
-                std::stringstream ss;
-                ss << "Cannot open file: " << fileName;
-                throw std::runtime_error(oiioError(ss.str()));
+                throw std::runtime_error(oiioError(
+                    ftk::Format("Cannot open file: \"{0}\"").arg(fileName)));
             }
 
             // Find the layer.
@@ -215,9 +212,9 @@ namespace tl
             }
             if (!oiioInput->seek_subimage(layer, 0))
             {
-                std::stringstream ss;
-                ss << "Cannot open layer: " << layer;
-                throw std::runtime_error(oiioError(ss.str()));
+                throw std::runtime_error(oiioError(
+                    ftk::Format("Cannot open layer {0}: \"{1}\"").
+                    arg(layer).arg(fileName)));
             }
 
             // Get file information.
@@ -225,9 +222,8 @@ namespace tl
             const ftk::ImageType imageType = fromOIIO(oiioSpec);
             if (ftk::ImageType::None == imageType)
             {
-                std::stringstream ss;
-                ss << "Unsupported file: " << fileName;
-                throw std::runtime_error(ss.str());
+                throw std::runtime_error(
+                    ftk::Format("Unsupported file: \"{0}\"").arg(fileName).str());
             }
 
             // Get the tags.
@@ -252,9 +248,8 @@ namespace tl
                 oiioSpec.format,
                 out.image->getData()))
             {
-                std::stringstream ss;
-                ss << "Cannot read file: " << fileName;
-                throw std::runtime_error(oiioError(ss.str()));
+                throw std::runtime_error(oiioError(
+                    ftk::Format("Cannot read file: \"{0}\"").arg(fileName)));
             }
             return out;
         }

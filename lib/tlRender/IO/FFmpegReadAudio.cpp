@@ -224,39 +224,11 @@ namespace tl
                         _tags[i.first] = i.second;
                     }
                     {
-                        std::stringstream ss;
-                        ss << static_cast<int>(fileChannelCount);
-                        _tags["Audio Channels"] = ss.str();
-                    }
-                    {
-                        std::stringstream ss;
-                        ss << fileAudioType;
-                        _tags["Audio Type"] = ss.str();
-                    }
-                    {
-                        std::stringstream ss;
-                        ss.precision(1);
-                        ss << std::fixed;
-                        ss << fileSampleRate / 1000.F << "kHz";
-                        _tags["Audio Sample Rate"] = ss.str();
-                    }
-                    {
-                        std::stringstream ss;
-                        ss.precision(2);
-                        ss << std::fixed;
-                        ss << _timeRange.start_time().rescaled_to(1.0).value() << " seconds";
-                        _tags["Audio Start Time"] = ss.str();
-                    }
-                    {
-                        std::stringstream ss;
-                        ss.precision(2);
-                        ss << std::fixed;
-                        ss << _timeRange.duration().rescaled_to(1.0).value() << " seconds";
-                        _tags["Audio Duration"] = ss.str();
-                    }
-                    {
-                        _tags["Audio Codec"] = 
+                        _source.codec =
                             avcodec_get_name(_avCodecContext[_avStream]->codec_id);
+                        _source.type = fileAudioType;
+                        _source.channelCount = fileChannelCount;
+                        _source.sampleRate = fileSampleRate;
                     }
                 }
             }
@@ -316,7 +288,12 @@ namespace tl
             return _timeRange;
         }
 
-        const ftk::ImageTags& ReadAudio::getTags() const
+        const AudioSourceInfo& ReadAudio::getSource() const
+    {
+        return _source;
+    }
+
+    const ftk::ImageTags& ReadAudio::getTags() const
         {
             return _tags;
         }

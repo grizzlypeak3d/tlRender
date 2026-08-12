@@ -6,13 +6,18 @@
 #include <tlRender/UITest/ThumbnailSystemTest.h>
 
 #include <tlRender/TimelineTest/AudioSystemTest.h>
+#include <tlRender/TimelineTest/BackgroundOptionsTest.h>
 #include <tlRender/TimelineTest/ColorOptionsTest.h>
 #include <tlRender/TimelineTest/CompareOptionsTest.h>
 #include <tlRender/TimelineTest/DisplayOptionsTest.h>
+#include <tlRender/TimelineTest/ForegroundOptionsTest.h>
 #include <tlRender/TimelineTest/PlayerOptionsTest.h>
 #include <tlRender/TimelineTest/PlayerTest.h>
+#include <tlRender/TimelineTest/TimeUnitsTest.h>
 #include <tlRender/TimelineTest/TimelineTest.h>
 #include <tlRender/TimelineTest/UtilTest.h>
+
+#include <tlRender/GLTest/RenderTest.h>
 
 #include <tlRender/IOTest/IOTest.h>
 #include <tlRender/IOTest/RequestQueueTest.h>
@@ -92,13 +97,19 @@ namespace tl
             p.tests.push_back(io_tests::EXRTest::create(context));
 #endif // TLRENDER_EXR
 
+            // GL tests.
+            p.tests.push_back(gl_test::RenderTest::create(context));
+
             // Timeline tests.
             p.tests.push_back(timeline_tests::AudioSystemTest::create(context));
+            p.tests.push_back(timeline_tests::BackgroundOptionsTest::create(context));
             p.tests.push_back(timeline_tests::ColorOptionsTest::create(context));
             p.tests.push_back(timeline_tests::CompareOptionsTest::create(context));
             p.tests.push_back(timeline_tests::DisplayOptionsTest::create(context));
+            p.tests.push_back(timeline_tests::ForegroundOptionsTest::create(context));
             p.tests.push_back(timeline_tests::PlayerOptionsTest::create(context));
             p.tests.push_back(timeline_tests::PlayerTest::create(context));
+            p.tests.push_back(timeline_tests::TimeUnitsTest::create(context));
             p.tests.push_back(timeline_tests::TimelineTest::create(context));
             p.tests.push_back(timeline_tests::UtilTest::create(context));
 

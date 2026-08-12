@@ -293,7 +293,7 @@ namespace tl
                 "}\n";
         }
 
-        std::string differenceFragmentSource()
+        std::string butterflyFragmentSource()
         {
             return
                 "precision mediump float;\n"
@@ -305,12 +305,40 @@ namespace tl
                 "\n"
                 "void main()\n"
                 "{\n"
+                // The same half of both, the second one mirrored, so that
+                // the middle of the picture is on both sides of the seam.
+                "    if (fTexture.x < .5)\n"
+                "    {\n"
+                "        gl_FragColor = texture2D(textureSampler, fTexture);\n"
+                "    }\n"
+                "    else\n"
+                "    {\n"
+                "        gl_FragColor = texture2D(\n"
+                "            textureSamplerB,\n"
+                "            vec2(1.0 - fTexture.x, fTexture.y));\n"
+                "    }\n"
+                "}\n";
+        }
+
+        std::string differenceFragmentSource()
+        {
+            return
+                "precision mediump float;\n"
+                "\n"
+                "varying vec2 fTexture;\n"
+                "\n"
+                "uniform sampler2D textureSampler;\n"
+                "uniform sampler2D textureSamplerB;\n"
+                "uniform float     gain;\n"
+                "\n"
+                "void main()\n"
+                "{\n"
                 "\n"
                 "    vec4 c = texture2D(textureSampler, fTexture);\n"
                 "    vec4 cB = texture2D(textureSamplerB, fTexture);\n"
-                "    gl_FragColor.r = abs(c.r - cB.r);\n"
-                "    gl_FragColor.g = abs(c.g - cB.g);\n"
-                "    gl_FragColor.b = abs(c.b - cB.b);\n"
+                "    gl_FragColor.r = abs(c.r - cB.r) * gain;\n"
+                "    gl_FragColor.g = abs(c.g - cB.g) * gain;\n"
+                "    gl_FragColor.b = abs(c.b - cB.b) * gain;\n"
                 "    gl_FragColor.a = max(c.a, cB.a);\n"
                 "}\n";
         }

@@ -92,6 +92,12 @@ namespace tl
                     vertexSource(),
                     textureFragmentSource());
             }
+            if (!p.shaders["butterfly"])
+            {
+                p.shaders["butterfly"] = ftk::gl::Shader::create(
+                    vertexSource(),
+                    butterflyFragmentSource());
+            }
             if (!p.shaders["difference"])
             {
                 p.shaders["difference"] = ftk::gl::Shader::create(
@@ -110,6 +116,8 @@ namespace tl
             p.vaos["wipe"] = ftk::gl::VAO::create(p.vbos["wipe"]->getType(), p.vbos["wipe"]->getID());
             p.vbos["video"] = ftk::gl::VBO::create(2 * 3, ftk::gl::VBOType::Pos2_F32_UV_U16);
             p.vaos["video"] = ftk::gl::VAO::create(p.vbos["video"]->getType(), p.vbos["video"]->getID());
+
+            setTransform(p.baseRender->getTransform());
         }
 
         void Render::end()

@@ -1201,6 +1201,13 @@ namespace tl
                                     static_cast<double>(frame), 24.0)).
                                 has_value());
                         }
+
+                        // Both are one media played through, in runs rather
+                        // than in one piece, so the frame numbers keep
+                        // increasing and are worth showing in place of the
+                        // timeline's own time.
+                        FTK_CHECK(skipTimeline->isMediaTimeContinuous());
+                        FTK_CHECK(gapsTimeline->isMediaTimeContinuous());
                     }
 
                     // Without a structural policy a timeline time is the frame
@@ -1254,8 +1261,41 @@ namespace tl
             {
                 _error(e.what());
             }
+
+            // Media frame numbers are only a coordinate on the timeline when
+            // the timeline is one media played through. These are the two ways
+            // that fails, and a caller showing a frame number has to count the
+            // timeline instead for both of them.
+            try
+            {
+                // Different media in each clip, so the numbering restarts at
+                // every cut. The first two clips also run at a different rate
+                // than the timeline, which repeats a number from one frame to
+                // the next.
+                auto cuts = Timeline::create(
+                    _context,
+                    ftk::Path(TLRENDER_SAMPLE_DATA, "MultipleClips.otio"));
+                FTK_CHECK(!cuts->isMediaTimeContinuous());
+
+                // One media, but taken twice, so the numbering goes backwards
+                // at the join.
+                auto repeated = Timeline::create(
+                    _context,
+                    ftk::Path(TLRENDER_SAMPLE_DATA, "RepeatClip.otio"));
+                FTK_CHECK(!repeated->isMediaTimeContinuous());
+
+                // One media in one piece, which is the ordinary case.
+                auto single = Timeline::create(
+                    _context,
+                    ftk::Path(TLRENDER_SAMPLE_DATA, "SingleClip.otio"));
+                FTK_CHECK(single->isMediaTimeContinuous());
+            }
+            catch (const std::exception& e)
+            {
+                _error(e.what());
+            }
         }
-    
+
         void TimelineTest::_synchronous()
         {
             // A timeline with no thread has to produce what a threaded one

@@ -35,6 +35,29 @@ namespace tl
                 FTK_CHECK(options != CompareOptions());
             }
             {
+                // Every field survives being written and read back.
+                CompareOptions options;
+                options.compare = Compare::Difference;
+                options.wipeCenter = ftk::V2F(.25F, .75F);
+                options.wipeRotation = 90.F;
+                options.overlay = .25F;
+                options.differenceGain = 8.F;
+                options.sameSize = false;
+                nlohmann::json json;
+                to_json(json, options);
+                CompareOptions options2;
+                from_json(json, options2);
+                FTK_CHECK(options == options2);
+
+                // A file written before a field existed keeps the default
+                // for it rather than throwing and losing the rest.
+                json.erase("DifferenceGain");
+                CompareOptions options3;
+                from_json(json, options3);
+                FTK_CHECK(CompareOptions().differenceGain == options3.differenceGain);
+                FTK_CHECK(options.overlay == options3.overlay);
+            }
+            {
                 const std::vector<ftk::ImageInfo> infos =
                 {
                     ftk::ImageInfo(1920, 1080, ftk::ImageType::RGBA_U8),

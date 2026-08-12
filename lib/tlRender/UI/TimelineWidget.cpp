@@ -913,21 +913,29 @@ namespace tl
             out->dir = timeline->getPath().getDir();
             out->options = timeline->getOptions();
 
-            // Weak, because the item data belongs to this widget and the
-            // timeline does not.
-            std::weak_ptr<Timeline> weak = timeline;
-            out->toMediaTime =
-                [weak](const OTIO_NS::RationalTime& value)
-                {
-                    if (auto timeline = weak.lock())
+            // Only where media times are one number for the whole timeline.
+            // On a cut list they restart at every cut, so the ruler would
+            // count up to each cut and start again, and a clip whose media
+            // runs at a different rate than the timeline would label two of
+            // its frames the same. Left unset the ruler counts the timeline.
+            if (timeline->isMediaTimeContinuous())
+            {
+                // Weak, because the item data belongs to this widget and the
+                // timeline does not.
+                std::weak_ptr<Timeline> weak = timeline;
+                out->toMediaTime =
+                    [weak](const OTIO_NS::RationalTime& value)
                     {
-                        if (const auto time = timeline->getMediaTime(value))
+                        if (auto timeline = weak.lock())
                         {
-                            return *time;
+                            if (const auto time = timeline->getMediaTime(value))
+                            {
+                                return *time;
+                            }
                         }
-                    }
-                    return value;
-                };
+                        return value;
+                    };
+            }
             return out;
         }
 

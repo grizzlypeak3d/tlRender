@@ -12,6 +12,7 @@ endif()
 
 if(TLRENDER_TESTS)
     add_subdirectory(CoreTest)
+    add_subdirectory(GLTest)
     add_subdirectory(IOTest)
     add_subdirectory(TimelineTest)
     add_subdirectory(UITest)

@@ -1,7 +1,7 @@
 include(ExternalProject)
 
 set(subprocess_GIT_REPOSITORY "https://github.com/sheredom/subprocess.h.git")
-set(subprocess_GIT_TAG "b0c3e4f6491da6aef71ffa3beaa083e22f6855f5")
+set(subprocess_GIT_TAG "9ce0d701b6fb10f8f8c4445edd31e7c60a1237e3")
 
 ExternalProject_Add(
     subprocess

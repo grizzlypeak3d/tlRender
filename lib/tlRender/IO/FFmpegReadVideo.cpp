@@ -390,47 +390,12 @@ namespace tl
                         _tags[i.first] = i.second;
                     }
                     {
-                        std::stringstream ss;
-                        ss << _info.size.w << " " << _info.size.h;
-                        _tags["Video Resolution"] = ss.str();
-                    }
-                    {
-                        std::stringstream ss;
-                        ss.precision(2);
-                        ss << std::fixed;
-                        ss << _info.pixelAspectRatio;
-                        _tags["Video Pixel Aspect Ratio"] = ss.str();
-                    }
-                    {
-                        std::stringstream ss;
-                        ss << _info.type;
-                        _tags["Video Pixel Type"] = ss.str();
-                    }
-                    {
-                        _tags["Video Codec"] =
+                        _source.codec =
                             avcodec_get_name(_avCodecContext[_avStream]->codec_id);
-                    }
-                    {
-                        std::stringstream ss;
-                        ss << _info.videoLevels;
-                        _tags["Video Levels"] = ss.str();
-                    }
-                    {
-                        std::stringstream ss;
-                        ss << _timeRange.start_time().to_timecode();
-                        _tags["Video Start Time"] = ss.str();
-                    }
-                    {
-                        std::stringstream ss;
-                        ss << _timeRange.duration().to_timecode();
-                        _tags["Video Duration"] = ss.str();
-                    }
-                    {
-                        std::stringstream ss;
-                        ss.precision(2);
-                        ss << std::fixed;
-                        ss << _timeRange.start_time().rate() << " FPS";
-                        _tags["Video Speed"] = ss.str();
+                        if (const char* name = av_get_pix_fmt_name(_avInputPixelFormat))
+                        {
+                            _source.pixelFormat = name;
+                        }
                     }
                 }
             }
@@ -503,7 +468,12 @@ namespace tl
             return _timeRange;
         }
 
-        const ftk::ImageTags& ReadVideo::getTags() const
+        const VideoSourceInfo& ReadVideo::getSource() const
+    {
+        return _source;
+    }
+
+    const ftk::ImageTags& ReadVideo::getTags() const
         {
             return _tags;
         }

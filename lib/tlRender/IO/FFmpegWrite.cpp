@@ -328,6 +328,9 @@ namespace tl
                 }
             }
 
+            // The file's own metadata. The video and audio information is
+            // not in here any more, so it no longer lands in the output as
+            // a set of tags describing something that was read, not written.
             for (const auto& i : info.tags)
             {
                 av_dict_set(&p.avFormatContext->metadata, i.first.c_str(), i.second.c_str(), 0);

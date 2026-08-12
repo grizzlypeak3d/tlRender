@@ -177,6 +177,16 @@ namespace tl
             const OTIO_NS::RationalTime&,
             int64_t frame);
 
+        //! Whether media times increase over the whole timeline, which is
+        //! what makes them worth showing in place of it.
+        //!
+        //! They do when every video clip reads the same media and takes a
+        //! later part of it than the one before: one file played through, in
+        //! one piece or in the runs a sparse sequence is cut into. Cutting
+        //! between media, or playing the same media twice, restarts the
+        //! numbering.
+        TL_API bool isMediaTimeContinuous() const;
+
         ///@}
 
         //! Read one frame of one of the media in the timeline.

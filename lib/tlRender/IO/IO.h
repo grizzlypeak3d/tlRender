@@ -23,6 +23,32 @@ namespace tl
         First = Unknown
     };
 
+    //! The video format of the file itself, which is not always the format
+    //! it is decoded to: a ProRes file is read as YUV 4:2:2 10 bit and handed
+    //! over as something the renderer can take. Empty for the formats that
+    //! have nothing to say beyond the decoded information.
+    struct TL_API_TYPE VideoSourceInfo
+    {
+        std::string codec;
+        std::string pixelFormat;
+
+        bool operator == (const VideoSourceInfo&) const;
+        bool operator != (const VideoSourceInfo&) const;
+    };
+
+    //! The audio format of the file itself, which is not always the format it
+    //! is decoded to.
+    struct TL_API_TYPE AudioSourceInfo
+    {
+        std::string codec;
+        AudioType type = AudioType::None;
+        size_t channelCount = 0;
+        size_t sampleRate = 0;
+
+        bool operator == (const AudioSourceInfo&) const;
+        bool operator != (const AudioSourceInfo&) const;
+    };
+
     //! I/O information.
     struct TL_API_TYPE IOInfo
     {
@@ -32,22 +58,26 @@ namespace tl
         //! Video time range, unset when there is no video.
         std::optional<OTIO_NS::TimeRange> videoTime;
 
+        //! The video format of the file, as opposed to the decoded one above.
+        VideoSourceInfo videoSource;
+
         //! Audio information.
         AudioInfo audio;
 
         //! Audio time range, unset when there is no audio.
         std::optional<OTIO_NS::TimeRange> audioTime;
 
-        //! Metadata tags.
+        //! The audio format of the file, as opposed to the decoded one above.
+        AudioSourceInfo audioSource;
+
+        //! Metadata tags read from the file. Only what the file itself
+        //! carries: the information describing the video and the audio is
+        //! above, not mixed in here.
         ftk::ImageTags tags;
 
         bool operator == (const IOInfo&) const;
         bool operator != (const IOInfo&) const;
     };
-
-    //! Add the tags describing the video, which are derived from the rest of
-    //! the information rather than read from the file.
-    TL_API void addVideoTags(IOInfo&);
 
     //! Merge the video half of the information with the audio half. Video
     //! and audio come from separate readers; this is how the two halves are

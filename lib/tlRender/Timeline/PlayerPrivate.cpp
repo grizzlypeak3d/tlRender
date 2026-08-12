@@ -376,6 +376,7 @@ namespace tl
                         auto& requests = thread.videoRequests[timeLooped];
                         IOOptions ioOptions2 = thread.state.ioOptions;
                         ioOptions2["Layer"] = ftk::Format("{0}").arg(thread.state.videoLayer);
+                        const IOOptions ioOptionsA = ioOptions2;
                         requests.clear();
                         requests.push_back(timeline->getVideo(timeLooped, ioOptions2));
 
@@ -390,7 +391,28 @@ namespace tl
                                 arg(k < thread.state.compareVideoLayers.size() ?
                                     thread.state.compareVideoLayers[k] :
                                     thread.state.videoLayer);
-                            requests.push_back(thread.state.compare[k]->getVideo(t2, ioOptions2));
+
+                            // A file compared with itself is the same
+                            // timeline asked for the same frame twice. The
+                            // movie readers hand out frames in the order
+                            // they were asked for and start the decoder
+                            // again whenever the time is not the one they
+                            // expected, so the second ask restarts it for
+                            // every frame -- playback fell to about one
+                            // frame a second. It is the same frame: leave a
+                            // request without a future and take a copy of
+                            // the first one when it arrives.
+                            if (thread.state.compare[k] == timeline &&
+                                t2.strictly_equal(timeLooped) &&
+                                ioOptions2 == ioOptionsA)
+                            {
+                                requests.push_back(VideoRequest());
+                            }
+                            else
+                            {
+                                requests.push_back(
+                                    thread.state.compare[k]->getVideo(t2, ioOptions2));
+                            }
                         }
                     }
                 }
@@ -478,8 +500,14 @@ namespace tl
                 videoRequestIt != videoRequestsIt->second.end();
                 ++videoRequestIt)
             {
-                ready &= videoRequestIt->future.valid() &&
-                    videoRequestIt->future.wait_for(std::chrono::seconds(0)) == std::future_status::ready;
+                // A request without a future is one that was not made,
+                // because it would have asked for a frame already being
+                // read; it is filled in below.
+                if (videoRequestIt->future.valid())
+                {
+                    ready &= videoRequestIt->future.wait_for(std::chrono::seconds(0)) ==
+                        std::future_status::ready;
+                }
             }
             if (ready)
             {
@@ -489,7 +517,15 @@ namespace tl
                     videoRequestIt != videoRequestsIt->second.end();
                     ++videoRequestIt)
                 {
-                    auto videoFrame = videoRequestIt->future.get();
+                    VideoFrame videoFrame;
+                    if (videoRequestIt->future.valid())
+                    {
+                        videoFrame = videoRequestIt->future.get();
+                    }
+                    else if (!videoFrameList.empty())
+                    {
+                        videoFrame = videoFrameList.front();
+                    }
                     videoFrame.time = time;
                     videoFrameList.emplace_back(videoFrame);
                 }

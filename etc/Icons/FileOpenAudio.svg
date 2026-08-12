@@ -7,8 +7,8 @@
    viewBox="0 0 5.2916665 5.2916666"
    version="1.1"
    id="svg8"
-   inkscape:version="1.4.2 (ebf0e94, 2025-05-08)"
-   sodipodi:docname="FileOpenSeparateAudio.svg"
+   inkscape:version="1.4.4 (dcaf3e7, 2026-05-05)"
+   sodipodi:docname="FileOpenAudio.svg"
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
    xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
    xmlns="http://www.w3.org/2000/svg"
@@ -26,17 +26,17 @@
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
      inkscape:zoom="31.659099"
-     inkscape:cx="5.732949"
-     inkscape:cy="11.007894"
+     inkscape:cx="10.249818"
+     inkscape:cy="11.023687"
      inkscape:document-units="px"
      inkscape:current-layer="ForwardPlayback"
      showgrid="true"
      units="px"
-     inkscape:window-width="1920"
-     inkscape:window-height="1137"
-     inkscape:window-x="-8"
-     inkscape:window-y="-8"
-     inkscape:window-maximized="1"
+     inkscape:window-width="1392"
+     inkscape:window-height="1027"
+     inkscape:window-x="0"
+     inkscape:window-y="25"
+     inkscape:window-maximized="0"
      inkscape:pagecheckerboard="0"
      inkscape:showpageshadow="2"
      inkscape:deskcolor="#d1d1d1">
@@ -72,44 +72,15 @@
        inkscape:export-xdpi="96"
        inkscape:export-ydpi="96">
       <path
-         style="fill:#f0f0f0;fill-opacity:1;stroke:none;stroke-width:0.264583px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
-         d="m 2.9104166,291.97289 v 3.175 h 2.1166666 v -2.38125 l -0.7937499,-0.79375 z"
-         id="path1088"
-         sodipodi:nodetypes="cccccc" />
-      <rect
-         style="fill:#3c3c3c;fill-opacity:1;stroke:none;stroke-width:1.39209"
-         id="rect1"
-         width="1.5875"
-         height="0.26458332"
-         x="3.1749997"
-         y="293.82498" />
-      <rect
-         style="fill:#3c3c3c;fill-opacity:1;stroke:none;stroke-width:1.39209"
-         id="rect2"
-         width="1.5875"
-         height="0.26458332"
-         x="3.1749997"
-         y="294.35416" />
-      <rect
-         style="fill:#3c3c3c;fill-opacity:1;stroke:none;stroke-width:1.39209"
-         id="rect3"
-         width="1.5875"
-         height="0.26458332"
-         x="3.1749997"
-         y="293.29584" />
-      <rect
-         style="fill:#3c3c3c;fill-opacity:1;stroke:none;stroke-width:1.39209"
-         id="rect4"
-         width="1.5875"
-         height="0.26458332"
-         x="3.1749997"
-         y="292.76666" />
-      <path
          sodipodi:nodetypes="ccccccc"
          inkscape:connector-curvature="0"
          id="path4520"
-         d="M 1.5875,296.73539 0.79374998,295.94164 H 0.26458333 V 294.8833 H 0.79374998 L 1.5875,294.08955 Z"
+         d="m 1.8520833,296.99998 -0.79375,-0.79375 H 0.52916664 v -0.79375 H 1.0583333 l 0.79375,-0.79375 z"
          style="fill:#f0f0f0;fill-opacity:1;stroke:none;stroke-width:0.264583px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1" />
+      <path
+         id="path1088"
+         style="fill:#f0f0f0;fill-opacity:1;stroke:none;stroke-width:0.264583px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+         d="m 2.9104166,291.97289 v 3.175 h 2.1166666 v -2.38125 l -0.79375,-0.79375 z m 0.2645833,0.79375 h 1.5875 v 0.26459 h -1.5875 z m 0,0.52917 h 1.5875 v 0.26458 h -1.5875 z m 0,0.52917 h 1.5875 v 0.26458 h -1.5875 z m 0,0.52916 h 1.5875 v 0.26459 h -1.5875 z" />
     </g>
   </g>
 </svg>

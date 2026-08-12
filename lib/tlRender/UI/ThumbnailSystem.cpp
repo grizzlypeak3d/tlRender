@@ -889,7 +889,16 @@ namespace tl
                             // another here read the file again for every
                             // request, which on a bundle of 25,000 entries
                             // meant a thumbnail took as long as an open.
-                            if (auto logSystem = context->getLogSystem())
+                            //
+                            // Only worth saying when media was asked for and
+                            // not found. The overload that takes one path asks
+                            // for the timeline with its own path, so warning
+                            // whenever the two match reported every thumbnail
+                            // of a timeline as a fault.
+                            const bool mediaAsked =
+                                request->mediaPath.get() != request->path.get();
+                            auto logSystem = context->getLogSystem();
+                            if (mediaAsked && logSystem)
                             {
                                 logSystem->print("tl::ui::ThumbnailSystem",
                                     ftk::Format("Media not found in timeline, "

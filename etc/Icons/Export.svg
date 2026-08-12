@@ -26,7 +26,7 @@
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
      inkscape:zoom="31.659099"
-     inkscape:cx="5.732949"
+     inkscape:cx="5.7171558"
      inkscape:cy="11.023687"
      inkscape:document-units="px"
      inkscape:current-layer="ForwardPlayback"
@@ -77,9 +77,10 @@
          id="rect356"
          sodipodi:nodetypes="cccccccc" />
       <path
-         id="rect2"
+         id="rect2-8"
          style="fill:#f0f0f0;stroke-width:2.43593"
-         d="m 2.514285,292.50206 -0.280603,0.28061 -0.8418091,0.84181 0.280603,0.2806 0.6433716,-0.64337 v 1.6216 h 0.396875 v -1.6216 l 0.6433716,0.64337 0.280603,-0.2806 -0.8418091,-0.84181 z" />
+         d="m 2.514285,292.50206 -1.1224121,1.12241 0.280603,0.2806 0.6433716,-0.64337 v 1.62161 h 0.396875 v -1.62161 l 0.6433715,0.64337 0.2806031,-0.2806 z"
+         sodipodi:nodetypes="cccccccccc" />
     </g>
   </g>
 </svg>

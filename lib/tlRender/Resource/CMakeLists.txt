@@ -5,6 +5,7 @@ set(RESOURCES
     etc/Icons/ColorPicker.svg
     etc/Icons/CompareA.svg
     etc/Icons/CompareB.svg
+    etc/Icons/CompareButterfly.svg
     etc/Icons/CompareDifference.svg
     etc/Icons/CompareHorizontal.svg
     etc/Icons/CompareOverlay.svg

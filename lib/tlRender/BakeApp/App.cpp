@@ -5,6 +5,7 @@
 
 #include <tlRender/GL/Render.h>
 
+#include <tlRender/IO/SeqIO.h>
 #include <tlRender/IO/System.h>
 
 #include <tlRender/Core/Time.h>
@@ -311,6 +312,16 @@ namespace tl
             IOInfo ioInfo;
             ioInfo.video.push_back(_outputInfo);
             ioInfo.videoTime = _timeRange;
+            // A movie's frames start at zero, so where it came from in the
+            // timeline is only recoverable from the start timecode. Rates
+            // that have no timecode of their own are left without one rather
+            // than given a wrong one.
+            try
+            {
+                ioInfo.tags["timecode"] = _timeRange.start_time().to_timecode();
+            }
+            catch (const std::exception&)
+            {}
 #if defined(TLRENDER_FFMPEG_PLUGIN)
             if (info.audio.isValid() &&
                 std::dynamic_pointer_cast<ffmpeg::WritePlugin>(_writerPlugin))
@@ -332,6 +343,12 @@ namespace tl
             {
                 throw std::runtime_error(ftk::Format("Cannot open: \"{0}\"").arg(output));
             }
+            // A sequence writer names each file from the time it is written
+            // at, so those get the frame numbers of the timeline. Anything
+            // else takes the time as a position within the output, which
+            // starts at zero.
+            _writeInputTime =
+                std::dynamic_pointer_cast<ISeqWrite>(_writer) != nullptr;
 
             // Set options.
             if (_cmdLine.ocioFileName->hasValue() ||
@@ -526,7 +543,9 @@ namespace tl
                 format,
                 type,
                 _outputImage->getData());
-            _writer->writeVideo(_outputTime, _outputImage);
+            _writer->writeVideo(
+                _writeInputTime ? _inputTime : _outputTime,
+                _outputImage);
 
             // Advance the time.
             _inputTime += OTIO_NS::RationalTime(1, _inputTime.rate());

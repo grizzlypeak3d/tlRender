@@ -3,13 +3,41 @@
 
 namespace tl
 {
+    inline bool VideoSourceInfo::operator == (const VideoSourceInfo& other) const
+    {
+        return
+            codec == other.codec &&
+            pixelFormat == other.pixelFormat;
+    }
+
+    inline bool VideoSourceInfo::operator != (const VideoSourceInfo& other) const
+    {
+        return !(*this == other);
+    }
+
+    inline bool AudioSourceInfo::operator == (const AudioSourceInfo& other) const
+    {
+        return
+            codec == other.codec &&
+            type == other.type &&
+            channelCount == other.channelCount &&
+            sampleRate == other.sampleRate;
+    }
+
+    inline bool AudioSourceInfo::operator != (const AudioSourceInfo& other) const
+    {
+        return !(*this == other);
+    }
+
     inline bool IOInfo::operator == (const IOInfo& other) const
     {
         return
             video == other.video &&
             compareExact(videoTime, other.videoTime) &&
+            videoSource == other.videoSource &&
             audio == other.audio &&
             compareExact(audioTime, other.audioTime) &&
+            audioSource == other.audioSource &&
             tags == other.tags;
     }
 
