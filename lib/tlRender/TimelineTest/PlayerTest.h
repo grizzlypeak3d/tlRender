@@ -25,6 +25,8 @@ namespace tl
             void _enums();
             void _player();
             void _player(const std::shared_ptr<Player>&);
+            void _seqAndAudio();
+            void _compare();
         };
     }
 }

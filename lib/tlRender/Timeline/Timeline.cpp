@@ -572,8 +572,12 @@ namespace tl
 
                     auto audioClip = new OTIO_NS::Clip;
                     audioClip->set_source_range(*audioInfo.audioTime);
+                    // With the directory, unlike the video reference above:
+                    // that one names the file the timeline was made from and
+                    // is found beside it, while the audio was chosen
+                    // separately and need not be in the same place.
                     audioClip->set_media_reference(new OTIO_NS::ExternalReference(
-                        audioPath.getFileName(),
+                        audioPath.getFileName(true),
                         audioInfo.audioTime));
 
                     audioTrack = new OTIO_NS::Track("Audio", std::nullopt, OTIO_NS::Track::Kind::audio);

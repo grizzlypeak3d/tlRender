@@ -56,6 +56,8 @@ namespace tl
         {
             _enums();
             _player();
+            _seqAndAudio();
+            _compare();
         }
 
         void PlayerTest::_enums()
@@ -383,6 +385,156 @@ namespace tl
                 }
                 player->setPlayback(Playback::Stop);
                 player->clearCache();
+            }
+        }
+
+        //! An image sequence with a separate audio file, which gives a player
+        //! with both without depending on a codec: the frames are JPEG and
+        //! the audio is PCM.
+        void PlayerTest::_seqAndAudio()
+        {
+            try
+            {
+                auto timeline = Timeline::create(
+                    _context,
+                    ftk::Path(TLRENDER_SAMPLE_DATA, "Seq/BART_2021-02-07.0001.jpg"),
+                    ftk::Path(TLRENDER_SAMPLE_DATA, "AudioToneStereo.wav"));
+                auto player = Player::create(_context, timeline);
+                const IOInfo& ioInfo = player->getIOInfo();
+                FTK_CHECK(!ioInfo.video.empty());
+                if (ioInfo.audio.isValid())
+                {
+                    // The audio is in the directory above the sequence, so
+                    // this only holds while the reference to it keeps the
+                    // directory it was given.
+                    FTK_CHECK(ioInfo.audio.channelCount > 0);
+                    FTK_CHECK(ioInfo.audio.sampleRate > 0);
+                    _print(ftk::Format("Sequence and audio: {0} {1}Hz, {2}").
+                        arg(ioInfo.audio.channelCount).
+                        arg(ioInfo.audio.sampleRate).
+                        arg(player->getDuration()));
+                }
+                else
+                {
+                    // A build with no reader for the audio file, which the
+                    // minimal configuration is. The rest of this still
+                    // covers the player, which is what it is here for.
+                    _print("Sequence and audio: no audio reader in this build");
+                }
+
+                // The playback the tool bar drives, rather than setPlayback.
+                FTK_CHECK(player->isStopped());
+                player->forward();
+                FTK_CHECK(Playback::Forward == player->getPlayback());
+                FTK_CHECK(!player->isStopped());
+                waitForPlayback();
+                player->togglePlayback();
+                FTK_CHECK(player->isStopped());
+                player->togglePlayback();
+                FTK_CHECK(Playback::Forward == player->getPlayback());
+                player->reverse();
+                FTK_CHECK(Playback::Reverse == player->getPlayback());
+                waitForPlayback();
+                player->stop();
+                FTK_CHECK(player->isStopped());
+
+                // The speed multiplier, which is separate from the speed.
+                double speedMult = 0.0;
+                auto speedMultObserver = ftk::Observer<double>::create(
+                    player->observeSpeedMult(),
+                    [&speedMult](double value) { speedMult = value; });
+                player->setSpeedMult(2.0);
+                FTK_CHECK(2.0 == player->getSpeedMult());
+                FTK_CHECK(2.0 == speedMult);
+                FTK_CHECK(player->getActualSpeed() == player->getSpeed() * 2.0);
+                auto actualSpeedObserver = ftk::Observer<double>::create(
+                    player->observeActualSpeed(),
+                    [](double) {});
+                player->setSpeedMult(1.0);
+
+                // Dropped frames, which only playback produces.
+                auto droppedObserver = ftk::Observer<size_t>::create(
+                    player->observeDroppedFrames(),
+                    [](size_t) {});
+                player->forward();
+                waitForPlayback();
+                player->stop();
+                _print(ftk::Format("Dropped frames: {0}").
+                    arg(player->getDroppedFrames()));
+
+                // The media references of the clip, and the seek and audio
+                // device observers, which nothing else here reaches.
+                auto seekObserver = ftk::Observer<OTIO_NS::RationalTime>::create(
+                    player->observeSeek(),
+                    [](const OTIO_NS::RationalTime&) {});
+                auto audioDeviceObserver = ftk::Observer<AudioDeviceID>::create(
+                    player->observeAudioDevice(),
+                    [](const AudioDeviceID&) {});
+                auto keyObserver = ftk::Observer<std::string>::create(
+                    player->observeMediaReferenceKey(),
+                    [](const std::string&) {});
+                const auto keys = player->getMediaReferenceKeys();
+                _print(ftk::Format("Media reference keys: {0}").arg(keys.size()));
+                if (!keys.empty())
+                {
+                    player->setMediaReferenceKey(keys.front());
+                }
+                player->setAudioDevice(AudioDeviceID());
+                FTK_CHECK(player->getContext());
+                _print(ftk::Format("Objects: {0}").arg(player->getObjectCount()));
+            }
+            catch (const std::exception& e)
+            {
+                _error(e.what());
+            }
+        }
+
+        //! A player comparing one timeline with another, which is how the
+        //! comparison reaches the player rather than the renderer.
+        void PlayerTest::_compare()
+        {
+            try
+            {
+                const ftk::Path path(
+                    TLRENDER_SAMPLE_DATA, "Seq/BART_2021-02-07.0001.jpg");
+                auto player = Player::create(
+                    _context,
+                    Timeline::create(_context, path));
+
+                std::vector<std::shared_ptr<Timeline> > compare;
+                auto compareObserver =
+                    ftk::ListObserver<std::shared_ptr<Timeline> >::create(
+                        player->observeCompare(),
+                        [&compare](const std::vector<std::shared_ptr<Timeline> >& value)
+                        {
+                            compare = value;
+                        });
+                player->setCompare({ Timeline::create(_context, path) });
+                FTK_CHECK(1 == compare.size());
+
+                CompareTime compareTime = CompareTime::Relative;
+                auto compareTimeObserver = ftk::Observer<CompareTime>::create(
+                    player->observeCompareTime(),
+                    [&compareTime](CompareTime value) { compareTime = value; });
+                for (auto i : getCompareTimeEnums())
+                {
+                    player->setCompareTime(i);
+                    FTK_CHECK(i == player->getCompareTime());
+                    FTK_CHECK(i == compareTime);
+                }
+
+                player->setCompareVideoLayers({ 0 });
+                player->forward();
+                waitForPlayback();
+                player->stop();
+
+                // And with the comparison taken away again.
+                player->setCompare({});
+                FTK_CHECK(compare.empty());
+            }
+            catch (const std::exception& e)
+            {
+                _error(e.what());
             }
         }
     }
