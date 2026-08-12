@@ -350,6 +350,62 @@ namespace tl
                 FTK_CHECK(t == t2);
             }
             {
+                // The stream operators, which is how a time reaches a log or
+                // a format string.
+                const OTIO_NS::RationalTime t(1.0, 24.0);
+                std::stringstream ss;
+                ss << t;
+                FTK_CHECK(!ss.str().empty());
+                FTK_CHECK(to_string(t) == ss.str());
+            }
+            {
+                const auto t = OTIO_NS::TimeRange(
+                    OTIO_NS::RationalTime(0.0, 24.0),
+                    OTIO_NS::RationalTime(1.0, 24.0));
+                std::stringstream ss;
+                ss << t;
+                FTK_CHECK(!ss.str().empty());
+                FTK_CHECK(to_string(t) == ss.str());
+            }
+            {
+                // Parsing a time from the command line, which takes the
+                // argument out of the list when it parses.
+                std::vector<std::string> args = { "1.0/24.0", "keep" };
+                auto it = args.begin();
+                OTIO_NS::RationalTime t;
+                FTK_CHECK(cmdLineParse(args, it, t));
+                FTK_CHECK(OTIO_NS::RationalTime(1.0, 24.0) == t);
+                FTK_CHECK(1 == args.size());
+
+                // And left alone when it does not.
+                args = { "not a time" };
+                it = args.begin();
+                FTK_CHECK(!cmdLineParse(args, it, t));
+                FTK_CHECK(1 == args.size());
+
+                // The end of the list is not an error, just nothing to take.
+                args.clear();
+                it = args.begin();
+                FTK_CHECK(!cmdLineParse(args, it, t));
+            }
+            {
+                std::vector<std::string> args = { "0.0/24.0/24.0", "keep" };
+                auto it = args.begin();
+                OTIO_NS::TimeRange r;
+                FTK_CHECK(cmdLineParse(args, it, r));
+                FTK_CHECK(24.0 == r.duration().rate());
+                FTK_CHECK(1 == args.size());
+
+                args = { "not a range" };
+                it = args.begin();
+                FTK_CHECK(!cmdLineParse(args, it, r));
+                FTK_CHECK(1 == args.size());
+
+                args.clear();
+                it = args.begin();
+                FTK_CHECK(!cmdLineParse(args, it, r));
+            }
+            {
                 const auto t = OTIO_NS::TimeRange(OTIO_NS::RationalTime(0.0, 24.0), OTIO_NS::RationalTime(1.0, 24.0));
                 nlohmann::json json;
                 to_json(json, t);

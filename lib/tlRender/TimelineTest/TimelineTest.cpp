@@ -1219,6 +1219,29 @@ namespace tl
                         FTK_CHECK(80 == frame.value());
                     }
 
+                    // Skip over a sequence whose frames are all there.
+                    // One run rather than several, so the timeline is the
+                    // single clip a complete sequence gets rather than one
+                    // clip per run, and it still covers every frame.
+                    {
+                        const ftk::Path wholePath(
+                            TLRENDER_SAMPLE_DATA, "Seq/BART_2021-02-07.0001.jpg");
+                        Options wholeOptions;
+                        wholeOptions.ioOptions["SeqIO/MissingFrames"] =
+                            to_string(MissingFrames::Skip);
+                        auto whole = Timeline::create(
+                            _context, wholePath, wholeOptions);
+                        const OTIO_NS::TimeRange range = whole->getTimeRange();
+                        _print(ftk::Format("Whole sequence skipped: {0}").
+                            arg(range));
+                        FTK_CHECK(range.duration().value() > 0.0);
+                        auto request = whole->getVideo(range.start_time());
+                        const VideoFrame frame = request.future.get();
+                        FTK_CHECK(!frame.layers.empty());
+                        FTK_CHECK(frame.layers[0].image);
+                        FTK_CHECK(0 == whole->getReadErrorCount());
+                    }
+
                     // Holding is not an error: the policy dealt with it.
                     options.ioOptions["SeqIO/MissingFrames"] =
                         to_string(MissingFrames::Hold);
