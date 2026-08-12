@@ -6,9 +6,11 @@
 #include <tlRender/UITest/ThumbnailSystemTest.h>
 
 #include <tlRender/TimelineTest/AudioSystemTest.h>
+#include <tlRender/TimelineTest/BackgroundOptionsTest.h>
 #include <tlRender/TimelineTest/ColorOptionsTest.h>
 #include <tlRender/TimelineTest/CompareOptionsTest.h>
 #include <tlRender/TimelineTest/DisplayOptionsTest.h>
+#include <tlRender/TimelineTest/ForegroundOptionsTest.h>
 #include <tlRender/TimelineTest/PlayerOptionsTest.h>
 #include <tlRender/TimelineTest/PlayerTest.h>
 #include <tlRender/TimelineTest/TimeUnitsTest.h>
@@ -100,9 +102,11 @@ namespace tl
 
             // Timeline tests.
             p.tests.push_back(timeline_tests::AudioSystemTest::create(context));
+            p.tests.push_back(timeline_tests::BackgroundOptionsTest::create(context));
             p.tests.push_back(timeline_tests::ColorOptionsTest::create(context));
             p.tests.push_back(timeline_tests::CompareOptionsTest::create(context));
             p.tests.push_back(timeline_tests::DisplayOptionsTest::create(context));
+            p.tests.push_back(timeline_tests::ForegroundOptionsTest::create(context));
             p.tests.push_back(timeline_tests::PlayerOptionsTest::create(context));
             p.tests.push_back(timeline_tests::PlayerTest::create(context));
             p.tests.push_back(timeline_tests::TimeUnitsTest::create(context));

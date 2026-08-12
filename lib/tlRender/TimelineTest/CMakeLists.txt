@@ -1,8 +1,10 @@
 set(HEADERS
     AudioSystemTest.h
+    BackgroundOptionsTest.h
     ColorOptionsTest.h
     CompareOptionsTest.h
     DisplayOptionsTest.h
+    ForegroundOptionsTest.h
     PlayerOptionsTest.h
     PlayerTest.h
     TimeUnitsTest.h
@@ -11,9 +13,11 @@ set(HEADERS
 
 set(SOURCE
     AudioSystemTest.cpp
+    BackgroundOptionsTest.cpp
     ColorOptionsTest.cpp
     CompareOptionsTest.cpp
     DisplayOptionsTest.cpp
+    ForegroundOptionsTest.cpp
     PlayerOptionsTest.cpp
     PlayerTest.cpp
     TimeUnitsTest.cpp
