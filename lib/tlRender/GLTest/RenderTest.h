@@ -25,8 +25,11 @@ namespace tl
 
         private:
             void _compare();
+            void _dissolve();
+            void _display();
             void _background();
             void _foreground();
+            void _prims();
         };
     }
 }

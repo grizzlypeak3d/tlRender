@@ -9,13 +9,16 @@
 #include <tlRender/Timeline/CompareOptions.h>
 #include <tlRender/Timeline/DisplayOptions.h>
 #include <tlRender/Timeline/ForegroundOptions.h>
+#include <tlRender/Timeline/Transition.h>
 
 #include <ftk/GL/OffscreenBuffer.h>
+#include <ftk/GL/Texture.h>
 #include <ftk/GL/Window.h>
 
 #include <ftk/Core/Assert.h>
 #include <ftk/Core/Context.h>
 #include <ftk/Core/FontSystem.h>
+#include <ftk/Core/Mesh.h>
 #include <ftk/Core/Format.h>
 
 namespace tl
@@ -73,8 +76,166 @@ namespace tl
         void RenderTest::run()
         {
             _compare();
+            _dissolve();
+            _display();
             _background();
             _foreground();
+            _prims();
+        }
+
+        //! A layer holding two images, which is a clip dissolving into the
+        //! one after it.
+        void RenderTest::_dissolve()
+        {
+            auto window = createWindow(_context);
+            auto render = gl::Render::create(
+                _context->getLogSystem(),
+                _context->getSystem<ftk::FontSystem>());
+
+            VideoLayer layer;
+            layer.image = createImage(0);
+            layer.imageB = createImage(255);
+            layer.transition = Transition::Dissolve;
+            VideoFrame frame;
+            frame.size = imageSize;
+            frame.layers.push_back(layer);
+
+            auto buffer = ftk::gl::OffscreenBuffer::create(
+                imageSize,
+                ftk::gl::offscreenColorDefault);
+            ftk::gl::OffscreenBufferBinding bufferBinding(buffer);
+            const std::vector<ftk::Box2I> boxes =
+            {
+                ftk::Box2I(0, 0, imageSize.w, imageSize.h)
+            };
+            // Part way through, and at either end.
+            for (float value : { 0.F, .5F, 1.F })
+            {
+                frame.layers[0].transitionValue = value;
+                render->begin(imageSize);
+                render->drawVideo({ frame }, boxes);
+                render->end();
+                _print(ftk::Format("Dissolve: {0}").arg(value));
+            }
+        }
+
+        //! The color operations, which are a shader each and are otherwise
+        //! only reached by turning them on in the viewport.
+        void RenderTest::_display()
+        {
+            auto window = createWindow(_context);
+            auto render = gl::Render::create(
+                _context->getLogSystem(),
+                _context->getSystem<ftk::FontSystem>());
+
+            const std::vector<VideoFrame> frames = { createFrame(128) };
+            const std::vector<ftk::Box2I> boxes =
+            {
+                ftk::Box2I(0, 0, imageSize.w, imageSize.h)
+            };
+
+            std::vector<DisplayOptions> options;
+            {
+                DisplayOptions o;
+                o.color.enabled = true;
+                o.color.add = ftk::V3F(.1F, .1F, .1F);
+                o.color.contrast = ftk::V3F(1.2F, 1.2F, 1.2F);
+                options.push_back(o);
+            }
+            {
+                DisplayOptions o;
+                o.levels.enabled = true;
+                o.levels.inLow = .1F;
+                o.levels.inHigh = .9F;
+                options.push_back(o);
+            }
+            {
+                // The knee, which nothing else reaches.
+                DisplayOptions o;
+                o.exposure.enabled = true;
+                o.exposure.exposure = 1.F;
+                o.exposure.defog = .1F;
+                o.exposure.kneeLow = .5F;
+                o.exposure.kneeHigh = 2.F;
+                options.push_back(o);
+            }
+            {
+                DisplayOptions o;
+                o.softClip.enabled = true;
+                o.softClip.value = .5F;
+                options.push_back(o);
+            }
+            {
+                DisplayOptions o;
+                o.negative = true;
+                o.channels = ftk::ChannelDisplay::Red;
+                o.mirror.x = true;
+                o.mirror.y = true;
+                options.push_back(o);
+            }
+
+            auto buffer = ftk::gl::OffscreenBuffer::create(
+                imageSize,
+                ftk::gl::offscreenColorDefault);
+            ftk::gl::OffscreenBufferBinding bufferBinding(buffer);
+            for (const auto& o : options)
+            {
+                render->begin(imageSize);
+                render->drawVideo(frames, boxes, {}, { o });
+                render->end();
+            }
+        }
+
+        //! The drawing the renderer passes through to the one underneath it.
+        void RenderTest::_prims()
+        {
+            auto window = createWindow(_context);
+            auto render = gl::Render::create(
+                _context->getLogSystem(),
+                _context->getSystem<ftk::FontSystem>());
+            auto fontSystem = _context->getSystem<ftk::FontSystem>();
+
+            auto buffer = ftk::gl::OffscreenBuffer::create(
+                imageSize,
+                ftk::gl::offscreenColorDefault);
+            ftk::gl::OffscreenBufferBinding bufferBinding(buffer);
+            render->begin(imageSize);
+
+            const ftk::Color4F color(1.F, 1.F, 1.F);
+            const ftk::Box2F box(0.F, 0.F, 10.F, 10.F);
+            render->drawRect(box, color);
+            render->drawRects({ box }, color);
+            render->drawLine(ftk::V2F(0.F, 0.F), ftk::V2F(10.F, 10.F), color);
+            render->drawLines({ { ftk::V2F(0.F, 0.F), ftk::V2F(10.F, 10.F) } }, color);
+            render->drawMesh(ftk::mesh(box), color);
+            render->drawColorMesh(ftk::mesh(box), color);
+            auto texture = ftk::gl::Texture::create(
+                ftk::ImageInfo(imageSize, ftk::ImageType::RGBA_U8));
+            render->drawTexture(texture->getID(), ftk::Box2I(0, 0, 10, 10));
+            render->drawImage(createImage(255), box);
+            render->drawImage(createImage(255), ftk::mesh(box));
+
+            const ftk::FontInfo fontInfo;
+            const auto metrics = fontSystem->getMetrics(fontInfo);
+            render->drawText(
+                fontSystem->getGlyphs("Test", fontInfo),
+                metrics,
+                ftk::V2F(0.F, 0.F),
+                color);
+
+            // The state the viewport sets around its drawing.
+            render->setViewport(ftk::Box2I(0, 0, imageSize.w, imageSize.h));
+            FTK_CHECK(render->getViewport().w() == imageSize.w);
+            render->setClipRectEnabled(true);
+            FTK_CHECK(render->getClipRectEnabled());
+            render->setClipRect(ftk::Box2I(0, 0, 10, 10));
+            FTK_CHECK(render->getClipRect().w() == 10);
+            render->setClipRectEnabled(false);
+            render->setTransform(render->getTransform());
+            render->clearViewport(ftk::Color4F(0.F, 0.F, 0.F));
+            render->getDiag();
+
+            render->end();
         }
 
         void RenderTest::_compare()
@@ -220,16 +381,26 @@ namespace tl
                 ftk::Box2I(0, 0, imageSize.w, imageSize.h)
             };
 
-            ForegroundOptions options;
-            options.grid.enabled = true;
-            options.centerMarker.enabled = true;
-            render->begin(imageSize);
-            render->drawForeground(
-                boxes,
-                ftk::M44F(),
-                options,
-                CompareOptions());
-            render->end();
+            for (auto cellMode : getGridCellModeEnums())
+            {
+                for (auto labels : getGridLabelsEnums())
+                {
+                    ForegroundOptions options;
+                    options.grid.enabled = true;
+                    options.grid.cellMode = cellMode;
+                    options.grid.labels = labels;
+                    options.centerMarker.enabled = true;
+                    options.missingIndicator.enabled = true;
+                    render->begin(imageSize);
+                    render->drawForeground(
+                        boxes,
+                        ftk::M44F(),
+                        options,
+                        CompareOptions());
+                    render->end();
+                }
+                _print(ftk::Format("Grid: {0}").arg(cellMode));
+            }
 
             // And with everything turned off, which is the usual case.
             render->begin(imageSize);
