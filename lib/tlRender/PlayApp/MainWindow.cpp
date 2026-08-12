@@ -18,6 +18,8 @@
 #include "ViewActions.h"
 #include "WindowActions.h"
 
+#include <ftk/GL/OffscreenBuffer.h>
+
 #include <ftk/UI/Divider.h>
 #include <ftk/UI/IconSystem.h>
 #include <ftk/UI/Menu.h>
@@ -72,7 +74,10 @@ namespace tl
             //displayOptions.exposure.enabled = true;
             //displayOptions.exposure.exposure = 10.F;
             //_viewport->setDisplayOptions({ displayOptions, displayOptions });
-            _viewport->setColorBuffer(ftk::gl::TextureType::RGBA_F32);
+            // The most precision the API can render into: floating point on
+            // desktop OpenGL, eight bits on GLES 2, which cannot use a float
+            // buffer as a render target at all.
+            _viewport->setColorBuffer(ftk::gl::offscreenColorDefault);
 
             // Create the timeline.
             _timelineWidget = ui::TimelineWidget::create(

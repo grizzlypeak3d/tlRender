@@ -104,7 +104,7 @@ namespace tl
             p.fgOptions = ftk::Observable<ForegroundOptions>::create();
             p.compareOptions = ftk::Observable<CompareOptions>::create();
             p.colorBuffer = ftk::Observable<ftk::gl::TextureType>::create(
-                ftk::gl::TextureType::RGBA_F32);
+                ftk::gl::offscreenColorDefault);
             p.viewPos = ftk::Observable<ftk::V2I>::create();
             p.zoom = ftk::Observable<double>::create(1.0);
             p.viewPosZoom = ftk::Observable<std::pair<ftk::V2I, double> >::create(

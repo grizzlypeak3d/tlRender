@@ -47,7 +47,7 @@ namespace tl
                 const std::vector<ftk::ImageOptions>& = {},
                 const std::vector<DisplayOptions>& = {},
                 const CompareOptions& = CompareOptions(),
-                ftk::gl::TextureType colorBuffer = ftk::gl::TextureType::RGBA_F32) override;
+                ftk::gl::TextureType colorBuffer = ftk::gl::offscreenColorDefault) override;
             TL_API void drawForeground(
                 const std::vector<ftk::Box2I>&,
                 const ftk::M44F& vm,
