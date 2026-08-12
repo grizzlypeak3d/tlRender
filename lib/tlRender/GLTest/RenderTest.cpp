@@ -6,6 +6,7 @@
 #include <tlRender/GL/Render.h>
 
 #include <tlRender/Timeline/BackgroundOptions.h>
+#include <tlRender/Timeline/ColorOptions.h>
 #include <tlRender/Timeline/CompareOptions.h>
 #include <tlRender/Timeline/DisplayOptions.h>
 #include <tlRender/Timeline/ForegroundOptions.h>
@@ -20,6 +21,11 @@
 #include <ftk/Core/FontSystem.h>
 #include <ftk/Core/Mesh.h>
 #include <ftk/Core/Format.h>
+
+#if defined(TLRENDER_OCIO)
+#include <OpenColorIO/OpenColorIO.h>
+namespace OCIO = OCIO_NAMESPACE;
+#endif // TLRENDER_OCIO
 
 namespace tl
 {
@@ -81,6 +87,7 @@ namespace tl
             _background();
             _foreground();
             _prims();
+            _color();
         }
 
         //! A layer holding two images, which is a clip dissolving into the
@@ -410,6 +417,85 @@ namespace tl
                 ForegroundOptions(),
                 CompareOptions());
             render->end();
+        }
+
+        //! The color configuration and the look-up table, which are the two
+        //! things the renderer builds a shader from at run time rather than
+        //! having one ready.
+        void RenderTest::_color()
+        {
+#if defined(TLRENDER_OCIO)
+            auto window = createWindow(_context);
+            auto render = gl::Render::create(
+                _context->getLogSystem(),
+                _context->getSystem<ftk::FontSystem>());
+            const std::vector<VideoFrame> frames = { createFrame(128) };
+            const std::vector<ftk::Box2I> boxes =
+            {
+                ftk::Box2I(0, 0, imageSize.w, imageSize.h)
+            };
+            auto buffer = ftk::gl::OffscreenBuffer::create(
+                imageSize,
+                ftk::gl::offscreenColorDefault);
+            ftk::gl::OffscreenBufferBinding bufferBinding(buffer);
+
+            try
+            {
+                // Whatever the built-in configuration calls its display and
+                // view, rather than names that may not be in every version
+                // of it.
+                auto config = OCIO::Config::CreateFromFile("ocio://default");
+                FTK_CHECK(config);
+                const std::string display = config->getDefaultDisplay();
+                const std::string view = config->getDefaultView(display.c_str());
+                const std::string input = config->getColorSpaceNameByIndex(0);
+                _print(ftk::Format("OCIO: {0}, {1}, {2}").
+                    arg(input).arg(display).arg(view));
+
+                OCIOOptions options;
+                options.enabled = true;
+                options.config = OCIOConfig::BuiltIn;
+                options.input = input;
+                options.display = display;
+                options.view = view;
+                render->setOCIOOptions(options);
+                render->begin(imageSize);
+                render->drawVideo(frames, boxes);
+                render->end();
+
+                // And off again, which throws the shader away.
+                render->setOCIOOptions(OCIOOptions());
+                render->begin(imageSize);
+                render->drawVideo(frames, boxes);
+                render->end();
+            }
+            catch (const std::exception& e)
+            {
+                _error(e.what());
+            }
+
+            try
+            {
+                for (auto order : getLUTOrderEnums())
+                {
+                    LUTOptions options;
+                    options.enabled = true;
+                    options.fileName =
+                        std::string(TLRENDER_SAMPLE_DATA) + "/LUT_SRGB_256.lut";
+                    options.order = order;
+                    render->setLUTOptions(options);
+                    render->begin(imageSize);
+                    render->drawVideo(frames, boxes);
+                    render->end();
+                    _print(ftk::Format("LUT: {0}").arg(order));
+                }
+                render->setLUTOptions(LUTOptions());
+            }
+            catch (const std::exception& e)
+            {
+                _error(e.what());
+            }
+#endif // TLRENDER_OCIO
         }
     }
 }

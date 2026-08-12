@@ -30,6 +30,7 @@ namespace tl
             void _background();
             void _foreground();
             void _prims();
+            void _color();
         };
     }
 }
