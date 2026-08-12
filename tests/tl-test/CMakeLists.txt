@@ -8,6 +8,7 @@ target_include_directories(tl-test
 
 target_link_libraries(tl-test
     tlCoreTest
+    tlGLTest
     tlIOTest
     tlTimelineTest
     tlUITest)

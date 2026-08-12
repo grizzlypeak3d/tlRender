@@ -14,6 +14,8 @@
 #include <tlRender/TimelineTest/TimelineTest.h>
 #include <tlRender/TimelineTest/UtilTest.h>
 
+#include <tlRender/GLTest/RenderTest.h>
+
 #include <tlRender/IOTest/IOTest.h>
 #include <tlRender/IOTest/RequestQueueTest.h>
 #if defined(TLRENDER_FFMPEG_PLUGIN)
@@ -91,6 +93,9 @@ namespace tl
 #if defined(TLRENDER_EXR)
             p.tests.push_back(io_tests::EXRTest::create(context));
 #endif // TLRENDER_EXR
+
+            // GL tests.
+            p.tests.push_back(gl_test::RenderTest::create(context));
 
             // Timeline tests.
             p.tests.push_back(timeline_tests::AudioSystemTest::create(context));
