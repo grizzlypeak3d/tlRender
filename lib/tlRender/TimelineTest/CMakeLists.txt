@@ -5,6 +5,7 @@ set(HEADERS
     DisplayOptionsTest.h
     PlayerOptionsTest.h
     PlayerTest.h
+    TimeUnitsTest.h
     TimelineTest.h
     UtilTest.h)
 
@@ -15,6 +16,7 @@ set(SOURCE
     DisplayOptionsTest.cpp
     PlayerOptionsTest.cpp
     PlayerTest.cpp
+    TimeUnitsTest.cpp
     TimelineTest.cpp
     UtilTest.cpp)
 

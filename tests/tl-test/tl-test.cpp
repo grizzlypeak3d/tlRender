@@ -11,6 +11,7 @@
 #include <tlRender/TimelineTest/DisplayOptionsTest.h>
 #include <tlRender/TimelineTest/PlayerOptionsTest.h>
 #include <tlRender/TimelineTest/PlayerTest.h>
+#include <tlRender/TimelineTest/TimeUnitsTest.h>
 #include <tlRender/TimelineTest/TimelineTest.h>
 #include <tlRender/TimelineTest/UtilTest.h>
 
@@ -104,6 +105,7 @@ namespace tl
             p.tests.push_back(timeline_tests::DisplayOptionsTest::create(context));
             p.tests.push_back(timeline_tests::PlayerOptionsTest::create(context));
             p.tests.push_back(timeline_tests::PlayerTest::create(context));
+            p.tests.push_back(timeline_tests::TimeUnitsTest::create(context));
             p.tests.push_back(timeline_tests::TimelineTest::create(context));
             p.tests.push_back(timeline_tests::UtilTest::create(context));
 
