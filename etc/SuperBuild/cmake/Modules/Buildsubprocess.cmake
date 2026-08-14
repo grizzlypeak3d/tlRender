@@ -1,7 +1,8 @@
 include(ExternalProject)
 
 set(subprocess_GIT_REPOSITORY "https://github.com/sheredom/subprocess.h.git")
-set(subprocess_GIT_TAG "9ce0d701b6fb10f8f8c4445edd31e7c60a1237e3")
+# Includes the fix for close-on-exec pipes; see the note in FFmpegCmd.cpp.
+set(subprocess_GIT_TAG "0d76f78ff8b56d1240ffe6571d689c5e26299527")
 
 ExternalProject_Add(
     subprocess
