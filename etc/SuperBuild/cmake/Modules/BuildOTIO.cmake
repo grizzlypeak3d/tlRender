@@ -24,11 +24,14 @@ set(OTIO_ARGS
 # The patched files are copies of the ones from OTIO_GIT_TAG that link
 # whichever minizip-ng target is present instead of assuming the one from the
 # compatibility layer; see the notes in them. Without this OTIO cannot be
-# built against the super build's minizip-ng.
+# built against the super build's minizip-ng, which is built without that
+# layer.
 #
-# Re-copy these from the source and re-apply that change when OTIO_GIT_TAG is
-# moved, or upstream changes to them will be silently reverted. They can be
-# dropped once the change is upstream.
+# Because these are whole-file copies, moving OTIO_GIT_TAG silently reverts
+# whatever else upstream changed in them. Re-copy all three from the new
+# source and re-apply the change. Watch the top-level CMakeLists.txt in
+# particular: it is where the target is chosen, and it sees far more unrelated
+# churn than the other two. They can be dropped once the change is upstream.
 ExternalProject_Add(
     OTIO
     PREFIX ${CMAKE_CURRENT_BINARY_DIR}/OTIO
@@ -36,6 +39,9 @@ ExternalProject_Add(
     GIT_REPOSITORY ${OTIO_GIT_REPOSITORY}
     GIT_TAG ${OTIO_GIT_TAG}
     PATCH_COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        ${CMAKE_CURRENT_SOURCE_DIR}/OTIO-patch/CMakeLists.txt
+        ${CMAKE_CURRENT_BINARY_DIR}/OTIO/src/OTIO/CMakeLists.txt
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
         ${CMAKE_CURRENT_SOURCE_DIR}/OTIO-patch/src/opentimelineio/CMakeLists.txt
         ${CMAKE_CURRENT_BINARY_DIR}/OTIO/src/OTIO/src/opentimelineio/CMakeLists.txt
         COMMAND ${CMAKE_COMMAND} -E copy_if_different

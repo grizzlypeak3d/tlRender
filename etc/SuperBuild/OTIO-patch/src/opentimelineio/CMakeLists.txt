@@ -92,20 +92,6 @@ else()
         PRIVATE "${PROJECT_SOURCE_DIR}/src/deps/rapidjson/include")
 endif()
 
-# Which target minizip-ng provides depends on how it was built: with the
-# compatibility layer it is MINIZIP::minizip, and without it the library gains
-# a suffix and it is MINIZIP::minizip-ng. The copy in src/deps is built with
-# the compatibility layer, but an installed one found by find_package may not
-# be, so use whichever is present.
-#
-# This must be decided here rather than beside the find_package call, since the
-# target from src/deps does not exist until that directory has been added.
-if(TARGET MINIZIP::minizip-ng)
-    set(OTIO_MINIZIP_TARGET MINIZIP::minizip-ng)
-else()
-    set(OTIO_MINIZIP_TARGET MINIZIP::minizip)
-endif()
-
 target_link_libraries(opentimelineio
     PUBLIC opentime Imath::Imath
     PRIVATE ${OTIO_MINIZIP_TARGET})
@@ -151,7 +137,7 @@ if(OTIO_CXX_INSTALL)
     set(OPENTIMELINEIO_INCLUDES ${OTIO_RESOLVED_CXX_INSTALL_DIR}/include)
 
     if(NOT OTIO_FIND_MINIZIP_NG)
-        install(TARGETS minizip
+        install(TARGETS ${OTIO_MINIZIP_LIB}
             EXPORT OpenTimelineIOTargets
             ARCHIVE DESTINATION "${OTIO_RESOLVED_CXX_DYLIB_INSTALL_DIR}"
             LIBRARY DESTINATION "${OTIO_RESOLVED_CXX_DYLIB_INSTALL_DIR}"

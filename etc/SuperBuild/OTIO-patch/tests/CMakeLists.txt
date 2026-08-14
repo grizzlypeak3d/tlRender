@@ -40,10 +40,4 @@ foreach(test ${tests_opentimelineio})
            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
 endforeach()
 
-# See the note in src/opentimelineio/CMakeLists.txt about which target
-# minizip-ng provides.
-if(TARGET MINIZIP::minizip-ng)
-    target_link_libraries(test_bundle MINIZIP::minizip-ng)
-else()
-    target_link_libraries(test_bundle MINIZIP::minizip)
-endif()
+target_link_libraries(test_bundle ${OTIO_MINIZIP_TARGET})
