@@ -15,6 +15,9 @@
 #if defined(TLRENDER_OIIO)
 #include <tlRender/IO/OIIO.h>
 #endif // TLRENDER_OIIO
+#if defined(TLRENDER_SVG)
+#include <tlRender/IO/SVG.h>
+#endif // TLRENDER_SVG
 #if defined(TLRENDER_USD)
 #include <tlRender/IO/USD.h>
 #endif // TLRENDER_USD
@@ -44,6 +47,11 @@ namespace tl
 #if defined(TLRENDER_EXR)
             _plugins.push_back(exr::ReadPlugin::create(logSystem));
 #endif // TLRENDER_EXR
+            // Before OIIO, which claims a long list of extensions from
+            // whatever it was built with.
+#if defined(TLRENDER_SVG)
+            _plugins.push_back(svg::ReadPlugin::create(logSystem));
+#endif // TLRENDER_SVG
 #if defined(TLRENDER_OIIO)
             _plugins.push_back(oiio::ReadPlugin::create(logSystem));
 #endif // TLRENDER_OIIO

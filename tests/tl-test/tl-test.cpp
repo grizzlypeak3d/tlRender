@@ -30,6 +30,9 @@
 #if defined(TLRENDER_OIIO)
 #include <tlRender/IOTest/OIIOTest.h>
 #endif // TLRENDER_OIIO
+#if defined(TLRENDER_SVG)
+#include <tlRender/IOTest/SVGTest.h>
+#endif // TLRENDER_SVG
 
 #include <tlRender/CoreTest/AudioTest.h>
 #include <tlRender/CoreTest/HDRTest.h>
@@ -93,6 +96,9 @@ namespace tl
 #if defined(TLRENDER_OIIO)
             p.tests.push_back(io_tests::OIIOTest::create(context));
 #endif // TLRENDER_OIIO
+#if defined(TLRENDER_SVG)
+            p.tests.push_back(io_tests::SVGTest::create(context));
+#endif // TLRENDER_SVG
 #if defined(TLRENDER_EXR)
             p.tests.push_back(io_tests::EXRTest::create(context));
 #endif // TLRENDER_EXR

@@ -18,6 +18,10 @@ if(TLRENDER_OIIO)
     list(APPEND HEADERS OIIOTest.h)
     list(APPEND SOURCE OIIOTest.cpp)
 endif()
+if(TLRENDER_SVG)
+    list(APPEND HEADERS SVGTest.h)
+    list(APPEND SOURCE SVGTest.cpp)
+endif()
 
 add_library(tlIOTest ${SOURCE} ${HEADERS})
 
