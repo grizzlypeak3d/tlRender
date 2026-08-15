@@ -1323,11 +1323,30 @@ namespace tl
                 static_cast<int64_t>(1),
                 static_cast<int64_t>(std::round(thumbnailWidth / perFrame)));
 
+            // Start at the first frame whose thumbnail can reach the band, and
+            // stop once they have gone past it. Walking the whole item and
+            // testing each one costs time in proportion to the zoom -- on a
+            // long movie zoomed in, thousands of frames on every draw for the
+            // handful in view -- and the draw is what playback shares.
+            int64_t frame = start;
+            const double xFirst =
+                activeRect.min.x - mediaGeom.min.x - thumbnailWidth;
+            if (xFirst > 0.0)
+            {
+                // Truncated, and kept on the same grid the loop walks, so this
+                // can only land on or before the first frame that is wanted.
+                const int64_t steps =
+                    static_cast<int64_t>(xFirst / perFrame) / frameStep;
+                frame = start + steps * frameStep;
+            }
+
             std::map<OTIO_NS::RationalTime, std::shared_ptr<ftk::Image> > thumbnails;
-            for (int64_t frame = start; frame < end; frame += frameStep)
+            for (; frame < end; frame += frameStep)
             {
                 const int x = static_cast<int>(
                     std::round((frame - start) * perFrame));
+                if (mediaGeom.min.x + x > activeRect.max.x)
+                    break;
                 const ftk::Box2I box(
                     mediaGeom.min.x + x,
                     mediaGeom.min.y,
@@ -1393,9 +1412,22 @@ namespace tl
             }
 
             const int w = mediaGeom.w();
-            std::map<OTIO_NS::RationalTime, std::shared_ptr<ftk::TriMesh2F> > waveforms;
-            for (int x = 0; x < w; x += displayOptions.waveformWidth)
+            // As for the thumbnails above: only the chunks that can reach the
+            // band, rather than every chunk of the item on every draw.
+            int x = 0;
+            const int xFirst =
+                activeRect.min.x - mediaGeom.min.x - displayOptions.waveformWidth;
+            if (xFirst > 0)
             {
+                x = (xFirst / displayOptions.waveformWidth) *
+                    displayOptions.waveformWidth;
+            }
+
+            std::map<OTIO_NS::RationalTime, std::shared_ptr<ftk::TriMesh2F> > waveforms;
+            for (; x < w; x += displayOptions.waveformWidth)
+            {
+                if (mediaGeom.min.x + x > activeRect.max.x)
+                    break;
                 // The chunk is clipped to the end of the item rather than being
                 // drawn past it and masked, so that all of a track's waveforms
                 // can go into one mesh.
