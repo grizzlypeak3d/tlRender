@@ -5,7 +5,17 @@ if(WIN32)
     find_package(Msys REQUIRED)
 endif()
 
-set(FFmpeg_URL https://ffmpeg.org/releases/ffmpeg-8.1.tar.xz)
+# The GitHub mirror rather than ffmpeg.org, which has been failing to serve
+# the releases. Still a download rather than a clone, so the build steps
+# behind it are not disturbed. What it does not carry is the VERSION file the
+# release tarballs have, nor a .git to read a tag from, so FFmpeg builds
+# itself as version "unknown" -- av_version_info() is not read anywhere here,
+# and the library versions come from the source.
+#
+# The library versions are written out in the install names below and in the
+# packaging, so check them against libavutil/version.h and its siblings when
+# this moves: a point release bumps them.
+set(FFmpeg_URL https://github.com/FFmpeg/FFmpeg/archive/refs/tags/n8.1.2.tar.gz)
 
 set(FFmpeg_DEPS)
 if(TLRENDER_NET)
@@ -381,34 +391,34 @@ else()
     endif()
     if(APPLE)
         list(APPEND FFmpeg_INSTALL
-            COMMAND install_name_tool -id @rpath/libavcodec.62.28.100.dylib ${CMAKE_INSTALL_PREFIX}/lib/libavcodec.62.dylib
-            COMMAND install_name_tool -id @rpath/libavdevice.62.3.100.dylib ${CMAKE_INSTALL_PREFIX}/lib/libavdevice.62.dylib
-            COMMAND install_name_tool -id @rpath/libavformat.62.12.100.dylib ${CMAKE_INSTALL_PREFIX}/lib/libavformat.62.dylib
-            COMMAND install_name_tool -id @rpath/libavutil.60.26.100.dylib ${CMAKE_INSTALL_PREFIX}/lib/libavutil.60.dylib
-            COMMAND install_name_tool -id @rpath/libswresample.6.3.100.dylib ${CMAKE_INSTALL_PREFIX}/lib/libswresample.6.dylib
-            COMMAND install_name_tool -id @rpath/libswscale.9.5.100.dylib ${CMAKE_INSTALL_PREFIX}/lib/libswscale.9.dylib
+            COMMAND install_name_tool -id @rpath/libavcodec.62.28.102.dylib ${CMAKE_INSTALL_PREFIX}/lib/libavcodec.62.dylib
+            COMMAND install_name_tool -id @rpath/libavdevice.62.3.102.dylib ${CMAKE_INSTALL_PREFIX}/lib/libavdevice.62.dylib
+            COMMAND install_name_tool -id @rpath/libavformat.62.12.102.dylib ${CMAKE_INSTALL_PREFIX}/lib/libavformat.62.dylib
+            COMMAND install_name_tool -id @rpath/libavutil.60.26.102.dylib ${CMAKE_INSTALL_PREFIX}/lib/libavutil.60.dylib
+            COMMAND install_name_tool -id @rpath/libswresample.6.3.102.dylib ${CMAKE_INSTALL_PREFIX}/lib/libswresample.6.dylib
+            COMMAND install_name_tool -id @rpath/libswscale.9.5.102.dylib ${CMAKE_INSTALL_PREFIX}/lib/libswscale.9.dylib
             COMMAND install_name_tool
                 -change ${CMAKE_INSTALL_PREFIX}/lib/libswresample.6.dylib @rpath/libswresample.6.dylib
                 -change ${CMAKE_INSTALL_PREFIX}/lib/libavutil.60.dylib @rpath/libavutil.60.dylib
-                ${CMAKE_INSTALL_PREFIX}/lib/libavcodec.62.28.100.dylib
+                ${CMAKE_INSTALL_PREFIX}/lib/libavcodec.62.28.102.dylib
             COMMAND install_name_tool
                 -change ${CMAKE_INSTALL_PREFIX}/lib/libswscale.9.dylib @rpath/libswscale.9.dylib
                 -change ${CMAKE_INSTALL_PREFIX}/lib/libavformat.62.dylib @rpath/libavformat.62.dylib
                 -change ${CMAKE_INSTALL_PREFIX}/lib/libavcodec.62.dylib @rpath/libavcodec.62.dylib
                 -change ${CMAKE_INSTALL_PREFIX}/lib/libswresample.6.dylib @rpath/libswresample.6.dylib
                 -change ${CMAKE_INSTALL_PREFIX}/lib/libavutil.60.dylib @rpath/libavutil.60.dylib
-                ${CMAKE_INSTALL_PREFIX}/lib/libavdevice.62.3.100.dylib
+                ${CMAKE_INSTALL_PREFIX}/lib/libavdevice.62.3.102.dylib
             COMMAND install_name_tool
                 -change ${CMAKE_INSTALL_PREFIX}/lib/libavcodec.62.dylib @rpath/libavcodec.62.dylib
                 -change ${CMAKE_INSTALL_PREFIX}/lib/libswresample.6.dylib @rpath/libswresample.6.dylib
                 -change ${CMAKE_INSTALL_PREFIX}/lib/libavutil.60.dylib @rpath/libavutil.60.dylib
-                ${CMAKE_INSTALL_PREFIX}/lib/libavformat.62.12.100.dylib
+                ${CMAKE_INSTALL_PREFIX}/lib/libavformat.62.12.102.dylib
             COMMAND install_name_tool
                 -change ${CMAKE_INSTALL_PREFIX}/lib/libavutil.60.dylib @rpath/libavutil.60.dylib
-                ${CMAKE_INSTALL_PREFIX}/lib/libswresample.6.3.100.dylib
+                ${CMAKE_INSTALL_PREFIX}/lib/libswresample.6.3.102.dylib
             COMMAND install_name_tool
                 -change ${CMAKE_INSTALL_PREFIX}/lib/libavutil.60.dylib @rpath/libavutil.60.dylib
-                ${CMAKE_INSTALL_PREFIX}/lib/libswscale.9.5.100.dylib)
+                ${CMAKE_INSTALL_PREFIX}/lib/libswscale.9.5.102.dylib)
     endif()
 endif()
 
