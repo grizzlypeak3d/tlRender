@@ -35,10 +35,10 @@ namespace tl
                 const ftk::Color4F* color = nullptr)
             {
                 const size_t v = mesh.v.size();
-                mesh.v.emplace_back(box.min.x, box.min.y);
-                mesh.v.emplace_back(box.max.x + 1, box.min.y);
-                mesh.v.emplace_back(box.max.x + 1, box.max.y + 1);
-                mesh.v.emplace_back(box.min.x, box.max.y + 1);
+                mesh.v.emplace_back(ftk::V2F(box.min.x, box.min.y));
+                mesh.v.emplace_back(ftk::V2F(box.max.x + 1, box.min.y));
+                mesh.v.emplace_back(ftk::V2F(box.max.x + 1, box.max.y + 1));
+                mesh.v.emplace_back(ftk::V2F(box.min.x, box.max.y + 1));
                 size_t c = 0;
                 if (color)
                 {
