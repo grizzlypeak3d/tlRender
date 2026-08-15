@@ -1341,6 +1341,7 @@ namespace tl
             }
 
             std::map<OTIO_NS::RationalTime, std::shared_ptr<ftk::Image> > thumbnails;
+            std::set<OTIO_NS::RationalTime> wanted;
             for (; frame < end; frame += frameStep)
             {
                 const int x = static_cast<int>(
@@ -1382,9 +1383,35 @@ namespace tl
                         mediaTime,
                         item.ioOptions);
                 }
+                wanted.insert(mediaTime);
                 item.media.push_back(std::move(media));
             }
             item.thumbnails = std::move(thumbnails);
+
+            // Let go of the frames that have gone out of the band. Requests
+            // were only cancelled when an item left it, and a movie is one
+            // item that never does: playing a zoomed in timeline left every
+            // thumbnail it had ever asked for in the queue, so the thumbnail
+            // thread went on decoding frames that had long since gone by,
+            // instead of the ones now on screen.
+            std::vector<uint64_t> cancel;
+            auto i = item.thumbnailRequests.begin();
+            while (i != item.thumbnailRequests.end())
+            {
+                if (wanted.find(i->first) == wanted.end())
+                {
+                    cancel.push_back(i->second.id);
+                    i = item.thumbnailRequests.erase(i);
+                }
+                else
+                {
+                    ++i;
+                }
+            }
+            if (!cancel.empty())
+            {
+                thumbnailSystem->cancelRequests(cancel);
+            }
         }
 
         void TimelineItem::Private::requestWaveforms(
