@@ -377,7 +377,12 @@ if(WIN32)
         COMMAND ${FFmpeg_MSYS2} -c "mv ${CMAKE_INSTALL_PREFIX}/bin/swresample.lib ${CMAKE_INSTALL_PREFIX}/lib"
         COMMAND ${FFmpeg_MSYS2} -c "mv ${CMAKE_INSTALL_PREFIX}/bin/swscale.lib ${CMAKE_INSTALL_PREFIX}/lib")
 else()
-    list(APPEND FFmpeg_CONFIGURE_ARGS --extra-libs=-lm)
+    # -lpthread because the configure check for SVT-AV1 links its static
+    # library, whose pkg-config file lists no private libraries, and on glibc
+    # before 2.34 the pthread and semaphore symbols it needs are not in libc.
+    # These go in extra-libs rather than extra-ldflags so that they come last
+    # on the link line, where static libraries can resolve against them.
+    list(APPEND FFmpeg_CONFIGURE_ARGS --extra-libs=-lm --extra-libs=-lpthread)
 
     set(FFmpeg_CONFIGURE
         ${CMAKE_COMMAND} -E env PKG_CONFIG_PATH=${CMAKE_INSTALL_PREFIX}/lib/pkgconfig
