@@ -346,7 +346,6 @@ namespace tl
                             if (diff.count() > 1.0)
                             {
                                 const double fps = p.fpsData->frameCount / diff.count();
-                                //std::cout << "FPS: " << fps << std::endl;
                                 p.fps->setIfChanged(fps);
                                 p.fpsData->timer = now;
                                 p.fpsData->frameCount = 0;

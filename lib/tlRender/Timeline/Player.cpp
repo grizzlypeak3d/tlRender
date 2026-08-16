@@ -544,7 +544,6 @@ namespace tl
 
         if (p.currentTime->setIfChanged(tmp))
         {
-            //std::cout << "seek: " << tmp << std::endl;
             p.seek->setAlways(tmp);
             {
                 std::unique_lock<std::mutex> lock(p.mutex.mutex);
@@ -952,7 +951,6 @@ namespace tl
             //const double currentTimeDiff = abs(currentTime.value() - p.currentTime->get().value());
             if (p.currentTime->setIfChanged(currentTime))
             {
-                //std::cout << "current time: " << p.currentTime->get() << " / " << currentTimeDiff << std::endl;
                 if (looped)
                 {
                     p.seek->setAlways(currentTime);

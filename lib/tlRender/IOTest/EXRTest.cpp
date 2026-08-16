@@ -296,8 +296,8 @@ namespace tl
             // These dimensions do not interact: a compression setting
             // behaves the same on a non-ASCII path, and a pixel type behaves
             // the same under either channel grouping. Crossing all of them
-            // ran thousands of round trips to cover what sweeping each one
-            // covers, and it dominated how long the suite took.
+            // would run thousands of round trips to cover what sweeping each
+            // one covers, and dominate how long the suite takes.
             struct Case
             {
                 std::string fileName;

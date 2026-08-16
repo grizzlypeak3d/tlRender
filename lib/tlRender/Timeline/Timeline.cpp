@@ -59,9 +59,9 @@ namespace tl
         const std::chrono::seconds syncRequestTimeout(60);
 
         //! Get the OTIO spatial coordinates of a media reference. These are
-        //! optional; media without them is laid out from the image size as
-        //! before. The coordinates are returned as authored, in the OTIO
-        //! coordinate system: unit-less and Y-up.
+        //! optional; media without them is laid out from the image size.
+        //! The coordinates are returned as authored, in the OTIO coordinate
+        //! system: unit-less and Y-up.
         std::optional<ftk::Box2F> getMediaReferenceBounds(
             const OTIO_NS::MediaReference* otioMediaReference)
         {
@@ -431,8 +431,9 @@ namespace tl
             // reader to ask. A reader that reports its failure on its own
             // thread -- FFmpeg does -- answers the information request with
             // nothing instead of throwing, and taking that for a readable
-            // file built a timeline with no tracks in it: opening a movie
-            // that is not there gave an empty tab rather than an error.
+            // file would build a timeline with no tracks in it: opening a
+            // movie that is not there would give an empty tab rather than
+            // an error.
             infoValid = !info.video.empty() || info.audio.isValid();
             if (!infoValid)
             {
@@ -1342,8 +1343,8 @@ namespace tl
         }
         // The media references are resolved when the timeline is read, so they
         // are usually absolute, while a caller asks with the path it was given.
-        // Opening a file by a relative path otherwise found none of its own
-        // media.
+        // Opening a file by a relative path would otherwise find none of its
+        // own media.
         const auto j = p.mediaByNormalPath.find(normalMediaPath(path));
         return j != p.mediaByNormalPath.end() ? j->second : nullptr;
     }

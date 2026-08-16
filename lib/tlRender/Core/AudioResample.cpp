@@ -117,9 +117,7 @@ namespace tl
         if (p.swrContext && value)
         {
             const size_t sampleCount = value->getSampleCount();
-            //std::cout << "sampleCount: " << sampleCount << std::endl;
             const int swrOutputSamples = swr_get_out_samples(p.swrContext, sampleCount);
-            //std::cout << "swrOutputSamples: " << swrOutputSamples << std::endl;
             auto swrOutputBuffer = Audio::create(p.outputInfo, swrOutputSamples);
             uint8_t* swrOutputBufferP[] = { swrOutputBuffer->getData() };
             const uint8_t* swrInputBufferP[] = { value->getData() };
@@ -129,7 +127,6 @@ namespace tl
                 swrOutputSamples,
                 swrInputBufferP,
                 sampleCount);
-            //std::cout << "swrOutputCount: " << swrOutputCount << std::endl << std::endl;
             out = Audio::create(p.outputInfo, swrOutputCount > 0 ? swrOutputCount : 0);
             memcpy(out->getData(), swrOutputBuffer->getData(), out->getByteCount());
         }
@@ -144,7 +141,6 @@ namespace tl
         if (p.swrContext)
         {
             const int drain = swr_get_out_samples(p.swrContext, 0);
-            //std::cout << "drain: " << drain << std::endl;
             std::vector<uint8_t> tmp(drain * p.outputInfo.getByteCount(), 0);
             uint8_t* tmpP[] = { tmp.data() };
             swr_convert(

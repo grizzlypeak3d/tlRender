@@ -141,8 +141,8 @@ namespace tl
                         _run();
                         // Wait out the rest of the tick, but wake as soon as
                         // the destructor clears the flag. Sleeping instead
-                        // made shutdown wait for the current tick to expire,
-                        // and this one is three seconds long.
+                        // would make shutdown wait for the current tick to
+                        // expire, and this one is three seconds long.
                         const auto t1 = std::chrono::steady_clock::now();
                         const auto period =
                             std::chrono::duration_cast<std::chrono::microseconds>(timeout);

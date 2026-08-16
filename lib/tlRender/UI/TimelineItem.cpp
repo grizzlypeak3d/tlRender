@@ -27,8 +27,7 @@ namespace tl
         {
             //! Add a rectangle to a mesh, optionally with a color of its own.
             //! Batching the item rectangles this way turns a draw call per item
-            //! into one draw call for the whole timeline, which is what the
-            //! per-item widgets used to cost.
+            //! into one draw call for the whole timeline.
             void addRect(
                 ftk::TriMesh2F& mesh,
                 const ftk::Box2I& box,
@@ -711,10 +710,9 @@ namespace tl
             IMouseWidget::tickEvent(parentsVisible, parentsEnabled, event);
             FTK_P();
 
-            // Collect whatever the thumbnail system has finished. This used to
-            // run once per item widget, which meant walking every item in the
-            // timeline on every tick; only the items in view have requests
-            // outstanding now.
+            // Collect whatever the thumbnail system has finished. Only the
+            // items in view have requests outstanding, so this does not walk
+            // every item in the timeline on every tick.
             bool sizeUpdate = false;
             bool drawUpdate = false;
             for (size_t i = 0; i < p.tracks.size() && i < p.active.size(); ++i)
@@ -1108,9 +1106,9 @@ namespace tl
 
             p.itemColorsUpdate();
 
-            // The items used to carry these tags themselves. Zero size widgets
-            // stand in for them so the documentation tool can still point at an
-            // example of each kind.
+            // The items are data rather than widgets and cannot be tagged, so
+            // zero size widgets stand in for them and the documentation tool
+            // can still point at an example of each kind.
             p.tagProxies.videoClip = ftk::Spacer::create(
                 context,
                 ftk::Orientation::Horizontal,
@@ -1308,10 +1306,11 @@ namespace tl
                 return;
 
             // Step whole frames and put each thumbnail where its own frame is.
-            // Stepping pixels instead and asking afterwards which frame each one
-            // landed on left the image as much as a frame away from the frame it
-            // showed: unnoticeable while every thumbnail resolves and they tile
-            // into a strip, plain on a sequence where only some of them do.
+            // Stepping pixels instead and asking afterwards which frame each
+            // one landed on would leave the image as much as a frame away from
+            // the frame it shows: unnoticeable while every thumbnail resolves
+            // and they tile into a strip, plain on a sequence where only some
+            // of them do.
             const double perFrame = w / duration;
             const int64_t start = static_cast<int64_t>(
                 std::floor(item.timeRange.start_time().value()));
@@ -1388,12 +1387,12 @@ namespace tl
             }
             item.thumbnails = std::move(thumbnails);
 
-            // Let go of the frames that have gone out of the band. Requests
-            // were only cancelled when an item left it, and a movie is one
-            // item that never does: playing a zoomed in timeline left every
-            // thumbnail it had ever asked for in the queue, so the thumbnail
-            // thread went on decoding frames that had long since gone by,
-            // instead of the ones now on screen.
+            // Let go of the frames that have gone out of the band. Cancelling
+            // only when an item leaves it is not enough: a movie is one item
+            // that never does, so a zoomed in timeline being played would
+            // leave every thumbnail it ever asked for in the queue, and the
+            // thumbnail thread decoding frames long since gone by instead of
+            // the ones now on screen.
             std::vector<uint64_t> cancel;
             auto i = item.thumbnailRequests.begin();
             while (i != item.thumbnailRequests.end())
@@ -1510,9 +1509,9 @@ namespace tl
         void TimelineItem::_cancelRequests()
         {
             FTK_P();
-            // One cancellation for the whole timeline: cancelling per item cost
-            // a walk of every pending request each time, which on a hundred
-            // thousand clips took longer than the rest of shutdown.
+            // One cancellation for the whole timeline: cancelling per item
+            // costs a walk of every pending request each time; on a hundred
+            // thousand clips that took longer than the rest of shutdown.
             std::vector<uint64_t> ids;
             for (auto& track : p.tracks)
             {
@@ -1547,8 +1546,8 @@ namespace tl
 
             // The rectangles for every item in view go into one mesh with a
             // color per vertex, and the media backgrounds and waveforms into one
-            // mesh each. Three draw calls cover the whole timeline; a widget per
-            // item cost two or three each.
+            // mesh each. Three draw calls cover the whole timeline; a widget
+            // per item would cost two or three each.
             for (size_t i = 0; i < p.tracks.size() && i < p.visible.size(); ++i)
             {
                 const auto& track = p.tracks[i];

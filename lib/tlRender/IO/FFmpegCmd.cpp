@@ -367,7 +367,6 @@ namespace tl
                 cmd.push_back("-v");
                 cmd.push_back("quiet");
                 cmd.push_back("-version");
-                //std::cout << ftk::join(cmd, ' ') << std::endl;
                 const auto text = ftk::split(Pipe(cmd).readAll(), '\n');
                 if (!text.empty())
                 {

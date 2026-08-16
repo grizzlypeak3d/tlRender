@@ -334,9 +334,6 @@ namespace tl
                 audioMutex.frame = 0;
             }
         }
-        //std::cout << "playback: " << playback << std::endl;
-        //std::cout << "reset: " << reset << std::endl;
-        //std::cout << "start: " << start << std::endl;
 
         // Zero output audio data.
         const AudioInfo& outputInfo = audioThread.info;

@@ -80,7 +80,6 @@ namespace tl
         //! item starts within that track. Both are needed: tracks run over
         //! the same times, so a start time on its own would color a video
         //! clip and whatever the audio track happens to have beside it.
-        //! Colors marking items, by track and by the time an item starts.
         //! Drawn as an outline around the item rather than as its color.
         typedef std::map<int, std::map<OTIO_NS::RationalTime, ftk::Color4F> > ItemColors;
 

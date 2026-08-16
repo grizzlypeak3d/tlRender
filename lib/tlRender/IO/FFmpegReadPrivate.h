@@ -220,7 +220,6 @@ namespace tl
             std::thread thread;
             // Only accessed from the thread above.
             OTIO_NS::RationalTime currentTime;
-            std::chrono::steady_clock::time_point logTimer;
 
             ErrorMutex errorMutex;
         };
@@ -249,7 +248,6 @@ namespace tl
             std::thread thread;
             // Only accessed from the thread above.
             OTIO_NS::RationalTime currentTime;
-            std::chrono::steady_clock::time_point logTimer;
 
             ErrorMutex errorMutex;
         };

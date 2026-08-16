@@ -328,9 +328,9 @@ namespace tl
                 }
             }
 
-            // The file's own metadata. The video and audio information is
-            // not in here any more, so it no longer lands in the output as
-            // a set of tags describing something that was read, not written.
+            // The file's own metadata only. The video and audio information
+            // is kept out, so it does not land in the output as a set of
+            // tags describing something that was read, not written.
             for (const auto& i : info.tags)
             {
                 av_dict_set(&p.avFormatContext->metadata, i.first.c_str(), i.second.c_str(), 0);
@@ -387,17 +387,6 @@ namespace tl
                 throw std::runtime_error(ftk::Format("Incompatible pixel type: \"{0}\"").arg(p.fileName));
                 break;
             }
-            /*p.swsContext = sws_getContext(
-                videoInfo.size.w,
-                videoInfo.size.h,
-                p.avPixelFormatIn,
-                videoInfo.size.w,
-                videoInfo.size.h,
-                p.avCodecContext->pix_fmt,
-                swsScaleFlags,
-                0,
-                0,
-                0);*/
             p.swsContext = sws_alloc_context();
             if (!p.swsContext)
             {

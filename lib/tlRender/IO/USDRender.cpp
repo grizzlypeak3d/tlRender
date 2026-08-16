@@ -169,34 +169,6 @@ namespace tl
                     ftk::LogType::Error);
             }
 
-            /*ftk::gl::initGLAD();
-
-            std::string glVendor;
-            std::string glRenderer;
-            std::string glVersion;
-            if (const GLubyte* glString = glGetString(GL_VENDOR))
-            {
-                glVendor = std::string((const char*)glString);
-            }
-            if (const GLubyte* glString = glGetString(GL_RENDERER))
-            {
-                glRenderer = std::string((const char*)glString);
-            }
-            if (const GLubyte* glString = glGetString(GL_VERSION))
-            {
-                glVersion = std::string((const char*)glString);
-            }
-            logSystem->print(
-                "tl::usd::Render",
-                ftk::Format(
-                    "\n"
-                    "    glVendor:   {0}\n"
-                    "    glRenderer: {1}\n"
-                    "    glVersion:  {2}").
-                arg(glVendor).
-                arg(glRenderer).
-                arg(glVersion));*/
-
             if (!p.sdlWindow || !p.sdlGLContext)
             {
                 logSystem->print(
@@ -661,8 +633,6 @@ namespace tl
                             auto camera = getCamera(stageCacheItem.stage, cameraName);
                             if (camera)
                             {
-                                //std::cout << fileName << " camera: " <<
-                                //    camera.GetPath().GetAsToken().GetText() << std::endl;
                                 gfCamera = camera.GetCamera(startTimeCode);
                             }
                             else
@@ -681,7 +651,6 @@ namespace tl
                             info.videoTime = OTIO_NS::TimeRange::range_from_start_end_time_inclusive(
                                 OTIO_NS::RationalTime(startTimeCode, timeCodesPerSecond),
                                 OTIO_NS::RationalTime(endTimeCode, timeCodesPerSecond));
-                            //std::cout << fileName << " range: " << info.videoTime << std::endl;
                         }
                     }
                     catch (const std::exception& e)
@@ -713,7 +682,6 @@ namespace tl
                         std::shared_ptr<ftk::Image> image;
                         try
                         {
-                            //std::cout << "read temp file: " << diskCacheItem->fileName << std::endl;
                             auto fileIO = ftk::FileIO::create(diskCacheItem->fileName, ftk::FileMode::Read);
                             uint16_t w = 0;
                             uint16_t h = 0;
@@ -726,7 +694,6 @@ namespace tl
                         }
                         catch (const std::exception& e)
                         {
-                            //std::cout << e.what() << std::endl;
                             if (auto logSystem = p.logSystem.lock())
                             {
                                 const std::string id = ftk::Format("tl::usd::Render ({0}: {1})").
@@ -766,7 +733,6 @@ namespace tl
                         {
                             const double timeCode = request->time.rescaled_to(
                                 stageCacheItem.stage->GetTimeCodesPerSecond()).value();
-                            //std::cout << fileName << " timeCode: " << timeCode << std::endl;
 
                             // Get options.
                             if (auto i = ioOptions.find("USD/RenderWidth");
@@ -833,10 +799,6 @@ namespace tl
                                 static_cast<double>(renderWidth),
                                 static_cast<double>(renderHeight)));
 
-                            //for (const auto& token : stageCacheItem.engine->GetRendererAovs())
-                            //{
-                            //    std::cout << token.GetText() << std::endl;
-                            //}
                             stageCacheItem.engine->SetRendererAov(HdAovTokens->color);
 
                             // Setup a light.
@@ -890,7 +852,6 @@ namespace tl
                                         stageCacheItem.engine->GetHgi(),
                                         colorTextureHandle,
                                         &size);
-                                    //std::cout << colorTextureHandle->GetDescriptor().format << std::endl;
                                     switch (HdxGetHioFormat(colorTextureHandle->GetDescriptor().format))
                                     {
                                     case HioFormat::HioFormatFloat16Vec4:
@@ -932,7 +893,6 @@ namespace tl
                                 diskCacheItem->fileName = ftk::Format("{0}/{1}.img").
                                     arg(p.thread.tmpDir->getPath().u8string()).
                                     arg(diskCacheItem);
-                                //std::cout << "write temp file: " << diskCacheItem->fileName << std::endl;
                                 auto tempFile = ftk::FileIO::create(diskCacheItem->fileName, ftk::FileMode::Write);
                                 tempFile->writeU16(image->getWidth());
                                 tempFile->writeU16(image->getHeight());
@@ -945,7 +905,6 @@ namespace tl
                     }
                     catch (const std::exception& e)
                     {
-                        //std::cout << e.what() << std::endl;
                         if (auto logSystem = p.logSystem.lock())
                         {
                             const std::string id = ftk::Format("tl::usd::Render ({0}: {1})").

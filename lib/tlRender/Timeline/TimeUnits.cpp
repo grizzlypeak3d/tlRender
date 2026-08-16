@@ -76,7 +76,7 @@ namespace tl
         std::optional<OTIO_NS::RationalTime> out;
         // Whether the whole string was a number, which atoi() and atof() do
         // not say: they answer 0 for text that is not one at all, so "abc"
-        // used to read as frame zero.
+        // would read as frame zero.
         const auto consumed =
             [&text](const char* end)
             {

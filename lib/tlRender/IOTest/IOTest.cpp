@@ -144,9 +144,8 @@ namespace tl
                 const auto viaDecode = decode->readVideo(path.get(), nullptr, time);
                 const auto viaMem = decode->readVideo(path.get(), &memFile, time);
 
-                // There is no reader to compare against any more; the image
-                // that was written is the oracle, and the two decode paths
-                // have to agree with it and with each other.
+                // The image that was written is the oracle, and the two
+                // decode paths have to agree with it and with each other.
                 FTK_CHECK(viaDecode.image && viaMem.image);
                 const size_t byteCount = image->getByteCount();
                 FTK_CHECK(viaDecode.image->getByteCount() == byteCount);
@@ -194,8 +193,8 @@ namespace tl
         void IOTest::_seqDecode()
         {
             // A sequence held in memory, which is how a bundle presents one:
-            // the same frames the old reader walks, indexed off the path
-            // number rather than found on disk.
+            // the same frames, indexed off the path number rather than found
+            // on disk.
             auto readSystem = _context->getSystem<ReadSystem>();
             auto writeSystem = _context->getSystem<WriteSystem>();
             const ftk::Size2I size(16, 16);

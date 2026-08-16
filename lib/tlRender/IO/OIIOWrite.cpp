@@ -19,8 +19,8 @@ namespace tl
         {
             //! OIIO reports a create() failure through its global error, and
             //! everything after that through the output object's own. Reading
-            //! the global one for an open() failure is why a missing output
-            //! directory used to raise an exception with no message at all.
+            //! the global one for an open() failure would report a missing
+            //! output directory with no message at all.
             //!
             //! OIIO's message is the reason, when it gave one. Which call
             //! failed is not worth reporting -- from the outside all three mean

@@ -350,7 +350,6 @@ namespace tl
                 cmd.push_back("-show_streams");
                 cmd.push_back("-show_format");
                 cmd.push_back(path.get());
-                //std::cout << ftk::join(cmd, ' ') << std::endl;
                 nlohmann::json json = nlohmann::json::parse(Pipe(cmd).readAll());
 
                 // Parse format information.
@@ -364,7 +363,7 @@ namespace tl
                         j != i.value().end())
                     {
                         // Not atoi(): ffprobe gives this as a decimal, and
-                        // truncating it to whole seconds is what made the
+                        // truncating it to whole seconds would make the
                         // duration wrong for the files that have no frame
                         // count of their own to use instead.
                         duration = atof(j->get<std::string>().c_str());
@@ -708,7 +707,6 @@ namespace tl
                         cmd.push_back("-pix_fmt");
                         cmd.push_back(fromImageType(p.info.video.front().type));
                         cmd.push_back("pipe:1");
-                        //std::cout << ftk::join(cmd, ' ') << std::endl;
                         p.thread.pipe = std::make_shared<Pipe>(cmd);
                     }
                     catch (const std::exception& e)
@@ -821,7 +819,6 @@ namespace tl
                         cmd.push_back("-f");
                         cmd.push_back(fromAudioType(p.info.audio.type));
                         cmd.push_back("pipe:1");
-                        //std::cout << ftk::join(cmd, ' ') << std::endl;
                         p.thread.pipe = std::make_shared<Pipe>(cmd);
                     }
                     catch (const std::exception& e)

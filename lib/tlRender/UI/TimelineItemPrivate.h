@@ -153,9 +153,9 @@ namespace tl
             std::vector<Range> activePrev;
             ftk::Box2I activeRect;
 
-            //! Zero size widgets that carry the screenshot tags the items used
-            //! to carry themselves, so the documentation tool can still find an
-            //! example of each kind.
+            //! Zero size widgets that carry the screenshot tags for the items,
+            //! which are data rather than widgets, so the documentation tool
+            //! can still find an example of each kind.
             struct TagProxies
             {
                 std::shared_ptr<ftk::Spacer> videoClip;

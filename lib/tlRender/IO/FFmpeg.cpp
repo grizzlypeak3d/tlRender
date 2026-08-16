@@ -310,8 +310,6 @@ namespace tl
             }
         }
 
-        std::weak_ptr<ftk::LogSystem> WritePlugin::_logSystemWeak;
-
         struct WritePlugin::Private
         {
             std::vector<AVCodecID> codecIds;
@@ -364,11 +362,6 @@ namespace tl
             }
 
             IWritePlugin::_init("FFmpeg", extensions, logSystem);
-
-            //_logSystemWeak = logSystem;
-            //av_log_set_level(AV_LOG_QUIET);
-            //av_log_set_level(AV_LOG_VERBOSE);
-            //av_log_set_callback(_logCallback);
 
             logSystem->print(
                 "tl::ffmpeg::WritePlugin",
@@ -441,29 +434,6 @@ namespace tl
         std::string WritePlugin::getPluginInfo(const IOOptions&) const
         {
             return FFMPEG_VERSION;
-        }
-
-        void WritePlugin::_logCallback(void*, int level, const char* fmt, va_list vl)
-        {
-            switch (level)
-            {
-            case AV_LOG_PANIC:
-            case AV_LOG_FATAL:
-            case AV_LOG_ERROR:
-            case AV_LOG_WARNING:
-            case AV_LOG_INFO:
-                if (auto logSystem = _logSystemWeak.lock())
-                {
-                    char buf[ftk::cStringSize];
-                    vsnprintf(buf, ftk::cStringSize, fmt, vl);
-                    std::string s(buf);
-                    ftk::removeTrailingNewlines(s);
-                    logSystem->print("tl::io::ffmpeg::WritePlugin", s);
-                }
-                break;
-            case AV_LOG_VERBOSE:
-            default: break;
-            }
         }
 
         void to_json(nlohmann::json& json, const Options& value)

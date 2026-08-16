@@ -669,7 +669,6 @@ namespace tl
 
         void ReadVideo::seek(const OTIO_NS::RationalTime& time)
         {
-            //std::cout << "video seek: " << time << std::endl;
 
             if (_avStream != -1)
             {
@@ -779,7 +778,6 @@ namespace tl
                 {
                     av_packet_unref(packet.p);
                 }
-                //std::cout << "video buffer size: " << _buffer.size() << std::endl;
             }
             return out;
         }
@@ -835,7 +833,6 @@ namespace tl
                     }
                 }
                 const int64_t timestamp = _avFrame->pts != AV_NOPTS_VALUE ? _avFrame->pts : _avFrame->pkt_dts;
-                //std::cout << "video timestamp: " << timestamp << std::endl;
 
                 const OTIO_NS::RationalTime time(
                     _timeRange.start_time().value() +
@@ -844,11 +841,9 @@ namespace tl
                         _avFormatContext->streams[_avStream]->time_base,
                         swap(_avFormatContext->streams[_avStream]->r_frame_rate)),
                     _timeRange.duration().rate());
-                //std::cout << "video time: " << time << std::endl;
 
                 if (time >= currentTime)
                 {
-                    //std::cout << "video time: " << time << std::endl;
                     auto image = ftk::Image::create(_info);
                     
                     auto tags = _tags;

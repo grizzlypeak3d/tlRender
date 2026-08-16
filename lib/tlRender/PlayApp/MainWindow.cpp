@@ -51,29 +51,6 @@ namespace tl
 
             // Create the viewport.
             _viewport = ui::Viewport::create(context);
-            //BackgroundOptions bgOptions;
-            //bgOptions.type = Background::Gradient;
-            //_viewport->setBackgroundOptions(bgOptions);
-            //ForegroundOptions fgOptions;
-            //fgOptions.grid.enabled = true;
-            //fgOptions.grid.size = 1;
-            //fgOptions.grid.labels = GridLabels::Alphanumeric;
-            //fgOptions.grid.lineWidth = 10;
-            //fgOptions.outline.enabled = true;
-            //_viewport->setForegroundOptions(fgOptions);
-            //ftk::ImageOptions imageOptions;
-            //imageOptions.imageFilters.minify = ftk::ImageFilter::Nearest;
-            //imageOptions.imageFilters.magnify = ftk::ImageFilter::Nearest;
-            //imageOptions.alphaBlend = ftk::AlphaBlend::None;
-            //_viewport->setImageOptions({ imageOptions, imageOptions });
-            //DisplayOptions displayOptions;
-            //displayOptions.color.enabled = true;
-            //displayOptions.color.contrast.x = .1F;
-            //displayOptions.color.contrast.y = .1F;
-            //displayOptions.color.contrast.z = .1F;
-            //displayOptions.exposure.enabled = true;
-            //displayOptions.exposure.exposure = 10.F;
-            //_viewport->setDisplayOptions({ displayOptions, displayOptions });
             // The most precision the API can render into: floating point on
             // desktop OpenGL, eight bits on GLES 2, which cannot use a float
             // buffer as a render target at all.

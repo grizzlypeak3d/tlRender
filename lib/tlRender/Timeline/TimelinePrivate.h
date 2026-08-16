@@ -39,9 +39,9 @@ namespace tl
         // written, so this can be read without locking.
         std::map<const OTIO_NS::Composable*, OTIO_NS::TimeRange> trimmedRangeInParent;
         // The items of each track in time order. Only one item can cover a
-        // given time, but _requests() used to walk and cast every child of
-        // every track to find it, which kept a hundred thousand clips from
-        // reaching the first frame even once the ranges above were cached.
+        // given time, but finding it by walking and casting every child of
+        // every track keeps a hundred thousand clips from reaching the first
+        // frame even with the ranges above cached.
         struct TrackItem
         {
             OTIO_NS::Item* item = nullptr;
@@ -101,9 +101,9 @@ namespace tl
         // that one thread runs it; without a thread that is whichever caller
         // is in getVideo()/getAudio(), and the thumbnail system has three.
         std::mutex driverMutex;
-        // Guards the three caches below. They were owned by the request
-        // thread, but a timeline opened without one is read by whichever
-        // thread drives it, and the thumbnail system drives one from three.
+        // Guards the three caches below: a timeline opened without a thread
+        // is read by whichever thread drives it, and the thumbnail system
+        // drives one from three.
         //
         // Always the outer of the two locks; see memFilesMutex.
         std::mutex readCacheMutex;
@@ -150,8 +150,8 @@ namespace tl
         double boundsScale = 1.0;
         // The canvas shared by the whole timeline, the union of every clip's
         // spatial coordinates. Empty when no clip has bounds, which leaves
-        // the layout to the image sizes as before. The offset translates the
-        // canvas minimum to the origin.
+        // the layout to the image sizes. The offset translates the canvas
+        // minimum to the origin.
         ftk::Size2I canvasSize;
         ftk::V2F canvasOffset;
         // The reference size used by Spatial::Normalize for clips that have

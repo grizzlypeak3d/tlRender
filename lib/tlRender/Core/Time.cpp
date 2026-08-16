@@ -147,16 +147,6 @@ namespace tl
         int frame = 0;
         timecodeToTime(in, hour, minute, second, frame);
 
-        /*std::stringstream ss;
-        ss << std::setfill('0') << std::setw(2) << hour;
-        ss << std::setw(0) << ":";
-        ss << std::setfill('0') << std::setw(2) << minute;
-        ss << std::setw(0) << ":";
-        ss << std::setfill('0') << std::setw(2) << second;
-        ss << std::setw(0) << ":";
-        ss << std::setfill('0') << std::setw(2) << frame;
-        return ss.str();*/
-
         std::string out = "00:00:00:00";
         out[0] = 48 + hour / 10;
         out[1] = 48 + hour % 10;

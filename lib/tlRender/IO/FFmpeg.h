@@ -233,11 +233,6 @@ namespace tl
                 const IOOptions& = IOOptions()) const override;
 
         private:
-            static void _logCallback(void*, int, const char*, va_list);
-
-            // See comment in ReadPlugin.
-            static std::weak_ptr<ftk::LogSystem> _logSystemWeak;
-
             FTK_PRIVATE();
         };
 

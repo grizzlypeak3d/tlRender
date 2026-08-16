@@ -98,13 +98,6 @@ namespace tl
                         ftk::Box2I(0, 0, _size.w, _size.h),
                         ftk::Color4F(.1F, .1F, .1F));
 
-                    /*render->drawRect(
-                        ftk::Box2I(secondsPos.x, secondsPos.y, secondsSize.x, secondsSize.y),
-                        ftk::Color4F(.5F, 0.F, 0.F));
-                    render->drawRect(
-                        ftk::Box2I(framesPos.x, framesPos.y, framesSize.x, framesSize.y),
-                        ftk::Color4F(0.F, .5F, 0.F));*/
-
                     const int resolution = 100;
                     ftk::TriMesh2F mesh;
                     mesh.v.push_back(ftk::V2F(

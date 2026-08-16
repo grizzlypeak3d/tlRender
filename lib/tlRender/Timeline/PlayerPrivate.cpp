@@ -372,7 +372,6 @@ namespace tl
                     const auto k = thread.videoRequests.find(timeLooped);
                     if (k == thread.videoRequests.end())
                     {
-                        //std::cout << this << " video request: " << timeLooped << std::endl;
                         auto& requests = thread.videoRequests[timeLooped];
                         IOOptions ioOptions2 = thread.state.ioOptions;
                         ioOptions2["Layer"] = ftk::Format("{0}").arg(thread.state.videoLayer);
@@ -417,7 +416,6 @@ namespace tl
                     }
                 }
             }
-            //std::cout << this << " video requests: " << thread.videoRequests.size() << std::endl;
         }
 
         // Fill the audio cache.
@@ -445,13 +443,11 @@ namespace tl
                     }
                 }
             }
-            //std::cout << this << " audio requests: " << thread.audioRequests.size() << std::endl;
         }
     }
 
     void Player::Private::cacheUpdate()
     {
-        //std::cout << "current time: " << currentTime->get() << std::endl;
 
         // Stopped on a filled cache this decides, two hundred times a
         // second, that there is nothing to do: evicting walks the whole

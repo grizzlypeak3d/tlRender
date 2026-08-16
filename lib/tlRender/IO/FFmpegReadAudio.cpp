@@ -208,7 +208,6 @@ namespace tl
                         if (!opentime::is_error(errorStatus))
                         {
                             startTime = time.rescaled_to(sampleRate).floor();
-                            //std::cout << fileName << " start time: " << startTime << std::endl;
                         }
                     }
                     else if (timeReference.has_value())
@@ -332,7 +331,6 @@ namespace tl
 
         void ReadAudio::seek(const OTIO_NS::RationalTime& time)
         {
-            //std::cout << "audio seek: " << time << std::endl;
 
             if (_avStream != -1)
             {
@@ -358,7 +356,6 @@ namespace tl
             if (_swrContext)
             {
                 const int drain = swr_get_out_samples(_swrContext, 0);
-                //std::cout << "drain: " << drain << std::endl;
                 std::vector<uint8_t> tmp(drain * _info.getByteCount(), 0);
                 uint8_t* tmpP[] = { tmp.data() };
                 swr_convert(
@@ -469,7 +466,6 @@ namespace tl
                 {
                     av_packet_unref(packet.p);
                 }
-                //std::cout << "audio buffer size: " << audio::getSampleCount(_buffer) << std::endl;
             }
             return out;
         }
@@ -522,7 +518,6 @@ namespace tl
             int out = 0;
             while (0 == out)
             {
-                //std::cout << "current time: " << currentTime << std::endl;
 
                 out = avcodec_receive_frame(_avCodecContext[_avStream], _avFrame);
                 if (out < 0)
@@ -530,7 +525,6 @@ namespace tl
                     return out;
                 }
                 const int64_t timestamp = _avFrame->pts != AV_NOPTS_VALUE ? _avFrame->pts : _avFrame->pkt_dts;
-                //std::cout << "audio timestamp: " << timestamp << std::endl;
 
                 AVRational r;
                 r.num = 1;
@@ -542,15 +536,10 @@ namespace tl
                         _avFormatContext->streams[_avStream]->time_base,
                         r),
                     _info.sampleRate);
-                //std::cout << "audio time: " << time << std::endl;
 
                 if (time.value() + (_avFrame->nb_samples - 1) >= currentTime.value())
                 {
-                    //std::cout << "current time: " << currentTime << std::endl;
-                    //std::cout << "audio time: " << time << std::endl;
-                    //std::cout << "nb_samples: " << _avFrame->nb_samples << std::endl;
                     const int swrOutputSamples = swr_get_out_samples(_swrContext, _avFrame->nb_samples);
-                    //std::cout << "swrOutputSamples: " << swrOutputSamples << std::endl;
                     auto swrOutputBuffer = Audio::create(_info, swrOutputSamples);
 
                     std::vector<const uint8_t*> swrInputBufferP;
@@ -561,7 +550,6 @@ namespace tl
                         {
                             offset = (currentTime.value() - time.value()) *
                                 getByteCount(static_cast<AVSampleFormat>(_avFrame->format));
-                            //std::cout << "planar offset: " << offset << std::endl;
                         }
                         for (int c = 0; c < _avFrame->ch_layout.nb_channels; ++c)
                         {
@@ -576,7 +564,6 @@ namespace tl
                             offset = (currentTime.value() - time.value()) *
                                 _avFrame->ch_layout.nb_channels *
                                 getByteCount(static_cast<AVSampleFormat>(_avFrame->format));
-                            //std::cout << "interleaved offset: " << offset << std::endl;
                         }
                         swrInputBufferP.push_back(av_frame_get_plane_buffer(_avFrame, 0)->data + offset);
                     }
@@ -587,7 +574,6 @@ namespace tl
                     if (time.value() < currentTime.value())
                     {
                         size -= currentTime.value() - time.value();
-                        //std::cout << "size: " << size << std::endl;
                     }
                     const int swrOutputCount = swr_convert(
                         _swrContext,
@@ -595,7 +581,6 @@ namespace tl
                         swrOutputSamples,
                         swrInputBufferP.data(),
                         size);
-                    //std::cout << "swrOutputCount: " << swrOutputCount << std::endl << std::endl;
 
                     auto tmp = Audio::create(_info, swrOutputCount > 0 ? swrOutputCount : 0);
                     memcpy(tmp->getData(), swrOutputBuffer->getData(), tmp->getByteCount());

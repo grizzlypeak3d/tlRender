@@ -307,7 +307,6 @@ namespace tl
                 p.info.videoTime.value_or(OTIO_NS::TimeRange());
             p.currentTime = videoTime.start_time();
             p.readVideo->start();
-            p.logTimer = std::chrono::steady_clock::now();
             size_t errorCount = 0;
             while (p.condition.wait())
             {
@@ -376,26 +375,6 @@ namespace tl
                         }
                     }
                 }
-
-                // Logging.
-                /*{
-                    const auto now = std::chrono::steady_clock::now();
-                    const std::chrono::duration<float> diff = now - p.logTimer;
-                    if (diff.count() > 10.F)
-                    {
-                        p.logTimer = now;
-                        if (auto logSystem = _logSystem.lock())
-                        {
-                            const std::string id = ftk::Format("tl::ffmpeg::VideoRead {0}").arg(this);
-                            logSystem->print(id, ftk::Format(
-                                "\n"
-                                "    * Path: {0}\n"
-                                "    * Video requests: {1}").
-                                arg(_path.get()).
-                                arg(p.videoRequests.size()));
-                        }
-                    }
-                }*/
             }
         }
 
@@ -544,7 +523,6 @@ namespace tl
                 p.info.audioTime.value_or(OTIO_NS::TimeRange());
             p.currentTime = audioTime.start_time();
             p.readAudio->start();
-            p.logTimer = std::chrono::steady_clock::now();
             const bool audioValid = p.info.audio.isValid();
             size_t errorCount = 0;
             while (p.condition.wait())
@@ -657,26 +635,6 @@ namespace tl
                         }
                     }
                 }
-
-                // Logging.
-                /*{
-                    const auto now = std::chrono::steady_clock::now();
-                    const std::chrono::duration<float> diff = now - p.logTimer;
-                    if (diff.count() > 10.F)
-                    {
-                        p.logTimer = now;
-                        if (auto logSystem = _logSystem.lock())
-                        {
-                            const std::string id = ftk::Format("tl::ffmpeg::AudioRead {0}").arg(this);
-                            logSystem->print(id, ftk::Format(
-                                "\n"
-                                "    * Path: {0}\n"
-                                "    * Audio requests: {1}").
-                                arg(_path.get()).
-                                arg(p.audioRequests.size()));
-                        }
-                    }
-                }*/
             }
         }
     }

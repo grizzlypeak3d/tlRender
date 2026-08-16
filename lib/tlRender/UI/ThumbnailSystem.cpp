@@ -47,9 +47,9 @@ namespace tl
 
         namespace
         {
-            // Timelines, which hold no thread now that they are opened
-            // without one, so a file browser listing can keep the ones it is
-            // showing rather than reopening two at a time. Idle entries are
+            // Timelines, which are opened without a thread and so hold none:
+            // a file browser listing can keep the ones it is showing rather
+            // than reopening two at a time. Idle entries are
             // dropped after ioCacheTimeout regardless.
             const size_t ioCacheMax   = 100;
             // How long a thread holds its open timelines once it goes idle.
@@ -57,7 +57,7 @@ namespace tl
             // they keep alive, after a file is closed. It has to be long
             // compared to how long opening costs: a bundle of 25,000 entries
             // takes seconds to open, and dropping it between two thumbnails
-            // meant most of the time went into opening it again.
+            // means most of the time goes into opening it again.
             const std::chrono::seconds ioCacheTimeout(60);
             const size_t infoCacheMax = 1000;
 
@@ -623,7 +623,7 @@ namespace tl
             FTK_P();
             // Looked up as a set: this is called with the requests of a whole
             // timeline's worth of items, and searching the list of ids for each
-            // pending request made cancelling cost the product of the two.
+            // pending request makes cancelling cost the product of the two.
             const std::set<uint64_t> idSet(ids.begin(), ids.end());
             {
                 std::unique_lock<std::mutex> lock(p.infoMutex.mutex);
@@ -756,7 +756,6 @@ namespace tl
                     IOInfo info;
                     try
                     {
-                        //std::cout << "info request: " << request->path.get() << std::endl;
                         auto context = p.context.lock();
                         if (auto timeline = getTimeline(
                             context, p.ioCache, p.ioCacheMutex, request->path))
@@ -807,15 +806,12 @@ namespace tl
                     // The options belong to the read, not to the timeline
                     // that is read from: a per clip option such as a camera
                     // name changes with every request, and dropping the
-                    // timeline for it meant reopening the file each time.
+                    // timeline for it would mean reopening the file each time.
                     p.ioCacheTouch();
 
                     std::shared_ptr<ftk::Image> image;
                     try
                     {
-                        //std::cout << "thumbnail request: " <<
-                        //    request->path.get() << " " <<
-                        //    request->time << std::endl;
                         auto context = p.context.lock();
                         auto timeline = getTimeline(
                             context, p.ioCache, p.ioCacheMutex, request->path);
@@ -886,15 +882,16 @@ namespace tl
                             // The request does not name media inside the
                             // timeline, so it wants a picture of the timeline
                             // itself. Use the one already open: creating
-                            // another here read the file again for every
-                            // request, which on a bundle of 25,000 entries
-                            // meant a thumbnail took as long as an open.
+                            // another here would read the file again for
+                            // every request, which on a bundle of 25,000
+                            // entries makes a thumbnail take as long as an
+                            // open.
                             //
                             // Only worth saying when media was asked for and
                             // not found. The overload that takes one path asks
                             // for the timeline with its own path, so warning
-                            // whenever the two match reported every thumbnail
-                            // of a timeline as a fault.
+                            // whenever the two match would report every
+                            // thumbnail of a timeline as a fault.
                             const bool mediaAsked =
                                 request->mediaPath.get() != request->path.get();
                             auto logSystem = context->getLogSystem();
@@ -1004,7 +1001,6 @@ namespace tl
                             const int x1 = static_cast<int>(std::min(
                                 static_cast<size_t>((x + 1) / static_cast<double>(size.w - 1) * (sampleCount - 1)),
                                 sampleCount - 1));
-                            //std::cout << x << ": " << x0 << " " << x1 << std::endl;
                             float min = 0.F;
                             float max = 0.F;
                             if (x0 <= x1)
@@ -1077,7 +1073,7 @@ namespace tl
                     // The options belong to the read, not to the timeline
                     // that is read from: a per clip option such as a camera
                     // name changes with every request, and dropping the
-                    // timeline for it meant reopening the file each time.
+                    // timeline for it would mean reopening the file each time.
                     p.ioCacheTouch();
 
                     std::shared_ptr<ftk::TriMesh2F> mesh;

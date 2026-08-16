@@ -101,9 +101,7 @@ namespace tl
         //! Maximum number of stateful readers held per half.
         //!
         //! Video and audio are cached separately, so this many of each: a
-        //! movie with sound occupies one entry in both. That is the same
-        //! budget as before the halves were split apart, when a single
-        //! reader for such a movie ran a thread for each of them anyway.
+        //! movie with sound occupies one entry in both.
         //!
         //! What it bounds is decoder state and threads, not parallelism --
         //! readThreadCount is the knob for that. Its right value follows

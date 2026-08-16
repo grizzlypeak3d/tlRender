@@ -140,9 +140,9 @@ namespace tl
 
         namespace
         {
-            // The filters for one of the images being drawn, which is where
-            // they live now: how a picture is sampled is a fact about the
-            // picture, not about the colours it is shown in.
+            // The filters for one of the images being drawn: how a picture
+            // is sampled is a fact about the picture, not about the colours
+            // it is shown in.
             ftk::ImageFilters imageFilters(
                 const std::vector<ftk::ImageOptions>& imageOptions,
                 size_t index)
@@ -766,9 +766,9 @@ namespace tl
             const ftk::Size2I& offscreenBufferSize = box.size();
 
             // The box a layer occupies within the offscreen buffer. Without
-            // OTIO spatial coordinates a layer fills the buffer as before;
-            // with them it keeps its place in the timeline canvas, scaled to
-            // the buffer.
+            // OTIO spatial coordinates a layer fills the buffer; with them
+            // it keeps its place in the timeline canvas, scaled to the
+            // buffer.
             const auto layerBox = [&videoFrame, &offscreenBufferSize](
                 const std::optional<ftk::Box2F>& bounds)
             {
