@@ -274,12 +274,3 @@ configure_package_config_file(
 install(
     FILES ${CMAKE_CURRENT_BINARY_DIR}/tlRenderConfig.cmake
     DESTINATION lib/cmake/tlRender)
-
-#-------------------------------------------------------------------------------
-# Packaging
-
-if(CMAKE_BUILD_TYPE MATCHES "^Release$")
-    include(Package)
-    include(CPack)
-    include(InstallRequiredSystemLibraries)
-endif()
