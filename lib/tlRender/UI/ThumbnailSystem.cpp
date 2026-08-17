@@ -76,6 +76,22 @@ namespace tl
             }
 
 
+            // The I/O options are part of the key. The timeline is created
+            // with them, so one opened knowing where ffprobe lives is not the
+            // same timeline as one opened without.
+            std::string getTimelineKey(
+                const ftk::Path& path,
+                const IOOptions& options)
+            {
+                std::stringstream ss;
+                ss << path.get() << ";";
+                for (const auto& i : options)
+                {
+                    ss << i.first << ":" << i.second << ";";
+                }
+                return ss.str();
+            }
+
             // Every thumbnail is a frame of a timeline. A plain file is a
             // timeline of one clip, so one path covers files, bundles and
             // timelines alike, and nothing needs a syntax for naming what is
@@ -84,17 +100,19 @@ namespace tl
                 const std::shared_ptr<ftk::Context>& context,
                 ftk::LRUCache<std::string, std::shared_ptr<Timeline> >& cache,
                 std::mutex& mutex,
-                const ftk::Path& path)
+                const ftk::Path& path,
+                const IOOptions& ioOptions)
             {
                 // One timeline per file, shared by the three threads rather
                 // than one each. Opening a bundle of 25,000 entries takes
                 // seconds, so opening it three times is three times too
                 // many. The timeline has no thread of its own and guards its
                 // caches, so the threads can read it at once.
+                const std::string key = getTimelineKey(path, ioOptions);
                 std::shared_ptr<Timeline> out;
                 {
                     std::unique_lock<std::mutex> lock(mutex);
-                    if (cache.get(path.get(), out))
+                    if (cache.get(key, out))
                     {
                         return out;
                     }
@@ -107,15 +125,22 @@ namespace tl
                 // two ends up in the cache.
                 Options options;
                 options.threaded = false;
+                // The reader is created here, so whatever it needs from the
+                // caller has to arrive now. The command line FFmpeg plugin
+                // takes the location of ffmpeg and ffprobe this way, and
+                // without them falls back to bare names, which a bundle
+                // cannot find: an application started from the Finder gets
+                // the launch daemon's PATH, not a shell's.
+                options.ioOptions = ioOptions;
                 out = Timeline::create(context, path, options);
                 {
                     std::unique_lock<std::mutex> lock(mutex);
                     std::shared_ptr<Timeline> other;
-                    if (cache.get(path.get(), other))
+                    if (cache.get(key, other))
                     {
                         return other;
                     }
-                    cache.add(path.get(), out);
+                    cache.add(key, out);
                 }
                 return out;
             }
@@ -758,9 +783,11 @@ namespace tl
                     {
                         auto context = p.context.lock();
                         if (auto timeline = getTimeline(
-                            context, p.ioCache, p.ioCacheMutex, request->path))
+                            context, p.ioCache, p.ioCacheMutex, request->path,
+                            request->options))
                         {
-                            timeline->getMediaInfo(request->mediaPath, info);
+                            timeline->getMediaInfo(
+                                request->mediaPath, info, request->options);
                         }
                     }
                     catch (const std::exception&)
@@ -814,7 +841,8 @@ namespace tl
                     {
                         auto context = p.context.lock();
                         auto timeline = getTimeline(
-                            context, p.ioCache, p.ioCacheMutex, request->path);
+                            context, p.ioCache, p.ioCacheMutex, request->path,
+                            request->options);
                         IOInfo info;
                         if (timeline &&
                             timeline->getMediaInfo(
@@ -1081,7 +1109,8 @@ namespace tl
                     {
                         auto context = p.context.lock();
                         auto timeline = getTimeline(
-                            context, p.ioCache, p.ioCacheMutex, request->path);
+                            context, p.ioCache, p.ioCacheMutex, request->path,
+                            request->options);
                         IOInfo info;
                         if (timeline &&
                             timeline->getMediaInfo(
