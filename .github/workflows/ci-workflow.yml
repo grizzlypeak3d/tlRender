@@ -107,44 +107,6 @@ jobs:
         cd build-Debug
         xvfb-run ctest --verbose --rerun-failed --output-on-failure -C Debug
 
-  linux-package:
-    runs-on: ubuntu-latest
-
-    env:
-      CMAKE_BUILD_PARALLEL_LEVEL: 4
-
-    steps:
-    - uses: actions/checkout@v6
-      with:
-        path: tl
-        submodules: recursive
-    - uses: actions/setup-python@v6
-      with:
-        python-version: '3.11'
-
-    - name: Setup environment
-      run: |
-        echo "$PWD/install-Release/bin" >> $GITHUB_PATH
-        echo "LD_LIBRARY_PATH=$PWD/install-Release/lib:$LD_LIBRARY_PATH" >> $GITHUB_ENV
-        echo "PYTHONPATH=$PWD/install-Release/lib:$PYTHONPATH" >> $GITHUB_ENV
-        cmake --version
-        python --version
-        sh tl/etc/Linux/setup-gha.sh
-
-    - name: Build tlRender
-      run: |
-        sh tl/etc/Linux/sbuild.sh tl Release package
-
-    - name: Package
-      run: |
-        cmake --build build-Release -j 4 --target package
-
-    - uses: actions/upload-artifact@v7
-      with:
-        name: tlRender-Linux-Packages
-        path: build-Release/tlRender-*.tar.gz
-        archive: false
-
   macos-build:
     runs-on: macos-latest
 
@@ -180,46 +142,6 @@ jobs:
     #    export DYLD_LIBRARY_PATH=$PWD/install-Debug/lib:$DYLD_LIBRARY_PATH
     #    cd build-Debug
     #    ctest --verbose --rerun-failed --output-on-failure -C Debug
-
-  macos-package:
-    runs-on: macos-latest
-
-    env:
-      CMAKE_BUILD_PARALLEL_LEVEL: 4
-
-    steps:
-    - uses: actions/checkout@v6
-      with:
-        path: tl
-        submodules: recursive
-    - uses: actions/setup-python@v6
-      with:
-        python-version: '3.11'
-
-    # \bug DYLD_LIBRARY_PATH is not being set here?
-    - name: Setup environment
-      run: |
-        echo "$PWD/install-Release/bin" >> $GITHUB_PATH
-        echo "DYLD_LIBRARY_PATH=$PWD/install-Release/lib:$DYLD_LIBRARY_PATH" >> $GITHUB_ENV
-        echo "PYTHONPATH=$PWD/install-Release/lib:$PYTHONPATH" >> $GITHUB_ENV
-        cmake --version
-        python --version
-
-    - name: Build tlRender
-      run: |
-        export DYLD_LIBRARY_PATH=$PWD/install-Release/lib:$DYLD_LIBRARY_PATH
-        sh tl/etc/macOS/sbuild.sh tl Release package-macos
-
-    - name: Package
-      run: |
-        export DYLD_LIBRARY_PATH=$PWD/install-Release/lib:$DYLD_LIBRARY_PATH
-        cmake --build build-Release -j 4 --target package
-
-    - uses: actions/upload-artifact@v7
-      with:
-        name: tlRender-macOS-Packages
-        path: build-Release/tlRender-*.dmg
-        archive: false
 
   windows-build:
     runs-on: windows-latest
@@ -258,45 +180,3 @@ jobs:
     #  run: |
     #    cd build-Debug
     #    ctest --verbose --rerun-failed --output-on-failure -C Debug
-
-  windows-package:
-    runs-on: windows-latest
-
-    env:
-      CMAKE_BUILD_PARALLEL_LEVEL: 2
-
-    steps:
-    - uses: actions/checkout@v6
-      with:
-        path: tl
-        submodules: recursive
-    - uses: actions/setup-python@v6
-      with:
-        python-version: '3.11'
-    - uses: ilammy/setup-nasm@v1
-
-    # \bug Any spaces before the ">>" will be considered part of the path.
-    - name: Setup environment
-      shell: cmd
-      run: |
-        echo %CD%\build-Release\bin>> %GITHUB_PATH%
-        echo %CD%\build-Release\lib>> %GITHUB_PATH%
-        echo CTEST_OUTPUT_ON_FAILURE=1 >> %GITHUB_ENV%
-        cmake --version
-        python --version
-
-    - name: Build tlRender
-      shell: cmd
-      run: |
-        tl\etc\Windows\sbuild.bat tl Release package-windows
-
-    - name: Package
-      shell: cmd
-      run: |
-        cmake --build build-Release -j 4 --config Release --target package
-
-    - uses: actions/upload-artifact@v7
-      with:
-        name: tlRender-Windows-Packages
-        path: build-Release\tlRender-*.zip
-        archive: false
