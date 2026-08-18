@@ -15,6 +15,7 @@ extern "C"
 #include <libavutil/channel_layout.h>
 #include <libavutil/imgutils.h>
 #include <libavutil/opt.h>
+#include <libavutil/pixdesc.h>
 #include <libswresample/swresample.h>
 }
 
@@ -143,6 +144,24 @@ namespace tl
                 if (v >= 0)
                 {
                     p.avCodecContext->colorspace = static_cast<AVColorSpace>(v);
+                }
+            }
+            // The QuickTime muxer only writes a color description that is
+            // complete -- primaries, transfer, and matrix together -- so a
+            // caller that said what the pixels are but not the matrix would
+            // get nothing written at all. The conversion below runs the
+            // software scaler with its default BT.601 coefficients, so that
+            // is the matrix the file truthfully gets.
+            if (p.avCodecContext->color_primaries != AVCOL_PRI_UNSPECIFIED &&
+                p.avCodecContext->color_trc != AVCOL_TRC_UNSPECIFIED &&
+                AVCOL_SPC_UNSPECIFIED == p.avCodecContext->colorspace)
+            {
+                const AVPixFmtDescriptor* avPixFmtDesc =
+                    av_pix_fmt_desc_get(p.avCodecContext->pix_fmt);
+                if (avPixFmtDesc &&
+                    !(avPixFmtDesc->flags & AV_PIX_FMT_FLAG_RGB))
+                {
+                    p.avCodecContext->colorspace = AVCOL_SPC_BT470BG;
                 }
             }
 

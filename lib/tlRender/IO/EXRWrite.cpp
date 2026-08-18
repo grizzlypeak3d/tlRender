@@ -66,7 +66,15 @@ namespace tl
                 Imf::INCREASING_Y,
                 toImf(_compression));
             header.dwaCompressionLevel() = _dwaCompressionLevel;
-            writeTags(image->getTags(), SeqOptions().defaultSpeed, header);
+            // The tags the writer was opened with describe the output --
+            // e.g., its chromaticities -- and each frame image's own tags
+            // go over them.
+            ftk::ImageTags tags = _info.tags;
+            for (const auto& i : image->getTags())
+            {
+                tags[i.first] = i.second;
+            }
+            writeTags(tags, SeqOptions().defaultSpeed, header);
             Imf::RgbaOutputFile f(fileName.c_str(), header);
             const size_t scanlineSize = static_cast<size_t>(info.size.w) * 4 * 2;
             const uint8_t* p = image->getData() + (info.size.h - 1) * scanlineSize;
