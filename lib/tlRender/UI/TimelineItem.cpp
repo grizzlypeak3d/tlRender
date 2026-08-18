@@ -1347,12 +1347,19 @@ namespace tl
                     std::round((frame - start) * perFrame));
                 if (mediaGeom.min.x + x > activeRect.max.x)
                     break;
-                const ftk::Box2I box(
+                // The span this frame covers: its own place up to the next
+                // one's. Zoomed in past a thumbnail per frame, the same image
+                // tiles across the span, so the strip stays filled instead of
+                // trailing black after each frame.
+                const int64_t frameNext = std::min(frame + frameStep, end);
+                const int xNext = static_cast<int>(
+                    std::round((frameNext - start) * perFrame));
+                const ftk::Box2I spanBox(
                     mediaGeom.min.x + x,
                     mediaGeom.min.y,
-                    thumbnailWidth,
+                    std::max(xNext - x, thumbnailWidth),
                     displayOptions.thumbnailHeight);
-                if (!ftk::intersects(box, activeRect))
+                if (!ftk::intersects(spanBox, activeRect))
                     continue;
 
                 const OTIO_NS::RationalTime time(
@@ -1364,13 +1371,11 @@ namespace tl
                     trimmedRange,
                     item.ioInfo->videoTime->duration().rate());
 
-                Item::Media media;
-                media.x = x;
-                media.w = thumbnailWidth;
+                std::shared_ptr<ftk::Image> image;
                 if (const auto i = item.thumbnails.find(mediaTime);
                     i != item.thumbnails.end())
                 {
-                    media.image = i->second;
+                    image = i->second;
                     thumbnails[mediaTime] = i->second;
                 }
                 else if (item.thumbnailRequests.find(mediaTime) == item.thumbnailRequests.end())
@@ -1383,7 +1388,31 @@ namespace tl
                         item.ioOptions);
                 }
                 wanted.insert(mediaTime);
-                item.media.push_back(std::move(media));
+
+                // The tiles share the one image and the one request; the last
+                // may run into the next frame's place, and the next frame
+                // draws over it, an overlap of the same kind the rounded step
+                // already makes.
+                for (int tileX = x;;)
+                {
+                    const ftk::Box2I box(
+                        mediaGeom.min.x + tileX,
+                        mediaGeom.min.y,
+                        thumbnailWidth,
+                        displayOptions.thumbnailHeight);
+                    if (ftk::intersects(box, activeRect))
+                    {
+                        Item::Media media;
+                        media.x = tileX;
+                        media.w = thumbnailWidth;
+                        media.image = image;
+                        item.media.push_back(std::move(media));
+                    }
+                    tileX += thumbnailWidth;
+                    if (tileX >= xNext ||
+                        mediaGeom.min.x + tileX > activeRect.max.x)
+                        break;
+                }
             }
             item.thumbnails = std::move(thumbnails);
 
