@@ -361,7 +361,8 @@ namespace tl
         std::future<VideoData> _readVideo(
             const OTIO_NS::Clip*,
             const OTIO_NS::RationalTime&,
-            const IOOptions&);
+            const IOOptions&,
+            std::string* path = nullptr);
         std::future<AudioData> _readAudio(
             const OTIO_NS::Clip*,
             const OTIO_NS::TimeRange&,

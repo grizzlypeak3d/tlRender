@@ -8,6 +8,10 @@ namespace tl
     bool VideoLayer::operator == (const VideoLayer& other) const
     {
         return
+            path == other.path &&
+            pathB == other.pathB &&
+            ocioInput == other.ocioInput &&
+            ocioInputB == other.ocioInputB &&
             image == other.image &&
             imageOptions == other.imageOptions &&
             imageB == other.imageB &&

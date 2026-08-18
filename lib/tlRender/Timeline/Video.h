@@ -42,6 +42,20 @@ namespace tl
         Transition                  transition      = Transition::None;
         float                       transitionValue = 0.F;
 
+        //! The path of the media the image came from, so a consumer can
+        //! resolve things about the source; e.g., an input color space.
+        std::string                 path;
+
+        //! The path of the media "imageB" came from.
+        std::string                 pathB;
+
+        //! Per layer overrides of the OCIO input color space; empty uses
+        //! the item's. Filled by a consumer that resolves them from the
+        //! paths and the image tags; the timeline itself says nothing
+        //! about color.
+        std::string                 ocioInput;
+        std::string                 ocioInputB;
+
         //! Whether the image stands in for a frame the media does not have,
         //! rather than being the frame that was asked for. Carried per layer
         //! so that a comparison can say which of its sources it is about.

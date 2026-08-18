@@ -2214,7 +2214,8 @@ namespace tl
     std::future<VideoData> Timeline::_readVideo(
         const OTIO_NS::Clip* clip,
         const OTIO_NS::RationalTime& time,
-        const IOOptions& options)
+        const IOOptions& options,
+        std::string* path)
     {
         FTK_P();
         std::future<VideoData> out;
@@ -2225,6 +2226,19 @@ namespace tl
         // be read statefully keeps its own reader.
         auto seq = _getSeqDecode(mediaReference, optionsMerged);
         auto read = seq ? nullptr : _getVideoRead(mediaReference, optionsMerged);
+        if (path)
+        {
+            // The reader's own path rather than one derived again from the
+            // media reference, so the layer names exactly what was read.
+            if (seq)
+            {
+                *path = seq->getPath().get();
+            }
+            else if (read)
+            {
+                *path = read->getPath().get();
+            }
+        }
         const auto timeRangeOpt = p.getTrimmedRangeInParent(clip);
         if ((seq || read) && timeRangeOpt.has_value())
         {
@@ -2613,7 +2627,7 @@ namespace tl
                                 {
                                     if (auto otioClip = dynamic_cast<const OTIO_NS::Clip*>(otioItem))
                                     {
-                                        videoLayerData.image = _readVideo(otioClip, requestTime, request->options);
+                                        videoLayerData.image = _readVideo(otioClip, requestTime, request->options, &videoLayerData.path);
                                         videoLayerData.bounds = getCanvasBox(
                                             getMediaReferenceBounds(p.mediaReference(otioClip)),
                                             p.options.spatial,
@@ -2634,7 +2648,7 @@ namespace tl
                                             const auto transitionNeighbors = otioTrack->neighbors_of(otioTransition, &errorStatus);
                                             if (const auto otioClipB = dynamic_cast<OTIO_NS::Clip*>(transitionNeighbors.second.value))
                                             {
-                                                videoLayerData.imageB = _readVideo(otioClipB, requestTime, request->options);
+                                                videoLayerData.imageB = _readVideo(otioClipB, requestTime, request->options, &videoLayerData.pathB);
                                                 videoLayerData.boundsB = getCanvasBox(
                                                     getMediaReferenceBounds(p.mediaReference(otioClipB)),
                                                     p.options.spatial,
@@ -2650,6 +2664,7 @@ namespace tl
                                         {
                                             std::swap(videoLayerData.image, videoLayerData.imageB);
                                             std::swap(videoLayerData.bounds, videoLayerData.boundsB);
+                                            std::swap(videoLayerData.path, videoLayerData.pathB);
                                             videoLayerData.transition = toTransition(otioTransition->transition_type());
                                             videoLayerData.transitionValue = _transitionValue(
                                                 requestTime.value(),
@@ -2658,7 +2673,7 @@ namespace tl
                                             const auto transitionNeighbors = otioTrack->neighbors_of(otioTransition, &errorStatus);
                                             if (const auto otioClipB = dynamic_cast<OTIO_NS::Clip*>(transitionNeighbors.first.value))
                                             {
-                                                videoLayerData.image = _readVideo(otioClipB, requestTime, request->options);
+                                                videoLayerData.image = _readVideo(otioClipB, requestTime, request->options, &videoLayerData.path);
                                                 videoLayerData.bounds = getCanvasBox(
                                                     getMediaReferenceBounds(p.mediaReference(otioClipB)),
                                                     p.options.spatial,
@@ -3082,6 +3097,8 @@ namespace tl
                         ftk::LogType::Error);
                 }
             }
+            layer.path = i.path;
+            layer.pathB = i.pathB;
             layer.bounds = i.bounds;
             layer.boundsB = i.boundsB;
             layer.transition = i.transition;

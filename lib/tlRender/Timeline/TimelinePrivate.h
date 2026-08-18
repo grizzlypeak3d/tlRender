@@ -174,6 +174,8 @@ namespace tl
 
             std::future<VideoData> image;
             std::future<VideoData> imageB;
+            std::string path;
+            std::string pathB;
             std::optional<ftk::Box2F> bounds;
             std::optional<ftk::Box2F> boundsB;
             Transition transition = Transition::None;
