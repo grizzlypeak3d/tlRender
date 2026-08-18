@@ -36,5 +36,8 @@ ExternalProject_Add(
     DEPENDS LibRaw-source
     GIT_REPOSITORY ${LibRaw_cmake_GIT_REPOSITORY}
     GIT_TAG ${LibRaw_cmake_GIT_TAG}
+    PATCH_COMMAND ${CMAKE_COMMAND}
+        -DLIBRAW_CMAKELISTS=<SOURCE_DIR>/CMakeLists.txt
+        -P ${CMAKE_CURRENT_SOURCE_DIR}/LibRaw-patch/patch.cmake
     LIST_SEPARATOR |
     CMAKE_ARGS ${LibRaw_ARGS})
