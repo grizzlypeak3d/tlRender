@@ -1,0 +1,72 @@
+{
+    "OTIO_SCHEMA": "Timeline.1",
+    "metadata": {},
+    "name": "ExrAndJpegProxy",
+    "tracks": {
+        "OTIO_SCHEMA": "Stack.1",
+        "children": [
+            {
+                "OTIO_SCHEMA": "Track.1",
+                "children": [
+                    {
+                        "OTIO_SCHEMA": "Clip.2",
+                        "name": "Cubes",
+                        "active_media_reference_key": "DEFAULT_MEDIA",
+                        "media_references": {
+                            "DEFAULT_MEDIA": {
+                                "OTIO_SCHEMA": "ExternalReference.1",
+                                "available_range": {
+                                    "OTIO_SCHEMA": "TimeRange.1",
+                                    "duration": {
+                                        "OTIO_SCHEMA": "RationalTime.1",
+                                        "rate": 24,
+                                        "value": 1
+                                    },
+                                    "start_time": {
+                                        "OTIO_SCHEMA": "RationalTime.1",
+                                        "rate": 24,
+                                        "value": 1
+                                    }
+                                },
+                                "target_url": "Cubes.0001.exr"
+                            },
+                            "Proxy": {
+                                "OTIO_SCHEMA": "ExternalReference.1",
+                                "available_range": {
+                                    "OTIO_SCHEMA": "TimeRange.1",
+                                    "duration": {
+                                        "OTIO_SCHEMA": "RationalTime.1",
+                                        "rate": 24,
+                                        "value": 1
+                                    },
+                                    "start_time": {
+                                        "OTIO_SCHEMA": "RationalTime.1",
+                                        "rate": 24,
+                                        "value": 1
+                                    }
+                                },
+                                "target_url": "Cubes.0001.jpg"
+                            }
+                        },
+                        "source_range": {
+                            "OTIO_SCHEMA": "TimeRange.1",
+                            "duration": {
+                                "OTIO_SCHEMA": "RationalTime.1",
+                                "rate": 24,
+                                "value": 1
+                            },
+                            "start_time": {
+                                "OTIO_SCHEMA": "RationalTime.1",
+                                "rate": 24,
+                                "value": 1
+                            }
+                        }
+                    }
+                ],
+                "kind": "Video",
+                "name": "Video"
+            }
+        ],
+        "name": "tracks"
+    }
+}
