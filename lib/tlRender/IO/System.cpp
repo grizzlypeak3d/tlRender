@@ -133,7 +133,10 @@ namespace tl
 
     FileType ReadSystem::getFileType(const std::string& ext) const
     {
-        FileType out = FileType::Unknown;
+        // The first plugin that claims the extension answers, the same
+        // order that picks the plugin to read with; e.g., ".exr" is the
+        // EXR plugin's sequence, not FFmpeg's movie, even though the
+        // FFmpeg image muxers claim it too.
         const std::string lower = ftk::toLower(ext);
         for (const auto& plugin : _plugins)
         {
@@ -142,12 +145,11 @@ namespace tl
                 const auto& exts = plugin->getExts(static_cast<int>(fileType));
                 if (const auto i = exts.find(lower); i != exts.end())
                 {
-                    out = fileType;
-                    break;
+                    return fileType;
                 }
             }
         }
-        return out;
+        return FileType::Unknown;
     }
 
     namespace
@@ -332,7 +334,8 @@ namespace tl
 
     FileType WriteSystem::getFileType(const std::string& ext) const
     {
-        FileType out = FileType::Unknown;
+        // The first plugin that claims the extension answers, the same
+        // order that picks the plugin to write with.
         const std::string lower = ftk::toLower(ext);
         for (const auto& plugin : _plugins)
         {
@@ -341,12 +344,11 @@ namespace tl
                 const auto& exts = plugin->getExts(static_cast<int>(fileType));
                 if (const auto i = exts.find(lower); i != exts.end())
                 {
-                    out = fileType;
-                    break;
+                    return fileType;
                 }
             }
         }
-        return out;
+        return FileType::Unknown;
     }
 
     std::shared_ptr<IWrite> WriteSystem::write(
