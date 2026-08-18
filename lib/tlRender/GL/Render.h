@@ -13,6 +13,10 @@ namespace tl
     //! Timeline OpenGL support
     namespace gl
     {
+#if defined(TLRENDER_OCIO)
+        struct OCIOData;
+#endif // TLRENDER_OCIO
+
         //! Timeline OpenGL renderer.
         class TL_API_TYPE Render : public IRender
         {
@@ -34,6 +38,10 @@ namespace tl
                 const std::shared_ptr<ftk::FontSystem>&);
 
             TL_API void setOCIOOptions(const OCIOOptions&) override;
+            void setOCIOInputResolver(
+                const std::function<std::string(
+                    const std::string& path,
+                    const ftk::ImageTags&)>&) override;
             TL_API void setLUTOptions(const LUTOptions&) override;
 
             TL_API void drawBackground(
@@ -120,6 +128,15 @@ namespace tl
             std::shared_ptr<ftk::gl::Shader> _displayShader(
                 const std::string& ocioInput = std::string());
             void _displayShadersReset();
+#if defined(TLRENDER_OCIO)
+            std::shared_ptr<OCIOData> _ocioData(const std::string& input);
+#endif // TLRENDER_OCIO
+            std::shared_ptr<ftk::gl::Shader> _toLinearShader(
+                const std::string& input);
+            std::string _layerOCIOInput(
+                const std::string& layerInput,
+                const std::string& path,
+                const std::shared_ptr<ftk::Image>&);
 
             void _drawVideoA(
                 const std::vector<VideoFrame>&,

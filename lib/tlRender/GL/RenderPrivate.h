@@ -28,6 +28,9 @@ namespace tl
         std::string vertexSource();
         std::string meshFragmentSource();
         std::string textureFragmentSource();
+        std::string toLinearFragmentSource(
+            const std::string& toLinearDef,
+            const std::string& toLinear);
         std::string displayFragmentSource(
             const std::string& toLinearDef,
             const std::string& toLinear,
@@ -107,6 +110,14 @@ namespace tl
             std::map<std::string, std::shared_ptr<OCIOData> > ocioData;
             // What _displayShader() most recently bound, for the textures.
             std::shared_ptr<OCIOData> ocioDataBound;
+            // Resolves an input color space for a layer from where it came
+            // from; the results are kept per path until the options change.
+            std::function<std::string(
+                const std::string&,
+                const ftk::ImageTags&)> ocioInputResolver;
+            std::map<std::string, std::string> ocioInputCache;
+            // What _toLinearShader() most recently bound, for the textures.
+            std::shared_ptr<OCIOData> ocioToLinearBound;
             std::unique_ptr<OCIOLUTData> lutData;
 #endif // TLRENDER_OCIO
 

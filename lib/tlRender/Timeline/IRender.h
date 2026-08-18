@@ -25,6 +25,17 @@ namespace tl
         //! Set the OpenColorIO options.
         TL_API virtual void setOCIOOptions(const OCIOOptions&) = 0;
 
+        //! Set a resolver for per layer OCIO input color spaces: given the
+        //! path of the media a layer came from and the image's metadata
+        //! tags, it names the input color space, or nothing. Layers whose
+        //! own input is empty are resolved through it, so each clip of a
+        //! timeline can be drawn through its own input. The results are
+        //! cached per path until the options change.
+        TL_API virtual void setOCIOInputResolver(
+            const std::function<std::string(
+                const std::string& path,
+                const ftk::ImageTags&)>&) = 0;
+
         //! Set the LUT options.
         TL_API virtual void setLUTOptions(const LUTOptions&) = 0;
 

@@ -23,6 +23,9 @@ namespace tl
         {
             std::shared_ptr<ftk::Observable<CompareOptions> > compareOptions;
             std::shared_ptr<ftk::Observable<OCIOOptions> > ocioOptions;
+            std::function<std::string(
+                const std::string&,
+                const ftk::ImageTags&)> ocioInputResolver;
             std::shared_ptr<ftk::Observable<LUTOptions> > lutOptions;
             std::shared_ptr<ftk::ObservableList<ftk::ImageOptions> > imageOptions;
             std::shared_ptr<ftk::ObservableList<DisplayOptions> > displayOptions;
@@ -169,6 +172,16 @@ namespace tl
                 p.doRender = true;
                 setDrawUpdate();
             }
+        }
+
+        void Viewport::setOCIOInputResolver(
+            const std::function<std::string(
+                const std::string& path,
+                const ftk::ImageTags&)>& value)
+        {
+            FTK_P();
+            p.ocioInputResolver = value;
+            setDrawUpdate();
         }
 
         const LUTOptions& Viewport::getLUTOptions() const
@@ -778,6 +791,7 @@ namespace tl
                         ftk::gl::OffscreenBufferBinding binding(p.buffer);
                         render->clearViewport(ftk::Color4F(0.F, 0.F, 0.F, 0.F));
                         render->setOCIOOptions(p.ocioOptions->get());
+                        render->setOCIOInputResolver(p.ocioInputResolver);
                         render->setLUTOptions(p.lutOptions->get());
                         render->setTransform(pm * vm);
                         render->drawVideo(

@@ -786,6 +786,144 @@ namespace tl
                 imageOptions->imageFilters :
                 ftk::ImageFilters();
             offscreenBufferOptions.colorFilters = filters;
+
+            // Whether the layers composite in linear: each one transforms
+            // through its own input color space ahead of the blend, and the
+            // display transform picks up from the scene linear role. Only
+            // when there is an input to draw through and the configuration
+            // says what linear is; otherwise the composite stays in the
+            // source space and the display transform carries the whole
+            // conversion, as before.
+            bool perLayer = false;
+            std::vector<std::pair<std::string, std::string> > layerInputs;
+#if defined(TLRENDER_OCIO)
+            if (p.ocioOptions.enabled &&
+                !p.ocioOptions.display.empty() &&
+                !p.ocioOptions.view.empty())
+            {
+                const std::string itemInput = !displayOptions.ocioInput.empty() ?
+                    displayOptions.ocioInput :
+                    p.ocioOptions.input;
+                for (const auto& layer : videoFrame.layers)
+                {
+                    std::string in = _layerOCIOInput(
+                        layer.ocioInput, layer.path, layer.image);
+                    if (in.empty())
+                    {
+                        in = itemInput;
+                    }
+                    std::string inB = _layerOCIOInput(
+                        layer.ocioInputB, layer.pathB, layer.imageB);
+                    if (inB.empty())
+                    {
+                        inB = itemInput;
+                    }
+                    layerInputs.push_back(std::make_pair(in, inB));
+                }
+                std::string probe;
+                for (const auto& i : layerInputs)
+                {
+                    if (!i.first.empty())
+                    {
+                        probe = i.first;
+                        break;
+                    }
+                    if (!i.second.empty())
+                    {
+                        probe = i.second;
+                        break;
+                    }
+                }
+                if (!probe.empty())
+                {
+                    const auto data = _ocioData(probe);
+                    perLayer = data && data->toLinear.shaderDesc;
+                }
+            }
+#endif // TLRENDER_OCIO
+
+            // Draw a layer image, through an input color space to scene
+            // linear when one is given. The transform is a second pass: the
+            // image draws into an intermediate at its place in the buffer,
+            // and the intermediate is copied through the transform into
+            // whatever was bound. The caller's blend state applies to the
+            // copy, so fades behave as they would have.
+            const auto drawLayerImage = [this, &offscreenBufferSize, &transform, colorBuffer](
+                const std::shared_ptr<ftk::Image>& image,
+                const ftk::Box2I& box,
+                const ftk::Color4F& color,
+                const ftk::ImageOptions& imageOptions,
+                const std::string& input)
+            {
+                FTK_P();
+                std::shared_ptr<ftk::gl::Shader> shader;
+#if defined(TLRENDER_OCIO)
+                if (!input.empty())
+                {
+                    shader = _toLinearShader(input);
+                }
+#endif // TLRENDER_OCIO
+                if (shader)
+                {
+                    ftk::gl::OffscreenBufferOptions layerBufferOptions;
+                    if (doCreate(
+                        p.buffers["layer"],
+                        offscreenBufferSize,
+                        colorBuffer,
+                        layerBufferOptions))
+                    {
+                        p.buffers["layer"] = ftk::gl::OffscreenBuffer::create(
+                            offscreenBufferSize,
+                            colorBuffer,
+                            layerBufferOptions);
+                    }
+                    if (!p.buffers["layer"])
+                    {
+                        shader.reset();
+                    }
+                }
+                if (!shader)
+                {
+                    IRender::drawImage(image, box, color, imageOptions);
+                    return;
+                }
+                {
+                    ftk::gl::OffscreenBufferBinding binding(p.buffers["layer"]);
+                    glClearColor(0.F, 0.F, 0.F, 0.F);
+                    glClear(GL_COLOR_BUFFER_BIT);
+                    const ftk::gl::SetAndRestore blend(GL_BLEND, GL_FALSE);
+                    IRender::drawImage(image, box, color, imageOptions);
+                }
+                // Drawing the image bound its own shader; back to ours for
+                // the copy.
+                shader->bind();
+                shader->setUniform("transform.mvp", transform);
+                glActiveTexture(static_cast<GLenum>(GL_TEXTURE0));
+                glBindTexture(GL_TEXTURE_2D, p.buffers["layer"]->getColorID());
+#if defined(TLRENDER_OCIO)
+                if (p.ocioToLinearBound)
+                {
+                    for (size_t i = 0; i < p.ocioToLinearBound->toLinear.textures.size(); ++i)
+                    {
+                        glActiveTexture(GL_TEXTURE0 + 1 + i);
+                        glBindTexture(
+                            p.ocioToLinearBound->toLinear.textures[i].type,
+                            p.ocioToLinearBound->toLinear.textures[i].id);
+                    }
+                }
+#endif // TLRENDER_OCIO
+                if (p.vbos["video"])
+                {
+                    p.vbos["video"]->copy(convert(
+                        ftk::mesh(ftk::Box2I(ftk::V2I(), offscreenBufferSize), true),
+                        p.vbos["video"]->getType()));
+                }
+                if (p.vaos["video"])
+                {
+                    p.vaos["video"]->bind();
+                    p.vaos["video"]->draw(GL_TRIANGLES, 0, p.vbos["video"]->getSize());
+                }
+            };
             if (doCreate(
                 p.buffers["video"],
                 offscreenBufferSize,
@@ -807,8 +945,17 @@ namespace tl
                 glClearColor(0.F, 0.F, 0.F, 0.F);
                 glClear(GL_COLOR_BUFFER_BIT);
 
-                for (const auto& layer : videoFrame.layers)
+                for (size_t layerIndex = 0; layerIndex < videoFrame.layers.size(); ++layerIndex)
                 {
+                    const auto& layer = videoFrame.layers[layerIndex];
+                    const std::string layerInput =
+                        perLayer && layerIndex < layerInputs.size() ?
+                        layerInputs[layerIndex].first :
+                        std::string();
+                    const std::string layerInputB =
+                        perLayer && layerIndex < layerInputs.size() ?
+                        layerInputs[layerIndex].second :
+                        std::string();
                     switch (layer.transition)
                     {
                         case Transition::Dissolve:
@@ -846,14 +993,15 @@ namespace tl
                                     glDisable(GL_BLEND);
                                     auto imageOptionsTmp = imageOptions.get() ? *imageOptions : layer.imageOptions;
                                     imageOptionsTmp.cache = false;
-                                    IRender::drawImage(
+                                    drawLayerImage(
                                         layer.image,
                                         getBox(
                                             layerBox(layer.bounds),
                                             layer.image->getInfo(),
                                             displayOptions.aspectRatio),
                                         ftk::Color4F(1.F, 1.F, 1.F),
-                                        imageOptionsTmp);
+                                        imageOptionsTmp,
+                                        layerInput);
                                     glEnable(GL_BLEND);
                                 }
                                 if (p.buffers["dissolve2"])
@@ -865,14 +1013,15 @@ namespace tl
                                     glDisable(GL_BLEND);
                                     auto imageOptionsTmp = imageOptions.get() ? *imageOptions : layer.imageOptionsB;
                                     imageOptionsTmp.cache = false;
-                                    IRender::drawImage(
+                                    drawLayerImage(
                                         layer.imageB,
                                         getBox(
                                             layerBox(layer.boundsB),
                                             layer.imageB->getInfo(),
                                             displayOptions.aspectRatio),
                                         ftk::Color4F(1.F, 1.F, 1.F),
-                                        imageOptionsTmp);
+                                        imageOptionsTmp,
+                                        layerInputB);
                                     glEnable(GL_BLEND);
                                 }
                                 if (p.buffers["dissolve"] && p.buffers["dissolve2"])
@@ -906,27 +1055,29 @@ namespace tl
                             {
                                 auto imageOptionsTmp = imageOptions.get() ? *imageOptions : layer.imageOptions;
                                 imageOptionsTmp.cache = false;
-                                IRender::drawImage(
+                                drawLayerImage(
                                     layer.image,
                                     getBox(
                                         layerBox(layer.bounds),
                                         layer.image->getInfo(),
                                         displayOptions.aspectRatio),
                                     ftk::Color4F(1.F, 1.F, 1.F, 1.F - layer.transitionValue),
-                                    imageOptionsTmp);
+                                    imageOptionsTmp,
+                                    layerInput);
                             }
                             else if (layer.imageB)
                             {
                                 auto imageOptionsTmp = imageOptions.get() ? *imageOptions : layer.imageOptionsB;
                                 imageOptionsTmp.cache = false;
-                                IRender::drawImage(
+                                drawLayerImage(
                                     layer.imageB,
                                     getBox(
                                         layerBox(layer.boundsB),
                                         layer.imageB->getInfo(),
                                         displayOptions.aspectRatio),
                                     ftk::Color4F(1.F, 1.F, 1.F, layer.transitionValue),
-                                    imageOptionsTmp);
+                                    imageOptionsTmp,
+                                    layerInputB);
                             }
                             break;
                         }
@@ -935,14 +1086,15 @@ namespace tl
                         {
                             auto imageOptionsTmp = imageOptions.get() ? *imageOptions : layer.imageOptions;
                             imageOptionsTmp.cache = false;
-                            IRender::drawImage(
+                            drawLayerImage(
                                 layer.image,
                                 getBox(
                                     layerBox(layer.bounds),
                                     layer.image->getInfo(),
                                     displayOptions.aspectRatio),
                                 ftk::Color4F(1.F, 1.F, 1.F),
-                                imageOptionsTmp);
+                                imageOptionsTmp,
+                                layerInput);
                         }
                         break;
                     }
@@ -1031,7 +1183,11 @@ namespace tl
                     viewportPrev[2],
                     viewportPrev[3]);
 
-                const auto displayShader = _displayShader(displayOptions.ocioInput);
+                // When the layers composited in linear the display picks
+                // up from the scene linear role; the item's input was
+                // already applied per layer.
+                const auto displayShader = _displayShader(
+                    perLayer ? std::string("scene_linear") : displayOptions.ocioInput);
                 displayShader->setUniform("transform.mvp", mvp);
                 displayShader->setUniform("textureSampler", 0);
                 // Enlarging is sampled here rather than resampled into a

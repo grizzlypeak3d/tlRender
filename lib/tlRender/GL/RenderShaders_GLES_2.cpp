@@ -71,6 +71,14 @@ namespace tl
                 "const int VideoLevels_LegalRange = 1;\n";
         }
 
+        std::string toLinearFragmentSource(
+            const std::string&,
+            const std::string&)
+        {
+            // No color management on GLES 2.
+            return std::string();
+        }
+
         std::string displayFragmentSource(
             const std::string& toLinearDef,
             const std::string& toLinear,

@@ -355,6 +355,8 @@ namespace tl
 #if defined(TLRENDER_OCIO)
             p.ocioData.clear();
             p.ocioDataBound.reset();
+            p.ocioToLinearBound.reset();
+            p.ocioInputCache.clear();
 #endif // TLRENDER_OCIO
 
             p.ocioOptions = value;
@@ -373,6 +375,18 @@ namespace tl
 
             _displayShadersReset();
             _displayShader();
+        }
+
+        void Render::setOCIOInputResolver(
+            const std::function<std::string(
+                const std::string& path,
+                const ftk::ImageTags&)>& value)
+        {
+            FTK_P();
+#if defined(TLRENDER_OCIO)
+            p.ocioInputResolver = value;
+            p.ocioInputCache.clear();
+#endif // TLRENDER_OCIO
         }
 
         void Render::setLUTOptions(const LUTOptions& value)
@@ -623,31 +637,11 @@ namespace tl
                 !p.ocioOptions.view.empty())
             {
                 // The item's own input color space when it has one, the
-                // options' otherwise. An input is built the first time it
-                // is seen; one that cannot be built is remembered as
-                // empty, so the item draws without color management
-                // rather than breaking the draw or being tried again
-                // every frame.
+                // options' otherwise.
                 input = !ocioInput.empty() ? ocioInput : p.ocioOptions.input;
                 if (!input.empty())
                 {
-                    auto i = p.ocioData.find(input);
-                    if (i == p.ocioData.end())
-                    {
-                        auto data = std::make_shared<OCIOData>();
-                        try
-                        {
-                            OCIOOptions options = p.ocioOptions;
-                            options.input = input;
-                            ocioDataInit(*data, options);
-                        }
-                        catch (const std::exception&)
-                        {
-                            data.reset();
-                        }
-                        i = p.ocioData.insert(std::make_pair(input, data)).first;
-                    }
-                    ocioData = i->second;
+                    ocioData = _ocioData(input);
                 }
             }
             p.ocioDataBound = ocioData;
@@ -726,15 +720,101 @@ namespace tl
             return shader;
         }
 
+#if defined(TLRENDER_OCIO)
+        std::shared_ptr<OCIOData> Render::_ocioData(const std::string& input)
+        {
+            FTK_P();
+            // Data is built the first time an input is seen; one that
+            // cannot be built is remembered as empty, so it draws without
+            // color management rather than breaking the draw or being
+            // tried again every frame.
+            auto i = p.ocioData.find(input);
+            if (i == p.ocioData.end())
+            {
+                auto data = std::make_shared<OCIOData>();
+                try
+                {
+                    OCIOOptions options = p.ocioOptions;
+                    options.input = input;
+                    ocioDataInit(*data, options);
+                }
+                catch (const std::exception&)
+                {
+                    data.reset();
+                }
+                i = p.ocioData.insert(std::make_pair(input, data)).first;
+            }
+            return i->second;
+        }
+#endif // TLRENDER_OCIO
+
+        std::shared_ptr<ftk::gl::Shader> Render::_toLinearShader(
+            const std::string& input)
+        {
+            FTK_P();
+            std::shared_ptr<ftk::gl::Shader> out;
+#if defined(TLRENDER_OCIO)
+            const auto ocioData = _ocioData(input);
+            if (ocioData && ocioData->toLinear.shaderDesc)
+            {
+                const std::string key = "toLinear:" + input;
+                if (!p.shaders[key])
+                {
+                    const std::string source = toLinearFragmentSource(
+                        ocioData->toLinear.shaderDesc->getShaderText(),
+                        "outColor = ocioToLinearFunc(outColor);");
+                    p.shaders[key] = ftk::gl::Shader::create(vertexSource(), source);
+                }
+                out = p.shaders[key];
+                out->bind();
+                out->setUniform("textureSampler", 0);
+                for (size_t i = 0; i < ocioData->toLinear.textures.size(); ++i)
+                {
+                    out->setUniform(
+                        ocioData->toLinear.textures[i].sampler,
+                        static_cast<int>(1 + i));
+                }
+                p.ocioToLinearBound = ocioData;
+            }
+#endif // TLRENDER_OCIO
+            return out;
+        }
+
+        std::string Render::_layerOCIOInput(
+            const std::string& layerInput,
+            const std::string& path,
+            const std::shared_ptr<ftk::Image>& image)
+        {
+            FTK_P();
+            std::string out = layerInput;
+#if defined(TLRENDER_OCIO)
+            if (out.empty() && p.ocioInputResolver && !path.empty())
+            {
+                auto i = p.ocioInputCache.find(path);
+                if (i == p.ocioInputCache.end())
+                {
+                    i = p.ocioInputCache.insert(std::make_pair(
+                        path,
+                        p.ocioInputResolver(
+                            path,
+                            image ? image->getTags() : ftk::ImageTags()))).first;
+                }
+                out = i->second;
+            }
+#endif // TLRENDER_OCIO
+            return out;
+        }
+
         void Render::_displayShadersReset()
         {
             FTK_P();
-            // The display shaders are keyed by the input color space;
-            // drop them all.
+            // The display and to-linear shaders are keyed by the input
+            // color space; drop them all.
             auto i = p.shaders.begin();
             while (i != p.shaders.end())
             {
-                if (0 == i->first.compare(0, 8, "display:"))
+                if (0 == i->first.compare(0, 8, "display:") ||
+                    0 == i->first.compare(0, 9, "toLinear:"))
                 {
                     i = p.shaders.erase(i);
                 }

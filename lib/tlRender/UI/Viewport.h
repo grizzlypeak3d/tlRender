@@ -52,6 +52,13 @@ namespace tl
             TL_API std::shared_ptr<ftk::IObservable<OCIOOptions> > observeOCIOOptions() const;
             TL_API void setOCIOOptions(const OCIOOptions&);
 
+            //! Set a resolver for per layer OCIO input color spaces; see
+            //! IRender::setOCIOInputResolver().
+            TL_API void setOCIOInputResolver(
+                const std::function<std::string(
+                    const std::string& path,
+                    const ftk::ImageTags&)>&);
+
             ///@}
 
             //! \name LUT Options

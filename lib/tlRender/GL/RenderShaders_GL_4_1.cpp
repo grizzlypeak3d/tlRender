@@ -65,6 +65,29 @@ namespace tl
                 "}\n";
         }
 
+        std::string toLinearFragmentSource(
+            const std::string& toLinearDef,
+            const std::string& toLinear)
+        {
+            return ftk::Format(
+                "#version 410\n"
+                "\n"
+                "in vec2 fTexture;\n"
+                "out vec4 outColor;\n"
+                "\n"
+                "uniform sampler2D textureSampler;\n"
+                "\n"
+                "{0}\n"
+                "\n"
+                "void main()\n"
+                "{\n"
+                "    outColor = texture(textureSampler, fTexture);\n"
+                "    {1}\n"
+                "}\n").
+                arg(toLinearDef).
+                arg(toLinear);
+        }
+
         std::string displayFragmentSource(
             const std::string& toLinearDef,
             const std::string& toLinear,
