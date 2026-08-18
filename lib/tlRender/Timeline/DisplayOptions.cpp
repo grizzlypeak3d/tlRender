@@ -147,7 +147,8 @@ namespace tl
             color == other.color &&
             levels == other.levels &&
             exposure == other.exposure &&
-            softClip == other.softClip;
+            softClip == other.softClip &&
+            ocioInput == other.ocioInput;
     }
 
     bool DisplayOptions::operator != (const DisplayOptions& other) const

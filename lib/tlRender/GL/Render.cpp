@@ -189,6 +189,81 @@ namespace tl
                         (height > 1) ? GL_TEXTURE_2D : GL_TEXTURE_1D));
                 }
             }
+
+            // Load the configuration and build the two stages. The color
+            // corrections apply between the halves of the transform when
+            // the configuration names a scene linear role, so they operate
+            // on linear values (#328); without the role the display stage
+            // carries the whole transform and the corrections stay ahead
+            // of it.
+            void ocioDataInit(OCIOData& data, const OCIOOptions& options)
+            {
+                switch (options.config)
+                {
+                case OCIOConfig::BuiltIn:
+                    data.config = OCIO::Config::CreateFromFile("ocio://default");
+                    break;
+                case OCIOConfig::EnvVar:
+                    data.config = OCIO::Config::CreateFromEnv();
+                    break;
+                case OCIOConfig::File:
+                    if (!options.fileName.empty())
+                    {
+                        data.config = OCIO::Config::CreateFromFile(options.fileName.c_str());
+                    }
+                    break;
+                default: break;
+                }
+                if (!data.config)
+                {
+                    throw std::runtime_error("Cannot get OCIO configuration");
+                }
+
+                std::string displaySrc = options.input;
+                if (data.config->hasRole(OCIO::ROLE_SCENE_LINEAR))
+                {
+                    data.toLinear.processor =
+                        data.config->getProcessor(
+                            options.input.c_str(),
+                            OCIO::ROLE_SCENE_LINEAR);
+                    if (!data.toLinear.processor)
+                    {
+                        throw std::runtime_error("Cannot get OCIO processor");
+                    }
+                    ocioStageInit(
+                        data.toLinear,
+                        "ocioToLinearFunc",
+                        "ocioToLinear");
+                    displaySrc = OCIO::ROLE_SCENE_LINEAR;
+                }
+
+                data.transform = OCIO::DisplayViewTransform::Create();
+                if (!data.transform)
+                {
+                    throw std::runtime_error("Cannot create OCIO transform");
+                }
+                data.transform->setSrc(displaySrc.c_str());
+                data.transform->setDisplay(options.display.c_str());
+                data.transform->setView(options.view.c_str());
+
+                data.lvp = OCIO::LegacyViewingPipeline::Create();
+                if (!data.lvp)
+                {
+                    throw std::runtime_error("Cannot create OCIO viewing pipeline");
+                }
+                data.lvp->setDisplayViewTransform(data.transform);
+                data.lvp->setLooksOverrideEnabled(true);
+                data.lvp->setLooksOverride(options.look.c_str());
+
+                data.display.processor = data.lvp->getProcessor(
+                    data.config,
+                    data.config->getCurrentContext());
+                if (!data.display.processor)
+                {
+                    throw std::runtime_error("Cannot get OCIO processor");
+                }
+                ocioStageInit(data.display, "ocioFunc", "ocio");
+            }
         }
 #endif // TLRENDER_OCIO
 
@@ -278,7 +353,8 @@ namespace tl
                 return;
 
 #if defined(TLRENDER_OCIO)
-            p.ocioData.reset();
+            p.ocioData.clear();
+            p.ocioDataBound.reset();
 #endif // TLRENDER_OCIO
 
             p.ocioOptions = value;
@@ -289,91 +365,13 @@ namespace tl
                 !p.ocioOptions.display.empty() &&
                 !p.ocioOptions.view.empty())
             {
-                p.ocioData.reset(new OCIOData);
-
-                switch (p.ocioOptions.config)
-                {
-                case OCIOConfig::BuiltIn:
-                    p.ocioData->config = OCIO::Config::CreateFromFile("ocio://default");
-                    break;
-                case OCIOConfig::EnvVar:
-                    p.ocioData->config = OCIO::Config::CreateFromEnv();
-                    break;
-                case OCIOConfig::File:
-                    if (!p.ocioOptions.fileName.empty())
-                    {
-                        p.ocioData->config = OCIO::Config::CreateFromFile(p.ocioOptions.fileName.c_str());
-                    }
-                    break;
-                default: break;
-                }
-                if (!p.ocioData->config)
-                {
-                    throw std::runtime_error("Cannot get OCIO configuration");
-                }
-
-                // The color corrections apply between the two halves of
-                // the transform when the configuration names a scene
-                // linear role, so they operate on linear values (#328);
-                // without the role the display stage carries the whole
-                // transform and the corrections stay ahead of it, as
-                // before.
-                try
-                {
-                    std::string displaySrc = p.ocioOptions.input;
-                    if (p.ocioData->config->hasRole(OCIO::ROLE_SCENE_LINEAR))
-                    {
-                        p.ocioData->toLinear.processor =
-                            p.ocioData->config->getProcessor(
-                                p.ocioOptions.input.c_str(),
-                                OCIO::ROLE_SCENE_LINEAR);
-                        if (!p.ocioData->toLinear.processor)
-                        {
-                            throw std::runtime_error("Cannot get OCIO processor");
-                        }
-                        ocioStageInit(
-                            p.ocioData->toLinear,
-                            "ocioToLinearFunc",
-                            "ocioToLinear");
-                        displaySrc = OCIO::ROLE_SCENE_LINEAR;
-                    }
-
-                    p.ocioData->transform = OCIO::DisplayViewTransform::Create();
-                    if (!p.ocioData->transform)
-                    {
-                        throw std::runtime_error("Cannot create OCIO transform");
-                    }
-                    p.ocioData->transform->setSrc(displaySrc.c_str());
-                    p.ocioData->transform->setDisplay(p.ocioOptions.display.c_str());
-                    p.ocioData->transform->setView(p.ocioOptions.view.c_str());
-
-                    p.ocioData->lvp = OCIO::LegacyViewingPipeline::Create();
-                    if (!p.ocioData->lvp)
-                    {
-                        throw std::runtime_error("Cannot create OCIO viewing pipeline");
-                    }
-                    p.ocioData->lvp->setDisplayViewTransform(p.ocioData->transform);
-                    p.ocioData->lvp->setLooksOverrideEnabled(true);
-                    p.ocioData->lvp->setLooksOverride(p.ocioOptions.look.c_str());
-
-                    p.ocioData->display.processor = p.ocioData->lvp->getProcessor(
-                        p.ocioData->config,
-                        p.ocioData->config->getCurrentContext());
-                    if (!p.ocioData->display.processor)
-                    {
-                        throw std::runtime_error("Cannot get OCIO processor");
-                    }
-                    ocioStageInit(p.ocioData->display, "ocioFunc", "ocio");
-                }
-                catch (const std::exception&)
-                {
-                    p.ocioData.reset();
-                    throw;
-                }
+                auto data = std::make_shared<OCIOData>();
+                ocioDataInit(*data, p.ocioOptions);
+                p.ocioData[p.ocioOptions.input] = data;
             }
 #endif // TLRENDER_OCIO
 
-            p.shaders["display"].reset();
+            _displayShadersReset();
             _displayShader();
         }
 
@@ -538,7 +536,7 @@ namespace tl
             }
 #endif // TLRENDER_OCIO
 
-            p.shaders["display"].reset();
+            _displayShadersReset();
             _displayShader();
         }
 
@@ -613,10 +611,50 @@ namespace tl
             return _p->baseRender->getDiag();
         }
 
-        void Render::_displayShader()
+        std::shared_ptr<ftk::gl::Shader> Render::_displayShader(
+            const std::string& ocioInput)
         {
             FTK_P();
-            if (!p.shaders["display"])
+            std::string input;
+#if defined(TLRENDER_OCIO)
+            std::shared_ptr<OCIOData> ocioData;
+            if (p.ocioOptions.enabled &&
+                !p.ocioOptions.display.empty() &&
+                !p.ocioOptions.view.empty())
+            {
+                // The item's own input color space when it has one, the
+                // options' otherwise. An input is built the first time it
+                // is seen; one that cannot be built is remembered as
+                // empty, so the item draws without color management
+                // rather than breaking the draw or being tried again
+                // every frame.
+                input = !ocioInput.empty() ? ocioInput : p.ocioOptions.input;
+                if (!input.empty())
+                {
+                    auto i = p.ocioData.find(input);
+                    if (i == p.ocioData.end())
+                    {
+                        auto data = std::make_shared<OCIOData>();
+                        try
+                        {
+                            OCIOOptions options = p.ocioOptions;
+                            options.input = input;
+                            ocioDataInit(*data, options);
+                        }
+                        catch (const std::exception&)
+                        {
+                            data.reset();
+                        }
+                        i = p.ocioData.insert(std::make_pair(input, data)).first;
+                    }
+                    ocioData = i->second;
+                }
+            }
+            p.ocioDataBound = ocioData;
+#endif // TLRENDER_OCIO
+
+            const std::string key = "display:" + input;
+            if (!p.shaders[key])
             {
                 std::string toLinearDef;
                 std::string toLinear;
@@ -626,14 +664,14 @@ namespace tl
                 std::string lut;
 
 #if defined(TLRENDER_OCIO)
-                if (p.ocioData && p.ocioData->toLinear.shaderDesc)
+                if (ocioData && ocioData->toLinear.shaderDesc)
                 {
-                    toLinearDef = p.ocioData->toLinear.shaderDesc->getShaderText();
+                    toLinearDef = ocioData->toLinear.shaderDesc->getShaderText();
                     toLinear = "outColor = ocioToLinearFunc(outColor);";
                 }
-                if (p.ocioData && p.ocioData->display.shaderDesc)
+                if (ocioData && ocioData->display.shaderDesc)
                 {
-                    ocioDef = p.ocioData->display.shaderDesc->getShaderText();
+                    ocioDef = ocioData->display.shaderDesc->getShaderText();
                     ocio = "outColor = ocioFunc(outColor);";
                 }
                 if (p.lutData && p.lutData->shaderDesc)
@@ -650,40 +688,61 @@ namespace tl
                     lutDef,
                     lut,
                     p.lutOptions.order);
-                p.shaders["display"] = ftk::gl::Shader::create(vertexSource(), source);
+                p.shaders[key] = ftk::gl::Shader::create(vertexSource(), source);
             }
-            p.shaders["display"]->bind();
-            p.shaders["display"]->setUniform("transform.mvp", getTransform());
+            const auto shader = p.shaders[key];
+            shader->bind();
+            shader->setUniform("transform.mvp", getTransform());
 #if defined(TLRENDER_OCIO)
             size_t texturesOffset = 1;
-            if (p.ocioData)
+            if (ocioData)
             {
-                for (size_t i = 0; i < p.ocioData->toLinear.textures.size(); ++i)
+                for (size_t i = 0; i < ocioData->toLinear.textures.size(); ++i)
                 {
-                    p.shaders["display"]->setUniform(
-                        p.ocioData->toLinear.textures[i].sampler,
+                    shader->setUniform(
+                        ocioData->toLinear.textures[i].sampler,
                         static_cast<int>(texturesOffset + i));
                 }
-                texturesOffset += p.ocioData->toLinear.textures.size();
-                for (size_t i = 0; i < p.ocioData->display.textures.size(); ++i)
+                texturesOffset += ocioData->toLinear.textures.size();
+                for (size_t i = 0; i < ocioData->display.textures.size(); ++i)
                 {
-                    p.shaders["display"]->setUniform(
-                        p.ocioData->display.textures[i].sampler,
+                    shader->setUniform(
+                        ocioData->display.textures[i].sampler,
                         static_cast<int>(texturesOffset + i));
                 }
-                texturesOffset += p.ocioData->display.textures.size();
+                texturesOffset += ocioData->display.textures.size();
             }
             if (p.lutData)
             {
                 for (size_t i = 0; i < p.lutData->textures.size(); ++i)
                 {
-                    p.shaders["display"]->setUniform(
+                    shader->setUniform(
                         p.lutData->textures[i].sampler,
                         static_cast<int>(texturesOffset + i));
                 }
                 texturesOffset += p.lutData->textures.size();
             }
 #endif // TLRENDER_OCIO
+            return shader;
+        }
+
+        void Render::_displayShadersReset()
+        {
+            FTK_P();
+            // The display shaders are keyed by the input color space;
+            // drop them all.
+            auto i = p.shaders.begin();
+            while (i != p.shaders.end())
+            {
+                if (0 == i->first.compare(0, 8, "display:"))
+                {
+                    i = p.shaders.erase(i);
+                }
+                else
+                {
+                    ++i;
+                }
+            }
         }
 
         std::shared_ptr<ftk::IRender> RenderFactory::createRender(

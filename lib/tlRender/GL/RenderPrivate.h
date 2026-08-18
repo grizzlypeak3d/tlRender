@@ -102,8 +102,11 @@ namespace tl
             LUTOptions lutOptions;
 
 #if defined(TLRENDER_OCIO)
-            //! \todo Add a cache for OpenColorIO data.
-            std::unique_ptr<OCIOData> ocioData;
+            // Keyed by the input color space, so that items with
+            // different inputs each draw through their own transform.
+            std::map<std::string, std::shared_ptr<OCIOData> > ocioData;
+            // What _displayShader() most recently bound, for the textures.
+            std::shared_ptr<OCIOData> ocioDataBound;
             std::unique_ptr<OCIOLUTData> lutData;
 #endif // TLRENDER_OCIO
 

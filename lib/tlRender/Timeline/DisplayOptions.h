@@ -161,6 +161,11 @@ namespace tl
         Exposure            exposure;
         SoftClip            softClip;
 
+        //! Per item override of the OCIO input color space; empty uses
+        //! OCIOOptions::input. Runtime state resolved per file rather
+        //! than a setting, so it is not serialized.
+        std::string         ocioInput;
+
         TL_API bool operator == (const DisplayOptions&) const;
         TL_API bool operator != (const DisplayOptions&) const;
     };

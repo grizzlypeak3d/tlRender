@@ -117,7 +117,9 @@ namespace tl
             FTK_API ftk::RenderDiag getDiag() const override;
 
         private:
-            void _displayShader();
+            std::shared_ptr<ftk::gl::Shader> _displayShader(
+                const std::string& ocioInput = std::string());
+            void _displayShadersReset();
 
             void _drawVideoA(
                 const std::vector<VideoFrame>&,
@@ -186,7 +188,8 @@ namespace tl
                 const ftk::Box2I&,
                 const std::shared_ptr<ftk::ImageOptions>&,
                 const DisplayOptions&,
-                ftk::gl::TextureType colorBuffer);
+                ftk::gl::TextureType colorBuffer,
+                const ftk::M44F& mvp);
 
             FTK_PRIVATE();
         };

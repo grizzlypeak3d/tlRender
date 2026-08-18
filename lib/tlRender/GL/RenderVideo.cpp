@@ -273,7 +273,8 @@ namespace tl
                     boxes[0],
                     !imageOptions.empty() ? std::make_shared<ftk::ImageOptions>(imageOptions[0]) : nullptr,
                     !displayOptions.empty() ? displayOptions[0] : DisplayOptions(),
-                    colorBuffer);
+                    colorBuffer,
+                    getTransform());
             }
         }
 
@@ -292,7 +293,8 @@ namespace tl
                     boxes[1],
                     imageOptions.size() > 1 ? std::make_shared<ftk::ImageOptions>(imageOptions[1]) : nullptr,
                     displayOptions.size() > 1 ? displayOptions[1] : DisplayOptions(),
-                    colorBuffer);
+                    colorBuffer,
+                    getTransform());
             }
         }
 
@@ -368,7 +370,8 @@ namespace tl
                     boxes[0],
                     !imageOptions.empty() ? std::make_shared<ftk::ImageOptions>(imageOptions[0]) : nullptr,
                     !displayOptions.empty() ? displayOptions[0] : DisplayOptions(),
-                    colorBuffer);
+                    colorBuffer,
+                    getTransform());
             }
 
             glViewport(
@@ -410,7 +413,8 @@ namespace tl
                     boxes[1],
                     imageOptions.size() > 1 ? std::make_shared<ftk::ImageOptions>(imageOptions[1]) : nullptr,
                     displayOptions.size() > 1 ? displayOptions[1] : DisplayOptions(),
-                    colorBuffer);
+                    colorBuffer,
+                    getTransform());
             }
         }
 
@@ -431,7 +435,8 @@ namespace tl
                     boxes[1],
                     imageOptions.size() > 1 ? std::make_shared<ftk::ImageOptions>(imageOptions[1]) : nullptr,
                     displayOptions.size() > 1 ? displayOptions[1] : DisplayOptions(),
-                    colorBuffer);
+                    colorBuffer,
+                    getTransform());
             }
             if (!videoFrame.empty() && !boxes.empty())
             {
@@ -468,9 +473,12 @@ namespace tl
                     glClearColor(0.F, 0.F, 0.F, 0.F);
                     glClear(GL_COLOR_BUFFER_BIT);
 
-                    p.shaders["display"]->bind();
-                    p.shaders["display"]->setUniform(
-                        "transform.mvp",
+                    _drawVideo(
+                        videoFrame[0],
+                        ftk::Box2I(ftk::V2I(), offscreenBufferSize),
+                        !imageOptions.empty() ? std::make_shared<ftk::ImageOptions>(imageOptions[0]) : nullptr,
+                        !displayOptions.empty() ? displayOptions[0] : DisplayOptions(),
+                        colorBuffer,
                         ftk::ortho(
                             0.F,
                             static_cast<float>(offscreenBufferSize.w),
@@ -478,16 +486,6 @@ namespace tl
                             0.F,
                             -1.F,
                             1.F));
-
-                    _drawVideo(
-                        videoFrame[0],
-                        ftk::Box2I(ftk::V2I(), offscreenBufferSize),
-                        !imageOptions.empty() ? std::make_shared<ftk::ImageOptions>(imageOptions[0]) : nullptr,
-                        !displayOptions.empty() ? displayOptions[0] : DisplayOptions(),
-                        colorBuffer);
-
-                    p.shaders["display"]->bind();
-                    p.shaders["display"]->setUniform("transform.mvp", getTransform());
                 }
 
                 if (p.buffers["overlay"])
@@ -576,17 +574,6 @@ namespace tl
                 glClearColor(0.F, 0.F, 0.F, 0.F);
                 glClear(GL_COLOR_BUFFER_BIT);
 
-                p.shaders["display"]->bind();
-                p.shaders["display"]->setUniform(
-                    "transform.mvp",
-                    ftk::ortho(
-                        0.F,
-                        static_cast<float>(offscreenBufferSize.w),
-                        static_cast<float>(offscreenBufferSize.h),
-                        0.F,
-                        -1.F,
-                        1.F));
-
                 _drawVideo(
                     videoFrame[i],
                     boxes[i],
@@ -596,12 +583,14 @@ namespace tl
                     displayOptions.size() > i ?
                         displayOptions[i] :
                         DisplayOptions(),
-                    colorBuffer);
-
-                // Restored because the buffer above replaced it, and the
-                // caller draws with the transform it came in with.
-                p.shaders["display"]->bind();
-                p.shaders["display"]->setUniform("transform.mvp", getTransform());
+                    colorBuffer,
+                    ftk::ortho(
+                        0.F,
+                        static_cast<float>(offscreenBufferSize.w),
+                        static_cast<float>(offscreenBufferSize.h),
+                        0.F,
+                        -1.F,
+                        1.F));
             }
 
             return p.buffers["compare0"] && p.buffers["compare1"];
@@ -700,7 +689,8 @@ namespace tl
                     boxes[i],
                     i < imageOptions.size() ? std::make_shared<ftk::ImageOptions>(imageOptions[i]) : nullptr,
                     i < displayOptions.size() ? displayOptions[i] : DisplayOptions(),
-                    colorBuffer);
+                    colorBuffer,
+                    getTransform());
             }
         }
         
@@ -741,7 +731,8 @@ namespace tl
             const ftk::Box2I& box,
             const std::shared_ptr<ftk::ImageOptions>& imageOptions,
             const DisplayOptions& displayOptions,
-            ftk::gl::TextureType colorBuffer)
+            ftk::gl::TextureType colorBuffer,
+            const ftk::M44F& mvp)
         {
             FTK_P();
             
@@ -1040,8 +1031,9 @@ namespace tl
                     viewportPrev[2],
                     viewportPrev[3]);
 
-                p.shaders["display"]->bind();
-                p.shaders["display"]->setUniform("textureSampler", 0);
+                const auto displayShader = _displayShader(displayOptions.ocioInput);
+                displayShader->setUniform("transform.mvp", mvp);
+                displayShader->setUniform("textureSampler", 0);
                 // Enlarging is sampled here rather than resampled into a
                 // buffer first, so this is where the view's magnify setting
                 // is answered.
@@ -1051,35 +1043,35 @@ namespace tl
                 const ftk::Size2I displaySize = videoID == videoScaledID ?
                     scaledBufferSize :
                     offscreenBufferSize;
-                p.shaders["display"]->setUniform(
+                displayShader->setUniform(
                     "magnifyHighQuality",
                     ftk::ImageFilter::HighQuality == filters.magnify);
-                p.shaders["display"]->setUniform(
+                displayShader->setUniform(
                     "textureSize",
                     ftk::V2F(displaySize.w, displaySize.h));
 #endif // FTK_API_GLES_2
-                p.shaders["display"]->setUniform("channels", static_cast<int>(displayOptions.channels));
-                p.shaders["display"]->setUniform("negative", displayOptions.negative);
-                p.shaders["display"]->setUniform("mirrorX", displayOptions.mirror.x);
-                p.shaders["display"]->setUniform("mirrorY", displayOptions.mirror.y);
+                displayShader->setUniform("channels", static_cast<int>(displayOptions.channels));
+                displayShader->setUniform("negative", displayOptions.negative);
+                displayShader->setUniform("mirrorX", displayOptions.mirror.x);
+                displayShader->setUniform("mirrorY", displayOptions.mirror.y);
                 const bool colorMatrixEnabled =
                     displayOptions.color != Color() &&
                     displayOptions.color.enabled;
-                p.shaders["display"]->setUniform("colorEnabled", colorMatrixEnabled);
-                p.shaders["display"]->setUniform("colorAdd", displayOptions.color.add);
+                displayShader->setUniform("colorEnabled", colorMatrixEnabled);
+                displayShader->setUniform("colorAdd", displayOptions.color.add);
                 if (colorMatrixEnabled)
                 {
-                    p.shaders["display"]->setUniform("colorMatrix", color(displayOptions.color));
+                    displayShader->setUniform("colorMatrix", color(displayOptions.color));
                 }
-                p.shaders["display"]->setUniform("levelsEnabled", displayOptions.levels.enabled);
-                p.shaders["display"]->setUniform("levels.inLow", displayOptions.levels.inLow);
-                p.shaders["display"]->setUniform("levels.inHigh", displayOptions.levels.inHigh);
-                p.shaders["display"]->setUniform(
+                displayShader->setUniform("levelsEnabled", displayOptions.levels.enabled);
+                displayShader->setUniform("levels.inLow", displayOptions.levels.inLow);
+                displayShader->setUniform("levels.inHigh", displayOptions.levels.inHigh);
+                displayShader->setUniform(
                     "levels.gamma",
                     displayOptions.levels.gamma > 0.F ? (1.F / displayOptions.levels.gamma) : 1000000.F);
-                p.shaders["display"]->setUniform("levels.outLow", displayOptions.levels.outLow);
-                p.shaders["display"]->setUniform("levels.outHigh", displayOptions.levels.outHigh);
-                p.shaders["display"]->setUniform("exposureEnabled", displayOptions.exposure.enabled);
+                displayShader->setUniform("levels.outLow", displayOptions.levels.outLow);
+                displayShader->setUniform("levels.outHigh", displayOptions.levels.outHigh);
+                displayShader->setUniform("exposureEnabled", displayOptions.exposure.enabled);
                 if (displayOptions.exposure.enabled)
                 {
                     const float v = powf(2.F, displayOptions.exposure.exposure + 2.47393F);
@@ -1088,17 +1080,17 @@ namespace tl
                     const float f = knee2(
                         powf(2.F, displayOptions.exposure.kneeHigh) - k,
                         powf(2.F, 3.5F) - k);
-                    p.shaders["display"]->setUniform("exposure.v", v);
-                    p.shaders["display"]->setUniform("exposure.d", d);
-                    p.shaders["display"]->setUniform("exposure.k", k);
-                    p.shaders["display"]->setUniform("exposure.f", f);
+                    displayShader->setUniform("exposure.v", v);
+                    displayShader->setUniform("exposure.d", d);
+                    displayShader->setUniform("exposure.k", k);
+                    displayShader->setUniform("exposure.f", f);
                     const float gamma =
                         displayOptions.exposure.gamma > 0.F ?
                         (1.F / displayOptions.exposure.gamma) :
                         1000000.F;
-                    p.shaders["display"]->setUniform("exposure.g", gamma);
+                    displayShader->setUniform("exposure.g", gamma);
                 }
-                p.shaders["display"]->setUniform(
+                displayShader->setUniform(
                     "softClip",
                     displayOptions.softClip.enabled ? displayOptions.softClip.value : 0.F);
 
@@ -1106,24 +1098,24 @@ namespace tl
                 glBindTexture(GL_TEXTURE_2D, videoID);
                 size_t texturesOffset = 1;
 #if defined(TLRENDER_OCIO)
-                if (p.ocioData)
+                if (p.ocioDataBound)
                 {
-                    for (size_t i = 0; i < p.ocioData->toLinear.textures.size(); ++i)
+                    for (size_t i = 0; i < p.ocioDataBound->toLinear.textures.size(); ++i)
                     {
                         glActiveTexture(GL_TEXTURE0 + texturesOffset + i);
                         glBindTexture(
-                            p.ocioData->toLinear.textures[i].type,
-                            p.ocioData->toLinear.textures[i].id);
+                            p.ocioDataBound->toLinear.textures[i].type,
+                            p.ocioDataBound->toLinear.textures[i].id);
                     }
-                    texturesOffset += p.ocioData->toLinear.textures.size();
-                    for (size_t i = 0; i < p.ocioData->display.textures.size(); ++i)
+                    texturesOffset += p.ocioDataBound->toLinear.textures.size();
+                    for (size_t i = 0; i < p.ocioDataBound->display.textures.size(); ++i)
                     {
                         glActiveTexture(GL_TEXTURE0 + texturesOffset + i);
                         glBindTexture(
-                            p.ocioData->display.textures[i].type,
-                            p.ocioData->display.textures[i].id);
+                            p.ocioDataBound->display.textures[i].type,
+                            p.ocioDataBound->display.textures[i].id);
                     }
-                    texturesOffset += p.ocioData->display.textures.size();
+                    texturesOffset += p.ocioDataBound->display.textures.size();
                 }
                 if (p.lutData)
                 {
