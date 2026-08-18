@@ -13,11 +13,13 @@
 namespace tl
 {
     //! File types.
+    //! The values are a bit mask; getExts() takes a combination of them.
     enum class TL_API_TYPE FileType
     {
         Unknown = 0,
         Media = 1,
         Seq = 2,
+        Audio = 4,
 
         Count,
         First = Unknown

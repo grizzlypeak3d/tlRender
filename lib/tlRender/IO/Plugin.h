@@ -72,7 +72,8 @@ namespace tl
         //! Get the supported file extensions.
         TL_API std::set<std::string> getExts(int types =
             static_cast<int>(FileType::Media) |
-            static_cast<int>(FileType::Seq)) const;
+            static_cast<int>(FileType::Seq) |
+            static_cast<int>(FileType::Audio)) const;
 
     protected:
         std::weak_ptr<ftk::LogSystem> _logSystem;

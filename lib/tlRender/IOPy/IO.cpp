@@ -19,7 +19,8 @@ namespace tl
             py::enum_<FileType>(m, "FileType")
                 .value("Unknown", FileType::Unknown)
                 .value("Media", FileType::Media)
-                .value("Seq", FileType::Seq);
+                .value("Seq", FileType::Seq)
+                .value("Audio", FileType::Audio);
             
             py::class_<IOInfo>(m, "IOInfo")
                 .def(py::init())

@@ -221,7 +221,21 @@ namespace tl
             // These extensions need to be added manually:
             extensions[".m4v"] = FileType::Media;
             extensions[".mxf"] = FileType::Media;
-            extensions[".wav"] = FileType::Media;
+            extensions[".wav"] = FileType::Audio;
+
+            // The demuxers do not say what they carry, so the audio
+            // extensions are named; the same list as the command line
+            // plugin. Only what a demuxer claimed is reclassified, so the
+            // extensions stay those of the FFmpeg that was built.
+            for (const auto& audioExt :
+                { ".aac", ".aiff", ".flac", ".mp3", ".m4a", ".ogg" })
+            {
+                const auto i = extensions.find(audioExt);
+                if (i != extensions.end())
+                {
+                    i->second = FileType::Audio;
+                }
+            }
 
             IReadPlugin::_init("FFmpeg", extensions, logSystem);
 

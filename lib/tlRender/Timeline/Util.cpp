@@ -269,6 +269,7 @@ namespace tl
                 {
                 case FileType::Media:
                 case FileType::Seq:
+                case FileType::Audio:
                     out.push_back(path);
                     break;
                 default:

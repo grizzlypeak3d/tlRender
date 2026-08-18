@@ -18,7 +18,8 @@ namespace tl
         const std::shared_ptr<ftk::Context>&,
         int types =
             static_cast<int>(FileType::Media) |
-            static_cast<int>(FileType::Seq));
+            static_cast<int>(FileType::Seq) |
+            static_cast<int>(FileType::Audio));
 
     //! Convert frames to ranges.
     TL_API std::vector<OTIO_NS::TimeRange> toRanges(std::vector<OTIO_NS::RationalTime>);

@@ -137,7 +137,7 @@ namespace tl
         const std::string lower = ftk::toLower(ext);
         for (const auto& plugin : _plugins)
         {
-            for (auto fileType : { FileType::Media, FileType::Seq })
+            for (auto fileType : { FileType::Media, FileType::Seq, FileType::Audio })
             {
                 const auto& exts = plugin->getExts(static_cast<int>(fileType));
                 if (const auto i = exts.find(lower); i != exts.end())
@@ -336,7 +336,7 @@ namespace tl
         const std::string lower = ftk::toLower(ext);
         for (const auto& plugin : _plugins)
         {
-            for (auto fileType : { FileType::Media, FileType::Seq })
+            for (auto fileType : { FileType::Media, FileType::Seq, FileType::Audio })
             {
                 const auto& exts = plugin->getExts(static_cast<int>(fileType));
                 if (const auto i = exts.find(lower); i != exts.end())

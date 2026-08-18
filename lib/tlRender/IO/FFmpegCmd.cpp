@@ -288,13 +288,13 @@ namespace tl
             extensions[".webm"] = FileType::Media;
             extensions[".y4m"] = FileType::Media;
 
-            extensions[".aac"] = FileType::Media;
-            extensions[".aiff"] = FileType::Media;
-            extensions[".flac"] = FileType::Media;
-            extensions[".mp3"] = FileType::Media;
-            extensions[".m4a"] = FileType::Media;
-            extensions[".ogg"] = FileType::Media;
-            extensions[".wav"] = FileType::Media;
+            extensions[".aac"] = FileType::Audio;
+            extensions[".aiff"] = FileType::Audio;
+            extensions[".flac"] = FileType::Audio;
+            extensions[".mp3"] = FileType::Audio;
+            extensions[".m4a"] = FileType::Audio;
+            extensions[".ogg"] = FileType::Audio;
+            extensions[".wav"] = FileType::Audio;
             IReadPlugin::_init("FFmpegCmd", extensions, logSystem);
         }
 

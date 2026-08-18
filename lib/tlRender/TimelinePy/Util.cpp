@@ -24,7 +24,8 @@ namespace tl
                 py::arg("context"),
                 py::arg("types") =
                     static_cast<int>(FileType::Media) |
-                    static_cast<int>(FileType::Seq));
+                    static_cast<int>(FileType::Seq) |
+                    static_cast<int>(FileType::Audio));
         }
     }
 }
