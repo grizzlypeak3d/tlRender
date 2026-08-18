@@ -45,12 +45,13 @@ set_target_properties(tlUI PROPERTIES PUBLIC_HEADER "${HEADERS}")
 install(
     TARGETS tlUI
     EXPORT tlUITargets
-    ARCHIVE DESTINATION lib
+    ARCHIVE DESTINATION lib COMPONENT dev
     LIBRARY DESTINATION lib
     RUNTIME DESTINATION bin
-    PUBLIC_HEADER DESTINATION include/tlRender/UI)
+    PUBLIC_HEADER DESTINATION include/tlRender/UI COMPONENT dev)
 install(
     EXPORT tlUITargets
     FILE tlUITargets.cmake
     DESTINATION "lib/cmake/tlRender"
-    NAMESPACE tlRender::)
+    NAMESPACE tlRender::
+    COMPONENT dev)

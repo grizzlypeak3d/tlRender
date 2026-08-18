@@ -47,7 +47,7 @@ set_target_properties(tlPlayApp PROPERTIES FOLDER lib)
 set_target_properties(tlPlayApp PROPERTIES PUBLIC_HEADER "${HEADERS}")
 
 install(TARGETS tlPlayApp
-    ARCHIVE DESTINATION lib
+    ARCHIVE DESTINATION lib COMPONENT dev
     LIBRARY DESTINATION lib
     RUNTIME DESTINATION bin
-    PUBLIC_HEADER DESTINATION include/tlRender/PlayApp)
+    PUBLIC_HEADER DESTINATION include/tlRender/PlayApp COMPONENT dev)

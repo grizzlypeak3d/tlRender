@@ -50,12 +50,13 @@ set_target_properties(tlCore PROPERTIES PUBLIC_HEADER "${HEADERS}")
 install(
     TARGETS tlCore
     EXPORT tlCoreTargets
-    ARCHIVE DESTINATION lib
+    ARCHIVE DESTINATION lib COMPONENT dev
     LIBRARY DESTINATION lib
     RUNTIME DESTINATION bin
-    PUBLIC_HEADER DESTINATION include/tlRender/Core)
+    PUBLIC_HEADER DESTINATION include/tlRender/Core COMPONENT dev)
 install(
     EXPORT tlCoreTargets
     FILE tlCoreTargets.cmake
     DESTINATION "lib/cmake/tlRender"
-    NAMESPACE tlRender::)
+    NAMESPACE tlRender::
+    COMPONENT dev)

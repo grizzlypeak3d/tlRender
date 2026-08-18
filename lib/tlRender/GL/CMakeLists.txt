@@ -28,12 +28,13 @@ set_target_properties(tlGL PROPERTIES PUBLIC_HEADER "${HEADERS}")
 install(
     TARGETS tlGL
     EXPORT tlGLTargets
-    ARCHIVE DESTINATION lib
+    ARCHIVE DESTINATION lib COMPONENT dev
     LIBRARY DESTINATION lib
     RUNTIME DESTINATION bin
-    PUBLIC_HEADER DESTINATION include/tlRender/GL)
+    PUBLIC_HEADER DESTINATION include/tlRender/GL COMPONENT dev)
 install(
     EXPORT tlGLTargets
     FILE tlGLTargets.cmake
     DESTINATION "lib/cmake/tlRender"
-    NAMESPACE tlRender::)
+    NAMESPACE tlRender::
+    COMPONENT dev)

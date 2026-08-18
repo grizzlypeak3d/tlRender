@@ -61,12 +61,13 @@ set_target_properties(tlTimeline PROPERTIES PUBLIC_HEADER "${HEADERS}")
 install(
     TARGETS tlTimeline
     EXPORT tlTimelineTargets
-    ARCHIVE DESTINATION lib
+    ARCHIVE DESTINATION lib COMPONENT dev
     LIBRARY DESTINATION lib
     RUNTIME DESTINATION bin
-    PUBLIC_HEADER DESTINATION include/tlRender/Timeline)
+    PUBLIC_HEADER DESTINATION include/tlRender/Timeline COMPONENT dev)
 install(
     EXPORT tlTimelineTargets
     FILE tlTimelineTargets.cmake
     DESTINATION "lib/cmake/tlRender"
-    NAMESPACE tlRender::)
+    NAMESPACE tlRender::
+    COMPONENT dev)

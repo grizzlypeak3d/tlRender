@@ -19,7 +19,7 @@ set_target_properties(tlCorePy PROPERTIES FOLDER lib)
 set_target_properties(tlCorePy PROPERTIES PUBLIC_HEADER "${HEADERS}")
 
 install(TARGETS tlCorePy
-    ARCHIVE DESTINATION lib
+    ARCHIVE DESTINATION lib COMPONENT dev
     LIBRARY DESTINATION lib
     RUNTIME DESTINATION bin
-    PUBLIC_HEADER DESTINATION include/tlRender/tlCorePy)
+    PUBLIC_HEADER DESTINATION include/tlRender/tlCorePy COMPONENT dev)

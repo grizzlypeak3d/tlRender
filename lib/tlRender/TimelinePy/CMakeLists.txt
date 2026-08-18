@@ -31,7 +31,7 @@ set_target_properties(tlTimelinePy PROPERTIES FOLDER lib)
 set_target_properties(tlTimelinePy PROPERTIES PUBLIC_HEADER "${HEADERS}")
 
 install(TARGETS tlTimelinePy
-    ARCHIVE DESTINATION lib
+    ARCHIVE DESTINATION lib COMPONENT dev
     LIBRARY DESTINATION lib
     RUNTIME DESTINATION bin
-    PUBLIC_HEADER DESTINATION include/tlRender/tlTimelinePy)
+    PUBLIC_HEADER DESTINATION include/tlRender/tlTimelinePy COMPONENT dev)

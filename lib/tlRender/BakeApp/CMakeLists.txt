@@ -17,7 +17,7 @@ set_target_properties(tlBakeApp PROPERTIES FOLDER lib)
 set_target_properties(tlBakeApp PROPERTIES PUBLIC_HEADER "${HEADERS}")
 
 install(TARGETS tlBakeApp
-    ARCHIVE DESTINATION lib
+    ARCHIVE DESTINATION lib COMPONENT dev
     LIBRARY DESTINATION lib
     RUNTIME DESTINATION bin
-    PUBLIC_HEADER DESTINATION include/tlRender/BakeApp)
+    PUBLIC_HEADER DESTINATION include/tlRender/BakeApp COMPONENT dev)

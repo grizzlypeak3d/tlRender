@@ -97,12 +97,13 @@ set_target_properties(tlIO PROPERTIES PUBLIC_HEADER "${HEADERS}")
 install(
     TARGETS tlIO
     EXPORT tlIOTargets
-    ARCHIVE DESTINATION lib
+    ARCHIVE DESTINATION lib COMPONENT dev
     LIBRARY DESTINATION lib
     RUNTIME DESTINATION bin
-    PUBLIC_HEADER DESTINATION include/tlRender/IO)
+    PUBLIC_HEADER DESTINATION include/tlRender/IO COMPONENT dev)
 install(
     EXPORT tlIOTargets
     FILE tlIOTargets.cmake
     DESTINATION "lib/cmake/tlRender"
-    NAMESPACE tlRender::)
+    NAMESPACE tlRender::
+    COMPONENT dev)
