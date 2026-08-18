@@ -29,6 +29,8 @@ namespace tl
         std::string meshFragmentSource();
         std::string textureFragmentSource();
         std::string displayFragmentSource(
+            const std::string& toLinearDef,
+            const std::string& toLinear,
             const std::string& ocioDef,
             const std::string& ocio,
             const std::string& lutDef,
@@ -53,17 +55,30 @@ namespace tl
             unsigned    type = -1;
         };
 
-        struct OCIOData
+        //! One OCIO processor compiled for the GPU: the shader function
+        //! and the textures it samples.
+        struct OCIOStage
         {
-            ~OCIOData();
+            ~OCIOStage();
 
-            OCIO::ConstConfigRcPtr config;
-            OCIO::DisplayViewTransformRcPtr transform;
-            OCIO::LegacyViewingPipelineRcPtr lvp;
             OCIO::ConstProcessorRcPtr processor;
             OCIO::ConstGPUProcessorRcPtr gpuProcessor;
             OCIO::GpuShaderDescRcPtr shaderDesc;
             std::vector<OCIOTexture> textures;
+        };
+
+        struct OCIOData
+        {
+            OCIO::ConstConfigRcPtr config;
+            OCIO::DisplayViewTransformRcPtr transform;
+            OCIO::LegacyViewingPipelineRcPtr lvp;
+            // The transform is split around the color corrections when the
+            // configuration names a scene_linear role, so the corrections
+            // apply to linear values rather than to whatever the file's
+            // color space is. Without the role, toLinear is empty and the
+            // display stage carries the whole transform from the input.
+            OCIOStage toLinear;
+            OCIOStage display;
         };
 
         struct OCIOLUTData

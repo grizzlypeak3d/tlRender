@@ -1108,14 +1108,22 @@ namespace tl
 #if defined(TLRENDER_OCIO)
                 if (p.ocioData)
                 {
-                    for (size_t i = 0; i < p.ocioData->textures.size(); ++i)
+                    for (size_t i = 0; i < p.ocioData->toLinear.textures.size(); ++i)
                     {
                         glActiveTexture(GL_TEXTURE0 + texturesOffset + i);
                         glBindTexture(
-                            p.ocioData->textures[i].type,
-                            p.ocioData->textures[i].id);
+                            p.ocioData->toLinear.textures[i].type,
+                            p.ocioData->toLinear.textures[i].id);
                     }
-                    texturesOffset += p.ocioData->textures.size();
+                    texturesOffset += p.ocioData->toLinear.textures.size();
+                    for (size_t i = 0; i < p.ocioData->display.textures.size(); ++i)
+                    {
+                        glActiveTexture(GL_TEXTURE0 + texturesOffset + i);
+                        glBindTexture(
+                            p.ocioData->display.textures[i].type,
+                            p.ocioData->display.textures[i].id);
+                    }
+                    texturesOffset += p.ocioData->display.textures.size();
                 }
                 if (p.lutData)
                 {

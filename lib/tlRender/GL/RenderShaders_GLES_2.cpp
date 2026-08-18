@@ -72,6 +72,8 @@ namespace tl
         }
 
         std::string displayFragmentSource(
+            const std::string& toLinearDef,
+            const std::string& toLinear,
             const std::string& colorConfigDef,
             const std::string& colorConfig,
             const std::string& lutDef,

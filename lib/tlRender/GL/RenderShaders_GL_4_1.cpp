@@ -66,6 +66,8 @@ namespace tl
         }
 
         std::string displayFragmentSource(
+            const std::string& toLinearDef,
+            const std::string& toLinear,
             const std::string& ocioDef,
             const std::string& ocio,
             const std::string& lutDef,
@@ -73,20 +75,30 @@ namespace tl
             LUTOrder lutOrder)
         {
             std::vector<std::string> args;
+            args.push_back(toLinearDef);
             args.push_back(ocioDef);
             args.push_back(lutDef);
+            // What runs before the color corrections and what runs after:
+            // the transform to linear comes before so the corrections
+            // operate on linear values, the display transform after, and
+            // the LUT is on whichever side of the color management it was
+            // asked for.
+            std::string before;
+            std::string after;
             switch (lutOrder)
             {
             case LUTOrder::PreConfig:
-                args.push_back(lut);
-                args.push_back(ocio);
+                before = lut + "\n    " + toLinear;
+                after = ocio;
                 break;
             case LUTOrder::PostConfig:
-                args.push_back(ocio);
-                args.push_back(lut);
+                before = toLinear;
+                after = ocio + "\n    " + lut;
                 break;
             default: break;
             }
+            args.push_back(before);
+            args.push_back(after);
             return ftk::Format(
                 "#version 410\n"
                 "\n"
@@ -259,6 +271,8 @@ namespace tl
                 "\n"
                 "{1}\n"
                 "\n"
+                "{2}\n"
+                "\n"
                 "void main()\n"
                 "{\n"
                 "    vec2 t = fTexture;\n"
@@ -282,6 +296,10 @@ namespace tl
                 "        outColor.b = 1.0 - outColor.b;\n"
                 "    }\n"
                 "\n"
+                "    // To linear, so the color transformations operate on\n"
+                "    // linear values.\n"
+                "    {3}\n"
+                "\n"
                 "    // Apply color transformations.\n"
                 "    if (colorEnabled)\n"
                 "    {\n"
@@ -301,8 +319,7 @@ namespace tl
                 "    }\n"
                 "\n"
                 "    // Apply color management.\n"
-                "    {2}\n"
-                "    {3}\n"
+                "    {4}\n"
                 "\n"
                 "    // Swizzle for the channels display.\n"
                 "    if (Channels_Red == channels)\n"
@@ -330,7 +347,8 @@ namespace tl
                 arg(args[0]).
                 arg(args[1]).
                 arg(args[2]).
-                arg(args[3]);
+                arg(args[3]).
+                arg(args[4]);
         }
 
         std::string dissolveFragmentSource()
