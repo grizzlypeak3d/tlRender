@@ -114,6 +114,38 @@ namespace tl
             p.avCodecContext->thread_count = 0;
             p.avCodecContext->thread_type = FF_THREAD_FRAME;
 
+            // The stream's color description, when the caller says what
+            // the pixels are; the names are the ones FFmpeg itself uses,
+            // the same as the reader produces. Set on the context before
+            // it is opened so the muxer writes it; e.g., the "colr" atom.
+            if (const auto i = info.tags.find("Color Primaries");
+                i != info.tags.end())
+            {
+                const int v = av_color_primaries_from_name(i->second.c_str());
+                if (v >= 0)
+                {
+                    p.avCodecContext->color_primaries = static_cast<AVColorPrimaries>(v);
+                }
+            }
+            if (const auto i = info.tags.find("Color Transfer");
+                i != info.tags.end())
+            {
+                const int v = av_color_transfer_from_name(i->second.c_str());
+                if (v >= 0)
+                {
+                    p.avCodecContext->color_trc = static_cast<AVColorTransferCharacteristic>(v);
+                }
+            }
+            if (const auto i = info.tags.find("Color Matrix");
+                i != info.tags.end())
+            {
+                const int v = av_color_space_from_name(i->second.c_str());
+                if (v >= 0)
+                {
+                    p.avCodecContext->colorspace = static_cast<AVColorSpace>(v);
+                }
+            }
+
             r = avcodec_open2(p.avCodecContext, avCodec, NULL);
             if (r < 0)
             {
@@ -330,9 +362,16 @@ namespace tl
 
             // The file's own metadata only. The video and audio information
             // is kept out, so it does not land in the output as a set of
-            // tags describing something that was read, not written.
+            // tags describing something that was read, not written. The
+            // color description goes to the stream above, not here.
             for (const auto& i : info.tags)
             {
+                if ("Color Primaries" == i.first ||
+                    "Color Transfer" == i.first ||
+                    "Color Matrix" == i.first)
+                {
+                    continue;
+                }
                 av_dict_set(&p.avFormatContext->metadata, i.first.c_str(), i.second.c_str(), 0);
             }
 
