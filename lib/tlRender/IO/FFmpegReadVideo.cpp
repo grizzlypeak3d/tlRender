@@ -389,6 +389,33 @@ namespace tl
                     {
                         _tags[i.first] = i.second;
                     }
+
+                    // The stream's color description, for resolving an
+                    // input color space from what the file itself says.
+                    // Only what was actually flagged; "unspecified" says
+                    // nothing worth repeating.
+                    const AVCodecParameters* codecPar = avVideoStream->codecpar;
+                    if (codecPar->color_primaries != AVCOL_PRI_UNSPECIFIED)
+                    {
+                        if (const char* name = av_color_primaries_name(codecPar->color_primaries))
+                        {
+                            _tags["Color Primaries"] = name;
+                        }
+                    }
+                    if (codecPar->color_trc != AVCOL_TRC_UNSPECIFIED)
+                    {
+                        if (const char* name = av_color_transfer_name(codecPar->color_trc))
+                        {
+                            _tags["Color Transfer"] = name;
+                        }
+                    }
+                    if (codecPar->color_space != AVCOL_SPC_UNSPECIFIED)
+                    {
+                        if (const char* name = av_color_space_name(codecPar->color_space))
+                        {
+                            _tags["Color Matrix"] = name;
+                        }
+                    }
                     {
                         _source.codec =
                             avcodec_get_name(_avCodecContext[_avStream]->codec_id);
