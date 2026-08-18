@@ -43,6 +43,62 @@ namespace tl
         return !(*this == other);
     }
 
+    ftk::ImageTags getDisplayColorTags(
+        const OCIOOptions& options,
+        bool sequence)
+    {
+        ftk::ImageTags out;
+        if (options.enabled &&
+            !options.display.empty() &&
+            !options.view.empty())
+        {
+            std::string primaries;
+            std::string transfer;
+            std::string chromaticities;
+            const std::string rec709 =
+                "0.64 0.33 0.3 0.6 0.15 0.06 0.3127 0.329";
+            const std::string rec2020 =
+                "0.708 0.292 0.17 0.797 0.131 0.046 0.3127 0.329";
+            if ("sRGB - Display" == options.display)
+            {
+                primaries = "bt709";
+                transfer = "iec61966-2-1";
+                chromaticities = rec709;
+            }
+            else if ("Rec.1886 Rec.709 - Display" == options.display)
+            {
+                primaries = "bt709";
+                transfer = "bt709";
+                chromaticities = rec709;
+            }
+            else if ("Rec.2100-PQ - Display" == options.display)
+            {
+                primaries = "bt2020";
+                transfer = "smpte2084";
+                chromaticities = rec2020;
+            }
+            else if ("Rec.2100-HLG - Display" == options.display)
+            {
+                primaries = "bt2020";
+                transfer = "arib-std-b67";
+                chromaticities = rec2020;
+            }
+            if (sequence)
+            {
+                if (!chromaticities.empty())
+                {
+                    out["Chromaticities"] = chromaticities;
+                }
+            }
+            else if (!primaries.empty())
+            {
+                out["Color Primaries"] = primaries;
+                out["Color Transfer"] = transfer;
+            }
+        }
+        return out;
+    }
+
     FTK_ENUM_IMPL(
         LUTOrder,
         "Post-Config",

@@ -5,6 +5,7 @@
 
 #include <tlRender/Core/Util.h>
 
+#include <ftk/Core/Image.h>
 #include <ftk/Core/Util.h>
 
 #include <nlohmann/json.hpp>
@@ -41,6 +42,18 @@ namespace tl
         TL_API bool operator == (const OCIOOptions&) const;
         TL_API bool operator != (const OCIOOptions&) const;
     };
+
+    //! Get the color description tags for pixels rendered through the
+    //! display transform of the given options: the display's encoding.
+    //! The common displays of the OpenColorIO configurations are named;
+    //! an unrecognized display, or options that do not render through a
+    //! display transform, return nothing rather than guess. Sequences
+    //! take the "Chromaticities" tag, movies "Color Primaries" and
+    //! "Color Transfer"; the YUV matrix is left unsaid either way, since
+    //! it belongs to the encoder's conversion, not the display.
+    TL_API ftk::ImageTags getDisplayColorTags(
+        const OCIOOptions&,
+        bool sequence);
 
     //! LUT operation order.
     enum class TL_API_TYPE LUTOrder

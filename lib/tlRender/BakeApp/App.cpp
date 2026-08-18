@@ -290,67 +290,9 @@ namespace tl
                 _renderSize,
                 ftk::gl::offscreenColorDefault);
 
-            // Create the writer.
-            const std::string output = _cmdLine.output->getValue();
-            _writerPlugin = _context->getSystem<WriteSystem>()->getPlugin(ftk::Path(output));
-            if (!_writerPlugin)
-            {
-                throw std::runtime_error(ftk::Format("Cannot open: \"{0}\"").arg(output));
-            }
-            _outputInfo.size.w = _renderSize.w;
-            _outputInfo.size.h = _renderSize.h;
-            _outputInfo.type = info.video[0].type;
-            if (_cmdLine.outputPixelType->hasValue())
-            {
-                _outputInfo.type = _cmdLine.outputPixelType->getValue();
-            }
-            _outputInfo = _writerPlugin->getInfo(_outputInfo);
-            _print(ftk::Format("Output info: {0} {1}").
-                arg(_outputInfo.size).
-                arg(_outputInfo.type));
-            _outputImage = ftk::Image::create(_outputInfo);
-            IOInfo ioInfo;
-            ioInfo.video.push_back(_outputInfo);
-            ioInfo.videoTime = _timeRange;
-            // A movie's frames start at zero, so where it came from in the
-            // timeline is only recoverable from the start timecode. Rates
-            // that have no timecode of their own are left without one rather
-            // than given a wrong one.
-            try
-            {
-                ioInfo.tags["timecode"] = _timeRange.start_time().to_timecode();
-            }
-            catch (const std::exception&)
-            {}
-#if defined(TLRENDER_FFMPEG_PLUGIN)
-            if (info.audio.isValid() &&
-                std::dynamic_pointer_cast<ffmpeg::WritePlugin>(_writerPlugin))
-            {
-                _hasAudio = true;
-                ioInfo.audio = info.audio;
-                ioInfo.audioTime = OTIO_NS::TimeRange(
-                    OTIO_NS::RationalTime(0.0, info.audio.sampleRate),
-                    _timeRange.duration().rescaled_to(info.audio.sampleRate));
-                _audioStartSeconds = _timeRange.start_time().rescaled_to(1.0).value();
-                _audioDurationSeconds = _timeRange.duration().rescaled_to(1.0).value();
-                _print(ftk::Format("Audio: {0} channels, {1}Hz").
-                    arg(ioInfo.audio.channelCount).
-                    arg(ioInfo.audio.sampleRate));
-            }
-#endif // TLRENDER_FFMPEG_PLUGIN
-            _writer = _writerPlugin->write(ftk::Path(output), ioInfo, _getIOOptions());
-            if (!_writer)
-            {
-                throw std::runtime_error(ftk::Format("Cannot open: \"{0}\"").arg(output));
-            }
-            // A sequence writer names each file from the time it is written
-            // at, so those get the frame numbers of the timeline. Anything
-            // else takes the time as a position within the output, which
-            // starts at zero.
-            _writeInputTime =
-                std::dynamic_pointer_cast<ISeqWrite>(_writer) != nullptr;
-
-            // Set options.
+            // Set options. Before the writer: what the output's color
+            // description says depends on whether the render goes through
+            // a display transform.
             if (_cmdLine.ocioFileName->hasValue() ||
                 _cmdLine.ocioInput->hasValue() ||
                 _cmdLine.ocioDisplay->hasValue() ||
@@ -392,6 +334,93 @@ namespace tl
                     _lutOptions.order = _cmdLine.lutOrder->getValue();
                 }
             }
+
+            // Create the writer.
+            const std::string output = _cmdLine.output->getValue();
+            _writerPlugin = _context->getSystem<WriteSystem>()->getPlugin(ftk::Path(output));
+            if (!_writerPlugin)
+            {
+                throw std::runtime_error(ftk::Format("Cannot open: \"{0}\"").arg(output));
+            }
+            _outputInfo.size.w = _renderSize.w;
+            _outputInfo.size.h = _renderSize.h;
+            _outputInfo.type = info.video[0].type;
+            if (_cmdLine.outputPixelType->hasValue())
+            {
+                _outputInfo.type = _cmdLine.outputPixelType->getValue();
+            }
+            _outputInfo = _writerPlugin->getInfo(_outputInfo);
+            _print(ftk::Format("Output info: {0} {1}").
+                arg(_outputInfo.size).
+                arg(_outputInfo.type));
+            _outputImage = ftk::Image::create(_outputInfo);
+            IOInfo ioInfo;
+            ioInfo.video.push_back(_outputInfo);
+            ioInfo.videoTime = _timeRange;
+            // A movie's frames start at zero, so where it came from in the
+            // timeline is only recoverable from the start timecode. Rates
+            // that have no timecode of their own are left without one rather
+            // than given a wrong one.
+            try
+            {
+                ioInfo.tags["timecode"] = _timeRange.start_time().to_timecode();
+            }
+            catch (const std::exception&)
+            {}
+            // What the output pixels are. Rendering through a display
+            // transform bakes it, so the color description written is the
+            // display's; an unrecognized display writes nothing rather
+            // than guessing. Without color management the source pixels
+            // pass through, and the source's description with them.
+            if (_ocioOptions.enabled &&
+                !_ocioOptions.display.empty() &&
+                !_ocioOptions.view.empty())
+            {
+                const ftk::ImageTags colorTags = getDisplayColorTags(
+                    _ocioOptions,
+                    FileType::Seq == _context->getSystem<WriteSystem>()->
+                        getFileType(ftk::Path(output).getExt()));
+                ioInfo.tags.insert(colorTags.begin(), colorTags.end());
+            }
+            else
+            {
+                for (const auto& tag :
+                    { "Color Primaries", "Color Transfer", "Chromaticities" })
+                {
+                    const auto i = info.tags.find(tag);
+                    if (i != info.tags.end())
+                    {
+                        ioInfo.tags[tag] = i->second;
+                    }
+                }
+            }
+#if defined(TLRENDER_FFMPEG_PLUGIN)
+            if (info.audio.isValid() &&
+                std::dynamic_pointer_cast<ffmpeg::WritePlugin>(_writerPlugin))
+            {
+                _hasAudio = true;
+                ioInfo.audio = info.audio;
+                ioInfo.audioTime = OTIO_NS::TimeRange(
+                    OTIO_NS::RationalTime(0.0, info.audio.sampleRate),
+                    _timeRange.duration().rescaled_to(info.audio.sampleRate));
+                _audioStartSeconds = _timeRange.start_time().rescaled_to(1.0).value();
+                _audioDurationSeconds = _timeRange.duration().rescaled_to(1.0).value();
+                _print(ftk::Format("Audio: {0} channels, {1}Hz").
+                    arg(ioInfo.audio.channelCount).
+                    arg(ioInfo.audio.sampleRate));
+            }
+#endif // TLRENDER_FFMPEG_PLUGIN
+            _writer = _writerPlugin->write(ftk::Path(output), ioInfo, _getIOOptions());
+            if (!_writer)
+            {
+                throw std::runtime_error(ftk::Format("Cannot open: \"{0}\"").arg(output));
+            }
+            // A sequence writer names each file from the time it is written
+            // at, so those get the frame numbers of the timeline. Anything
+            // else takes the time as a position within the output, which
+            // starts at zero.
+            _writeInputTime =
+                std::dynamic_pointer_cast<ISeqWrite>(_writer) != nullptr;
 
             // Start the main loop.
             while (_running)
