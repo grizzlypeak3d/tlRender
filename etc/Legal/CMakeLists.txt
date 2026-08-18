@@ -6,6 +6,7 @@ set(LEGAL
     LICENSE_expat.txt
     LICENSE_FFmpeg.txt
     LICENSE_feather-tk.txt
+    LICENSE_LibRaw.txt
     LICENSE_Libssh2.txt
     LICENSE_libjpeg-turbo.txt
     LICENSE_libjpeg.txt
