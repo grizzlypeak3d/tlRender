@@ -16,6 +16,9 @@ endif()
 if(TLRENDER_OCIO)
     list(APPEND OpenImageIO_DEPS OpenColorIO)
 endif()
+if(TLRENDER_LIBRAW)
+    list(APPEND OpenImageIO_DEPS LibRaw)
+endif()
 
 set(OpenImageIO_ARGS
     ${TLRENDER_EXTERNAL_ARGS}
@@ -36,7 +39,7 @@ set(OpenImageIO_ARGS
     -DUSE_GIF=OFF
     -DUSE_JXL=OFF
     -DUSE_LIBHEIF=OFF
-    -DUSE_LIBRAW=OFF
+    -DUSE_LIBRAW=${TLRENDER_LIBRAW}
     -DUSE_NUKE=OFF
     -DUSE_OPENCV=OFF
     -DUSE_OPENJPEG=OFF
