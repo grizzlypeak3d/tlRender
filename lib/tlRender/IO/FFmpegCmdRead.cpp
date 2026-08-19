@@ -470,12 +470,20 @@ namespace tl
                                 info.type = ftk::ImageType::RGB_U8;
                             }
 
+                            // On whether a rate was given rather than on
+                            // whether the field was there: ffprobe writes an
+                            // average of "0/0" for a file it cannot average
+                            // -- MXF among them -- so the field is present
+                            // and says nothing, and the real rate is in
+                            // r_frame_rate. Taking the zero left the speed at
+                            // 0 FPS, and the start time and duration built on
+                            // it came out as nonsense.
                             k = j.find("avg_frame_rate");
                             if (k != j.end())
                             {
                                 videoRate = toDouble(toRational(*k));
                             }
-                            else
+                            if (videoRate <= 0.0)
                             {
                                 k = j.find("r_frame_rate");
                                 if (k != j.end())
