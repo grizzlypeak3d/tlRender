@@ -69,6 +69,7 @@ namespace tl
             _readers();
             _memLifetime();
             _shutdown();
+            _path();
             _separateAudio();
             _spatial();
             _mediaReferences();
@@ -645,6 +646,30 @@ namespace tl
             if (elapsed >= 1000)
             {
                 _fail("Shutdown had to wait for the logging interval");
+            }
+        }
+
+        void TimelineTest::_path()
+        {
+            // What a timeline was opened from, given back as it was given.
+            // A sequence's range is the path's own state rather than part of
+            // its name, so a path that goes out through a string comes back
+            // naming one frame -- and callers reopen what getPath() gives
+            // them.
+            try
+            {
+                ftk::Path path(TLRENDER_SAMPLE_DATA, "Seq/BART_2021-02-07.0001.jpg");
+                path.setFrames(ftk::RangeI64(1, 3));
+                Options options;
+                options.seqExpand = false;
+                auto timeline = Timeline::create(_context, path, options);
+                _print(ftk::Format("Path: {0}").arg(timeline->getPath().get()));
+                FTK_CHECK(timeline->getPath().isSeq());
+                FTK_CHECK(ftk::RangeI64(1, 3) == timeline->getPath().getFrames().value());
+            }
+            catch (const std::exception& e)
+            {
+                _error(e.what());
             }
         }
 

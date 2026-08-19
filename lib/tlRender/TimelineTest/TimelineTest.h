@@ -34,6 +34,7 @@ namespace tl
             void _memLifetime();
             void _shutdown();
             void _timeline(const std::shared_ptr<Timeline>&);
+            void _path();
             void _separateAudio();
             void _spatial();
             void _mediaReferences();

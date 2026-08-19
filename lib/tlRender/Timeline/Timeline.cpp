@@ -804,6 +804,13 @@ namespace tl
         dict["audioPath"] = audioPath.get();
         otioTimeline->metadata()["tlRender"] = dict;
 
+        // Kept as they are rather than left to the metadata to carry back. A
+        // sequence's range is the path's own state and not part of its
+        // string, so a path that made the round trip would come back naming
+        // one frame -- and callers reopen what getPath() gives them.
+        p.path = path;
+        p.audioPath = audioPath;
+
         _init(context, otioTimeline, options);
     }
 
@@ -852,11 +859,17 @@ namespace tl
             try
             {
                 const auto dict = std::any_cast<OTIO_NS::AnyDictionary>(i->second);
-                if (auto j = dict.find("path"); j != dict.end())
+                // Only when the paths were not given directly. Opening a
+                // file sets them, and what the metadata holds is a string
+                // that cannot say a sequence's range; a timeline handed over
+                // as OTIO has nothing better to offer.
+                if (auto j = dict.find("path");
+                    j != dict.end() && p.path.isEmpty())
                 {
                     p.path = ftk::Path(std::any_cast<std::string>(j->second));
                 }
-                if (auto j = dict.find("audioPath"); j != dict.end())
+                if (auto j = dict.find("audioPath");
+                    j != dict.end() && p.audioPath.isEmpty())
                 {
                     p.audioPath = ftk::Path(std::any_cast<std::string>(j->second));
                 }
