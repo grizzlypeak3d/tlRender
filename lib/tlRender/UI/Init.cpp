@@ -3,6 +3,7 @@
 
 #include <tlRender/UI/Init.h>
 
+#include <tlRender/UI/FileBrowserThumbnails.h>
 #include <tlRender/UI/ThumbnailSystem.h>
 
 #include <tlRender/GL/Render.h>
@@ -10,6 +11,7 @@
 #include <tlRender/Timeline/Init.h>
 
 #include <ftk/UI/Init.h>
+#include <ftk/UI/FileBrowser.h>
 #include <ftk/UI/IconSystem.h>
 #include <ftk/GL/System.h>
 
@@ -53,6 +55,11 @@ namespace tl
             tl::init(context);
             context->getSystem<ftk::gl::System>()->setRenderFactory(std::make_shared<gl::RenderFactory>());
             ThumbnailSystem::create(context);
+
+            // The file browser draws thumbnails of whatever it is handed the
+            // I/O for, which is here rather than in ftk.
+            context->getSystem<ftk::FileBrowserSystem>()->setThumbnails(
+                FileBrowserThumbnails::create(context));
 
             auto iconSystem = context->getSystem<ftk::IconSystem>();
             iconSystem->add("ColorControls", tl_resource::ColorControls);

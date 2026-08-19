@@ -1,4 +1,5 @@
 set(HEADERS
+    FileBrowserThumbnails.h
     FrameToolBar.h
     Init.h
     ItemOptions.h
@@ -16,6 +17,7 @@ set(HEADERS_PRIVATE
     TimelineItemPrivate.h)
 
 set(SOURCE
+    FileBrowserThumbnails.cpp
     FrameToolBar.cpp
     Init.cpp
     ItemOptions.cpp
