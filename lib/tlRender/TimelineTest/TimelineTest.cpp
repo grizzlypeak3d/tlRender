@@ -25,6 +25,7 @@
 #include <opentimelineio/timeline.h>
 
 #include <algorithm>
+#include <filesystem>
 #include <sstream>
 #include <thread>
 
@@ -712,6 +713,41 @@ namespace tl
                 const ftk::Path& audioPath = timeline->getAudioPath();
                 FTK_CHECK(!audioPath.isEmpty());
                 _print(ftk::Format("Audio path: {0}").arg(audioPath.get()));
+            }
+            catch (const std::exception& e)
+            {
+                _error(e.what());
+            }
+
+            // The same, by a relative path that already carries its range,
+            // which is what listing a directory gives. expandSeq() searches
+            // only when there is no range yet, and it is the search that
+            // makes the path absolute, so this one stays relative all the way
+            // to the media reference.
+            try
+            {
+                const std::filesystem::path relative = std::filesystem::relative(
+                    std::filesystem::u8path(TLRENDER_SAMPLE_DATA),
+                    std::filesystem::current_path());
+                if (!relative.empty())
+                {
+                    ftk::Path path(
+                        relative.u8string(),
+                        "Seq/BART_2021-02-07.0001.jpg");
+                    path.setFrames(ftk::RangeI64(1, 3));
+                    FTK_CHECK(path.isSeq());
+                    _print(ftk::Format("Path: {0}").arg(path.get()));
+                    Options options;
+                    options.imageSeqAudio = ImageSeqAudio::Ext;
+                    auto timeline = Timeline::create(_context, path, options);
+                    FTK_CHECK(!timeline->getAudioPath().isEmpty());
+                    for (const auto& mediaPath : timeline->getMediaPaths())
+                    {
+                        _print(ftk::Format("Media path: {0}").arg(mediaPath.get()));
+                        FTK_CHECK(std::filesystem::exists(
+                            std::filesystem::u8path(mediaPath.getFileName(true))));
+                    }
+                }
             }
             catch (const std::exception& e)
             {

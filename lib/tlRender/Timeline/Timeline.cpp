@@ -29,11 +29,11 @@ namespace tl
 {
     namespace
     {
-        //! An absolute, normalized form of a media path, used only to compare
-        //! paths that name the same file in different ways.
-        std::string normalMediaPath(const ftk::Path& path)
+        //! An absolute form of a file name, or the name unchanged when the
+        //! working directory cannot be had.
+        std::string absoluteFileName(const std::string& fileName)
         {
-            std::filesystem::path out = std::filesystem::u8path(path.get());
+            std::filesystem::path out = std::filesystem::u8path(fileName);
             if (!out.is_absolute())
             {
                 std::error_code ec;
@@ -43,7 +43,15 @@ namespace tl
                     out = abs;
                 }
             }
-            return out.lexically_normal().u8string();
+            return out.u8string();
+        }
+
+        //! An absolute, normalized form of a media path, used only to compare
+        //! paths that name the same file in different ways.
+        std::string normalMediaPath(const ftk::Path& path)
+        {
+            return std::filesystem::u8path(absoluteFileName(path.get())).
+                lexically_normal().u8string();
         }
     }
 
@@ -573,12 +581,16 @@ namespace tl
 
                     auto audioClip = new OTIO_NS::Clip;
                     audioClip->set_source_range(*audioInfo.audioTime);
-                    // With the directory, unlike the video reference above:
-                    // that one names the file the timeline was made from and
-                    // is found beside it, while the audio was chosen
-                    // separately and need not be in the same place.
+                    // Absolute, unlike the video reference above: that one
+                    // names the file the timeline was made from and is found
+                    // beside it, while the audio was chosen separately and
+                    // need not be in the same place. Naming it relatively
+                    // would not say the same thing, since a relative
+                    // reference is resolved against the timeline's directory
+                    // rather than against the working directory the audio was
+                    // found from.
                     audioClip->set_media_reference(new OTIO_NS::ExternalReference(
-                        audioPath.getFileName(true),
+                        absoluteFileName(audioPath.getFileName(true)),
                         audioInfo.audioTime));
 
                     audioTrack = new OTIO_NS::Track("Audio", std::nullopt, OTIO_NS::Track::Kind::audio);
