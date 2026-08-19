@@ -70,6 +70,7 @@ namespace tl
             _memLifetime();
             _shutdown();
             _path();
+            _seqOnDisk();
             _separateAudio();
             _spatial();
             _mediaReferences();
@@ -669,6 +670,100 @@ namespace tl
             catch (const std::exception& e)
             {
                 _error(e.what());
+            }
+        }
+
+        void TimelineTest::_seqOnDisk()
+        {
+            // A sequence opened again covers the frames that are there then,
+            // not the ones that were there before. This is what reloading a
+            // render in progress does, and what taking frames away does to
+            // it.
+            auto readSystem = _context->getSystem<ReadSystem>();
+            auto writeSystem = _context->getSystem<WriteSystem>();
+            const std::filesystem::path dir = _getTempDir() / "SeqOnDisk";
+            std::filesystem::remove_all(dir);
+            std::filesystem::create_directory(dir);
+            const auto frameFile = [&dir](int frame)
+                {
+                    return ftk::Path((dir / ftk::Format("render.{0}.png").
+                        arg(frame, 4, '0').str()).u8string());
+                };
+            auto writePlugin = writeSystem->getPlugin(frameFile(1));
+            if (!writePlugin || !readSystem->getPlugin(frameFile(1)))
+            {
+                _print("Skipped: no plugin reads the fixture");
+                return;
+            }
+            IOInfo writeInfo;
+            writeInfo.video.push_back(writePlugin->getInfo(
+                ftk::ImageInfo(ftk::Size2I(16, 16), ftk::ImageType::RGB_U8)));
+            const auto writeFrames = [&](const std::vector<int>& frames)
+                {
+                    for (int frame : frames)
+                    {
+                        auto write = writeSystem->write(frameFile(frame), writeInfo);
+                        write->writeVideo(
+                            OTIO_NS::RationalTime(static_cast<double>(frame), 24.0),
+                            ftk::Image::create(writeInfo.video[0]));
+                    }
+                };
+
+            // Opened the way an application opens: gathering the frames is
+            // getPaths()' job, and it is what goes and looks.
+            ftk::DirListOptions dirListOptions;
+            dirListOptions.seqExts = getExts(
+                _context, static_cast<int>(FileType::Seq));
+            const auto open = [&]
+                {
+                    const auto paths = getPaths(
+                        _context, frameFile(1), dirListOptions);
+                    FTK_CHECK(1 == paths.size());
+                    return paths.front();
+                };
+
+            writeFrames({ 1, 2, 3 });
+            {
+                const ftk::Path path = open();
+                FTK_CHECK(ftk::RangeI64(1, 3) == path.getFrames().value());
+                auto timeline = Timeline::create(_context, path);
+                FTK_CHECK(3 == timeline->getTimeRange().duration().value());
+            }
+
+            // Frames rendered since.
+            writeFrames({ 4, 5, 6 });
+            {
+                const ftk::Path path = open();
+                FTK_CHECK(ftk::RangeI64(1, 6) == path.getFrames().value());
+                auto timeline = Timeline::create(_context, path);
+                FTK_CHECK(6 == timeline->getTimeRange().duration().value());
+            }
+
+            // Frames taken away from the middle: the range still spans them,
+            // and the holes are the sequence's own.
+            std::filesystem::remove(
+                std::filesystem::u8path(frameFile(3).get()));
+            std::filesystem::remove(
+                std::filesystem::u8path(frameFile(4).get()));
+            {
+                const ftk::Path path = open();
+                _print("Frames on disk: " + ftk::getLabel(path.getSeq()));
+                FTK_CHECK(path.isPartialSeq());
+                FTK_CHECK("1-2,5-6" == ftk::getLabel(path.getSeq()));
+                auto timeline = Timeline::create(_context, path);
+                FTK_CHECK(6 == timeline->getTimeRange().duration().value());
+            }
+
+            // And taken away from the end, where they shorten it.
+            std::filesystem::remove(
+                std::filesystem::u8path(frameFile(5).get()));
+            std::filesystem::remove(
+                std::filesystem::u8path(frameFile(6).get()));
+            {
+                const ftk::Path path = open();
+                FTK_CHECK(ftk::RangeI64(1, 2) == path.getFrames().value());
+                auto timeline = Timeline::create(_context, path);
+                FTK_CHECK(2 == timeline->getTimeRange().duration().value());
             }
         }
 
