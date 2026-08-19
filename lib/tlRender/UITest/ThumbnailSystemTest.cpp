@@ -16,6 +16,7 @@
 #include <ftk/Core/Context.h>
 #include <ftk/Core/Format.h>
 #include <algorithm>
+#include <cstring>
 #include <filesystem>
 
 #include <ftk/Core/Image.h>
@@ -38,6 +39,7 @@ namespace tl
         void ThumbnailSystemTest::run()
         {
             _gapSeq();
+            _seqFrame();
             auto thumbnailSystem = _context->getSystem<ui::ThumbnailSystem>();
             const std::vector<ftk::Path> paths =
             {
@@ -133,6 +135,65 @@ namespace tl
                     timeline->getPath().getDir(),
                     ftk::PathOptions());
             }
+        }
+
+        void ThumbnailSystemTest::_seqFrame()
+        {
+            // A thumbnail is of the file it names. One frame of a sequence,
+            // asked for on its own, must not be expanded into the sequence it
+            // belongs to: every frame in a directory would come back as the
+            // first one, which is what a directory listed without sequences
+            // asks for.
+            auto readSystem = _context->getSystem<ReadSystem>();
+            auto writeSystem = _context->getSystem<WriteSystem>();
+            const auto framePath = [this](int64_t frame)
+                {
+                    return ftk::Path((_getTempDir() /
+                        ftk::Format("ThumbFrame.000{0}.png").arg(frame).str()).u8string());
+                };
+            auto writePlugin = writeSystem->getPlugin(framePath(1));
+            if (!writePlugin || !readSystem->getPlugin(framePath(1)))
+            {
+                return;
+            }
+            IOInfo writeInfo;
+            writeInfo.video.push_back(writePlugin->getInfo(
+                ftk::ImageInfo(ftk::Size2I(16, 16), ftk::ImageType::RGB_U8)));
+            {
+                auto write = writeSystem->write(framePath(1), writeInfo);
+                for (int64_t frame = 1; frame <= 4; ++frame)
+                {
+                    auto image = ftk::Image::create(writeInfo.video[0]);
+                    // Every frame a different value, so that a thumbnail of
+                    // the wrong frame cannot pass for the right one.
+                    std::memset(
+                        image->getData(),
+                        static_cast<int>(frame * 60),
+                        image->getByteCount());
+                    write->writeVideo(
+                        OTIO_NS::RationalTime(static_cast<double>(frame), 24.0),
+                        image);
+                }
+            }
+
+            auto thumbnailSystem = _context->getSystem<ui::ThumbnailSystem>();
+            std::vector<int> values;
+            for (int64_t frame : { 1, 3 })
+            {
+                const ftk::Path path = framePath(frame);
+                // The frame is parsed out of the name, but no range is
+                // stated: this is the path a directory listing hands over
+                // when it is not collapsing sequences.
+                FTK_CHECK(path.hasNum());
+                FTK_CHECK(!path.isSeq());
+                auto request = thumbnailSystem->getThumbnail(path, 16);
+                auto image = request.future.get();
+                FTK_CHECK(image);
+                values.push_back(image->getData()[0]);
+                _print(ftk::Format("Frame {0} thumbnail: {1}").
+                    arg(frame).arg(values.back()));
+            }
+            FTK_CHECK(values[0] != values[1]);
         }
 
         void ThumbnailSystemTest::_gapSeq()
