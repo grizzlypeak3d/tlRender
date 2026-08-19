@@ -88,7 +88,15 @@ namespace tl
                 try
                 {
                     _print(ftk::Format("Timeline: {0}").arg(path.get()));
-                    auto timeline = Timeline::create(_context, path.get());
+                    // Opened the way an application opens: gathering a frame
+                    // into the sequence it belongs to is getPaths()' job, not
+                    // the timeline's.
+                    ftk::DirListOptions dirListOptions;
+                    dirListOptions.seqExts = getExts(
+                        _context, static_cast<int>(FileType::Seq));
+                    const auto opened = getPaths(_context, path, dirListOptions);
+                    auto timeline = Timeline::create(
+                        _context, opened.empty() ? path : opened.front());
                     auto player = Player::create(_context, timeline);
                     FTK_CHECK(player->getTimeline());
                     _player(player);

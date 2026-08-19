@@ -661,7 +661,6 @@ namespace tl
                 ftk::Path path(TLRENDER_SAMPLE_DATA, "Seq/BART_2021-02-07.0001.jpg");
                 path.setFrames(ftk::RangeI64(1, 3));
                 Options options;
-                options.seqExpand = false;
                 auto timeline = Timeline::create(_context, path, options);
                 _print(ftk::Format("Path: {0}").arg(timeline->getPath().get()));
                 FTK_CHECK(timeline->getPath().isSeq());
@@ -713,7 +712,10 @@ namespace tl
             }
             try
             {
-                const ftk::Path path(TLRENDER_SAMPLE_DATA, "Seq/BART_2021-02-07.0001.jpg");
+                // A sequence: audio is looked for beside one, and a path
+                // naming a single frame names a single frame.
+                ftk::Path path(TLRENDER_SAMPLE_DATA, "Seq/BART_2021-02-07.0001.jpg");
+                path.setFrames(ftk::RangeI64(1, 3));
                 _print(ftk::Format("Path: {0}").arg(path.get()));
                 Options options;
                 options.imageSeqAudio = ImageSeqAudio::Ext;
@@ -728,7 +730,8 @@ namespace tl
             }
             try
             {
-                const ftk::Path path(TLRENDER_SAMPLE_DATA, "Seq/BART_2021-02-07.0001.jpg");
+                ftk::Path path(TLRENDER_SAMPLE_DATA, "Seq/BART_2021-02-07.0001.jpg");
+                path.setFrames(ftk::RangeI64(1, 3));
                 _print(ftk::Format("Path: {0}").arg(path.get()));
                 Options options;
                 options.imageSeqAudio = ImageSeqAudio::FileName;
@@ -1123,24 +1126,19 @@ namespace tl
                         FTK_CHECK(0 == wideTimeline->getReadErrorCount());
                     }
 
-                    // A range of one frame. It has to survive being opened:
-                    // a path cannot tell such a range apart from the frame
-                    // parsed out of its name, so without being told not to,
-                    // opening would look on disk and find the rest again.
+                    // A range of one frame survives being opened, as does a
+                    // path naming a single frame: opening reads what it is
+                    // given and never goes looking for the rest.
                     {
                         ftk::Path one(path);
                         one.setFrames(ftk::RangeI64(1, 1));
-                        Options oneOptions;
-                        oneOptions.seqExpand = false;
-                        auto oneTimeline = Timeline::create(
-                            _context, one, oneOptions);
+                        auto oneTimeline = Timeline::create(_context, one);
                         FTK_CHECK(
                             1 == oneTimeline->getTimeRange().duration().value());
 
-                        // And that looking on disk is what would undo it.
-                        auto expanded = Timeline::create(_context, one);
+                        auto bare = Timeline::create(_context, ftk::Path(path));
                         FTK_CHECK(
-                            expanded->getTimeRange().duration().value() > 1);
+                            1 == bare->getTimeRange().duration().value());
                     }
 
                     // A structural policy answers a sparse sequence by
@@ -1169,7 +1167,6 @@ namespace tl
                         // Skip puts the runs end to end, so the timeline is as
                         // long as the frames it has.
                         Options skipOptions;
-                        skipOptions.seqExpand = false;
                         skipOptions.ioOptions["SeqIO/MissingFrames"] =
                             to_string(MissingFrames::Skip);
                         auto skipTimeline = Timeline::create(
@@ -1234,7 +1231,6 @@ namespace tl
                         // asked for and every frame keeps the time it had. The
                         // counter needs no mapping at all in this one.
                         Options gapsOptions;
-                        gapsOptions.seqExpand = false;
                         gapsOptions.ioOptions["SeqIO/MissingFrames"] =
                             to_string(MissingFrames::Gaps);
                         auto gapsTimeline = Timeline::create(

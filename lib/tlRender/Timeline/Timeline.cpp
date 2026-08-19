@@ -376,10 +376,6 @@ namespace tl
             seqExts.begin(),
             seqExts.end(),
             ftk::toLower(path.getExt())) != seqExts.end();
-        if (hasSeqExt && options.seqExpand)
-        {
-            path = ftk::expandSeq(path, options.pathOptions);
-        }
         if (hasSeqExt && path.isSeq())
         {
             if (audioPath.isEmpty())

@@ -79,24 +79,12 @@ namespace tl
             // The I/O options are part of the key. The timeline is created
             // with them, so one opened knowing where ffprobe lives is not the
             // same timeline as one opened without.
-            // Whether opening this media means searching the directory for
-            // the frames of a sequence. The media path is what says so: a
-            // timeline's own path is the name of a file, with no range on it,
-            // whether or not a sequence was asked for.
-            bool seqExpandFor(const ftk::Path& mediaPath)
-            {
-                return mediaPath.isSeq() || mediaPath.hasSeqWildcard();
-            }
-
             std::string getTimelineKey(
                 const ftk::Path& path,
-                bool seqExpand,
                 const IOOptions& options)
             {
-                // With the expansion: the same first frame names a sequence
-                // or names one file, and those are different timelines.
                 std::stringstream ss;
-                ss << path.get() << ";" << seqExpand << ";";
+                ss << path.get() << ";";
                 for (const auto& i : options)
                 {
                     ss << i.first << ":" << i.second << ";";
@@ -113,7 +101,6 @@ namespace tl
                 ftk::LRUCache<std::string, std::shared_ptr<Timeline> >& cache,
                 std::mutex& mutex,
                 const ftk::Path& path,
-                bool seqExpand,
                 const IOOptions& ioOptions)
             {
                 // One timeline per file, shared by the three threads rather
@@ -121,7 +108,7 @@ namespace tl
                 // seconds, so opening it three times is three times too
                 // many. The timeline has no thread of its own and guards its
                 // caches, so the threads can read it at once.
-                const std::string key = getTimelineKey(path, seqExpand, ioOptions);
+                const std::string key = getTimelineKey(path, ioOptions);
                 std::shared_ptr<Timeline> out;
                 {
                     std::unique_lock<std::mutex> lock(mutex);
@@ -138,13 +125,6 @@ namespace tl
                 // two ends up in the cache.
                 Options options;
                 options.threaded = false;
-                // Searching the directory is for media that says it is a
-                // sequence, where it finds which of the frames are really
-                // there. A lone frame must not be made a sequence of, or
-                // every frame of a directory listed without sequences would
-                // be expanded to the same sequence and come back as its first
-                // image.
-                options.seqExpand = seqExpand;
                 // The reader is created here, so whatever it needs from the
                 // caller has to arrive now. The command line FFmpeg plugin
                 // takes the location of ffmpeg and ffprobe this way, and
@@ -804,7 +784,7 @@ namespace tl
                         auto context = p.context.lock();
                         if (auto timeline = getTimeline(
                             context, p.ioCache, p.ioCacheMutex, request->path,
-                            seqExpandFor(request->mediaPath), request->options))
+                            request->options))
                         {
                             timeline->getMediaInfo(
                                 request->mediaPath, info, request->options);
@@ -862,7 +842,7 @@ namespace tl
                         auto context = p.context.lock();
                         auto timeline = getTimeline(
                             context, p.ioCache, p.ioCacheMutex, request->path,
-                            seqExpandFor(request->mediaPath), request->options);
+                            request->options);
                         IOInfo info;
                         if (timeline &&
                             timeline->getMediaInfo(
@@ -1130,7 +1110,7 @@ namespace tl
                         auto context = p.context.lock();
                         auto timeline = getTimeline(
                             context, p.ioCache, p.ioCacheMutex, request->path,
-                            seqExpandFor(request->mediaPath), request->options);
+                            request->options);
                         IOInfo info;
                         if (timeline &&
                             timeline->getMediaInfo(

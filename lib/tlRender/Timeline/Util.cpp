@@ -281,6 +281,19 @@ namespace tl
                 }
             }
         }
+        else if (options.seq && path.testExt(options.seqExts))
+        {
+            // One frame names the sequence it belongs to, the same way that
+            // listing a directory gathers its frames into a single entry --
+            // the one flag says both. A path spanning more than one frame is
+            // left alone, having said what it covers; a range of one is not,
+            // since it cannot be told apart from the frame parsed out of a
+            // file name. Whoever means that one frame turns this off.
+            ftk::PathOptions pathOptions;
+            pathOptions.seqNegative = options.seqNegative;
+            pathOptions.seqMaxDigits = options.seqMaxDigits;
+            out.push_back(ftk::expandSeq(path, pathOptions));
+        }
         else
         {
             out.push_back(path);

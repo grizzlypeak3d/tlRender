@@ -227,7 +227,6 @@ namespace tl
             ftk::Path wide(path);
             wide.setFrames(ftk::RangeI64(1, 25));
             Options options;
-            options.seqExpand = false;
             auto timeline = Timeline::create(_context, wide, options);
             FTK_CHECK(25 == timeline->getTimeRange().duration().value());
 

@@ -5,6 +5,8 @@
 
 #include <tlRender/GL/Render.h>
 
+#include <tlRender/Timeline/Util.h>
+
 #include <tlRender/IO/SeqIO.h>
 #include <tlRender/IO/System.h>
 
@@ -248,10 +250,19 @@ namespace tl
                 options.readThreadCount =
                     _cmdLine.sequenceThreadCount->getValue();
             }
-            _timeline = Timeline::create(
-                _context,
-                _cmdLine.input->getValue(),
-                options);
+            // One frame of a sequence names the sequence, which is what
+            // baking an image sequence means. getPaths() is where that is
+            // decided.
+            ftk::DirListOptions dirListOptions;
+            dirListOptions.seqExts = tl::getExts(
+                _context, static_cast<int>(tl::FileType::Seq));
+            ftk::Path input(_cmdLine.input->getValue());
+            const auto paths = tl::getPaths(_context, input, dirListOptions);
+            if (!paths.empty())
+            {
+                input = paths.front();
+            }
+            _timeline = Timeline::create(_context, input, options);
             _timeRange = _timeline->getTimeRange();
             _print(ftk::Format("Timeline range: {0}-{1}").
                 arg(_timeRange.start_time().value()).

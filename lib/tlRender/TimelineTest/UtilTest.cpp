@@ -55,6 +55,27 @@ namespace tl
             _print(ftk::Format("Sequence path: {0}").arg(a.get()));
             _print(ftk::Format("Sequence path: {0}").arg(b.get()));
             FTK_CHECK(a.get() == b.get());
+
+            // Gathering the frames of a sequence: naming one frame names the
+            // sequence, the same way listing a directory gathers its frames
+            // into one entry, and the one flag says both.
+            const ftk::Path frame(TLRENDER_SAMPLE_DATA, "Seq/BART_2021-02-07.0001.jpg");
+            ftk::DirListOptions dirListOptions;
+            dirListOptions.seqExts = getExts(
+                _context, static_cast<int>(FileType::Seq));
+            {
+                const auto paths = getPaths(_context, frame, dirListOptions);
+                FTK_CHECK(1 == paths.size());
+                _print(ftk::Format("Gathered: {0}").arg(paths[0].getFrameRange()));
+                FTK_CHECK(paths[0].isSeq());
+            }
+            {
+                // Turned off, the frame is the file it names.
+                dirListOptions.seq = false;
+                const auto paths = getPaths(_context, frame, dirListOptions);
+                FTK_CHECK(1 == paths.size());
+                FTK_CHECK(!paths[0].isSeq());
+            }
         }
 
         void UtilTest::_enums()
