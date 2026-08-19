@@ -659,7 +659,9 @@ namespace tl
             // them.
             try
             {
-                ftk::Path path(TLRENDER_SAMPLE_DATA, "Seq/BART_2021-02-07.0001.jpg");
+                // PNG, which is always built: what is being checked is the
+                // path the timeline gives back, not the format.
+                ftk::Path path(TLRENDER_SAMPLE_DATA, "Seq/BART_2021-02-07.0001.png");
                 path.setFrames(ftk::RangeI64(1, 3));
                 Options options;
                 auto timeline = Timeline::create(_context, path, options);
