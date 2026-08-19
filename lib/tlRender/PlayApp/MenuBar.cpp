@@ -75,22 +75,22 @@ namespace tl
                     _activeGroup->setChecked(value);
                 });
 
-            _recentObserver = ftk::ListObserver<std::filesystem::path>::create(
+            _recentObserver = ftk::ListObserver<ftk::Path>::create(
                 app->getRecentFilesModel()->observeRecent(),
-                [this, appWeak](const std::vector<std::filesystem::path>& value)
+                [this, appWeak](const std::vector<ftk::Path>& value)
                 {
                     _recentActions.clear();
                     _recentMenu->clear();
                     for (auto i = value.rbegin(); i != value.rend(); ++i)
                     {
-                        const std::filesystem::path path = *i;
+                        const ftk::Path path = *i;
                         auto action = ftk::Action::create(
-                            path.filename().u8string(),
+                            path.getFileName(),
                             [appWeak, path]
                             {
                                 if (auto app = appWeak.lock())
                                 {
-                                    app->open(ftk::Path(path.u8string()));
+                                    app->open(path);
                                 }
                             });
                         _recentActions.push_back(action);

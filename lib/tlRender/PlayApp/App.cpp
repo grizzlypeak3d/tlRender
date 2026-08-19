@@ -51,7 +51,7 @@ namespace tl
                     std::vector<std::string> recentFiles;
                     for (const auto& i : _recentFilesModel->getRecent())
                     {
-                        recentFiles.push_back(i.u8string());
+                        recentFiles.push_back(i.get());
                     }
                     getSettings()->set("/Files/Recent", recentFiles);
                     getSettings()->set("/Files/RecentMax", _recentFilesModel->getRecentMax());
@@ -106,7 +106,7 @@ namespace tl
                 try
                 {
                     _filesModel->open(i);
-                    _recentFilesModel->addRecent(std::filesystem::u8path(i.get()));
+                    _recentFilesModel->addRecent(i);
                 }
                 catch (const std::exception& e)
                 {
@@ -163,10 +163,10 @@ namespace tl
             std::vector<std::string> recentFiles;
             if (getSettings()->get("/Files/Recent", recentFiles))
             {
-                std::vector<std::filesystem::path> recentPaths;
+                std::vector<ftk::Path> recentPaths;
                 for (const auto& i : recentFiles)
                 {
-                    recentPaths.push_back(std::filesystem::u8path(i));
+                    recentPaths.push_back(ftk::Path(i));
                 }
                 _recentFilesModel->setRecent(recentPaths);
             }

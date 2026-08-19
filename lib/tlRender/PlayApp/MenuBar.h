@@ -55,7 +55,7 @@ namespace tl
             std::shared_ptr<ftk::Menu> _recentMenu;
             std::shared_ptr<ftk::ListObserver<std::shared_ptr<Player> > > _playersObserver;
             std::shared_ptr<ftk::Observer<int> > _playerIndexObserver;
-            std::shared_ptr<ftk::ListObserver<std::filesystem::path> > _recentObserver;
+            std::shared_ptr<ftk::ListObserver<ftk::Path> > _recentObserver;
         };
 
         //! Compare menu.
