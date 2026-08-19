@@ -19,6 +19,7 @@
 #include <ftk/Core/LRUCache.h>
 #include <ftk/Core/String.h>
 #include <ftk/Core/Timer.h>
+#include <ftk/Core/Util.h>
 
 #include <algorithm>
 #include <atomic>
@@ -79,12 +80,30 @@ namespace tl
             // The I/O options are part of the key. The timeline is created
             // with them, so one opened knowing where ffprobe lives is not the
             // same timeline as one opened without.
+            // The frames a path covers, for a cache key. Not its range: a
+            // sequence with holes in it spans the same range as the whole one
+            // and is a different thing to read, so a key that said only the
+            // range would go on serving the wrong images after a reload.
+            // Hashed rather than spelled out, since a sequence has a run for
+            // every hole in it and this is built for every request.
+            size_t seqHash(const ftk::Path& path)
+            {
+                size_t out = 0;
+                for (const auto& i : path.getSeq())
+                {
+                    out = ftk::hashCombine(out, std::hash<int64_t>{}(i.range.min()));
+                    out = ftk::hashCombine(out, std::hash<int64_t>{}(i.range.max()));
+                    out = ftk::hashCombine(out, std::hash<int>{}(i.inc));
+                }
+                return out;
+            }
+
             std::string getTimelineKey(
                 const ftk::Path& path,
                 const IOOptions& options)
             {
                 std::stringstream ss;
-                ss << path.get() << ";";
+                ss << path.get() << ";" << seqHash(path) << ";";
                 for (const auto& i : options)
                 {
                     ss << i.first << ":" << i.second << ";";
@@ -153,7 +172,8 @@ namespace tl
                 const IOOptions& options)
             {
                 std::stringstream ss;
-                ss << path.get() << ";" << mediaPath.get() << ";" <<
+                ss << path.get() << ";" << seqHash(path) << ";" <<
+                    mediaPath.get() << ";" << seqHash(mediaPath) << ";" <<
                     height << ";";
                 if (time.has_value())
                 {
@@ -175,7 +195,8 @@ namespace tl
                 const IOOptions& options)
             {
                 std::stringstream ss;
-                ss << path.get() << ";" << mediaPath.get() << ";" <<
+                ss << path.get() << ";" << seqHash(path) << ";" <<
+                    mediaPath.get() << ";" << seqHash(mediaPath) << ";" <<
                     size << ";";
                 if (timeRange.has_value())
                 {
