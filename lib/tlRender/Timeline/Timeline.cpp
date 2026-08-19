@@ -293,6 +293,13 @@ namespace tl
                             break;
                         }
                     }
+                    // The first match is the one taken: the base names are in
+                    // the order they are preferred, so a later one must not
+                    // replace what an earlier one found.
+                    if (!out.isEmpty())
+                    {
+                        break;
+                    }
                 }
 
                 // Or use the first audio file.
