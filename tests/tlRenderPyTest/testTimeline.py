@@ -169,12 +169,20 @@ class ObserverTest(unittest.TestCase):
         observer = tl.PlayerCacheOptionsObserver(observable, self.callbackCacheOptions)
         self.assertEqual(tl.PlayerCacheOptions(), self.cacheOptions)
 
-    def test_registered(self):
-        # The RationalTime and Player observables are registered but cannot
-        # be exercised here; opentime values do not convert between the
-        # opentimelineio and tlRenderPy modules.
-        self.assertTrue(hasattr(tl, "ObservableRationalTime"))
-        self.assertTrue(hasattr(tl, "RationalTimeObserver"))
+    def test_rational_time(self):
+        # The opentime values convert between the opentimelineio and
+        # tlRenderPy modules only when both are built with the same
+        # pybind11 -- this is the test that fails if the superbuild's
+        # pin drifts from the version OTIO vendors.
+        observable = tl.ObservableRationalTime(otio.opentime.RationalTime(0, 24))
+        times = []
+        observer = tl.RationalTimeObserver(
+            observable,
+            lambda value: times.append(value))
+        observable.setIfChanged(otio.opentime.RationalTime(12, 24))
+        self.assertEqual(
+            [otio.opentime.RationalTime(0, 24), otio.opentime.RationalTime(12, 24)],
+            times)
         self.assertTrue(hasattr(tl, "ObservablePlayer"))
         self.assertTrue(hasattr(tl, "PlayerObserver"))
 
@@ -218,10 +226,9 @@ class TimelineTest(unittest.TestCase):
             fileName = self._writeGapTimeline(dir)
             timeline = tl.Timeline(self.context, fileName)
             self.assertEqual(fileName, timeline.path.get())
-            # Note: timeline.timeRange and timeline.duration return
-            # opentime values that do not convert between the
-            # opentimelineio and tlRenderPy modules, so the 24 frame
-            # duration is checked through the player speed below.
+            self.assertEqual(
+                otio.opentime.RationalTime(24, 24),
+                timeline.timeRange.duration)
 
     def test_player(self):
         with tempfile.TemporaryDirectory() as dir:
@@ -237,6 +244,20 @@ class TimelineTest(unittest.TestCase):
             self.assertEqual(tl.Loop.Once, player.loop)
             self.assertEqual(1.0, player.volume)
             self.assertFalse(player.mute)
+
+            times = []
+            observer = tl.RationalTimeObserver(
+                player.observeCurrentTime,
+                lambda value: times.append(value))
+            player.currentTime = otio.opentime.RationalTime(12, 24)
+            self.assertEqual(otio.opentime.RationalTime(12, 24), player.currentTime)
+            self.assertEqual(otio.opentime.RationalTime(12, 24), times[-1])
+            player.inOutRange = otio.opentime.TimeRange(
+                otio.opentime.RationalTime(6, 24),
+                otio.opentime.RationalTime(12, 24))
+            self.assertEqual(
+                otio.opentime.RationalTime(6, 24),
+                player.inOutRange.start_time)
 
 if __name__ == '__main__':
     unittest.main()
