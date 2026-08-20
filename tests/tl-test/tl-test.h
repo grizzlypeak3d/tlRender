@@ -5,6 +5,9 @@
 
 #include <ftk/Core/IApp.h>
 
+#include <string>
+#include <vector>
+
 namespace tl
 {
     namespace tests
@@ -30,6 +33,10 @@ namespace tl
             int run();
 
         private:
+            //! Whether the tests asked for include ones that make an OpenGL
+            //! context. Nothing named means the whole suite, which does.
+            static bool _needsGL(const std::vector<std::string>& testNames);
+
             FTK_PRIVATE();
         };
     }

@@ -15,6 +15,15 @@ target_link_libraries(tl-test
 
 set_target_properties(tl-test PROPERTIES FOLDER tests)
 
-add_test(
-    NAME tl-test
-    COMMAND tl-test -log)
+# The macOS and Windows CI runners have no working OpenGL. Leaving out the
+# tests that make a context is better than skipping the suite, which is what
+# those platforms did before.
+if(TLRENDER_TESTS_NO_GL)
+    add_test(
+        NAME tl-test
+        COMMAND tl-test -log -noGL)
+else()
+    add_test(
+        NAME tl-test
+        COMMAND tl-test -log)
+endif()

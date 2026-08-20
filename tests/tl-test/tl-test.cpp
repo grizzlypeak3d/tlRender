@@ -40,6 +40,7 @@
 #include <tlRender/CoreTest/URLTest.h>
 
 #include <tlRender/UI/Init.h>
+#include <tlRender/Timeline/Init.h>
 
 #include <ftk/Core/CmdLine.h>
 #include <ftk/Core/Context.h>
@@ -59,6 +60,7 @@ namespace tl
         struct App::Private
         {
             std::shared_ptr<ftk::CmdLineListArg<std::string> > testNames;
+            std::shared_ptr<ftk::CmdLineFlag> noGL;
             std::vector<std::shared_ptr<ftk::test::ITest> > tests;
             std::chrono::steady_clock::time_point startTime;
         };
@@ -72,14 +74,32 @@ namespace tl
                 "Test",
                 "Names of the tests to run.",
                 true);
+            p.noGL = ftk::CmdLineFlag::create(
+                { "-noGL" },
+                "Run only the tests that do not need OpenGL.");
             IApp::_init(
                 context,
                 argv,
                 "tl-test",
                 "Test application",
-                { p.testNames });
+                { p.testNames },
+                { p.noGL });
             p.startTime = std::chrono::steady_clock::now();
-            ui::init(context);
+
+            // Only what the tests to be run need. The GL tests make a
+            // context, and so does the thumbnail system that ui::init()
+            // creates, so a binary that always called it needed OpenGL to
+            // start whatever was being run -- which is why the platforms
+            // whose runners have no working OpenGL run none of the suite.
+            const bool gl = !p.noGL->found() && _needsGL(p.testNames->getList());
+            if (gl)
+            {
+                ui::init(context);
+            }
+            else
+            {
+                tl::init(context);
+            }
 
             // Core tests.
             p.tests.push_back(core_tests::AudioTest::create(context));
@@ -104,7 +124,10 @@ namespace tl
 #endif // TLRENDER_EXR
 
             // GL tests.
-            p.tests.push_back(gl_test::RenderTest::create(context));
+            if (gl)
+            {
+                p.tests.push_back(gl_test::RenderTest::create(context));
+            }
 
             // Timeline tests.
             p.tests.push_back(timeline_tests::AudioSystemTest::create(context));
@@ -120,7 +143,34 @@ namespace tl
             p.tests.push_back(timeline_tests::UtilTest::create(context));
 
             // UI tests.
-            p.tests.push_back(ui_tests::ThumbnailSystemTest::create(context));
+            if (gl)
+            {
+                p.tests.push_back(ui_tests::ThumbnailSystemTest::create(context));
+            }
+        }
+
+        bool App::_needsGL(const std::vector<std::string>& testNames)
+        {
+            // Nothing named means the whole suite, which includes them.
+            if (testNames.empty())
+            {
+                return true;
+            }
+            // Matched against the names themselves, the way run() matches
+            // them, so that a group name and a test name both work.
+            for (const auto& name : testNames)
+            {
+                for (const std::string& glName : {
+                    "gl_test::RenderTest",
+                    "ui_tests::ThumbnailSystemTest" })
+                {
+                    if (ftk::contains(glName, name, ftk::CaseCompare::Insensitive))
+                    {
+                        return true;
+                    }
+                }
+            }
+            return false;
         }
 
         App::App() :

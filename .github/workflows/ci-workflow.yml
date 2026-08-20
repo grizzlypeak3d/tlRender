@@ -136,12 +136,13 @@ jobs:
         export DYLD_LIBRARY_PATH=$PWD/install-Debug/lib:$DYLD_LIBRARY_PATH
         sh tl/etc/macOS/sbuild.sh tl Debug ci-macos
 
-    # \bug Disable tests since macOS CI doesn't work with OpenGL?
-    #- name: Run tests
-    #  run: |
-    #    export DYLD_LIBRARY_PATH=$PWD/install-Debug/lib:$DYLD_LIBRARY_PATH
-    #    cd build-Debug
-    #    ctest --verbose --rerun-failed --output-on-failure -C Debug
+    # The runner has no working OpenGL; ci-macos.cmake leaves out the tests
+    # that make a context.
+    - name: Run tests
+      run: |
+        export DYLD_LIBRARY_PATH=$PWD/install-Debug/lib:$DYLD_LIBRARY_PATH
+        cd build-Debug
+        ctest --verbose --rerun-failed --output-on-failure -C Debug
 
   windows-build:
     runs-on: windows-latest
@@ -174,9 +175,10 @@ jobs:
       run: |
         tl\etc\Windows\sbuild.bat tl Debug ci-windows
 
-    # \bug Disable tests since Windows CI doesn't work with OpenGL?
-    #- name: Run tests
-    #  shell: cmd
-    #  run: |
-    #    cd build-Debug
-    #    ctest --verbose --rerun-failed --output-on-failure -C Debug
+    # The runner has no working OpenGL; ci-windows.cmake leaves out the tests
+    # that make a context.
+    - name: Run tests
+      shell: cmd
+      run: |
+        cd build-Debug
+        ctest --verbose --rerun-failed --output-on-failure -C Debug
