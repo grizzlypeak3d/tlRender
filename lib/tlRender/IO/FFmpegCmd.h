@@ -112,45 +112,11 @@ namespace tl
             FTK_PRIVATE();
         };
 
-        //! FFmpeg command line read plugin.
-        class TL_API_TYPE ReadPlugin : public IReadPlugin
-        {
-        protected:
-            void _init(const std::shared_ptr<ftk::LogSystem>&);
-
-            ReadPlugin() = default;
-
-        public:
-            //! Create a new plugin.
-            TL_API static std::shared_ptr<ReadPlugin> create(
-                const std::shared_ptr<ftk::LogSystem>&);
-
-            TL_API std::shared_ptr<IVideoRead> videoRead(
-                const ftk::Path&,
-                const IOOptions& = IOOptions()) override;
-            TL_API std::shared_ptr<IVideoRead> videoRead(
-                const ftk::Path&,
-                const std::vector<ftk::MemFile>&,
-                const IOOptions & = IOOptions()) override;
-
-            TL_API std::shared_ptr<IAudioRead> audioRead(
-                const ftk::Path&,
-                const IOOptions& = IOOptions()) override;
-            TL_API std::shared_ptr<IAudioRead> audioRead(
-                const ftk::Path&,
-                const std::vector<ftk::MemFile>&,
-                const IOOptions & = IOOptions()) override;
-
-            TL_API std::string getPluginInfo(
-                const IOOptions& = IOOptions()) const override;
-
-        private:
-            //! Refuse media held in memory, which the command line has no way
-            //! to be given.
-            static void _memoryUnsupported(
-                const ftk::Path&,
-                const std::vector<ftk::MemFile>&);
-        };
+        //! Get the version of the command line application, or nothing
+        //! when there is none to ask.
+        TL_API std::string getVersion(
+            const IOOptions&,
+            const std::shared_ptr<ftk::LogSystem>&);
 
         //! \name Serialize
         ///@{

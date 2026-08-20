@@ -3,12 +3,16 @@
 
 #include <tlRender/IO/FFmpegPrivate.h>
 
+#include <tlRender/IO/FFmpegCmd.h>
+
 #include <ftk/Core/Assert.h>
 #include <ftk/Core/Format.h>
 #include <ftk/Core/LogSystem.h>
 
 extern "C"
 {
+#include <libavcodec/avcodec.h>
+#include <libavformat/avformat.h>
 #include <libavutil/channel_layout.h>
 #include <libavutil/dict.h>
 #include <libavutil/ffversion.h>
@@ -237,6 +241,29 @@ namespace tl
                 }
             }
 
+            // What the command line can open as well. The library's list is
+            // whatever demuxers this build has, and a minimal build has
+            // fewer of them, so claiming only those would stop offering
+            // files the user's own ffmpeg could read -- which is what the
+            // command line path is for.
+            for (const auto& ext : {
+                ".avi", ".avif", ".gif", ".mkv", ".mov", ".mp4", ".mxf",
+                ".m4v", ".webm", ".y4m" })
+            {
+                if (extensions.find(ext) == extensions.end())
+                {
+                    extensions[ext] = FileType::Media;
+                }
+            }
+            for (const auto& ext : {
+                ".aac", ".aiff", ".flac", ".mp3", ".m4a", ".ogg", ".wav" })
+            {
+                if (extensions.find(ext) == extensions.end())
+                {
+                    extensions[ext] = FileType::Audio;
+                }
+            }
+
             IReadPlugin::_init("FFmpeg", extensions, logSystem);
 
             _logSystemWeak = logSystem;
@@ -266,11 +293,81 @@ namespace tl
             return out;
         }
 
+        namespace
+        {
+            //! Whether the command line reads this file rather than the
+            //! library.
+            //!
+            //! What decides is whether this build has a decoder for the
+            //! stream, not what the user prefers: the bundled FFmpeg is built
+            //! small on purpose, and the command line is there for what it
+            //! cannot decode. Asking the file means nobody has to know which
+            //! of their files need which.
+            bool useCommandLine(
+                const ftk::Path& path,
+                const IOOptions& options,
+                AVMediaType type)
+            {
+                if (auto i = options.find("FFmpeg/CommandLine");
+                    i != options.end())
+                {
+                    if ("Always" == i->second)
+                        return true;
+                    if ("Never" == i->second)
+                        return false;
+                }
+
+                bool out = false;
+                const std::string fileName =
+                    path.hasProtocol() ? path.get() : path.getFileName(true);
+                AVFormatContext* avFormatContext = nullptr;
+                if (avformat_open_input(
+                    &avFormatContext, fileName.c_str(), nullptr, nullptr) == 0)
+                {
+                    if (avformat_find_stream_info(avFormatContext, nullptr) >= 0)
+                    {
+                        const int stream = av_find_best_stream(
+                            avFormatContext, type, -1, -1, nullptr, 0);
+                        if (stream >= 0)
+                        {
+                            // No decoder for what the file holds: this build
+                            // can see the stream and cannot read it.
+                            out = !avcodec_find_decoder(
+                                avFormatContext->streams[stream]->codecpar->codec_id);
+                        }
+                    }
+                    avformat_close_input(&avFormatContext);
+                }
+                else
+                {
+                    // Not something the library can even open, so the command
+                    // line is the only one left to try.
+                    out = true;
+                }
+                return out;
+            }
+        }
+
         std::shared_ptr<IVideoRead> ReadPlugin::videoRead(
             const ftk::Path& path,
             const IOOptions& options)
         {
-            return VideoRead::create(path, options, _logSystem.lock());
+            auto logSystem = _logSystem.lock();
+            if (useCommandLine(path, options, AVMEDIA_TYPE_VIDEO))
+            {
+                // Said out loud: which of the two read a file is the first
+                // thing wanted when it is read wrongly, and it is otherwise
+                // not visible from the outside.
+                if (logSystem)
+                {
+                    logSystem->print(
+                        "tl::ffmpeg::ReadPlugin",
+                        ftk::Format("Reading video with the command line: \"{0}\"").
+                        arg(path.get()));
+                }
+                return ffmpeg_cmd::VideoRead::create(path, options, logSystem);
+            }
+            return VideoRead::create(path, options, logSystem);
         }
 
         std::shared_ptr<IVideoRead> ReadPlugin::videoRead(
@@ -285,7 +382,19 @@ namespace tl
             const ftk::Path& path,
             const IOOptions& options)
         {
-            return AudioRead::create(path, options, _logSystem.lock());
+            auto logSystem = _logSystem.lock();
+            if (useCommandLine(path, options, AVMEDIA_TYPE_AUDIO))
+            {
+                if (logSystem)
+                {
+                    logSystem->print(
+                        "tl::ffmpeg::ReadPlugin",
+                        ftk::Format("Reading audio with the command line: \"{0}\"").
+                        arg(path.get()));
+                }
+                return ffmpeg_cmd::AudioRead::create(path, options, logSystem);
+            }
+            return AudioRead::create(path, options, logSystem);
         }
 
         std::shared_ptr<IAudioRead> ReadPlugin::audioRead(
@@ -296,9 +405,19 @@ namespace tl
             return AudioRead::create(path, memory, options, _logSystem.lock());
         }
 
-        std::string ReadPlugin::getPluginInfo(const IOOptions&) const
+        std::string ReadPlugin::getPluginInfo(const IOOptions& ioOptions) const
         {
-            return FFMPEG_VERSION;
+            // Both, when there is a command line to ask: the two read
+            // different files and it is worth seeing which versions are in
+            // play.
+            std::string out = FFMPEG_VERSION;
+            const std::string cmd =
+                ffmpeg_cmd::getVersion(ioOptions, _logSystem.lock());
+            if (!cmd.empty())
+            {
+                out = ftk::Format("{0} (command line {1})").arg(out).arg(cmd);
+            }
+            return out;
         }
 
         void ReadPlugin::_logCallback(void*, int level, const char* fmt, va_list vl)

@@ -4,6 +4,7 @@
 #include <tlRender/IOTest/FFmpegTest.h>
 
 #include <tlRender/IO/FFmpeg.h>
+#include <tlRender/IO/FFmpegCmd.h>
 #include <tlRender/IO/FFmpegPrivate.h>
 #include <tlRender/IO/System.h>
 
@@ -38,6 +39,80 @@ namespace tl
             _io();
             _audio();
             _split();
+            _commandLine();
+        }
+
+        void FFmpegTest::_commandLine()
+        {
+            // The library and the command line read the same file, so they
+            // have to say the same things about it. They are one plugin now
+            // and which of them answers is decided per file, so a reader
+            // cannot tell which it got -- and the two disagreeing is what the
+            // last two bugs here were.
+            if (ffmpeg_cmd::getVersion(IOOptions(), nullptr).empty())
+            {
+                _print("Skipped: no FFmpeg command line to compare against");
+                return;
+            }
+            auto readSystem = _context->getSystem<ReadSystem>();
+            auto writeSystem = _context->getSystem<WriteSystem>();
+            const ftk::Path path(
+                (_getTempDir() / "FFmpegCommandLineTest.mov").u8string());
+            auto readPlugin = readSystem->getPlugin(path);
+            auto writePlugin = writeSystem->getPlugin(path);
+            if (!readPlugin || !writePlugin)
+            {
+                _print("Skipped: no plugin reads or writes the fixture");
+                return;
+            }
+
+            const ftk::ImageInfo imageInfo(16, 16, ftk::ImageType::RGB_U8);
+            IOInfo info;
+            info.video.push_back(imageInfo);
+            info.videoTime = OTIO_NS::TimeRange(
+                OTIO_NS::RationalTime(0.0, 24.0),
+                OTIO_NS::RationalTime(24.0, 24.0));
+            {
+                IOOptions writeOptions;
+                writeOptions["FFmpeg/Codec"] = "mjpeg";
+                auto write = writePlugin->write(path, info, writeOptions);
+                for (int i = 0; i < 24; ++i)
+                {
+                    write->writeVideo(
+                        OTIO_NS::RationalTime(i, 24.0),
+                        ftk::Image::create(imageInfo));
+                }
+                write->finish();
+            }
+
+            const auto read = [this, readPlugin, path](const std::string& which)
+                {
+                    IOOptions options;
+                    options["FFmpeg/CommandLine"] = which;
+                    auto reader = readPlugin->videoRead(path, options);
+                    FTK_CHECK(reader);
+                    return reader->getInfo().get();
+                };
+            const IOInfo library = read("Never");
+            const IOInfo command = read("Always");
+
+            _print(ftk::Format("Library: {0} {1}").
+                arg(library.videoTime->start_time().value()).
+                arg(library.videoTime->duration().value()));
+            _print(ftk::Format("Command line: {0} {1}").
+                arg(command.videoTime->start_time().value()).
+                arg(command.videoTime->duration().value()));
+
+            FTK_CHECK(library.videoTime.has_value());
+            FTK_CHECK(command.videoTime.has_value());
+            FTK_CHECK(library.videoTime->duration().rate() ==
+                command.videoTime->duration().rate());
+            FTK_CHECK(library.videoTime->start_time() ==
+                command.videoTime->start_time());
+            FTK_CHECK(library.videoTime->duration() ==
+                command.videoTime->duration());
+            FTK_CHECK(!library.video.empty() && !command.video.empty());
+            FTK_CHECK(library.video[0].size == command.video[0].size);
         }
 
         void FFmpegTest::write(

@@ -274,89 +274,9 @@ namespace tl
             return out;
         }
 
-        void ReadPlugin::_init(const std::shared_ptr<ftk::LogSystem>& logSystem)
-        {
-            std::map<std::string, FileType> extensions;
-            extensions[".avi"] = FileType::Media;
-            extensions[".avif"] = FileType::Media;
-            extensions[".gif"] = FileType::Media;
-            extensions[".mkv"] = FileType::Media;
-            extensions[".mov"] = FileType::Media;
-            extensions[".mp4"] = FileType::Media;
-            extensions[".mxf"] = FileType::Media;
-            extensions[".m4v"] = FileType::Media;
-            extensions[".webm"] = FileType::Media;
-            extensions[".y4m"] = FileType::Media;
-
-            extensions[".aac"] = FileType::Audio;
-            extensions[".aiff"] = FileType::Audio;
-            extensions[".flac"] = FileType::Audio;
-            extensions[".mp3"] = FileType::Audio;
-            extensions[".m4a"] = FileType::Audio;
-            extensions[".ogg"] = FileType::Audio;
-            extensions[".wav"] = FileType::Audio;
-            IReadPlugin::_init("FFmpegCmd", extensions, logSystem);
-        }
-
-        std::shared_ptr<ReadPlugin> ReadPlugin::create(
+        std::string getVersion(
+            const IOOptions& ioOptions,
             const std::shared_ptr<ftk::LogSystem>& logSystem)
-        {
-            auto out = std::shared_ptr<ReadPlugin>(new ReadPlugin);
-            out->_init(logSystem);
-            return out;
-        }
-
-        std::shared_ptr<IVideoRead> ReadPlugin::videoRead(
-            const ftk::Path& path,
-            const IOOptions& options)
-        {
-            return VideoRead::create(path, options, _logSystem.lock());
-        }
-
-        std::shared_ptr<IVideoRead> ReadPlugin::videoRead(
-            const ftk::Path& path,
-            const std::vector<ftk::MemFile>& memory,
-            const IOOptions& options)
-        {
-            _memoryUnsupported(path, memory);
-            return VideoRead::create(path, memory, options, _logSystem.lock());
-        }
-
-        std::shared_ptr<IAudioRead> ReadPlugin::audioRead(
-            const ftk::Path& path,
-            const IOOptions& options)
-        {
-            return AudioRead::create(path, options, _logSystem.lock());
-        }
-
-        std::shared_ptr<IAudioRead> ReadPlugin::audioRead(
-            const ftk::Path& path,
-            const std::vector<ftk::MemFile>& memory,
-            const IOOptions& options)
-        {
-            _memoryUnsupported(path, memory);
-            return AudioRead::create(path, memory, options, _logSystem.lock());
-        }
-
-        void ReadPlugin::_memoryUnsupported(
-            const ftk::Path& path,
-            const std::vector<ftk::MemFile>& memory)
-        {
-            // The command line takes a file name, so media held as a byte
-            // range -- what a bundle stores -- has nowhere to go. Throwing
-            // hands the read to the next plugin for the extension, which on a
-            // build with the FFmpeg library is one that can read it; on a
-            // build without, it is the error the reader would otherwise have
-            // been silent about.
-            if (!memory.empty())
-            {
-                throw std::runtime_error(
-                    ftk::Format("The FFmpeg command line cannot read media "
-                        "held in memory: \"{0}\"").arg(path.get()));
-            }
-        }
-
-        std::string ReadPlugin::getPluginInfo(const IOOptions& ioOptions) const
         {
             std::string out;
             try
@@ -379,10 +299,16 @@ namespace tl
             }
             catch (const std::exception& e)
             {
-                _logSystem.lock()->print("tl::ffmpeg_cmd::ReadPlugin", e.what(), ftk::LogType::Error);
+                // No ffmpeg to ask, which is not an error in itself: it is
+                // only wanted for what the library cannot decode.
+                if (logSystem)
+                {
+                    logSystem->print("tl::ffmpeg_cmd", e.what(), ftk::LogType::Warning);
+                }
             }
             return out;
         }
+
 
         void to_json(nlohmann::json& json, const Options& value)
         {

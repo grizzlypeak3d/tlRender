@@ -38,12 +38,11 @@ endif()
 set(TLRENDER_FFMPEG ON CACHE BOOL "")
 set(TLRENDER_FFMPEG_MINIMAL OFF CACHE BOOL "")
 set(TLRENDER_FFMPEG_PLUGIN ON CACHE BOOL "")
-set(TLRENDER_FFMPEG_CMD OFF CACHE BOOL "")
-# The subprocess dependency exists to run the command line tool, so it
-# follows TLRENDER_FFMPEG_CMD rather than being answered twice. Turning the
-# plugin on without it gets as far as compiling FFmpegCmd.cpp and failing to
-# find subprocess.h.
-set(TLRENDER_SUBPROCESS ${TLRENDER_FFMPEG_CMD} CACHE BOOL "")
+# The subprocess dependency exists to run the command line tool, which the
+# FFmpeg plugin falls back on, so it follows the plugin rather than being
+# answered twice. Turning the plugin on without it gets as far as compiling
+# FFmpegCmd.cpp and failing to find subprocess.h.
+set(TLRENDER_SUBPROCESS ${TLRENDER_FFMPEG_PLUGIN} CACHE BOOL "")
 set(TLRENDER_OIIO ON CACHE BOOL "")
 set(TLRENDER_LIBRAW ON CACHE BOOL "")
 set(TLRENDER_USD OFF CACHE BOOL "")
