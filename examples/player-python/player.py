@@ -11,8 +11,8 @@ import App
 context = ftk.Context()
 tl.ui.init(context)
 app = App.App(context, sys.argv)
-if app.exitValue != 0:
-    sys.exit(app.exitValue)
+if app.hasCmdLineHelp:
+    sys.exit(0)
 app.run()
 app = None
 

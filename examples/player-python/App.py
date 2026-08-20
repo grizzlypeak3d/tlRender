@@ -19,7 +19,7 @@ class App(ftk.App):
     def __init__(self, context, argv):
         
         # Command line arguments.
-        self._cmdLineInput = ftk.CmdLineValueArgString("Input", "Input file", True)
+        self._cmdLineInput = ftk.CmdLineArgString("Input", "Input file", True)
         
         ftk.App.__init__(
             self,
