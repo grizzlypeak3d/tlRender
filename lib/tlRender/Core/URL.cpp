@@ -73,7 +73,7 @@ namespace tl
         }
 
         // Copy the remainder without any encodings.
-        if (!url.empty() && pos != url.size() - 1)
+        if (pos < url.size())
         {
             out.append(url.substr(pos, url.size() - pos));
         }
