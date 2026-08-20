@@ -20,6 +20,7 @@
 #include <tlRender/GLTest/RenderTest.h>
 
 #include <tlRender/IOTest/IOTest.h>
+#include <tlRender/IOTest/PNGTest.h>
 #include <tlRender/IOTest/RequestQueueTest.h>
 #if defined(TLRENDER_FFMPEG_PLUGIN)
 #include <tlRender/IOTest/FFmpegTest.h>
@@ -109,6 +110,7 @@ namespace tl
 
             // I/O tests.
             p.tests.push_back(io_tests::IOTest::create(context));
+            p.tests.push_back(io_tests::PNGTest::create(context));
             p.tests.push_back(io_tests::RequestQueueTest::create(context));
 #if defined(TLRENDER_FFMPEG_PLUGIN)
             p.tests.push_back(io_tests::FFmpegTest::create(context));

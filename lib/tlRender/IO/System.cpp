@@ -13,6 +13,8 @@
 #include <tlRender/IO/OIIO.h>
 #endif // TLRENDER_OIIO
 #if defined(TLRENDER_SVG)
+#include <tlRender/IO/PNG.h>
+
 #include <tlRender/IO/SVG.h>
 #endif // TLRENDER_SVG
 #if defined(TLRENDER_USD)
@@ -52,6 +54,10 @@ namespace tl
 #if defined(TLRENDER_OIIO)
             _plugins.push_back(oiio::ReadPlugin::create(logSystem));
 #endif // TLRENDER_OIIO
+            // After OIIO, which keeps .png where it is built, and before
+            // FFmpeg, whose image demuxer would otherwise take it. So this
+            // adds a format where there was none rather than taking one over.
+            _plugins.push_back(png::ReadPlugin::create(logSystem));
 #if defined(TLRENDER_FFMPEG_PLUGIN)
             _plugins.push_back(ffmpeg::ReadPlugin::create(logSystem));
 #endif // TLRENDER_FFMPEG_PLUGIN
@@ -256,6 +262,7 @@ namespace tl
 #if defined(TLRENDER_OIIO)
             _plugins.push_back(oiio::WritePlugin::create(logSystem));
 #endif // TLRENDER_OIIO
+            _plugins.push_back(png::WritePlugin::create(logSystem));
 #if defined(TLRENDER_FFMPEG_PLUGIN)
             _plugins.push_back(ffmpeg::WritePlugin::create(logSystem));
 #endif // TLRENDER_FFMPEG_PLUGIN

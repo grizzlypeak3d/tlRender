@@ -1,9 +1,11 @@
 set(HEADERS
     IOTest.h
+    PNGTest.h
     RequestQueueTest.h)
 
 set(SOURCE
     IOTest.cpp
+    PNGTest.cpp
     RequestQueueTest.cpp)
 
 if(TLRENDER_FFMPEG_PLUGIN)

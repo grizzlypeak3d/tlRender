@@ -1,7 +1,10 @@
+# PNG is unconditional: the codec comes from feather-tk, which is always
+# there, so every configuration has one image format.
 set(HEADERS
     Decode.h
     IO.h
     IOInline.h
+    PNG.h
     Plugin.h
     Read.h
     SeqDecode.h
@@ -15,6 +18,9 @@ set(HEADERS_PRIVATE
 set(SOURCE
     Decode.cpp
     IO.cpp
+    PNG.cpp
+    PNGRead.cpp
+    PNGWrite.cpp
     Plugin.cpp
     Read.cpp
     SeqDecode.cpp

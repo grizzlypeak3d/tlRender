@@ -1110,7 +1110,8 @@ namespace tl
 
                 const auto otioClips =
                     timeline->getTimeline().value->find_children<OTIO_NS::Clip>();
-                const auto mem = timeline->getMem(otioClips[0]->media_reference());
+                const auto mediaReference = otioClips[0]->media_reference();
+                const auto mem = timeline->getMem(mediaReference);
 
                 // Indexed by frame number over the whole range, not by how
                 // many frames are present.
@@ -1123,31 +1124,47 @@ namespace tl
                     FTK_CHECK(present == (mem[i].p != nullptr));
                 }
 
-                // A frame the bundle holds reads. Frame 30 sits after the
-                // first gap, so it would come back as the wrong image if the
-                // frames had been packed.
-                for (double frame : { 0.0, 30.0, 89.0 })
+                // The frames the bundle holds are JPEG, which not every
+                // configuration builds. What is above this does not decode
+                // anything, so it is checked either way.
+                if (_context->getSystem<ReadSystem>()->getPlugin(getPath(
+                    mediaReference,
+                    timeline->getPath().getDir(),
+                    ftk::PathOptions())))
                 {
-                    auto request = timeline->getVideo(
-                        OTIO_NS::RationalTime(frame, 30.0));
-                    const VideoFrame videoFrame = request.future.get();
-                    FTK_CHECK(!videoFrame.layers.empty());
-                    FTK_CHECK(videoFrame.layers[0].image);
-                }
+                    // A frame the bundle holds reads. Frame 30 sits
+                    // after the first gap, so it would come back as the
+                    // wrong image if the frames had been packed.
+                    for (double frame : { 0.0, 30.0, 89.0 })
+                    {
+                        auto request = timeline->getVideo(
+                            OTIO_NS::RationalTime(frame, 30.0));
+                        const VideoFrame videoFrame = request.future.get();
+                        FTK_CHECK(!videoFrame.layers.empty());
+                        FTK_CHECK(videoFrame.layers[0].image);
+                    }
 
-                // A frame it does not hold follows the policy the bundle
-                // declares, which for this one is black. It is not read from
-                // the file system whatever the policy says.
+                    // A frame it does not hold follows the policy the
+                    // bundle declares, which for this one is black. It is
+                    // not read from the file system whatever the policy says.
+                    {
+                        auto request = timeline->getVideo(
+                            OTIO_NS::RationalTime(12.0, 30.0));
+                        const VideoFrame videoFrame = request.future.get();
+                        FTK_CHECK(!videoFrame.layers.empty());
+                        const auto& image = videoFrame.layers[0].image;
+                        FTK_CHECK(image);
+                        if (image)
+                        {
+                            std::vector<uint8_t> zero(image->getByteCount(), 0);
+                            FTK_CHECK(0 == memcmp(
+                                image->getData(), zero.data(), zero.size()));
+                        }
+                    }
+                }
+                else
                 {
-                    auto request = timeline->getVideo(
-                        OTIO_NS::RationalTime(12.0, 30.0));
-                    const VideoFrame videoFrame = request.future.get();
-                    FTK_CHECK(!videoFrame.layers.empty());
-                    const auto& image = videoFrame.layers[0].image;
-                    FTK_CHECK(image);
-                    std::vector<uint8_t> zero(image->getByteCount(), 0);
-                    FTK_CHECK(0 == memcmp(
-                        image->getData(), zero.data(), zero.size()));
+                    _print("Skipped: no plugin reads the bundle's media");
                 }
             }
             catch (const std::exception& e)
