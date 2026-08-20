@@ -26,6 +26,14 @@ namespace tl
                     static_cast<int>(FileType::Media) |
                     static_cast<int>(FileType::Seq) |
                     static_cast<int>(FileType::Audio));
+
+            m.def(
+                "getPaths",
+                &getPaths,
+                py::arg("context"),
+                py::arg("path"),
+                py::arg("options") = ftk::DirListOptions(),
+                "Get a list of paths to open from the given path.");
         }
     }
 }
