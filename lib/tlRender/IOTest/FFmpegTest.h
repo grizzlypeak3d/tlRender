@@ -24,6 +24,7 @@ namespace tl
 
         private:
             void _commandLine();
+            void _pixelAspectRatio();
             // Members rather than free helpers so they can report a
             // failed check, which goes through the test.
             void write(

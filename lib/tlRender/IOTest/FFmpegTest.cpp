@@ -40,6 +40,35 @@ namespace tl
             _audio();
             _split();
             _commandLine();
+            _pixelAspectRatio();
+        }
+
+        void FFmpegTest::_pixelAspectRatio()
+        {
+            // An anamorphic movie: 2:1 pixels, so it is shown twice as wide
+            // as it is stored. A QuickTime carries that in its "pasp" atom,
+            // which reaches the stream and not the codec parameters, and
+            // reading it from the parameters gave square pixels and an image
+            // squeezed to half its width.
+            const ftk::Path path(TLRENDER_SAMPLE_DATA, "Anamorphic.mov");
+            auto readSystem = _context->getSystem<ReadSystem>();
+            auto plugin = readSystem->getPlugin(path);
+            if (!plugin)
+            {
+                _print("Skipped: no plugin reads the fixture");
+                return;
+            }
+            auto read = plugin->videoRead(path);
+            if (!read)
+            {
+                _print("Skipped: no reader for the fixture");
+                return;
+            }
+            const IOInfo info = read->getInfo().get();
+            FTK_CHECK(!info.video.empty());
+            _print(ftk::Format("Pixel aspect ratio: {0}").
+                arg(info.video[0].pixelAspectRatio));
+            FTK_CHECK(2.0F == info.video[0].pixelAspectRatio);
         }
 
         void FFmpegTest::_commandLine()
