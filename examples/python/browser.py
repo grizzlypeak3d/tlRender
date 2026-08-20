@@ -90,7 +90,7 @@ class MainWindow(ftk.MainWindow):
         self._fileBrowserView.setSelectCallback(
             lambda path: selfWeak()._selectCallback(path))
 
-        self._pathObserver = ftk.PathObserver(
+        self._pathObserver = ftk.FileSystemPathObserver(
             self._fileBrowserModel.observePath,
             lambda path: selfWeak()._pathUpdate(path))
 
