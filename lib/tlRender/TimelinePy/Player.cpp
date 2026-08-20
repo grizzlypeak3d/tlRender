@@ -49,6 +49,7 @@ namespace tl
                 .value("FramePrevX100", TimeAction::FramePrevX100)
                 .value("FrameNext", TimeAction::FrameNext)
                 .value("FrameNextX10", TimeAction::FrameNextX10)
+                .value("FrameNextX100", TimeAction::FrameNextX100)
                 .value("JumpBack1s", TimeAction::JumpBack1s)
                 .value("JumpBack10s", TimeAction::JumpBack10s)
                 .value("JumpForward1s", TimeAction::JumpForward1s)
@@ -56,6 +57,7 @@ namespace tl
             FTK_ENUM_BIND(m, TimeAction);
 
             ftk::python::observable<Playback>(m, "Playback");
+            ftk::python::observable<Loop>(m, "Loop");
             ftk::python::observable<PlayerCacheOptions>(m, "PlayerCacheOptions");
             ftk::python::observable<OTIO_NS::RationalTime>(m, "RationalTime");
             ftk::python::observable<std::shared_ptr<Player> >(m, "Player");
