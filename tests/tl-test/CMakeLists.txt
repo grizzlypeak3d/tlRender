@@ -27,3 +27,8 @@ else()
         NAME tl-test
         COMMAND tl-test -log)
 endif()
+
+# A test that hangs should fail, not run until the job is killed: this one
+# waits on futures, and a reader that never answers waits forever. The whole
+# suite is a couple of minutes, so this only fires on a hang.
+set_tests_properties(tl-test PROPERTIES TIMEOUT 900)
