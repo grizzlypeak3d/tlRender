@@ -657,22 +657,20 @@ namespace tl
             // its name, so a path that goes out through a string comes back
             // naming one frame -- and callers reopen what getPath() gives
             // them.
-            try
+            // Opening needs a reader, and the minimal configuration compiles
+            // no image plugin at all.
+            ftk::Path path(TLRENDER_SAMPLE_DATA, "Seq/BART_2021-02-07.0001.png");
+            if (!_context->getSystem<ReadSystem>()->getPlugin(path))
             {
-                // PNG, which is always built: what is being checked is the
-                // path the timeline gives back, not the format.
-                ftk::Path path(TLRENDER_SAMPLE_DATA, "Seq/BART_2021-02-07.0001.png");
-                path.setFrames(ftk::RangeI64(1, 3));
-                Options options;
-                auto timeline = Timeline::create(_context, path, options);
-                _print(ftk::Format("Path: {0}").arg(timeline->getPath().get()));
-                FTK_CHECK(timeline->getPath().isSeq());
-                FTK_CHECK(ftk::RangeI64(1, 3) == timeline->getPath().getFrames().value());
+                _print("Skipped: no plugin reads the fixture");
+                return;
             }
-            catch (const std::exception& e)
-            {
-                _error(e.what());
-            }
+            path.setFrames(ftk::RangeI64(1, 3));
+            Options options;
+            auto timeline = Timeline::create(_context, path, options);
+            _print(ftk::Format("Path: {0}").arg(timeline->getPath().get()));
+            FTK_CHECK(timeline->getPath().isSeq());
+            FTK_CHECK(ftk::RangeI64(1, 3) == timeline->getPath().getFrames().value());
         }
 
         void TimelineTest::_seqOnDisk()

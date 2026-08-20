@@ -59,13 +59,14 @@ namespace tl
             // Gathering the frames of a sequence: naming one frame names the
             // sequence, the same way listing a directory gathers its frames
             // into one entry, and the one flag says both.
-            // PNG, which is always built: what is being checked is the
-            // gathering, not the format, and the minimal configuration has
-            // none of the optional media libraries.
+            // The extension is named rather than asked of the plugins.
+            // Gathering reads the directory and does not open anything, so
+            // which formats were compiled in is not part of what this checks
+            // -- and the minimal configuration compiles no image plugin at
+            // all, so asking would gather nothing.
             const ftk::Path frame(TLRENDER_SAMPLE_DATA, "Seq/BART_2021-02-07.0001.png");
             ftk::DirListOptions dirListOptions;
-            dirListOptions.seqExts = getExts(
-                _context, static_cast<int>(FileType::Seq));
+            dirListOptions.seqExts = { ".png" };
             {
                 const auto paths = getPaths(_context, frame, dirListOptions);
                 FTK_CHECK(1 == paths.size());
