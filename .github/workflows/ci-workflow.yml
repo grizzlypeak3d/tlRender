@@ -166,6 +166,7 @@ jobs:
       run: |
         echo %CD%\install-Debug\bin>> %GITHUB_PATH%
         echo %CD%\install-Debug\lib>> %GITHUB_PATH%
+        echo PYTHONPATH=%CD%\install-Debug\lib>> %GITHUB_ENV%
         echo CTEST_OUTPUT_ON_FAILURE=1 >> %GITHUB_ENV%
         cmake --version
         python --version

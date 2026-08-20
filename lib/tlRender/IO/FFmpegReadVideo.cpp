@@ -147,10 +147,20 @@ namespace tl
 
                     _info.size.w = _avCodecParameters[_avStream]->width;
                     _info.size.h = _avCodecParameters[_avStream]->height;
-                    if (_avCodecParameters[_avStream]->sample_aspect_ratio.den > 0 &&
-                        _avCodecParameters[_avStream]->sample_aspect_ratio.num > 0)
+                    // Asked of the format rather than read from the codec
+                    // parameters: what a QuickTime carries in its "pasp" atom
+                    // reaches the stream, and the parameters copied from the
+                    // codec do not have it. An anamorphic movie came back
+                    // square, which is what the command line -- ffprobe
+                    // reports the stream -- did not do.
+                    const AVRational sampleAspectRatio =
+                        av_guess_sample_aspect_ratio(
+                            _avFormatContext,
+                            _avFormatContext->streams[_avStream],
+                            nullptr);
+                    if (sampleAspectRatio.num > 0 && sampleAspectRatio.den > 0)
                     {
-                        _info.pixelAspectRatio = av_q2d(_avCodecParameters[_avStream]->sample_aspect_ratio);
+                        _info.pixelAspectRatio = av_q2d(sampleAspectRatio);
                     }
                     _info.layout.mirror.y = true;
 

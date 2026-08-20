@@ -35,4 +35,6 @@ target_include_directories(tlIOTest
 
 target_link_libraries(tlIOTest tlIO ftkTestLib)
 
+target_compile_definitions(tlIOTest PUBLIC TLRENDER_SAMPLE_DATA="${PROJECT_SOURCE_DIR}/etc/SampleData")
+
 set_target_properties(tlIOTest PROPERTIES FOLDER tests)
