@@ -48,7 +48,36 @@ namespace tl
                     py::return_value_policy::copy)
                 .def_property_readonly(
                     "observeDisplayOptions",
-                    &TimelineWidget::observeDisplayOptions);
+                    &TimelineWidget::observeDisplayOptions)
+                .def("setTimelines", &TimelineWidget::setTimelines)
+                .def_property(
+                    "frameView",
+                    &TimelineWidget::hasFrameView,
+                    &TimelineWidget::setFrameView)
+                .def_property_readonly(
+                    "observeFrameView",
+                    &TimelineWidget::observeFrameView)
+                .def_property(
+                    "scrollBarsVisible",
+                    &TimelineWidget::areScrollBarsVisible,
+                    &TimelineWidget::setScrollBarsVisible)
+                .def_property_readonly(
+                    "observeScrollBarsVisible",
+                    &TimelineWidget::observeScrollBarsVisible)
+                .def_property(
+                    "autoScroll",
+                    &TimelineWidget::hasAutoScroll,
+                    &TimelineWidget::setAutoScroll)
+                .def_property_readonly(
+                    "observeAutoScroll",
+                    &TimelineWidget::observeAutoScroll)
+                .def_property(
+                    "stopOnScrub",
+                    &TimelineWidget::hasStopOnScrub,
+                    &TimelineWidget::setStopOnScrub)
+                .def_property_readonly(
+                    "observeStopOnScrub",
+                    &TimelineWidget::observeStopOnScrub);
         }
     }
 }
