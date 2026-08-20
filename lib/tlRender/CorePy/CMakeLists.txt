@@ -3,8 +3,11 @@ set(HEADERS
 set(HEADERS_PRIVATE)
 set(SOURCE
     Audio.cpp
+    AudioResample.cpp
     Bindings.cpp
-    Time.cpp)
+    HDR.cpp
+    Time.cpp
+    URL.cpp)
 
 add_library(tlCorePy ${HEADERS} ${HEADERS_PRIVATE} ${SOURCE})
 

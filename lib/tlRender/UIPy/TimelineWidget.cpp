@@ -44,7 +44,8 @@ namespace tl
                 .def_property(
                     "displayOptions",
                     &TimelineWidget::getDisplayOptions,
-                    &TimelineWidget::setDisplayOptions)
+                    &TimelineWidget::setDisplayOptions,
+                    py::return_value_policy::copy)
                 .def_property_readonly(
                     "observeDisplayOptions",
                     &TimelineWidget::observeDisplayOptions);

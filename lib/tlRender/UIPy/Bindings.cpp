@@ -4,9 +4,11 @@
 #include <tlRender/UIPy/Bindings.h>
 
 #include <tlRender/UIPy/ItemOptions.h>
+#include <tlRender/UIPy/PlaybackLoopWidget.h>
 #include <tlRender/UIPy/TimeEdit.h>
 #include <tlRender/UIPy/TimeLabel.h>
 #include <tlRender/UIPy/TimeUnitsWidget.h>
+#include <tlRender/UIPy/TimelineRuler.h>
 #include <tlRender/UIPy/TimelineWidget.h>
 #include <tlRender/UIPy/Viewport.h>
 
@@ -34,10 +36,12 @@ namespace tl
 
             frameToolBar(mUI);
             playbackToolBar(mUI);
+            playbackLoopWidget(mUI);
             timeEdit(mUI);
             timeLabel(mUI);
             timeUnitsWidget(mUI);
             timelineWidget(mUI);
+            timelineRuler(mUI);
             viewport(mUI);
         }
     }

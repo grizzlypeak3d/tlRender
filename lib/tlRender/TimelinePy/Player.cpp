@@ -72,14 +72,13 @@ namespace tl
 
                 .def_property_readonly("context", &Player::getContext)
                 .def_property_readonly("timeline", &Player::getTimeline)
-                .def_property_readonly("path", &Player::getPath)
-                .def_property_readonly("audioPath", &Player::getAudioPath)
-                .def_property_readonly("path", &Player::getPath)
-                .def_property_readonly("playerOptions", &Player::getPlayerOptions)
-                .def_property_readonly("options", &Player::getOptions)
+                .def_property_readonly("path", &Player::getPath, py::return_value_policy::copy)
+                .def_property_readonly("audioPath", &Player::getAudioPath, py::return_value_policy::copy)
+                .def_property_readonly("playerOptions", &Player::getPlayerOptions, py::return_value_policy::copy)
+                .def_property_readonly("options", &Player::getOptions, py::return_value_policy::copy)
                 .def_property_readonly("timeRange", &Player::getTimeRange)
                 .def_property_readonly("duration", &Player::getDuration)
-                .def_property_readonly("ioInfo", &Player::getIOInfo)
+                .def_property_readonly("ioInfo", &Player::getIOInfo, py::return_value_policy::copy)
 
                 .def_property_readonly("defaultSpeed", &Player::getDefaultSpeed)
                 .def_property("speed", &Player::getSpeed, &Player::setSpeed)
@@ -124,10 +123,10 @@ namespace tl
                 .def_property_readonly("observeVideoLayer", &Player::observeVideoLayer)
                 .def_property("compareVideoLayers", &Player::getCompareVideoLayers, &Player::setCompareVideoLayers)
                 .def_property_readonly("observeCompareVideoLayers", &Player::observeCompareVideoLayers)
-                .def_property_readonly("currentVideo", &Player::getCurrentVideo)
+                .def_property_readonly("currentVideo", &Player::getCurrentVideo, py::return_value_policy::copy)
                 .def_property_readonly("observeCurrentVideo", &Player::observeCurrentVideo)
 
-                .def_property("audioDevice", &Player::getAudioDevice, &Player::setAudioDevice)
+                .def_property("audioDevice", &Player::getAudioDevice, &Player::setAudioDevice, py::return_value_policy::copy)
                 .def_property_readonly("observeAudioDevice", &Player::observeAudioDevice)
                 .def_property("volume", &Player::getVolume, &Player::setVolume)
                 .def_property_readonly("observeVolume", &Player::observeVolume)
@@ -140,7 +139,7 @@ namespace tl
                 .def_property_readonly("getCurrentAudio", &Player::getCurrentAudio)
                 .def_property_readonly("observeCurrentAudio", &Player::observeCurrentAudio)
 
-                .def_property("cacheOptions", &Player::getCacheOptions, &Player::setCacheOptions)
+                .def_property("cacheOptions", &Player::getCacheOptions, &Player::setCacheOptions, py::return_value_policy::copy)
                 .def_property_readonly("observeCacheOptions", &Player::observeCacheOptions)
                 .def("clearCache", &Player::clearCache);
         }

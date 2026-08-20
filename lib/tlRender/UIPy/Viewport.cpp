@@ -31,49 +31,56 @@ namespace tl
                     py::arg("parent") = nullptr)
                 .def_property("compareOptions",
                     &Viewport::getCompareOptions,
-                    &Viewport::setCompareOptions)
+                    &Viewport::setCompareOptions,
+                    py::return_value_policy::copy)
                 .def_property_readonly(
                     "observeCompareOptions",
                     &Viewport::observeCompareOptions)
                 .def_property(
                     "ocioOptions",
                     &Viewport::getOCIOOptions,
-                    &Viewport::setOCIOOptions)
+                    &Viewport::setOCIOOptions,
+                    py::return_value_policy::copy)
                 .def_property_readonly(
                     "observeOCIOOptions",
                     &Viewport::observeOCIOOptions)
                 .def_property(
                     "LUTOptions",
                     &Viewport::getLUTOptions,
-                    &Viewport::setLUTOptions)
+                    &Viewport::setLUTOptions,
+                    py::return_value_policy::copy)
                 .def_property_readonly(
                     "observeLUTOptions",
                     &Viewport::observeLUTOptions)
                 .def_property(
                     "imageOptions",
                     &Viewport::getImageOptions,
-                    &Viewport::setImageOptions)
+                    &Viewport::setImageOptions,
+                    py::return_value_policy::copy)
                 .def_property_readonly(
                     "observeImageOptions",
                     &Viewport::observeImageOptions)
                 .def_property(
                     "displayOptions",
                     &Viewport::getDisplayOptions,
-                    &Viewport::setDisplayOptions)
+                    &Viewport::setDisplayOptions,
+                    py::return_value_policy::copy)
                 .def_property_readonly(
                     "observeDisplayOptions",
                     &Viewport::observeDisplayOptions)
                 .def_property(
                     "backgroundOptions",
                     &Viewport::getBackgroundOptions,
-                    &Viewport::setBackgroundOptions)
+                    &Viewport::setBackgroundOptions,
+                    py::return_value_policy::copy)
                 .def_property_readonly(
                     "observeBackgroundOptions",
                     &Viewport::observeBackgroundOptions)
                 .def_property(
                     "foregroundOptions",
                     &Viewport::getForegroundOptions,
-                    &Viewport::setForegroundOptions)
+                    &Viewport::setForegroundOptions,
+                    py::return_value_policy::copy)
                 .def_property_readonly(
                     "observeForegroundOptions",
                     &Viewport::observeForegroundOptions)
@@ -90,7 +97,8 @@ namespace tl
                     &Viewport::setPlayer)
                 .def_property_readonly(
                     "viewPos",
-                    &Viewport::getViewPos)
+                    &Viewport::getViewPos,
+                    py::return_value_policy::copy)
                 .def_property_readonly(
                     "observeViewPos",
                     &Viewport::observeViewPos)
@@ -119,7 +127,8 @@ namespace tl
                 .def_property(
                     "zoomRange",
                     &Viewport::getZoomRange,
-                    &Viewport::setZoomRange)
+                    &Viewport::setZoomRange,
+                    py::return_value_policy::copy)
                 .def_property(
                     "frameView",
                     &Viewport::hasFrameView,

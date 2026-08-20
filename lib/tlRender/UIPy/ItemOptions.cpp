@@ -7,6 +7,7 @@
 
 #include <ftk/Core/Context.h>
 
+#include <pybind11/functional.h>
 #include <pybind11/operators.h>
 #include <pybind11/stl.h>
 
@@ -31,6 +32,14 @@ namespace tl
             py::enum_<WaveformPrim>(m, "WaveformPrim")
                 .value("Mesh", WaveformPrim::Mesh)
                 .value("Image", WaveformPrim::Image);
+
+            py::class_<ItemData, std::shared_ptr<ItemData> >(m, "ItemData")
+                .def(py::init())
+                .def_readwrite("speed", &ItemData::speed)
+                .def_readwrite("dir", &ItemData::dir)
+                .def_readwrite("options", &ItemData::options)
+                .def_readwrite("timeUnitsModel", &ItemData::timeUnitsModel)
+                .def_readwrite("toMediaTime", &ItemData::toMediaTime);
 
             py::class_<ItemOptions>(m, "ItemOptions")
                 .def(py::init())

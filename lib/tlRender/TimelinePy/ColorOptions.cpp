@@ -36,6 +36,22 @@ namespace tl
                 .def(pybind11::self == pybind11::self)
                 .def(pybind11::self != pybind11::self);
 
+            py::enum_<LUTOrder>(m, "LUTOrder")
+                .value("PostConfig", LUTOrder::PostConfig)
+                .value("PreConfig", LUTOrder::PreConfig);
+            FTK_ENUM_BIND(m, LUTOrder);
+
+            py::class_<LUTOptions>(m, "LUTOptions")
+                .def(py::init())
+                .def_readwrite("enabled", &LUTOptions::enabled)
+                .def_readwrite("fileName", &LUTOptions::fileName)
+                .def_readwrite("order", &LUTOptions::order)
+                .def(pybind11::self == pybind11::self)
+                .def(pybind11::self != pybind11::self);
+
+            m.def("getLUTFormatNames", &getLUTFormatNames);
+            m.def("getLUTFormatExts", &getLUTFormatExts);
+
             m.def("to_json",
                 [](const OCIOOptions& value)
                 {

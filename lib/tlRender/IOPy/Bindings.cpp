@@ -14,6 +14,10 @@ namespace tl
         void ioBind(py::module_& m)
         {
             io(m);
+            plugin(m);
+            read(m);
+            write(m);
+            ioSystem(m);
         }
     }
 }

@@ -3,7 +3,11 @@ set(HEADERS
 set(HEADERS_PRIVATE)
 set(SOURCE
     Bindings.cpp
-    IO.cpp)
+    IO.cpp
+    Plugin.cpp
+    Read.cpp
+    System.cpp
+    Write.cpp)
 
 add_library(tlIOPy ${HEADERS} ${HEADERS_PRIVATE} ${SOURCE})
 

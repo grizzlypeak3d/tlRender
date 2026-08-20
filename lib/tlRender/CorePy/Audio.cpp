@@ -46,7 +46,7 @@ namespace tl
                 .def(py::init(&Audio::create),
                     py::arg("info"),
                     py::arg("sampleCount"))
-                .def_property_readonly("info", &Audio::getInfo)
+                .def_property_readonly("info", &Audio::getInfo, py::return_value_policy::copy)
                 .def_property_readonly("channelCount", &Audio::getChannelCount)
                 .def_property_readonly("type", &Audio::getType)
                 .def_property_readonly("sampleRate", &Audio::getSampleRate)

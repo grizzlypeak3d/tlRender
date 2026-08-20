@@ -21,16 +21,25 @@ namespace tl
                 py::arg("context"),
                 "Initialize the library.");
 
-            audio(m);
+            timelineAudio(m);
+            audioSystem(m);
+            backgroundOptions(m);
+            colorOptions(m);
             compareOptions(m);
+            // After colorOptions(): DisplayOptions carries the OCIO and LUT
+            // options registered there.
+            displayOptions(m);
+            foregroundOptions(m);
             timeUnits(m);
             timelineOptions(m);
+            timelineSystem(m);
             timeline(m);
             playerOptions(m);
             player(m);
             transition(m);
             util(m);
             video(m);
+            iRender(m);
         }
     }
 }

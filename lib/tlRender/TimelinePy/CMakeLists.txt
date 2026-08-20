@@ -3,14 +3,17 @@ set(HEADERS
 set(HEADERS_PRIVATE)
 set(SOURCE
     Audio.cpp
+    AudioSystem.cpp
     BackgroundOptions.cpp
     Bindings.cpp
     ColorOptions.cpp
     CompareOptions.cpp
     DisplayOptions.cpp
     ForegroundOptions.cpp
+    IRender.cpp
     Player.cpp
     PlayerOptions.cpp
+    System.cpp
     TimeUnits.cpp
     Timeline.cpp
     TimelineOptions.cpp

@@ -14,7 +14,10 @@ namespace tl
         void coreBind(py::module_& m)
         {
             audio(m);
+            audioResample(m);
+            hdr(m);
             time(m);
+            url(m);
         }
     }
 }

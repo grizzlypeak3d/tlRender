@@ -16,7 +16,7 @@ namespace tl
 {
     namespace python
     {
-        void audio(py::module_& m)
+        void timelineAudio(py::module_& m)
         {
             py::class_<AudioLayer>(m, "AudioLayer")
                 .def(py::init())

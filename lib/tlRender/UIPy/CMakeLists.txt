@@ -1,9 +1,11 @@
 set(HEADERS
     Bindings.h
     ItemOptions.h
+    PlaybackLoopWidget.h
     TimeEdit.h
     TimeLabel.h
     TimeUnitsWidget.h
+    TimelineRuler.h
     TimelineWidget.h
     Viewport.h)
 set(HEADERS_PRIVATE)
@@ -11,10 +13,12 @@ set(SOURCE
     Bindings.cpp
     FrameToolBar.cpp
     ItemOptions.cpp
+    PlaybackLoopWidget.cpp
     PlaybackToolBar.cpp
     TimeEdit.cpp
     TimeLabel.cpp
     TimeUnitsWidget.cpp
+    TimelineRuler.cpp
     TimelineWidget.cpp
     Viewport.cpp)
 
