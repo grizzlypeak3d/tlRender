@@ -40,6 +40,8 @@ namespace tl
                 .def_readwrite("wipeCenter", &CompareOptions::wipeCenter)
                 .def_readwrite("wipeRotation", &CompareOptions::wipeRotation)
                 .def_readwrite("overlay", &CompareOptions::overlay)
+                .def_readwrite("differenceGain", &CompareOptions::differenceGain)
+                .def_readwrite("sameSize", &CompareOptions::sameSize)
                 .def(pybind11::self == pybind11::self)
                 .def(pybind11::self != pybind11::self);
 

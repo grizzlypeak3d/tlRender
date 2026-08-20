@@ -37,6 +37,7 @@ namespace tl
                 .def_readwrite("type", &BackgroundOptions::type)
                 .def_readwrite("solidColor", &BackgroundOptions::solidColor)
                 .def_readwrite("checkersColor", &BackgroundOptions::checkersColor)
+                .def_readwrite("checkersSize", &BackgroundOptions::checkersSize)
                 .def_readwrite("gradientColor", &BackgroundOptions::gradientColor)
                 .def_readwrite("outline", &BackgroundOptions::outline)
                 .def(pybind11::self == pybind11::self)
