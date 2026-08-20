@@ -5,6 +5,8 @@
 
 #include <tlRender/Timeline/ForegroundOptions.h>
 
+#include <ftk/CorePy/Bindings.h>
+
 #include <pybind11/operators.h>
 #include <pybind11/stl.h>
 
@@ -19,6 +21,7 @@ namespace tl
             py::enum_<GridCellMode>(m, "GridCellMode")
                 .value("CellSize", GridCellMode::CellSize)
                 .value("CellCount", GridCellMode::CellCount);
+            FTK_ENUM_BIND(m, GridCellMode);
 
             py::class_<Grid>(m, "Grid")
                 .def(py::init())

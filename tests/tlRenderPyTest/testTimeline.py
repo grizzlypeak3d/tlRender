@@ -126,8 +126,7 @@ class CompareOptionsTest(unittest.TestCase):
 
     def test_members(self):
         options = tl.CompareOptions()
-        # "None" is a Python keyword so the enum value needs getattr().
-        self.assertEqual(getattr(tl.Compare, "None"), options.compare)
+        self.assertEqual(tl.Compare._None, options.compare)
         options.compare = tl.Compare.Wipe
         options.wipeCenter = ftk.V2F(.25, .25)
         options.wipeRotation = 90.0

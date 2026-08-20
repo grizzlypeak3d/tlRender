@@ -19,7 +19,7 @@ namespace tl
         void timelineOptions(py::module_& m)
         {
             py::enum_<ImageSeqAudio>(m, "ImageSeqAudio")
-                .value("None", ImageSeqAudio::None)
+                .value("_None", ImageSeqAudio::None)
                 .value("Ext", ImageSeqAudio::Ext)
                 .value("FileName", ImageSeqAudio::FileName);
             FTK_ENUM_BIND(m, ImageSeqAudio);

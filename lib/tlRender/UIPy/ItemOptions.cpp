@@ -5,6 +5,8 @@
 
 #include <tlRender/UI/ItemOptions.h>
 
+#include <ftk/CorePy/Bindings.h>
+
 #include <ftk/Core/Context.h>
 
 #include <pybind11/functional.h>
@@ -24,14 +26,17 @@ namespace tl
             py::enum_<InOutDisplay>(m, "InOutDisplay")
                 .value("InsideRange", InOutDisplay::InsideRange)
                 .value("OutsideRange", InOutDisplay::OutsideRange);
+            FTK_ENUM_BIND(m, InOutDisplay);
 
             py::enum_<CacheDisplay>(m, "CacheDisplay")
                 .value("VideoAndAudio", CacheDisplay::VideoAndAudio)
                 .value("VideoOnly", CacheDisplay::VideoOnly);
+            FTK_ENUM_BIND(m, CacheDisplay);
 
             py::enum_<WaveformPrim>(m, "WaveformPrim")
                 .value("Mesh", WaveformPrim::Mesh)
                 .value("Image", WaveformPrim::Image);
+            FTK_ENUM_BIND(m, WaveformPrim);
 
             py::class_<ItemData, std::shared_ptr<ItemData> >(m, "ItemData")
                 .def(py::init())
