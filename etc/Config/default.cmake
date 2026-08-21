@@ -44,8 +44,12 @@ set(TLRENDER_SUBPROCESS ${TLRENDER_FFMPEG_PLUGIN} CACHE BOOL "")
 set(TLRENDER_OIIO ON CACHE BOOL "")
 set(TLRENDER_LIBRAW ON CACHE BOOL "")
 set(TLRENDER_USD OFF CACHE BOOL "")
+# The Python bindings, derived down the stack the way the dependencies run:
+# tlRenderPy needs ftkPy. Setting this one is enough, and because local.cmake
+# is read first, ftk_PYTHON can still be named on its own to build only the
+# feather-tk bindings.
 set(TLRENDER_PYTHON OFF CACHE BOOL "")
-set(ftk_PYTHON OFF CACHE BOOL "")
+set(ftk_PYTHON ${TLRENDER_PYTHON} CACHE BOOL "")
 set(TLRENDER_PROGRAMS ON CACHE BOOL "")
 set(TLRENDER_EXAMPLES ON CACHE BOOL "")
 set(TLRENDER_TESTS ON CACHE BOOL "")
