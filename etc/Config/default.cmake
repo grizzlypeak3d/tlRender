@@ -53,7 +53,24 @@ set(TLRENDER_EXAMPLES ON CACHE BOOL "")
 set(TLRENDER_TESTS ON CACHE BOOL "")
 set(TLRENDER_GCOV OFF CACHE BOOL "")
 set(ftk_API "GL_4_1" CACHE STRING "")
-set(BUILD_SHARED_LIBS OFF CACHE BOOL "")
+
+# Shared when Python is on, the same rule DJV and DJV Studio carry. Each
+# binding module would otherwise link its own static copy of the stack, and
+# two copies of a library in one process do not share its type information.
+#
+# OpenTimelineIO is where that shows first: its own Python package and
+# tlRenderPy each bring a libopentimelineio of their own, and reading the
+# plugin manifest across the two fails with "bad any cast". SDL says the same
+# thing more loudly on macOS, where the duplicate announces itself as an
+# Objective-C class implemented twice.
+#
+# Not on Windows: a DLL exports nothing by default and the libraries have no
+# export macros.
+if(WIN32)
+    set(BUILD_SHARED_LIBS OFF CACHE BOOL "")
+else()
+    set(BUILD_SHARED_LIBS ${TLRENDER_PYTHON} CACHE BOOL "")
+endif()
 
 if(APPLE)
     # The deployment target is policy: the oldest system that is supported.
