@@ -1,9 +1,8 @@
-# What continuous integration builds everywhere.
-# The bindings are built here because nothing else builds them.
+# What continuous integration builds everywhere: the default configuration,
+# which is no Python bindings and static libraries. The -python
+# configurations beside this one are the other half, and each platform is
+# built both ways.
 include("${CMAKE_CURRENT_LIST_DIR}/local.cmake" OPTIONAL)
-
-set(TLRENDER_PYTHON ON CACHE BOOL "")
-set(ftk_PYTHON ON CACHE BOOL "")
 
 # The command line FFmpeg plugin is in the platform configurations that do
 # not run tests, not here: it registers ahead of the FFmpeg plugin and takes

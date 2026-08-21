@@ -62,8 +62,12 @@ set(ftk_API "GL_4_1" CACHE STRING "")
 # thing more loudly on macOS, where the duplicate announces itself as an
 # Objective-C class implemented twice.
 #
-# Not on Windows: a DLL exports nothing by default and the libraries have no
-# export macros.
+# Not on Windows. The libraries do carry export macros now -- FTK_API,
+# TL_API and DJV_API, selected by the *_EXPORTS and *_STATIC definitions this
+# flag sets -- so that is no longer what stands in the way. What does is that
+# *_EXPORTS is defined PUBLIC, so a project consuming these libraries compiles
+# their API as dllexport where it should be dllimport. Windows can be shared
+# once that is sorted.
 if(WIN32)
     set(BUILD_SHARED_LIBS OFF CACHE BOOL "")
 else()
