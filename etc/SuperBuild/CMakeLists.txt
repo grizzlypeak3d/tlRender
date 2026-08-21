@@ -15,18 +15,12 @@ set(TLRENDER_OCIO ON CACHE BOOL "Build OpenColorIO")
 set(TLRENDER_JPEG ON CACHE BOOL "Build JPEG")
 set(TLRENDER_TIFF ON CACHE BOOL "Build TIFF")
 set(TLRENDER_EXR ON CACHE BOOL "Build OpenEXR")
-# The assembly heavy codecs need NASM, and the superbuild builds it with
-# autotools, which needs a Unix shell. Turning these on for Windows means
-# installing NASM there and letting the codecs find it on PATH.
-if(WIN32)
-    set(TLRENDER_AOM_DEFAULT OFF)
-    set(TLRENDER_SVTAV1_DEFAULT OFF)
-else()
-    set(TLRENDER_AOM_DEFAULT ON)
-    set(TLRENDER_SVTAV1_DEFAULT ON)
-endif()
-set(TLRENDER_AOM ${TLRENDER_AOM_DEFAULT} CACHE BOOL "Build AOM")
-set(TLRENDER_SVTAV1 ${TLRENDER_SVTAV1_DEFAULT} CACHE BOOL "Build SVT-AV1")
+# The assembly heavy codecs need NASM. It is built from source below on the
+# platforms that can, and installed beforehand on Windows -- the README asks
+# for it there, as libjpeg-turbo and FFmpeg want it too -- so the codecs find
+# it on PATH either way.
+set(TLRENDER_AOM ON CACHE BOOL "Build AOM")
+set(TLRENDER_SVTAV1 ON CACHE BOOL "Build SVT-AV1")
 set(TLRENDER_FFMPEG ON CACHE BOOL "Build FFmpeg (required for audio, see the README for building FFmpeg on Windows)")
 set(TLRENDER_FFMPEG_MINIMAL OFF CACHE BOOL "Enable a minimal set of FFmpeg codecs")
 set(TLRENDER_SUBPROCESS ON CACHE BOOL "Build subprocess")

@@ -363,8 +363,13 @@ if(WIN32)
     string(REPLACE ${FFmpeg_PKG_CONFIG_DRIVE} /${FFmpeg_PKG_CONFIG_DRIVE_LETTER} FFmpeg_PKG_CONFIG ${FFmpeg_PKG_CONFIG})
 
     list(JOIN FFmpeg_CONFIGURE_ARGS " " FFmpeg_CONFIGURE_ARGS_TMP)
+    # pkgconf because libaom and libsvtav1 are the two dependencies FFmpeg
+    # will only find through pkg-config; the rest are found here by the
+    # include and library paths passed above. Without it PKG_CONFIG_PATH is
+    # exported into a shell that has nothing to read it, and --enable-libaom
+    # fails however well the libraries themselves were built.
     set(FFmpeg_CONFIGURE ${FFmpeg_MSYS2}
-        -c "pacman -S diffutils make nasm --noconfirm && \
+        -c "pacman -S diffutils make nasm pkgconf --noconfirm && \
         ${FFmpeg_OPENSSL_COPY} \
         export PKG_CONFIG_PATH=${FFmpeg_PKG_CONFIG} && \
         ./configure ${FFmpeg_CONFIGURE_ARGS_TMP}")
