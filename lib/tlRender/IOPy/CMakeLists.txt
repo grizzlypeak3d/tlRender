@@ -16,7 +16,7 @@ target_include_directories(tlIOPy
         $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/lib>
         $<INSTALL_INTERFACE:include>)
 
-target_link_libraries(tlIOPy tlIO Python3::Python)
+target_link_libraries(tlIOPy tlIO pybind11::headers)
 
 set_target_properties(tlIOPy PROPERTIES FOLDER lib)
 set_target_properties(tlIOPy PROPERTIES PUBLIC_HEADER "${HEADERS}")
