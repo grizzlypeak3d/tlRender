@@ -34,6 +34,13 @@ target_include_directories(tlIOTest
         $<INSTALL_INTERFACE:include>)
 
 target_link_libraries(tlIOTest tlIO ftkTestLib)
+if(TLRENDER_FFMPEG_PLUGIN)
+    # The test asks FFmpeg itself what this build can encode, so it needs the
+    # libraries rather than only the plugin that wraps them: tlIO links them
+    # privately, and a shared library does not pass that on. A static build
+    # never noticed, the symbols waiting for the program to be linked.
+    target_link_libraries(tlIOTest FFmpeg::FFmpeg)
+endif()
 
 target_compile_definitions(tlIOTest PUBLIC TLRENDER_SAMPLE_DATA="${PROJECT_SOURCE_DIR}/etc/SampleData")
 
