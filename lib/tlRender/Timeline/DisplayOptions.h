@@ -69,7 +69,7 @@ namespace tl
     };
 
     //! Aspect ratio.
-    TL_API_TYPE struct AspectRatio
+    struct TL_API_TYPE AspectRatio
     {
         AspectRatio() = default;
         explicit AspectRatio(float num, float den = 1.F);
