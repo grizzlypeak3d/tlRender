@@ -19,6 +19,7 @@
 #include <opentimelineio/imageSequenceReference.h>
 
 #include <ctime>
+#include <filesystem>
 
 namespace tl
 {
@@ -260,7 +261,11 @@ namespace tl
         if (std::filesystem::is_directory(std::filesystem::u8path(path.get())))
         {
             auto ioSystem = context->getSystem<ReadSystem>();
-            const auto entries = ftk::dirList(path.getFileName(true), options);
+            // u8path for the reason the line above uses it: the name is
+            // UTF-8, and the implicit conversion would read it as the Windows
+            // ANSI code page. See Timeline.cpp and issue #779.
+            const auto entries = ftk::dirList(
+                std::filesystem::u8path(path.getFileName(true)), options);
             for (const auto& entry : entries)
             {
                 const ftk::Path& path = entry.path;

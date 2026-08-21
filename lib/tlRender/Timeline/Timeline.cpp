@@ -307,7 +307,15 @@ namespace tl
                 {
                     ftk::DirListOptions listOptions;
                     listOptions.filterExt = imageSeqAudioExts;
-                    const auto entries = ftk::dirList(path.getDir(), listOptions);
+                    // u8path because getDir() is UTF-8: the implicit
+                    // conversion reads it as the Windows ANSI code page
+                    // instead, which throws for bytes that page cannot map --
+                    // and throws here, at the call, where dirList's own
+                    // try/catch cannot reach it. That is issue #779, where a
+                    // Korean file name fails on a Korean code page and is
+                    // merely mangled on a Western one.
+                    const auto entries = ftk::dirList(
+                        std::filesystem::u8path(path.getDir()), listOptions);
                     if (!entries.empty())
                     {
                         out = entries.front().path;
