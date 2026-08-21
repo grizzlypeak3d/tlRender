@@ -75,7 +75,7 @@ if(APPLE AND OTIO_SHARED_LIBS)
         COMMAND ${CMAKE_COMMAND}
             -DOTIO_DYLIB_DIR=${OTIO_DYLIB_DIR}
             -DOTIO_LIB_DIR=${CMAKE_INSTALL_PREFIX}/lib
-            -P ${CMAKE_CURRENT_SOURCE_DIR}/OTIOInstallNames.cmake
+            -P ${CMAKE_CURRENT_LIST_DIR}/OTIOInstallNames.cmake
         DEPENDEES install
         ALWAYS OFF)
 endif()
