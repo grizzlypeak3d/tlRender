@@ -49,3 +49,33 @@ ExternalProject_Add(
         ${CMAKE_CURRENT_BINARY_DIR}/OTIO/src/OTIO/tests/CMakeLists.txt
     LIST_SEPARATOR |
     CMAKE_ARGS ${OTIO_ARGS})
+
+# On macOS OTIO names its own two libraries "@loader_path/lib...dylib", which
+# is what its Python package needs: the module and the libraries sit in one
+# directory and find each other there. Every C++ program that links them
+# records that name, and then looks for them beside itself rather than where
+# they are -- tl-test does not start. Naming them by rpath instead is what
+# those programs already expect, since they carry the prefix's lib in theirs.
+#
+# The libraries stay where OTIO put them and are linked into lib rather than
+# copied there, so that a process loading both the Python package and ours
+# still has one of each.
+#
+# What libopentimelineio says about libopentime is left alone: it resolves
+# beside libopentimelineio, where the file is, and the Python module has no
+# rpath of its own to fall back on if it were changed.
+if(APPLE AND OTIO_SHARED_LIBS)
+    if(TLRENDER_PYTHON)
+        set(OTIO_DYLIB_DIR ${CMAKE_INSTALL_PREFIX}/python/opentimelineio)
+    else()
+        set(OTIO_DYLIB_DIR ${CMAKE_INSTALL_PREFIX}/lib)
+    endif()
+    ExternalProject_Add_Step(
+        OTIO OTIO-install-names
+        COMMAND ${CMAKE_COMMAND}
+            -DOTIO_DYLIB_DIR=${OTIO_DYLIB_DIR}
+            -DOTIO_LIB_DIR=${CMAKE_INSTALL_PREFIX}/lib
+            -P ${CMAKE_CURRENT_SOURCE_DIR}/OTIOInstallNames.cmake
+        DEPENDEES install
+        ALWAYS OFF)
+endif()
