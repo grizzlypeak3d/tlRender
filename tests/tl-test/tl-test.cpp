@@ -50,7 +50,11 @@
 #include <ftk/Core/Time.h>
 
 #include <algorithm>
-#include <iostream>
+#include <iostream>
+
+#if defined(_MSC_VER) && defined(_DEBUG)
+#include <crtdbg.h>
+#endif // _MSC_VER
 
 using namespace tl;
 
@@ -270,6 +274,19 @@ namespace tl
 
 int main(int argc, char* argv[])
 {
+#if defined(_MSC_VER) && defined(_DEBUG)
+    // Send the debug runtime's complaints to stderr rather than a message
+    // box. The box waits for a button nobody is there to press, so what is
+    // actually a failed assertion or a damaged heap looks like a test that
+    // hangs: a Windows job sat here for the full fifteen minute timeout
+    // with nothing in the log after the name of the test it was running.
+    for (const int report : { _CRT_WARN, _CRT_ERROR, _CRT_ASSERT })
+    {
+        _CrtSetReportMode(report, _CRTDBG_MODE_FILE);
+        _CrtSetReportFile(report, _CRTDBG_FILE_STDERR);
+    }
+#endif // _MSC_VER
+
     try
     {
         auto context = ftk::Context::create();
