@@ -50,21 +50,32 @@ ExternalProject_Add(
     LIST_SEPARATOR |
     CMAKE_ARGS ${OTIO_ARGS})
 
-# On macOS OTIO names its own two libraries "@loader_path/lib...dylib", which
-# is what its Python package needs: the module and the libraries sit in one
-# directory and find each other there. Every C++ program that links them
-# records that name, and then looks for them beside itself rather than where
-# they are -- tl-test does not start. Naming them by rpath instead is what
-# those programs already expect, since they carry the prefix's lib in theirs.
+# Building the Python bindings puts OTIO's own libraries inside its Python
+# package rather than in lib, which is what the package needs -- the module
+# and the libraries sit in one directory -- and leaves everything else unable
+# to find them. On Linux the loader simply does not have them on its path:
 #
-# The libraries stay where OTIO put them and are linked into lib rather than
-# copied there, so that a process loading both the Python package and ours
-# still has one of each.
+#     ImportError: libopentimelineio.so.19: cannot open shared object file
+#
+# macOS has that and one more: OTIO names those libraries "@loader_path/...",
+# so every program that links them records that name and looks beside itself
+# rather than where they are. Naming them by rpath is what those programs
+# already expect, since they carry the prefix's lib in theirs.
+#
+# So both platforms get the libraries linked into lib, and macOS gets the
+# names rewritten as well. They are linked rather than copied so that a
+# process loading both the Python package and ours still has one of each:
+# two images of libopentimelineio do not share their type information, which
+# is the thing shared libraries were turned on to avoid.
 #
 # What libopentimelineio says about libopentime is left alone: it resolves
 # beside libopentimelineio, where the file is, and the Python module has no
 # rpath of its own to fall back on if it were changed.
-if(APPLE AND OTIO_SHARED_LIBS)
+if(OTIO_SHARED_LIBS)
+    set(OTIO_IS_APPLE OFF)
+    if(APPLE)
+        set(OTIO_IS_APPLE ON)
+    endif()
     if(TLRENDER_PYTHON)
         set(OTIO_DYLIB_DIR ${CMAKE_INSTALL_PREFIX}/python/opentimelineio)
     else()
@@ -75,6 +86,7 @@ if(APPLE AND OTIO_SHARED_LIBS)
         COMMAND ${CMAKE_COMMAND}
             -DOTIO_DYLIB_DIR=${OTIO_DYLIB_DIR}
             -DOTIO_LIB_DIR=${CMAKE_INSTALL_PREFIX}/lib
+            -DOTIO_APPLE=${OTIO_IS_APPLE}
             -P ${CMAKE_CURRENT_LIST_DIR}/OTIOInstallNames.cmake
         DEPENDEES install
         ALWAYS OFF)
