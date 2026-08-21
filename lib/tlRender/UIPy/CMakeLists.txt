@@ -29,7 +29,7 @@ target_include_directories(tlUIPy
         $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/lib>
         $<INSTALL_INTERFACE:include>)
 
-target_link_libraries(tlUIPy tlUI pybind11::headers)
+target_link_libraries(tlUIPy tlUI Python3::Python)
 
 set_target_properties(tlUIPy PROPERTIES FOLDER lib)
 set_target_properties(tlUIPy PROPERTIES PUBLIC_HEADER "${HEADERS}")

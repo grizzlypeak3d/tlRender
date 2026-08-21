@@ -28,7 +28,7 @@ target_include_directories(tlTimelinePy
         $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/lib>
         $<INSTALL_INTERFACE:include>)
 
-target_link_libraries(tlTimelinePy tlTimeline pybind11::headers)
+target_link_libraries(tlTimelinePy tlTimeline Python3::Python)
 
 set_target_properties(tlTimelinePy PROPERTIES FOLDER lib)
 set_target_properties(tlTimelinePy PROPERTIES PUBLIC_HEADER "${HEADERS}")

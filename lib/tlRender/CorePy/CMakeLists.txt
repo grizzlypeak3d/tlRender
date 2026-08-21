@@ -16,7 +16,7 @@ target_include_directories(tlCorePy
         $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/lib>
         $<INSTALL_INTERFACE:include>)
 
-target_link_libraries(tlCorePy tlCore pybind11::headers)
+target_link_libraries(tlCorePy tlCore Python3::Python)
 
 set_target_properties(tlCorePy PROPERTIES FOLDER lib)
 set_target_properties(tlCorePy PROPERTIES PUBLIC_HEADER "${HEADERS}")
