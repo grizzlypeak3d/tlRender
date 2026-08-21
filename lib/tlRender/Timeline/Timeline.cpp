@@ -582,22 +582,31 @@ namespace tl
                 {
                     const auto audioInfo = audioRead->getInfo().get();
 
-                    auto audioClip = new OTIO_NS::Clip;
-                    audioClip->set_source_range(*audioInfo.audioTime);
-                    // Absolute, unlike the video reference above: that one
-                    // names the file the timeline was made from and is found
-                    // beside it, while the audio was chosen separately and
-                    // need not be in the same place. Naming it relatively
-                    // would not say the same thing, since a relative
-                    // reference is resolved against the timeline's directory
-                    // rather than against the working directory the audio was
-                    // found from.
-                    audioClip->set_media_reference(new OTIO_NS::ExternalReference(
-                        absoluteFileName(audioPath.getFileName(true)),
-                        audioInfo.audioTime));
+                    // Whether it read anything, rather than whether there
+                    // was a reader to ask -- the same distinction the merge
+                    // above draws, and for the same reason. A reader that
+                    // fails on its own thread answers with nothing, leaving
+                    // no time range to give the clip.
+                    if (audioInfo.audio.isValid() &&
+                        audioInfo.audioTime.has_value())
+                    {
+                        auto audioClip = new OTIO_NS::Clip;
+                        audioClip->set_source_range(*audioInfo.audioTime);
+                        // Absolute, unlike the video reference above: that one
+                        // names the file the timeline was made from and is found
+                        // beside it, while the audio was chosen separately and
+                        // need not be in the same place. Naming it relatively
+                        // would not say the same thing, since a relative
+                        // reference is resolved against the timeline's directory
+                        // rather than against the working directory the audio was
+                        // found from.
+                        audioClip->set_media_reference(new OTIO_NS::ExternalReference(
+                            absoluteFileName(audioPath.getFileName(true)),
+                            audioInfo.audioTime));
 
-                    audioTrack = new OTIO_NS::Track("Audio", std::nullopt, OTIO_NS::Track::Kind::audio);
-                    audioTrack->append_child(audioClip);
+                        audioTrack = new OTIO_NS::Track("Audio", std::nullopt, OTIO_NS::Track::Kind::audio);
+                        audioTrack->append_child(audioClip);
+                    }
                 }
             }
             else if (info.audio.isValid())
