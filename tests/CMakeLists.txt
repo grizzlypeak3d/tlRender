@@ -15,5 +15,9 @@ if(TLRENDER_PYTHON)
     if(TLRENDER_TESTS_NO_GL)
         list(APPEND PYTHON_TEST_ENV "TLRENDER_TESTS_NO_GL=set:1")
     endif()
-    set_tests_properties(tlRenderPy-test PROPERTIES ENVIRONMENT_MODIFICATION "${PYTHON_TEST_ENV}")
+    # A hang should fail rather than run until the job is killed, the same as
+    # the C++ suite next door.
+    set_tests_properties(tlRenderPy-test PROPERTIES
+        ENVIRONMENT_MODIFICATION "${PYTHON_TEST_ENV}"
+        TIMEOUT 900)
 endif()
