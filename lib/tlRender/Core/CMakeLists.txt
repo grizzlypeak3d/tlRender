@@ -36,8 +36,13 @@ target_link_libraries(tlCore
     PUBLIC tlResource ftk::ftkCore OTIO::opentimelineio Imath::Imath)
 
 if(TLRENDER_OCIO)
+    # Public because this is not the only library that calls OpenColorIO:
+    # tlTimeline names it for the LUT formats, tlGL for the shaders, and DJV's
+    # models beyond that. A private link reaches them anyway while everything
+    # is static -- a static OpenColorIO is folded into this library and
+    # re-exported -- and stops reaching them the moment either becomes shared.
     target_compile_definitions(tlCore PUBLIC TLRENDER_OCIO)
-    target_link_libraries(tlCore PRIVATE OpenColorIO::OpenColorIO)
+    target_link_libraries(tlCore PUBLIC OpenColorIO::OpenColorIO)
 endif()
 if(TLRENDER_FFMPEG)
     target_compile_definitions(tlCore PUBLIC TLRENDER_FFMPEG)
