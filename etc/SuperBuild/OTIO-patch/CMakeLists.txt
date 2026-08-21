@@ -191,12 +191,20 @@ else()
     message(STATUS "Building C++ with Coverage: OFF")
 endif()
 
-if(WIN32)
-    # Windows debug builds for Python require a d in order for the module to
-    # load. This also helps ensure that debug builds in general are matched
-    # to the Microsoft debug CRT.
-    set(OTIO_DEBUG_POSTFIX "_d")
-endif()
+# No debug postfix, where upstream sets "_d" on Windows. That is for a debug
+# interpreter, which looks for _opentime_d.pyd and nothing else, and there is
+# no debug interpreter here: pybind11 undefines _DEBUG around Python.h, so a
+# module is compiled against the release ABI in every configuration, and the
+# continuous integration runners ship no python_d.exe to load it with either.
+# The postfix only hides the module from the release interpreter that does
+# run the tests:
+#
+#     ModuleNotFoundError: No module named 'opentimelineio._opentime'
+#
+# The C++ libraries lose the postfix with it, which costs nothing. Debug and
+# Release install to separate prefixes, so the names do not meet, and both
+# tlRender and OTIO's own Python package reach these through the exported
+# OTIO::opentimelineio target rather than by file name.
 
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
