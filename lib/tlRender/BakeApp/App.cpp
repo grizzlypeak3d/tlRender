@@ -60,6 +60,11 @@ namespace tl
                 "Render",
                 std::optional<ftk::ImageType>(),
                 ftk::quotes(ftk::getImageTypeLabels()));
+            // Offered only where there is something behind them: without
+            // OCIO the color options are accepted and then quietly do
+            // nothing, which reads as a broken build rather than one made
+            // without color management.
+#if defined(TLRENDER_OCIO)
             _cmdLine.ocioFileName = ftk::CmdLineOption<std::string>::create(
                 { "-ocio" },
                 "OCIO configuration file name (e.g., config.ocio).",
@@ -90,6 +95,7 @@ namespace tl
                 "Color",
                 std::optional<LUTOrder>(),
                 ftk::quotes(getLUTOrderLabels()));
+#endif // TLRENDER_OCIO
             _cmdLine.sequenceDefaultSpeed = ftk::CmdLineOption<double>::create(
                 { "-sequenceDefaultSpeed" },
                 "Default speed for image sequences.",
@@ -184,6 +190,7 @@ namespace tl
                     _cmdLine.inOutRange,
                     _cmdLine.renderSize,
                     _cmdLine.outputPixelType,
+#if defined(TLRENDER_OCIO)
                     _cmdLine.ocioFileName,
                     _cmdLine.ocioInput,
                     _cmdLine.ocioDisplay,
@@ -191,6 +198,7 @@ namespace tl
                     _cmdLine.ocioLook,
                     _cmdLine.lutFileName,
                     _cmdLine.lutOrder,
+#endif // TLRENDER_OCIO
                     _cmdLine.sequenceDefaultSpeed,
                     _cmdLine.sequenceThreadCount,
 #if defined(TLRENDER_EXR)
@@ -304,6 +312,7 @@ namespace tl
             // Set options. Before the writer: what the output's color
             // description says depends on whether the render goes through
             // a display transform.
+#if defined(TLRENDER_OCIO)
             if (_cmdLine.ocioFileName->hasValue() ||
                 _cmdLine.ocioInput->hasValue() ||
                 _cmdLine.ocioDisplay->hasValue() ||
@@ -345,6 +354,7 @@ namespace tl
                     _lutOptions.order = _cmdLine.lutOrder->getValue();
                 }
             }
+#endif // TLRENDER_OCIO
 
             // Create the writer.
             const std::string output = _cmdLine.output->getValue();

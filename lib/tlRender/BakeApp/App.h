@@ -40,6 +40,7 @@ namespace tl
             std::shared_ptr<ftk::CmdLineOption<OTIO_NS::TimeRange> > inOutRange;
             std::shared_ptr<ftk::CmdLineOption<ftk::Size2I> > renderSize;
             std::shared_ptr<ftk::CmdLineOption<ftk::ImageType> > outputPixelType;
+#if defined(TLRENDER_OCIO)
             std::shared_ptr<ftk::CmdLineOption<std::string> > ocioFileName;
             std::shared_ptr<ftk::CmdLineOption<std::string> > ocioInput;
             std::shared_ptr<ftk::CmdLineOption<std::string> > ocioDisplay;
@@ -47,6 +48,7 @@ namespace tl
             std::shared_ptr<ftk::CmdLineOption<std::string> > ocioLook;
             std::shared_ptr<ftk::CmdLineOption<std::string> > lutFileName;
             std::shared_ptr<ftk::CmdLineOption<LUTOrder> > lutOrder;
+#endif // TLRENDER_OCIO
             std::shared_ptr<ftk::CmdLineOption<double> > sequenceDefaultSpeed;
             std::shared_ptr<ftk::CmdLineOption<int> > sequenceThreadCount;
 #if defined(TLRENDER_EXR)
