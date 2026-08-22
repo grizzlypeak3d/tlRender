@@ -636,15 +636,18 @@ namespace tl
             switch (info.type)
             {
             case ftk::ImageType::L_U8:
+            case ftk::ImageType::L_U16:
             case ftk::ImageType::RGB_U8:
+            case ftk::ImageType::RGB_U16:
             case ftk::ImageType::RGBA_U8:
+            case ftk::ImageType::RGBA_U16:
             {
-                const size_t channelCount = ftk::getChannelCount(info.type);
-                for (size_t i = 0; i < channelCount; i++)
-                {
-                    p.avFrame2->data[i] += p.avFrame2->linesize[i] * (info.size.h - 1);
-                    p.avFrame2->linesize[i] = -p.avFrame2->linesize[i];
-                }
+                // Every type the plugin accepts is packed -- GRAY8, GRAY16,
+                // RGB24, RGB48, RGBA, RGBA64 -- so the pixels are all in the
+                // first plane whatever the depth, and that is the only one
+                // there is to turn over.
+                p.avFrame2->data[0] += p.avFrame2->linesize[0] * (info.size.h - 1);
+                p.avFrame2->linesize[0] = -p.avFrame2->linesize[0];
                 break;
             }
             case ftk::ImageType::YUV_420P_U8:
