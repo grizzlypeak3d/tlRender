@@ -1,7 +1,7 @@
 include(ExternalProject)
 
 set(OpenImageIO_GIT_REPOSITORY "https://github.com/AcademySoftwareFoundation/OpenImageIO.git")
-set(OpenImageIO_GIT_TAG "v3.1.14.0")
+set(OpenImageIO_GIT_TAG "v3.1.16.0")
 
 set(OpenImageIO_DEPS)
 if(TLRENDER_JPEG)
