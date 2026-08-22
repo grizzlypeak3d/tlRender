@@ -10,7 +10,6 @@ project(tlRender-SuperBuild)
 #-------------------------------------------------------------------------------
 # Build options
 
-set(TLRENDER_NET OFF CACHE BOOL "Build network libraries")
 set(TLRENDER_OCIO ON CACHE BOOL "Build OpenColorIO")
 set(TLRENDER_JPEG ON CACHE BOOL "Build JPEG")
 set(TLRENDER_TIFF ON CACHE BOOL "Build TIFF")
@@ -24,7 +23,7 @@ set(TLRENDER_SVTAV1 ON CACHE BOOL "Build SVT-AV1")
 set(TLRENDER_FFMPEG ON CACHE BOOL "Build FFmpeg (required for audio, see the README for building FFmpeg on Windows)")
 set(TLRENDER_FFMPEG_MINIMAL OFF CACHE BOOL "Enable a minimal set of FFmpeg codecs")
 set(TLRENDER_SUBPROCESS ON CACHE BOOL "Build subprocess")
-if((TLRENDER_NET OR TLRENDER_AOM OR TLRENDER_SVTAV1 OR TLRENDER_JPEG OR
+if((TLRENDER_AOM OR TLRENDER_SVTAV1 OR TLRENDER_JPEG OR
     TLRENDER_FFMPEG) AND NOT WIN32 AND NOT BSD)
     set(TLRENDER_NASM_DEFAULT ON)
 else()
@@ -115,11 +114,6 @@ include(BuildImath)
 include(BuildOTIO)
 if(TLRENDER_NASM)
     include(BuildNASM)
-endif()
-if(TLRENDER_NET)
-    include(BuildOpenSSL)
-    include(BuildLibssh2)
-    include(BuildCURL)
 endif()
 if(TLRENDER_OCIO)
     include(Buildyaml-cpp)

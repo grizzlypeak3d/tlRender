@@ -18,9 +18,6 @@ endif()
 set(FFmpeg_URL https://github.com/FFmpeg/FFmpeg/archive/refs/tags/n8.1.2.tar.gz)
 
 set(FFmpeg_DEPS)
-if(TLRENDER_NET)
-    list(APPEND FFmpeg_DEPS OpenSSL)
-endif()
 if(TLRENDER_AOM)
     list(APPEND FFmpeg_DEPS aom)
 endif()
@@ -290,16 +287,7 @@ if(TLRENDER_FFMPEG_MINIMAL)
         --enable-parser=mpegvideo
         --enable-parser=vp9
         --disable-protocols
-        --enable-protocol=crypto
-        --enable-protocol=file
-        --enable-protocol=ftp
-        --enable-protocol=http
-        --enable-protocol=httpproxy
-        --enable-protocol=https
-        --enable-protocol=md5
-        --enable-protocol=tcp
-        --enable-protocol=tls
-        --enable-protocol=udp)
+        --enable-protocol=file)
 endif()
 if(TLRENDER_AOM)
     list(APPEND FFmpeg_CONFIGURE_ARGS
@@ -314,10 +302,6 @@ endif()
 if(TLRENDER_NASM)
     list(APPEND FFmpeg_CONFIGURE_ARGS
         --x86asmexe=${CMAKE_INSTALL_PREFIX}/bin/nasm)
-endif()
-if(TLRENDER_NET)
-    list(APPEND FFmpeg_CONFIGURE_ARGS
-        --enable-openssl)
 endif()
 if(FFmpeg_SHARED_LIBS)
     list(APPEND FFmpeg_CONFIGURE_ARGS
@@ -345,15 +329,6 @@ if(WIN32)
         -no-start
         -here)
 
-    # \bug Copy libssl.lib to ssl.lib and libcrypto.lib to crypto.lib so the
-    # FFmpeg configure script can find them.
-    set(FFmpeg_OPENSSL_COPY)
-    if(TLRENDER_NET)
-        set(FFmpeg_OPENSSL_COPY
-            "cp ${CMAKE_INSTALL_PREFIX}/lib/libssl.lib ${CMAKE_INSTALL_PREFIX}/lib/ssl.lib && \
-            cp ${CMAKE_INSTALL_PREFIX}/lib/libcrypto.lib ${CMAKE_INSTALL_PREFIX}/lib/crypto.lib &&")
-    endif()
-    
     set(FFmpeg_PKG_CONFIG ${CMAKE_INSTALL_PREFIX}/lib/pkgconfig)
     # \bug The colon in "C:" seems to be replaced with a space,
     # so replace "C:" with "/C".
@@ -370,7 +345,6 @@ if(WIN32)
     # fails however well the libraries themselves were built.
     set(FFmpeg_CONFIGURE ${FFmpeg_MSYS2}
         -c "pacman -S diffutils make nasm pkgconf --noconfirm && \
-        ${FFmpeg_OPENSSL_COPY} \
         export PKG_CONFIG_PATH=${FFmpeg_PKG_CONFIG} && \
         ./configure ${FFmpeg_CONFIGURE_ARGS_TMP}")
     set(FFmpeg_BUILD ${FFmpeg_MSYS2} -c "make -j${FFmpeg_BUILD_JOBS}")

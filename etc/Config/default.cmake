@@ -18,7 +18,6 @@ if(EXISTS "${CMAKE_CURRENT_LIST_DIR}/local.cmake")
     message(STATUS "etc/Config/local.cmake is in use; personal settings are affecting this build")
 endif()
 
-set(TLRENDER_NET OFF CACHE BOOL "")
 set(TLRENDER_OCIO ON CACHE BOOL "")
 set(TLRENDER_JPEG ON CACHE BOOL "")
 set(TLRENDER_TIFF ON CACHE BOOL "")
