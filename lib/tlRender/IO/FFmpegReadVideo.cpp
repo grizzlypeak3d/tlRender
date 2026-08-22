@@ -517,6 +517,12 @@ namespace tl
 
         namespace
         {
+            std::string pixelFormatName(AVPixelFormat value)
+            {
+                const char* name = av_get_pix_fmt_name(value);
+                return name ? name : "unknown";
+            }
+
             bool canCopy(AVPixelFormat in, AVPixelFormat out)
             {
                 return in == out &&
@@ -541,17 +547,7 @@ namespace tl
 
                 if (!canCopy(_avInputPixelFormat, _avOutputPixelFormat))
                 {
-                    _avFrame2 = av_frame_alloc();
-                    if (!_avFrame2)
-                    {
-                        throw std::runtime_error(
-                            ftk::Format("Cannot allocate frame: \"{0}\"").
-                            arg(_fileName));
-                    }
-                    _avFrame2->format = _avOutputPixelFormat;
-                    _avFrame2->width = _info.size.w;
-                    _avFrame2->height = _info.size.h;
-                    _avFrame2->buf[0] = av_buffer_alloc(_info.getByteCount());
+                    _initFrame2();
 
                     if (_hwAccel)
                     {
@@ -681,8 +677,29 @@ namespace tl
                 arg(codec->name ? codec->name : "?"));
         }
 
+        void ReadVideo::_initFrame2()
+        {
+            _avFrame2 = av_frame_alloc();
+            if (!_avFrame2)
+            {
+                throw std::runtime_error(
+                    ftk::Format("Cannot allocate frame: \"{0}\"").
+                    arg(_fileName));
+            }
+            _avFrame2->format = _avOutputPixelFormat;
+            _avFrame2->width = _info.size.w;
+            _avFrame2->height = _info.size.h;
+            _avFrame2->buf[0] = av_buffer_alloc(_info.getByteCount());
+        }
+
         void ReadVideo::_initSws(AVPixelFormat srcFormat)
         {
+            // May be a rebuild: see _copy().
+            if (_swsContext)
+            {
+                sws_freeContext(_swsContext);
+                _swsContext = nullptr;
+            }
             _swsContext = sws_alloc_context();
             if (!_swsContext)
             {
@@ -702,6 +719,8 @@ namespace tl
             {
                 throw std::runtime_error(ftk::Format("Cannot initialize sws context: \"{0}\"").arg(_fileName));
             }
+            // Recorded once there is a scaler it describes.
+            _swsInputPixelFormat = srcFormat;
         }
 
         void ReadVideo::seek(const OTIO_NS::RationalTime& time)
@@ -933,11 +952,19 @@ namespace tl
                 }
                 return;
             }
-            if (canCopy(_avInputPixelFormat, _avOutputPixelFormat))
+            // The format the stream declares is the format of its first
+            // frame, and a file may change it partway through: a QuickTime
+            // can carry ProRes 4444 and ProRes 422 frames in one stream, and
+            // the 422 stretches decode to a format the header never
+            // mentioned. So the arriving frame is asked rather than the
+            // header, and the scaler is rebuilt whenever the answer changes.
+            const AVPixelFormat frameFormat =
+                static_cast<AVPixelFormat>(frame->format);
+            if (canCopy(frameFormat, _avOutputPixelFormat))
             {
                 const uint8_t* const data0 = frame->data[0];
                 const int linesize0 = frame->linesize[0];
-                switch (_avInputPixelFormat)
+                switch (frameFormat)
                 {
                 case AV_PIX_FMT_RGB24:
                     for (std::size_t i = 0; i < h; ++i)
@@ -999,11 +1026,27 @@ namespace tl
             }
             else
             {
-                if (!_swsContext)
+                if (!_swsContext || _swsInputPixelFormat != frameFormat)
                 {
-                    // Build the scaler now that the real source format is known
-                    // (the hardware download format, or a software-fallback format).
-                    _initSws(static_cast<AVPixelFormat>(frame->format));
+                    if (_swsContext)
+                    {
+                        _log(ftk::Format(
+                            "The video format changed from \"{0}\" to \"{1}\": \"{2}\"").
+                            arg(pixelFormatName(_swsInputPixelFormat)).
+                            arg(pixelFormatName(frameFormat)).
+                            arg(_fileName));
+                    }
+                    // Built here rather than in start() because the format
+                    // that arrives is only known now: the hardware download
+                    // format, a software-fallback format, or a change
+                    // partway through the stream.
+                    _initSws(frameFormat);
+                }
+                if (!_avFrame2)
+                {
+                    // The stream started in a format that could be copied
+                    // straight out, so start() had no scaling to set up for.
+                    _initFrame2();
                 }
                 av_image_fill_arrays(
                     _avFrame2->data,

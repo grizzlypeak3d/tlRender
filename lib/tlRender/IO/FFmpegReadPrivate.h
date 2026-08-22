@@ -91,6 +91,7 @@ namespace tl
             void _copy(const std::shared_ptr<ftk::Image>&, AVFrame* frame);
             void _setError(int);
             void _initHwAccel(const AVCodec*);
+            void _initFrame2();
             void _initSws(AVPixelFormat srcFormat);
             static AVPixelFormat _getHwFormat(AVCodecContext*, const AVPixelFormat*);
             void _log(const std::string&, ftk::LogType = ftk::LogType::Message) const;
@@ -116,6 +117,10 @@ namespace tl
             AVPixelFormat _avInputPixelFormat = AV_PIX_FMT_NONE;
             AVPixelFormat _avOutputPixelFormat = AV_PIX_FMT_NONE;
             SwsContext* _swsContext = nullptr;
+            //! The format the scaler was built for, which is the format of
+            //! the frames that were arriving when it was built rather than
+            //! the one the stream declares. See _copy().
+            AVPixelFormat _swsInputPixelFormat = AV_PIX_FMT_NONE;
             AVBufferRef* _hwDeviceContext = nullptr;
             AVPixelFormat _hwPixelFormat = AV_PIX_FMT_NONE;
             AVFrame* _swFrame = nullptr;
