@@ -11,9 +11,6 @@
 #if defined(TLRENDER_FFMPEG_PLUGIN)
 #include <tlRender/IO/FFmpeg.h>
 #endif // TLRENDER_FFMPEG_PLUGIN
-#if defined(TLRENDER_USD)
-#include <tlRender/IO/USD.h>
-#endif // TLRENDER_USD
 
 #include <ftk/Core/CmdLine.h>
 #include <ftk/GL/OffscreenBuffer.h>
@@ -60,15 +57,6 @@ namespace tl
             std::shared_ptr<ftk::CmdLineOption<std::string> > ffmpegAudioCodec;
             std::shared_ptr<ftk::CmdLineOption<int> > ffmpegThreadCount;
 #endif // TLRENDER_FFMPEG_PLUGIN
-#if defined(TLRENDER_USD)
-            std::shared_ptr<ftk::CmdLineOption<int> > usdRenderWidth;
-            std::shared_ptr<ftk::CmdLineOption<float> > usdComplexity;
-            std::shared_ptr<ftk::CmdLineOption<usd::DrawMode> > usdDrawMode;
-            std::shared_ptr<ftk::CmdLineOption<bool> > usdEnableLighting;
-            std::shared_ptr<ftk::CmdLineOption<bool> > usdSRGB;
-            std::shared_ptr<ftk::CmdLineOption<int> > usdStageCache;
-            std::shared_ptr<ftk::CmdLineOption<int> > usdDiskCache;
-#endif // TLRENDER_USD
         };
 
         //! Application.
@@ -117,7 +105,6 @@ namespace tl
             int64_t _audioSamples = 0;
 
             std::shared_ptr<ftk::gl::Window> _window;
-            std::shared_ptr<IIOPlugin> _usdPlugin;
             std::shared_ptr<IRender> _render;
             std::shared_ptr<ftk::gl::OffscreenBuffer> _buffer;
 

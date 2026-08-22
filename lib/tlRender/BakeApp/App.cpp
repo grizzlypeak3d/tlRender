@@ -138,44 +138,6 @@ namespace tl
                 "FFmpeg",
                 static_cast<int>(ffmpeg::Options().threadCount));
 #endif // TLRENDER_FFMPEG_PLUGIN
-#if defined(TLRENDER_USD)
-            _cmdLine.usdRenderWidth = ftk::CmdLineOption<int>::create(
-                { "-usdRenderWidth" },
-                "Render width.",
-                "USD",
-                1920);
-            _cmdLine.usdComplexity = ftk::CmdLineOption<float>::create(
-                { "-usdComplexity" },
-                "Render complexity setting.",
-                "USD",
-                1.F);
-            _cmdLine.usdDrawMode = ftk::CmdLineOption<usd::DrawMode>::create(
-                { "-usdDrawMode" },
-                "Draw mode.",
-                "USD",
-                usd::DrawMode::ShadedSmooth,
-                ftk::quotes(usd::getDrawModeLabels()));
-            _cmdLine.usdEnableLighting = ftk::CmdLineOption<bool>::create(
-                { "-usdEnableLighting" },
-                "Enable lighting.",
-                "USD",
-                true);
-            _cmdLine.usdSRGB = ftk::CmdLineOption<bool>::create(
-                { "-usdSRGB" },
-                "Enable sRGB color space.",
-                "USD",
-                true);
-            _cmdLine.usdStageCache = ftk::CmdLineOption<int>::create(
-                { "-usdStageCache" },
-                "Stage cache size.",
-                "USD",
-                10);
-            _cmdLine.usdDiskCache = ftk::CmdLineOption<int>::create(
-                { "-usdDiskCache" },
-                "Disk cache size in gigabytes. A size of zero disables the cache.",
-                "USD",
-                0);
-#endif // TLRENDER_USD
 
             IApp::_init(
                 context,
@@ -210,15 +172,6 @@ namespace tl
                     _cmdLine.ffmpegAudioCodec,
                     _cmdLine.ffmpegThreadCount,
 #endif // TLRENDER_FFMPEG_PLUGIN
-#if defined(TLRENDER_USD)
-                    _cmdLine.usdRenderWidth,
-                    _cmdLine.usdComplexity,
-                    _cmdLine.usdDrawMode,
-                    _cmdLine.usdEnableLighting,
-                    _cmdLine.usdSRGB,
-                    _cmdLine.usdStageCache,
-                    _cmdLine.usdDiskCache,
-#endif // TLRENDER_USD
                 });
         }
 
@@ -502,50 +455,6 @@ namespace tl
             }
 #endif // TLRENDER_FFMPEG_PLUGIN
 
-#if defined(TLRENDER_USD)
-            if (_cmdLine.usdRenderWidth->hasValue())
-            {
-                std::stringstream ss;
-                ss << _cmdLine.usdRenderWidth->getValue();
-                out["USD/RenderWidth"] = ss.str();
-            }
-            if (_cmdLine.usdComplexity->hasValue())
-            {
-                std::stringstream ss;
-                ss << _cmdLine.usdComplexity->getValue();
-                out["USD/Complexity"] = ss.str();
-            }
-            if (_cmdLine.usdDrawMode->hasValue())
-            {
-                std::stringstream ss;
-                ss << _cmdLine.usdDrawMode->getValue();
-                out["USD/DrawMode"] = ss.str();
-            }
-            if (_cmdLine.usdEnableLighting->hasValue())
-            {
-                std::stringstream ss;
-                ss << _cmdLine.usdEnableLighting->getValue();
-                out["USD/EnableLighting"] = ss.str();
-            }
-            if (_cmdLine.usdSRGB->hasValue())
-            {
-                std::stringstream ss;
-                ss << _cmdLine.usdSRGB->getValue();
-                out["USD/sRGB"] = ss.str();
-            }
-            if (_cmdLine.usdStageCache->hasValue())
-            {
-                std::stringstream ss;
-                ss << std::max(0, _cmdLine.usdStageCache->getValue());
-                out["USD/StageCacheCount"] = ss.str();
-            }
-            if (_cmdLine.usdDiskCache->hasValue())
-            {
-                std::stringstream ss;
-                ss << std::max(0, _cmdLine.usdDiskCache->getValue()) * ftk::gigabyte;
-                out["USD/DiskCacheByteCount"] = ss.str();
-            }
-#endif // TLRENDER_USD
 
             return out;
         }

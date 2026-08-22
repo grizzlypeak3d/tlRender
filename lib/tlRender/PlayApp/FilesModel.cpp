@@ -53,9 +53,6 @@ namespace tl
             if (auto context = _context.lock())
             {
                 tl::Options options;
-#if defined(TLRENDER_USD)
-                //options.ioOptions["USD/DiskCacheGB"] = ftk::Format("{0}").arg(16);
-#endif // TLRENDER_USD
                 auto timeline = Timeline::create(context, path, options);
                 auto player = Player::create(context, timeline);
                 player->setCacheOptions(_cacheOptions);

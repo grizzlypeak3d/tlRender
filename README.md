@@ -23,7 +23,6 @@ Features:
 * A/B comparison with wipe, overlay, and difference modes
 * Color management with OpenColorIO
 * Multi-track audio with variable speed and reverse playback
-* Experimental support for USD files
 * Available for Linux, macOS, and Windows
 
 
@@ -49,7 +48,6 @@ Optional dependencies:
 * [PNG](https://libpng.sourceforge.io/index.html)
 * [OpenEXR](https://www.openexr.com/)
 * [FFmpeg](https://ffmpeg.org)
-* [OpenUSD](https://github.com/PixarAnimationStudios/OpenUSD)
 
 
 ## Building on Linux
@@ -147,8 +145,6 @@ Requirements:
 * CMake 3.31
 * NASM (https://www.nasm.us) for compiling FFmpeg and libjpeg-turbo.
 * MSYS2 (https://www.msys2.org) for compiling FFmpeg.
-* Strawberry Perl (https://strawberryperl.com/) for compiling network support.
-* Python 3.11 for compiling USD.
 
 Open the Visual Studio command console "x64 Native Tools Command Prompt for VS 2022".
 This can be found in the Start menu, in the "Visual Studio 2022" folder.

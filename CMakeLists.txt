@@ -33,7 +33,6 @@ set(TLRENDER_FFMPEG ON CACHE BOOL "Enable support for FFmpeg (required for audio
 set(TLRENDER_FFMPEG_PLUGIN ON CACHE BOOL "Enable support for FFmpeg I/O")
 set(TLRENDER_OIIO ON CACHE BOOL "Enable support for OpenImageIO")
 set(TLRENDER_SVG ON CACHE BOOL "Enable support for SVG I/O")
-set(TLRENDER_USD OFF CACHE BOOL "Enable support for USD")
 set(TLRENDER_PYTHON OFF CACHE BOOL "Enable support for Python")
 set(TLRENDER_PROGRAMS ON CACHE BOOL "Build programs")
 set(TLRENDER_EXAMPLES ON CACHE BOOL "Build examples")
@@ -216,10 +215,6 @@ endif()
 if(TLRENDER_SVG)
     # Also a dependency of ftk, which is where it comes from.
     find_package(lunasvg REQUIRED)
-endif()
-if(TLRENDER_USD)
-    find_package(OpenGL REQUIRED)
-    find_package(pxr REQUIRED)
 endif()
 
 # Python dependencies

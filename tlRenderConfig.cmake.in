@@ -120,12 +120,6 @@ if(@TLRENDER_OIIO@)
         add_definitions(-DTLRENDER_OIIO)
     endif()
 endif()
-if(@TLRENDER_USD@)
-    find_package(pxr)
-    if(pxr_FOUND)
-        add_definitions(-DTLRENDER_USD)
-    endif()
-endif()
 
 # feather-tk dependencies
 find_package(ftk REQUIRED)

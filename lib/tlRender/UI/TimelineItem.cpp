@@ -1064,10 +1064,6 @@ namespace tl
                             clip->name() :
                             item.path.getFileName();
                         item.ioOptions = _data->options.ioOptions;
-                        if (ItemType::Video == item.type)
-                        {
-                            item.ioOptions["USD/CameraName"] = clip->name();
-                        }
                     }
                     else if (auto gap = OTIO_NS::dynamic_retainer_cast<OTIO_NS::Gap>(trackChild))
                     {

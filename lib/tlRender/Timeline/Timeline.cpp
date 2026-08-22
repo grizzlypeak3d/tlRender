@@ -2265,7 +2265,6 @@ namespace tl
         FTK_P();
         std::future<VideoData> out;
         IOOptions optionsMerged = merge(options, p.options.ioOptions);
-        optionsMerged["USD/CameraName"] = clip->name();
         const auto mediaReference = p.mediaReference(clip);
         // A sequence is decoded on the timeline's pool; anything that has to
         // be read statefully keeps its own reader.
