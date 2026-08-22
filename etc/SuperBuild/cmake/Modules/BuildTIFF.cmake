@@ -4,9 +4,9 @@ include(ExternalProject)
 # answers git over HTTPS with 403 often enough to fail a build -- three
 # attempts in a row, on a runner that had done nothing else -- and this is
 # the project's own download host, which does not.
-set(TIFF_VERSION "4.5.0")
+set(TIFF_VERSION "4.7.2")
 set(TIFF_URL "https://download.osgeo.org/libtiff/tiff-${TIFF_VERSION}.tar.gz")
-set(TIFF_HASH "SHA256=c7a1d9296649233979fa3eacffef3fa024d73d05d589cb622727b5b08c423464")
+set(TIFF_HASH "SHA256=672bd7d10aee4606171afb864f3570b83340f6a33e2c186dc0512f7145ffdf6a")
 
 set(TIFF_ARGS
     ${TLRENDER_EXTERNAL_ARGS}
