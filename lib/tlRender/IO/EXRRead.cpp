@@ -130,7 +130,11 @@ namespace tl
                     "B44",
                     "B44A",
                     "DWAA",
-                    "DWAB"
+                    "DWAB",
+                    // Two of them: HTJ2K in blocks of 256 scan lines and in
+                    // blocks of 32. Named as OpenEXR names them.
+                    "HTJ2K256",
+                    "HTJ2K32"
                 };
                 return data[value];
             }
