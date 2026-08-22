@@ -426,13 +426,6 @@ namespace tl
             {
                 throw std::runtime_error(ftk::Format("Cannot open: \"{0}\"").arg(output));
             }
-            // A sequence writer names each file from the time it is written
-            // at, so those get the frame numbers of the timeline. Anything
-            // else takes the time as a position within the output, which
-            // starts at zero.
-            _writeInputTime =
-                std::dynamic_pointer_cast<ISeqWrite>(_writer) != nullptr;
-
             // Start the main loop.
             while (_running)
             {
@@ -583,9 +576,15 @@ namespace tl
                 format,
                 type,
                 _outputImage->getData());
-            _writer->writeVideo(
-                _writeInputTime ? _inputTime : _outputTime,
-                _outputImage);
+            // The time of the frame in the timeline, which is what
+            // ioInfo.videoTime above describes. A sequence writer names each
+            // file from it, so those keep the frame numbers of the timeline.
+            // A movie has no frame numbers in its name and the time becomes
+            // the presentation timestamp, so the writer subtracts the start
+            // of that range to get one that begins at zero -- handing it a
+            // time that already began at zero subtracts the start twice and
+            // the timestamps come out negative.
+            _writer->writeVideo(_inputTime, _outputImage);
 
             // Advance the time.
             _inputTime += OTIO_NS::RationalTime(1, _inputTime.rate());

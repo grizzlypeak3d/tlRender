@@ -123,7 +123,6 @@ namespace tl
             std::shared_ptr<IWrite> _writer;
             //! Whether the writer names its output from the time it is
             //! given, which a sequence does and a movie does not.
-            bool _writeInputTime = false;
             std::shared_ptr<ftk::Image> _outputImage;
 
             bool _running = true;
