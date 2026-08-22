@@ -54,6 +54,9 @@ if(TLRENDER_SVG)
 endif()
 
 add_library(tlIO ${HEADERS})
+if(BUILD_SHARED_LIBS)
+    target_compile_definitions(tlIO PRIVATE TL_EXPORTS)
+endif()
 target_sources(tlIO PRIVATE ${HEADERS_PRIVATE} ${SOURCE})
 
 target_include_directories(tlIO

@@ -21,7 +21,7 @@ set(SOURCE
 add_library(tlCore ${HEADERS} ${SOURCE})
 
 if(BUILD_SHARED_LIBS)
-    target_compile_definitions(tlCore PUBLIC TL_EXPORTS)
+    target_compile_definitions(tlCore PRIVATE TL_EXPORTS)
 else()
     target_compile_definitions(tlCore PUBLIC TL_STATIC)
 endif()

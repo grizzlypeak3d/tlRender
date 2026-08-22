@@ -10,6 +10,9 @@ set(SOURCE
     URL.cpp)
 
 add_library(tlCorePy ${HEADERS} ${HEADERS_PRIVATE} ${SOURCE})
+if(BUILD_SHARED_LIBS)
+    target_compile_definitions(tlCorePy PRIVATE TL_EXPORTS)
+endif()
 
 target_include_directories(tlCorePy
     PUBLIC

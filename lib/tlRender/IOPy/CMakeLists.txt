@@ -10,6 +10,9 @@ set(SOURCE
     Write.cpp)
 
 add_library(tlIOPy ${HEADERS} ${HEADERS_PRIVATE} ${SOURCE})
+if(BUILD_SHARED_LIBS)
+    target_compile_definitions(tlIOPy PRIVATE TL_EXPORTS)
+endif()
 
 target_include_directories(tlIOPy
     PUBLIC

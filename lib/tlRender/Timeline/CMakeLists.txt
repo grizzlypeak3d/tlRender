@@ -47,6 +47,9 @@ set(SOURCE
     Zip.cpp)
 
 add_library(tlTimeline ${HEADERS} ${PRIVATE_HEADERS} ${SOURCE})
+if(BUILD_SHARED_LIBS)
+    target_compile_definitions(tlTimeline PRIVATE TL_EXPORTS)
+endif()
 
 target_include_directories(tlTimeline
     PUBLIC

@@ -22,6 +22,9 @@ set(SOURCE
     Video.cpp)
 
 add_library(tlTimelinePy ${HEADERS} ${HEADERS_PRIVATE} ${SOURCE})
+if(BUILD_SHARED_LIBS)
+    target_compile_definitions(tlTimelinePy PRIVATE TL_EXPORTS)
+endif()
 
 target_include_directories(tlTimelinePy
     PUBLIC

@@ -33,6 +33,9 @@ set(SOURCE
     Viewport.cpp)
 
 add_library(tlUI ${HEADERS} ${HEADERS_PRIVATE} ${SOURCE})
+if(BUILD_SHARED_LIBS)
+    target_compile_definitions(tlUI PRIVATE TL_EXPORTS)
+endif()
 
 target_include_directories(tlUI
     PUBLIC

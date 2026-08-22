@@ -14,6 +14,9 @@ elseif("${ftk_API}" STREQUAL "GLES_2")
 endif()
 
 add_library(tlGL ${HEADERS} ${PRIVATE_HEADERS} ${SOURCE})
+if(BUILD_SHARED_LIBS)
+    target_compile_definitions(tlGL PRIVATE TL_EXPORTS)
+endif()
 
 target_include_directories(tlGL
     PUBLIC

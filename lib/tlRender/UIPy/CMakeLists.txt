@@ -23,6 +23,9 @@ set(SOURCE
     Viewport.cpp)
 
 add_library(tlUIPy ${HEADERS} ${HEADERS_PRIVATE} ${SOURCE})
+if(BUILD_SHARED_LIBS)
+    target_compile_definitions(tlUIPy PRIVATE TL_EXPORTS)
+endif()
 
 target_include_directories(tlUIPy
     PUBLIC
