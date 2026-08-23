@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include <tlRender/Timeline/Export.h>
 #include <tlRender/Core/Util.h>
 
 #include <ftk/Core/Color.h>
@@ -11,7 +12,7 @@
 namespace tl
 {
     //! Grid cell modes.
-    enum class TL_API_TYPE GridCellMode
+    enum class TL_TIMELINE_API_TYPE GridCellMode
     {
         CellSize,
         CellCount,
@@ -22,7 +23,7 @@ namespace tl
     TL_ENUM(GridCellMode);
 
     //! Grid labels.
-    enum class TL_API_TYPE GridLabels
+    enum class TL_TIMELINE_API_TYPE GridLabels
     {
         None,
         Pixels,
@@ -34,10 +35,10 @@ namespace tl
     TL_ENUM(GridLabels);
 
     //! Get a grid label.
-    TL_API std::string getLabel(GridLabels, int x, int y);
+    TL_TIMELINE_API std::string getLabel(GridLabels, int x, int y);
 
     //! Grid.
-    struct TL_API_TYPE Grid
+    struct TL_TIMELINE_API_TYPE Grid
     {
         bool          enabled      = false;
         GridCellMode  cellMode     = GridCellMode::CellSize;
@@ -51,20 +52,20 @@ namespace tl
         ftk::FontInfo fontInfo     = ftk::FontInfo(ftk::getDefaultFont(ftk::FontType::Mono), 12);
         int           textMargin   = 2;
 
-        TL_API bool operator == (const Grid&) const;
-        TL_API bool operator != (const Grid&) const;
+        TL_TIMELINE_API bool operator == (const Grid&) const;
+        TL_TIMELINE_API bool operator != (const Grid&) const;
     };
 
     //! Center marker.
-    struct TL_API_TYPE CenterMarker
+    struct TL_TIMELINE_API_TYPE CenterMarker
     {
         bool         enabled = false;
         int          size    = 30;
         int          width   = 3;
         ftk::Color4F color   = ftk::Color4F(1.F, 1.F, 1.F);
 
-        TL_API bool operator == (const CenterMarker&) const;
-        TL_API bool operator != (const CenterMarker&) const;
+        TL_TIMELINE_API bool operator == (const CenterMarker&) const;
+        TL_TIMELINE_API bool operator != (const CenterMarker&) const;
     };
 
     //! Missing frame indicator.
@@ -80,39 +81,39 @@ namespace tl
     //! It covers the part of the image that can be seen rather than the image
     //! itself, so zooming into the middle of the picture cannot hide it, the
     //! way it hides the outline.
-    struct TL_API_TYPE MissingIndicator
+    struct TL_TIMELINE_API_TYPE MissingIndicator
     {
         bool         enabled = false;
         int          width   = 6;
         ftk::Color4F color   = ftk::Color4F(1.F, 0.F, 0.F);
 
-        TL_API bool operator == (const MissingIndicator&) const;
-        TL_API bool operator != (const MissingIndicator&) const;
+        TL_TIMELINE_API bool operator == (const MissingIndicator&) const;
+        TL_TIMELINE_API bool operator != (const MissingIndicator&) const;
     };
 
     //! Foreground options.
-    struct TL_API_TYPE ForegroundOptions
+    struct TL_TIMELINE_API_TYPE ForegroundOptions
     {
         Grid             grid;
         CenterMarker     centerMarker;
         MissingIndicator missingIndicator;
 
-        TL_API bool operator == (const ForegroundOptions&) const;
-        TL_API bool operator != (const ForegroundOptions&) const;
+        TL_TIMELINE_API bool operator == (const ForegroundOptions&) const;
+        TL_TIMELINE_API bool operator != (const ForegroundOptions&) const;
     };
 
     //! \name Serialize
     ///@{
 
-    TL_API void to_json(nlohmann::json&, const Grid&);
-    TL_API void to_json(nlohmann::json&, const CenterMarker&);
-    TL_API void to_json(nlohmann::json&, const MissingIndicator&);
-    TL_API void to_json(nlohmann::json&, const ForegroundOptions&);
+    TL_TIMELINE_API void to_json(nlohmann::json&, const Grid&);
+    TL_TIMELINE_API void to_json(nlohmann::json&, const CenterMarker&);
+    TL_TIMELINE_API void to_json(nlohmann::json&, const MissingIndicator&);
+    TL_TIMELINE_API void to_json(nlohmann::json&, const ForegroundOptions&);
 
-    TL_API void from_json(const nlohmann::json&, Grid&);
-    TL_API void from_json(const nlohmann::json&, CenterMarker&);
-    TL_API void from_json(const nlohmann::json&, MissingIndicator&);
-    TL_API void from_json(const nlohmann::json&, ForegroundOptions&);
+    TL_TIMELINE_API void from_json(const nlohmann::json&, Grid&);
+    TL_TIMELINE_API void from_json(const nlohmann::json&, CenterMarker&);
+    TL_TIMELINE_API void from_json(const nlohmann::json&, MissingIndicator&);
+    TL_TIMELINE_API void from_json(const nlohmann::json&, ForegroundOptions&);
 
     ///@}
 }

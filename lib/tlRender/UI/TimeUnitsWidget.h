@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include <tlRender/UI/Export.h>
 #include <tlRender/Timeline/TimeUnits.h>
 
 #include <ftk/UI/IContainer.h>
@@ -13,7 +14,7 @@ namespace tl
     namespace ui
     {
         //! Time units widget.
-        class TL_API_TYPE TimeUnitsWidget : public ftk::IContainer
+        class TL_UI_API_TYPE TimeUnitsWidget : public ftk::IContainer
         {
             FTK_NON_COPYABLE(TimeUnitsWidget);
 
@@ -26,10 +27,10 @@ namespace tl
             TimeUnitsWidget();
 
         public:
-            TL_API virtual ~TimeUnitsWidget();
+            TL_UI_API virtual ~TimeUnitsWidget();
 
             //! Create a new widget.
-            TL_API static std::shared_ptr<TimeUnitsWidget> create(
+            TL_UI_API static std::shared_ptr<TimeUnitsWidget> create(
                 const std::shared_ptr<ftk::Context>&,
                 const std::shared_ptr<TimeUnitsModel>&,
                 const std::shared_ptr<IWidget>& parent = nullptr);

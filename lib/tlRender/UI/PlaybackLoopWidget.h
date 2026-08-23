@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include <tlRender/UI/Export.h>
 #include <tlRender/Timeline/Player.h>
 
 #include <ftk/UI/IContainer.h>
@@ -13,7 +14,7 @@ namespace tl
     namespace ui
     {
         //! Time label.
-        class TL_API_TYPE PlaybackLoopWidget : public ftk::IContainer
+        class TL_UI_API_TYPE PlaybackLoopWidget : public ftk::IContainer
         {
             FTK_NON_COPYABLE(PlaybackLoopWidget);
 
@@ -25,21 +26,21 @@ namespace tl
             PlaybackLoopWidget();
 
         public:
-            TL_API virtual ~PlaybackLoopWidget();
+            TL_UI_API virtual ~PlaybackLoopWidget();
 
             //! Create a new widget.
-            TL_API static std::shared_ptr<PlaybackLoopWidget> create(
+            TL_UI_API static std::shared_ptr<PlaybackLoopWidget> create(
                 const std::shared_ptr<ftk::Context>&,
                 const std::shared_ptr<IWidget>& parent = nullptr);
 
             //! Get the playback loop.
-            TL_API Loop getLoop() const;
+            TL_UI_API Loop getLoop() const;
 
             //! Set the playback loop.
-            TL_API void setLoop(Loop);
+            TL_UI_API void setLoop(Loop);
 
             //! Set the callback.
-            TL_API void setCallback(const std::function<void(Loop)>&);
+            TL_UI_API void setCallback(const std::function<void(Loop)>&);
 
 
         private:

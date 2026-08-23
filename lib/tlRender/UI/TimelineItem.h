@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include <tlRender/UI/Export.h>
 #include <tlRender/UI/ItemOptions.h>
 
 #include <tlRender/Timeline/Player.h>
@@ -14,7 +15,7 @@ namespace tl
     namespace ui
     {
         //! Track types.
-        enum class TL_API_TYPE TrackType
+        enum class TL_UI_API_TYPE TrackType
         {
             None,
             Video,
@@ -31,7 +32,7 @@ namespace tl
         //!
         //! The time ruler is not here but above the items, in TimelineRuler:
         //! timelines shown together share one.
-        class TL_API_TYPE TimelineItem : public ftk::IMouseWidget
+        class TL_UI_API_TYPE TimelineItem : public ftk::IMouseWidget
         {
         protected:
             void _init(
@@ -47,10 +48,10 @@ namespace tl
             TimelineItem();
 
         public:
-            TL_API virtual ~TimelineItem();
+            TL_UI_API virtual ~TimelineItem();
 
             //! Create a new item for a timeline that is being played.
-            TL_API static std::shared_ptr<TimelineItem> create(
+            TL_UI_API static std::shared_ptr<TimelineItem> create(
                 const std::shared_ptr<ftk::Context>&,
                 const std::shared_ptr<Player>&,
                 double scale,
@@ -64,7 +65,7 @@ namespace tl
             //! For showing a timeline alongside the one being played -- an
             //! earlier version of it, say. It cannot be scrubbed: there is
             //! nothing to seek.
-            TL_API static std::shared_ptr<TimelineItem> create(
+            TL_UI_API static std::shared_ptr<TimelineItem> create(
                 const std::shared_ptr<ftk::Context>&,
                 const std::shared_ptr<Timeline>&,
                 double scale,
@@ -74,36 +75,36 @@ namespace tl
                 const std::shared_ptr<IWidget>& parent = nullptr);
 
             //! Set whether playback stops when scrubbing.
-            TL_API void setStopOnScrub(bool);
+            TL_UI_API void setStopOnScrub(bool);
 
             //! Observe whether scrubbing is in progress.
-            TL_API std::shared_ptr<ftk::IObservable<bool> > observeScrub() const;
+            TL_UI_API std::shared_ptr<ftk::IObservable<bool> > observeScrub() const;
 
             //! Observe time scrubbing.
-            TL_API std::shared_ptr<ftk::IObservable<std::optional<OTIO_NS::RationalTime> > > observeTimeScrub() const;
+            TL_UI_API std::shared_ptr<ftk::IObservable<std::optional<OTIO_NS::RationalTime> > > observeTimeScrub() const;
 
             //! Set the frame markers.
-            TL_API void setFrameMarkers(const std::vector<int>&);
+            TL_UI_API void setFrameMarkers(const std::vector<int>&);
 
             //! Set colors marking items.
             //!
             //! Drawn as an outline around the item rather than as its color:
             //! the item's own color says what kind of item it is, and may be
             //! one the timeline was authored with.
-            TL_API void setItemColors(const ItemColors&);
+            TL_UI_API void setItemColors(const ItemColors&);
 
             //! Set the label naming this timeline.
             //!
             //! Drawn above the tracks when it is not empty, and taking up no
             //! room when it is. A timeline shown on its own does not need
             //! naming; several drawn together do.
-            TL_API void setLabel(const std::string&);
+            TL_UI_API void setLabel(const std::string&);
 
             //! Get the time range.
-            TL_API const OTIO_NS::TimeRange& getTimeRange() const;
+            TL_UI_API const OTIO_NS::TimeRange& getTimeRange() const;
 
             //! Set the scale, in pixels per second.
-            TL_API void setScale(double);
+            TL_UI_API void setScale(double);
 
             //! Set how far along the timeline is drawn.
             //!
@@ -112,34 +113,34 @@ namespace tl
             //! head holds the same clips as the one before it, later, and an
             //! offset puts them back under each other. Must not be negative;
             //! there is nothing to the left of the start to draw into.
-            TL_API void setOffset(const OTIO_NS::RationalTime&);
+            TL_UI_API void setOffset(const OTIO_NS::RationalTime&);
 
             //! Set the options.
-            TL_API void setOptions(const ItemOptions&);
+            TL_UI_API void setOptions(const ItemOptions&);
 
             //! Set the display options.
-            TL_API void setDisplayOptions(const DisplayOptions&);
+            TL_UI_API void setDisplayOptions(const DisplayOptions&);
 
             //! Convert a position to a time.
-            TL_API OTIO_NS::RationalTime posToTime(float) const;
+            TL_UI_API OTIO_NS::RationalTime posToTime(float) const;
 
             //! Convert a time to a position.
-            TL_API int timeToPos(const OTIO_NS::RationalTime&) const;
+            TL_UI_API int timeToPos(const OTIO_NS::RationalTime&) const;
 
-            TL_API ftk::Size2I getSizeHint() const override;
-            TL_API void setGeometry(const ftk::Box2I&) override;
-            TL_API void styleEvent(const ftk::StyleEvent&) override;
-            TL_API void sizeHintEvent(const ftk::SizeHintEvent&) override;
-            TL_API void clipEvent(const ftk::Box2I&, bool) override;
-            TL_API void tickEvent(
+            TL_UI_API ftk::Size2I getSizeHint() const override;
+            TL_UI_API void setGeometry(const ftk::Box2I&) override;
+            TL_UI_API void styleEvent(const ftk::StyleEvent&) override;
+            TL_UI_API void sizeHintEvent(const ftk::SizeHintEvent&) override;
+            TL_UI_API void clipEvent(const ftk::Box2I&, bool) override;
+            TL_UI_API void tickEvent(
                 bool,
                 bool,
                 const ftk::TickEvent&) override;
-            TL_API void drawEvent(const ftk::Box2I&, const ftk::DrawEvent&) override;
-            TL_API void drawOverlayEvent(const ftk::Box2I&, const ftk::DrawEvent&) override;
-            TL_API void mouseMoveEvent(ftk::MouseMoveEvent&) override;
-            TL_API void mousePressEvent(ftk::MouseClickEvent&) override;
-            TL_API void mouseReleaseEvent(ftk::MouseClickEvent&) override;
+            TL_UI_API void drawEvent(const ftk::Box2I&, const ftk::DrawEvent&) override;
+            TL_UI_API void drawOverlayEvent(const ftk::Box2I&, const ftk::DrawEvent&) override;
+            TL_UI_API void mouseMoveEvent(ftk::MouseMoveEvent&) override;
+            TL_UI_API void mousePressEvent(ftk::MouseClickEvent&) override;
+            TL_UI_API void mouseReleaseEvent(ftk::MouseClickEvent&) override;
 
         private:
             void _timeUnitsUpdate();

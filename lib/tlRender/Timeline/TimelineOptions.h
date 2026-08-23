@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include <tlRender/Timeline/Export.h>
 #include <tlRender/IO/IO.h>
 
 #include <ftk/Core/Path.h>
@@ -10,7 +11,7 @@
 namespace tl
 {
     //! Image sequence audio options.
-    enum class TL_API_TYPE ImageSeqAudio
+    enum class TL_TIMELINE_API_TYPE ImageSeqAudio
     {
         None,     //!< No audio
         Ext,      //!< Search for an audio file by extension
@@ -22,7 +23,7 @@ namespace tl
     TL_ENUM(ImageSeqAudio);
 
     //! Spatial coordinate options.
-    enum class TL_API_TYPE Spatial
+    enum class TL_TIMELINE_API_TYPE Spatial
     {
         //! Ignore the OTIO spatial coordinates, laying out clips from their
         //! image sizes
@@ -42,10 +43,10 @@ namespace tl
     TL_ENUM(Spatial);
 
     //! Get the default number of sequence decoding threads.
-    TL_API size_t getDefaultReadThreadCount();
+    TL_TIMELINE_API size_t getDefaultReadThreadCount();
 
     //! Timeline options.
-    struct TL_API_TYPE Options
+    struct TL_TIMELINE_API_TYPE Options
     {
         //! Image sequence audio.
         ImageSeqAudio imageSeqAudio = ImageSeqAudio::Ext;
@@ -118,7 +119,7 @@ namespace tl
         //! Path options.
         ftk::PathOptions pathOptions;
 
-        TL_API bool operator == (const Options&) const;
-        TL_API bool operator != (const Options&) const;
+        TL_TIMELINE_API bool operator == (const Options&) const;
+        TL_TIMELINE_API bool operator != (const Options&) const;
     };
 }

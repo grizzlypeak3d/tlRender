@@ -12,11 +12,11 @@
 namespace tl
 {
     //! Get the URL scheme.
-    TL_API std::string getURLScheme(const std::string&);
+    TL_CORE_API std::string getURLScheme(const std::string&);
 
     //! Encode a URL.
-    TL_API std::string encodeURL(const std::string&);
+    TL_CORE_API std::string encodeURL(const std::string&);
 
     //! Decode a URL.
-    TL_API std::string decodeURL(const std::string&);
+    TL_CORE_API std::string decodeURL(const std::string&);
 }

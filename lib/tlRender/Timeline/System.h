@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include <tlRender/Timeline/Export.h>
 #include <tlRender/IO/Read.h>
 #include <tlRender/IO/Write.h>
 
@@ -13,7 +14,7 @@ namespace tl
     class Player;
 
     //! Timeline system.
-    class TL_API_TYPE System : public ftk::ISystem
+    class TL_TIMELINE_API_TYPE System : public ftk::ISystem
     {
         FTK_NON_COPYABLE(System);
 
@@ -21,13 +22,13 @@ namespace tl
         System(const std::shared_ptr<ftk::Context>&);
 
     public:
-        TL_API virtual ~System();
+        TL_TIMELINE_API virtual ~System();
 
         //! Create a new system.
-        TL_API static std::shared_ptr<System> create(const std::shared_ptr<ftk::Context>&);
+        TL_TIMELINE_API static std::shared_ptr<System> create(const std::shared_ptr<ftk::Context>&);
 
-        TL_API void tick() override;
-        TL_API std::chrono::milliseconds getTickTime() const override;
+        TL_TIMELINE_API void tick() override;
+        TL_TIMELINE_API std::chrono::milliseconds getTickTime() const override;
 
     private:
         void _addPlayer(const std::shared_ptr<Player>&);

@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include <tlRender/UI/Export.h>
 #include <tlRender/UI/ItemOptions.h>
 
 #include <tlRender/Timeline/Player.h>
@@ -23,7 +24,7 @@ namespace tl
         //! It is the player's ruler. The timelines the player is compared
         //! against are read against its axis, and the in/out points, frame
         //! markers and cache drawn here are its own.
-        class TL_API_TYPE TimelineRuler : public ftk::IMouseWidget
+        class TL_UI_API_TYPE TimelineRuler : public ftk::IMouseWidget
         {
             FTK_NON_COPYABLE(TimelineRuler);
 
@@ -36,57 +37,57 @@ namespace tl
             TimelineRuler();
 
         public:
-            TL_API virtual ~TimelineRuler();
+            TL_UI_API virtual ~TimelineRuler();
 
             //! Create a new widget.
-            TL_API static std::shared_ptr<TimelineRuler> create(
+            TL_UI_API static std::shared_ptr<TimelineRuler> create(
                 const std::shared_ptr<ftk::Context>&,
                 const std::shared_ptr<ItemData>&,
                 const std::shared_ptr<IWidget>& parent = nullptr);
 
             //! Set the item data, which the labels are named through.
-            TL_API void setItemData(const std::shared_ptr<ItemData>&);
+            TL_UI_API void setItemData(const std::shared_ptr<ItemData>&);
 
             //! Set the player.
-            TL_API void setPlayer(const std::shared_ptr<Player>&);
+            TL_UI_API void setPlayer(const std::shared_ptr<Player>&);
 
             //! Set the scale, in pixels per second.
-            TL_API void setScale(double);
+            TL_UI_API void setScale(double);
 
             //! Set how far the timelines are scrolled, so that the ruler is
             //! over the part of them it names.
-            TL_API void setScrollPos(int);
+            TL_UI_API void setScrollPos(int);
 
             //! Set how far along the timeline is drawn.
-            TL_API void setOffset(const OTIO_NS::RationalTime&);
+            TL_UI_API void setOffset(const OTIO_NS::RationalTime&);
 
             //! Set the frame markers.
-            TL_API void setFrameMarkers(const std::vector<int>&);
+            TL_UI_API void setFrameMarkers(const std::vector<int>&);
 
             //! Set the display options.
-            TL_API void setDisplayOptions(const DisplayOptions&);
+            TL_UI_API void setDisplayOptions(const DisplayOptions&);
 
             //! Set the options.
-            TL_API void setOptions(const ItemOptions&);
+            TL_UI_API void setOptions(const ItemOptions&);
 
             //! Set whether playback stops when scrubbing.
-            TL_API void setStopOnScrub(bool);
+            TL_UI_API void setStopOnScrub(bool);
 
             //! Observe whether scrubbing is in progress.
-            TL_API std::shared_ptr<ftk::IObservable<bool> > observeScrub() const;
+            TL_UI_API std::shared_ptr<ftk::IObservable<bool> > observeScrub() const;
 
             //! Observe time scrubbing.
-            TL_API std::shared_ptr<ftk::IObservable<std::optional<OTIO_NS::RationalTime> > > observeTimeScrub() const;
+            TL_UI_API std::shared_ptr<ftk::IObservable<std::optional<OTIO_NS::RationalTime> > > observeTimeScrub() const;
 
             //! Convert a time to a position.
-            TL_API int timeToPos(const OTIO_NS::RationalTime&) const;
+            TL_UI_API int timeToPos(const OTIO_NS::RationalTime&) const;
 
-            TL_API ftk::Size2I getSizeHint() const override;
-            TL_API void sizeHintEvent(const ftk::SizeHintEvent&) override;
-            TL_API void drawEvent(const ftk::Box2I&, const ftk::DrawEvent&) override;
-            TL_API void mouseMoveEvent(ftk::MouseMoveEvent&) override;
-            TL_API void mousePressEvent(ftk::MouseClickEvent&) override;
-            TL_API void mouseReleaseEvent(ftk::MouseClickEvent&) override;
+            TL_UI_API ftk::Size2I getSizeHint() const override;
+            TL_UI_API void sizeHintEvent(const ftk::SizeHintEvent&) override;
+            TL_UI_API void drawEvent(const ftk::Box2I&, const ftk::DrawEvent&) override;
+            TL_UI_API void mouseMoveEvent(ftk::MouseMoveEvent&) override;
+            TL_UI_API void mousePressEvent(ftk::MouseClickEvent&) override;
+            TL_UI_API void mouseReleaseEvent(ftk::MouseClickEvent&) override;
 
         private:
             void _drawInOutPoints(const ftk::Box2I&, const ftk::DrawEvent&);

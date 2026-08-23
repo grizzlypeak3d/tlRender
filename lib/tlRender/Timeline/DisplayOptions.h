@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include <tlRender/Timeline/Export.h>
 #include <tlRender/Core/Util.h>
 
 #include <ftk/Core/Box.h>
@@ -13,7 +14,7 @@
 namespace tl
 {
     //! Color values.
-    struct TL_API_TYPE Color
+    struct TL_TIMELINE_API_TYPE Color
     {
         bool     enabled    = false;
         ftk::V3F add        = ftk::V3F(0.F, 0.F, 0.F);
@@ -22,15 +23,15 @@ namespace tl
         ftk::V3F saturation = ftk::V3F(1.F, 1.F, 1.F);
         float    hue        = 0.F;
 
-        TL_API bool operator == (const Color&) const;
-        TL_API bool operator != (const Color&) const;
+        TL_TIMELINE_API bool operator == (const Color&) const;
+        TL_TIMELINE_API bool operator != (const Color&) const;
     };
 
     //! Get a color matrix.
-    TL_API ftk::M44F color(const Color&);
+    TL_TIMELINE_API ftk::M44F color(const Color&);
 
     //! Levels values.
-    struct TL_API_TYPE Levels
+    struct TL_TIMELINE_API_TYPE Levels
     {
         bool  enabled = false;
         float inLow   = 0.F;
@@ -39,13 +40,13 @@ namespace tl
         float outLow  = 0.F;
         float outHigh = 1.F;
 
-        TL_API bool operator == (const Levels&) const;
-        TL_API bool operator != (const Levels&) const;
+        TL_TIMELINE_API bool operator == (const Levels&) const;
+        TL_TIMELINE_API bool operator != (const Levels&) const;
     };
 
     //! These values match the controls in exrdisplay for comparison and
     //! testing.
-    struct TL_API_TYPE Exposure
+    struct TL_TIMELINE_API_TYPE Exposure
     {
         bool  enabled  = false;
         float exposure = 0.F;
@@ -54,25 +55,25 @@ namespace tl
         float kneeHigh = 5.F;
         float gamma    = 1.F;
 
-        TL_API bool operator == (const Exposure&) const;
-        TL_API bool operator != (const Exposure&) const;
+        TL_TIMELINE_API bool operator == (const Exposure&) const;
+        TL_TIMELINE_API bool operator != (const Exposure&) const;
     };
 
     //! Soft clip.
-    struct TL_API_TYPE SoftClip
+    struct TL_TIMELINE_API_TYPE SoftClip
     {
         bool  enabled = false;
         float value   = 0.F;
 
-        TL_API bool operator == (const SoftClip&) const;
-        TL_API bool operator != (const SoftClip&) const;
+        TL_TIMELINE_API bool operator == (const SoftClip&) const;
+        TL_TIMELINE_API bool operator != (const SoftClip&) const;
     };
 
     //! Aspect ratio.
-    struct TL_API_TYPE AspectRatio
+    struct TL_TIMELINE_API_TYPE AspectRatio
     {
         AspectRatio() = default;
-        TL_API explicit AspectRatio(float num, float den = 1.F);
+        TL_TIMELINE_API explicit AspectRatio(float num, float den = 1.F);
 
         float num = 1.F;
         float den = 1.F;
@@ -81,15 +82,15 @@ namespace tl
 
         operator float () const;
 
-        TL_API bool operator == (const AspectRatio&) const;
-        TL_API bool operator != (const AspectRatio&) const;
+        TL_TIMELINE_API bool operator == (const AspectRatio&) const;
+        TL_TIMELINE_API bool operator != (const AspectRatio&) const;
     };
 
     //! Get a label.
-    TL_API std::string getLabel(const AspectRatio&);
+    TL_TIMELINE_API std::string getLabel(const AspectRatio&);
 
     //! Aspect ratio types.
-    enum class TL_API_TYPE AspectRatioType
+    enum class TL_TIMELINE_API_TYPE AspectRatioType
     {
         Pixel,
         Display,
@@ -100,25 +101,25 @@ namespace tl
     TL_ENUM(AspectRatioType);
 
     //! Aspect ratio options.
-    struct TL_API_TYPE AspectRatioOptions
+    struct TL_TIMELINE_API_TYPE AspectRatioOptions
     {
         AspectRatioOptions() = default;
-        TL_API AspectRatioOptions(const AspectRatio&, AspectRatioType);
+        TL_TIMELINE_API AspectRatioOptions(const AspectRatio&, AspectRatioType);
 
         AspectRatio     value = AspectRatio(0.F, 0.F);
         AspectRatioType type  = AspectRatioType::Pixel;
 
-        TL_API bool operator == (const AspectRatioOptions&) const;
-        TL_API bool operator != (const AspectRatioOptions&) const;
+        TL_TIMELINE_API bool operator == (const AspectRatioOptions&) const;
+        TL_TIMELINE_API bool operator != (const AspectRatioOptions&) const;
     };
 
     //! Get the aspect ratio.
-    TL_API float getAspectRatio(
+    TL_TIMELINE_API float getAspectRatio(
         const ftk::ImageInfo&,
         const AspectRatioOptions&);
 
     //! Get the render size.
-    TL_API ftk::Size2I getRenderSize(
+    TL_TIMELINE_API ftk::Size2I getRenderSize(
         const ftk::ImageInfo&,
         const AspectRatioOptions&);
 
@@ -139,7 +140,7 @@ namespace tl
     };
 
     //! Get a box that fits within the given box.
-    TL_API ftk::Box2I getBox(
+    TL_TIMELINE_API ftk::Box2I getBox(
         const ftk::Box2I&,
         const ftk::ImageInfo&,
         const AspectRatioOptions&,
@@ -147,10 +148,10 @@ namespace tl
         BoxVAlign = BoxVAlign::Center);
 
     //! Get a label.
-    TL_API std::string getLabel(const AspectRatioOptions&);
+    TL_TIMELINE_API std::string getLabel(const AspectRatioOptions&);
 
     //! Display options.
-    struct TL_API_TYPE DisplayOptions
+    struct TL_TIMELINE_API_TYPE DisplayOptions
     {
         ftk::ChannelDisplay channels    = ftk::ChannelDisplay::Color;
         bool                negative    = false;
@@ -166,28 +167,28 @@ namespace tl
         //! than a setting, so it is not serialized.
         std::string         ocioInput;
 
-        TL_API bool operator == (const DisplayOptions&) const;
-        TL_API bool operator != (const DisplayOptions&) const;
+        TL_TIMELINE_API bool operator == (const DisplayOptions&) const;
+        TL_TIMELINE_API bool operator != (const DisplayOptions&) const;
     };
 
     //! \name Serialize
     ///@{
 
-    TL_API void to_json(nlohmann::json&, const Color&);
-    TL_API void to_json(nlohmann::json&, const Levels&);
-    TL_API void to_json(nlohmann::json&, const Exposure&);
-    TL_API void to_json(nlohmann::json&, const SoftClip&);
-    TL_API void to_json(nlohmann::json&, const AspectRatio&);
-    TL_API void to_json(nlohmann::json&, const AspectRatioOptions&);
-    TL_API void to_json(nlohmann::json&, const DisplayOptions&);
+    TL_TIMELINE_API void to_json(nlohmann::json&, const Color&);
+    TL_TIMELINE_API void to_json(nlohmann::json&, const Levels&);
+    TL_TIMELINE_API void to_json(nlohmann::json&, const Exposure&);
+    TL_TIMELINE_API void to_json(nlohmann::json&, const SoftClip&);
+    TL_TIMELINE_API void to_json(nlohmann::json&, const AspectRatio&);
+    TL_TIMELINE_API void to_json(nlohmann::json&, const AspectRatioOptions&);
+    TL_TIMELINE_API void to_json(nlohmann::json&, const DisplayOptions&);
 
-    TL_API void from_json(const nlohmann::json&, Color&);
-    TL_API void from_json(const nlohmann::json&, Levels&);
-    TL_API void from_json(const nlohmann::json&, Exposure&);
-    TL_API void from_json(const nlohmann::json&, SoftClip&);
-    TL_API void from_json(const nlohmann::json&, AspectRatio&);
-    TL_API void from_json(const nlohmann::json&, AspectRatioOptions&);
-    TL_API void from_json(const nlohmann::json&, DisplayOptions&);
+    TL_TIMELINE_API void from_json(const nlohmann::json&, Color&);
+    TL_TIMELINE_API void from_json(const nlohmann::json&, Levels&);
+    TL_TIMELINE_API void from_json(const nlohmann::json&, Exposure&);
+    TL_TIMELINE_API void from_json(const nlohmann::json&, SoftClip&);
+    TL_TIMELINE_API void from_json(const nlohmann::json&, AspectRatio&);
+    TL_TIMELINE_API void from_json(const nlohmann::json&, AspectRatioOptions&);
+    TL_TIMELINE_API void from_json(const nlohmann::json&, DisplayOptions&);
 
     ///@}
 }

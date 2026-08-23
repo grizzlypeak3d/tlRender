@@ -42,27 +42,28 @@
 #define TLRENDER_IMPORT_TEMPLATE(type, ...)                              \
     extern template type TLRENDER_IMPORT __VA_ARGS__
 
-#if defined(TL_STATIC)
-#    define TL_API
-#    define TL_API_TYPE
-#    define TL_API_TEMPLATE_CLASS(...)
-#    define TL_API_TEMPLATE_STRUCT(...)
-#    define TL_LOCAL
+// The macros for the core library. Each library in this project has its own set: one
+// shared between them would be defined for whichever library is being built,
+// so a library compiling a sibling's headers would read the sibling's API as
+// dllexport where it wants dllimport. Functions survive that -- the linker
+// takes them from the import library -- and data does not.
+#if defined(TL_CORE_STATIC)
+#    define TL_CORE_API
+#    define TL_CORE_API_TYPE
+#    define TL_CORE_API_TEMPLATE_CLASS(...)
+#    define TL_CORE_API_TEMPLATE_STRUCT(...)
+#    define TL_CORE_LOCAL
 #else
-#    if defined(TL_EXPORTS)
-#        define TL_API TLRENDER_EXPORT
-#        define TL_API_TYPE TLRENDER_EXPORT_TYPE
-#        define TL_API_TEMPLATE_CLASS(...)                               \
-            TLRENDER_EXPORT_TEMPLATE(class, __VA_ARGS__)
-#        define TL_API_TEMPLATE_STRUCT(...)                              \
-            TLRENDER_EXPORT_TEMPLATE(struct, __VA_ARGS__)
+#    if defined(TL_CORE_EXPORTS)
+#        define TL_CORE_API TLRENDER_EXPORT
+#        define TL_CORE_API_TYPE TLRENDER_EXPORT_TYPE
+#        define TL_CORE_API_TEMPLATE_CLASS(...)                                             TLRENDER_EXPORT_TEMPLATE(class, __VA_ARGS__)
+#        define TL_CORE_API_TEMPLATE_STRUCT(...)                                            TLRENDER_EXPORT_TEMPLATE(struct, __VA_ARGS__)
 #    else
-#        define TL_API TLRENDER_IMPORT
-#        define TL_API_TYPE TLRENDER_IMPORT_TYPE
-#        define TL_API_TEMPLATE_CLASS(...)                               \
-            TLRENDER_IMPORT_TEMPLATE(class, __VA_ARGS__)
-#        define TL_API_TEMPLATE_STRUCT(...)                              \
-            TLRENDER_IMPORT_TEMPLATE(struct, __VA_ARGS__)
+#        define TL_CORE_API TLRENDER_IMPORT
+#        define TL_CORE_API_TYPE TLRENDER_IMPORT_TYPE
+#        define TL_CORE_API_TEMPLATE_CLASS(...)                                             TLRENDER_IMPORT_TEMPLATE(class, __VA_ARGS__)
+#        define TL_CORE_API_TEMPLATE_STRUCT(...)                                            TLRENDER_IMPORT_TEMPLATE(struct, __VA_ARGS__)
 #    endif
-#    define TL_LOCAL TLRENDER_HIDDEN
+#    define TL_CORE_LOCAL TLRENDER_HIDDEN
 #endif

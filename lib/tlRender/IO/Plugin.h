@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include <tlRender/IO/Export.h>
 #include <tlRender/IO/IO.h>
 
 #include <ftk/Core/FileIO.h>
@@ -19,7 +20,7 @@ namespace ftk
 namespace tl
 {
     //! Base class for readers and writers.
-    class TL_API_TYPE IIO : public std::enable_shared_from_this<IIO>
+    class TL_IO_API_TYPE IIO : public std::enable_shared_from_this<IIO>
     {
         FTK_NON_COPYABLE(IIO);
 
@@ -32,13 +33,13 @@ namespace tl
         IIO();
 
     public:
-        TL_API virtual ~IIO() = 0;
+        TL_IO_API virtual ~IIO() = 0;
 
         //! Get the path.
-        TL_API const ftk::Path& getPath() const;
+        TL_IO_API const ftk::Path& getPath() const;
 
         //! Get the number of objects currenty instantiated.
-        TL_API static size_t getObjectCount();
+        TL_IO_API static size_t getObjectCount();
 
     protected:
         ftk::Path _path;
@@ -47,7 +48,7 @@ namespace tl
     };
 
     //! Base class for I/O plugins.
-    class TL_API_TYPE IIOPlugin : public std::enable_shared_from_this<IIOPlugin>
+    class TL_IO_API_TYPE IIOPlugin : public std::enable_shared_from_this<IIOPlugin>
     {
         FTK_NON_COPYABLE(IIOPlugin);
 
@@ -60,17 +61,17 @@ namespace tl
         IIOPlugin();
 
     public:
-        TL_API virtual ~IIOPlugin() = 0;
+        TL_IO_API virtual ~IIOPlugin() = 0;
 
         //! Get the plugin name.
-        TL_API const std::string& getPluginName() const;
+        TL_IO_API const std::string& getPluginName() const;
 
         //! Get the plugin information.
-        TL_API virtual std::string getPluginInfo(
+        TL_IO_API virtual std::string getPluginInfo(
             const IOOptions& = IOOptions()) const;
 
         //! Get the supported file extensions.
-        TL_API std::set<std::string> getExts(int types =
+        TL_IO_API std::set<std::string> getExts(int types =
             static_cast<int>(FileType::Media) |
             static_cast<int>(FileType::Seq) |
             static_cast<int>(FileType::Audio)) const;

@@ -3,12 +3,13 @@
 
 #pragma once
 
+#include <tlRender/IO/Export.h>
 #include <tlRender/IO/Plugin.h>
 
 namespace tl
 {
     //! Base class for writers.
-    class TL_API_TYPE IWrite : public IIO
+    class TL_IO_API_TYPE IWrite : public IIO
     {
     protected:
         void _init(
@@ -20,10 +21,10 @@ namespace tl
         IWrite();
 
     public:
-        TL_API virtual ~IWrite();
+        TL_IO_API virtual ~IWrite();
 
         //! Write video data.
-        TL_API virtual void writeVideo(
+        TL_IO_API virtual void writeVideo(
             const OTIO_NS::RationalTime&,
             const std::shared_ptr<ftk::Image>&,
             const IOOptions& = IOOptions()) = 0;
@@ -32,7 +33,7 @@ namespace tl
         //! writers that support audio should override this. Audio is
         //! expected to be written sequentially, starting at the beginning
         //! of the audio time range given in the IOInfo.
-        TL_API virtual void writeAudio(
+        TL_IO_API virtual void writeAudio(
             const OTIO_NS::TimeRange&,
             const std::shared_ptr<Audio>&,
             const IOOptions& = IOOptions());
@@ -42,14 +43,14 @@ namespace tl
         //! destructors cannot throw, errors that occur while finalizing
         //! are only logged. Call finish() explicitly to have those errors
         //! reported as exceptions.
-        TL_API virtual void finish();
+        TL_IO_API virtual void finish();
 
     protected:
         IOInfo _info;
     };
 
     //! Base class for write plugins.
-    class TL_API_TYPE IWritePlugin : public IIOPlugin
+    class TL_IO_API_TYPE IWritePlugin : public IIOPlugin
     {
         FTK_NON_COPYABLE(IWritePlugin);
 
@@ -62,15 +63,15 @@ namespace tl
         IWritePlugin();
 
     public:
-        TL_API virtual ~IWritePlugin() = 0;
+        TL_IO_API virtual ~IWritePlugin() = 0;
 
         //! Get information for writing.
-        TL_API virtual ftk::ImageInfo getInfo(
+        TL_IO_API virtual ftk::ImageInfo getInfo(
             const ftk::ImageInfo&,
             const IOOptions& = IOOptions()) const = 0;
 
         //! Create a writer for the given path.
-        TL_API virtual std::shared_ptr<IWrite> write(
+        TL_IO_API virtual std::shared_ptr<IWrite> write(
             const ftk::Path&,
             const IOInfo&,
             const IOOptions& = IOOptions()) = 0;

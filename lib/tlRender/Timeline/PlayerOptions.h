@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include <tlRender/Timeline/Export.h>
 #include <tlRender/Timeline/AudioSystem.h>
 #include <tlRender/Core/Time.h>
 
@@ -11,7 +12,7 @@
 namespace tl
 {
     //! Timeline player cache options.
-    struct TL_API_TYPE PlayerCacheOptions
+    struct TL_TIMELINE_API_TYPE PlayerCacheOptions
     {
         //! Video cache size in gigabytes.
         float videoGB = 4.F;
@@ -22,12 +23,12 @@ namespace tl
         //! Number of seconds to read behind the current frame.
         float readBehind = .5F;
 
-        TL_API bool operator == (const PlayerCacheOptions&) const;
-        TL_API bool operator != (const PlayerCacheOptions&) const;
+        TL_TIMELINE_API bool operator == (const PlayerCacheOptions&) const;
+        TL_TIMELINE_API bool operator != (const PlayerCacheOptions&) const;
     };
 
     //! Timeline player options.
-    struct TL_API_TYPE PlayerOptions
+    struct TL_TIMELINE_API_TYPE PlayerOptions
     {
         //! Audio device index.
         AudioDeviceID audioDevice;
@@ -62,16 +63,16 @@ namespace tl
         //! Current time to start at. Unset starts at the beginning.
         std::optional<OTIO_NS::RationalTime> currentTime;
 
-        TL_API bool operator == (const PlayerOptions&) const;
-        TL_API bool operator != (const PlayerOptions&) const;
+        TL_TIMELINE_API bool operator == (const PlayerOptions&) const;
+        TL_TIMELINE_API bool operator != (const PlayerOptions&) const;
     };
 
     //! \name Serialize
     ///@{
 
-    TL_API void to_json(nlohmann::json&, const PlayerCacheOptions&);
+    TL_TIMELINE_API void to_json(nlohmann::json&, const PlayerCacheOptions&);
 
-    TL_API void from_json(const nlohmann::json&, PlayerCacheOptions&);
+    TL_TIMELINE_API void from_json(const nlohmann::json&, PlayerCacheOptions&);
 
     ///@}
 }

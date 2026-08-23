@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include <tlRender/Timeline/Export.h>
 #include <tlRender/Core/Util.h>
 
 #include <ftk/Core/Util.h>
@@ -15,7 +16,7 @@
 namespace tl
 {
     //! Transitions.
-    enum class TL_API_TYPE Transition
+    enum class TL_TIMELINE_API_TYPE Transition
     {
         None,
         Dissolve,
@@ -26,5 +27,5 @@ namespace tl
     TL_ENUM(Transition);
 
     //! Convert to a transition.
-    TL_API Transition toTransition(const std::string&);
+    TL_TIMELINE_API Transition toTransition(const std::string&);
 }

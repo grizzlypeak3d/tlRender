@@ -3,7 +3,6 @@
 
 #pragma once
 
-#include <tlRender/Core/Export.h>
 
 #include <pybind11/pybind11.h>
 
@@ -11,12 +10,12 @@ namespace tl
 {
     namespace python
     {
-        TL_API void io(pybind11::module_&);
-        TL_API void plugin(pybind11::module_&);
-        TL_API void read(pybind11::module_&);
-        TL_API void ioSystem(pybind11::module_&);
-        TL_API void write(pybind11::module_&);
+        void io(pybind11::module_&);
+        void plugin(pybind11::module_&);
+        void read(pybind11::module_&);
+        void ioSystem(pybind11::module_&);
+        void write(pybind11::module_&);
 
-        TL_API void ioBind(pybind11::module_&);
+        void ioBind(pybind11::module_&);
     }
 }

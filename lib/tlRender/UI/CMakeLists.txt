@@ -33,8 +33,13 @@ set(SOURCE
     Viewport.cpp)
 
 add_library(tlUI ${HEADERS} ${HEADERS_PRIVATE} ${SOURCE})
+# Private when building, so this library's own API is dllexport here and
+# dllimport to everything else. Public when static, which a consumer does
+# have to know: the API then carries no declspec at all.
 if(BUILD_SHARED_LIBS)
-    target_compile_definitions(tlUI PRIVATE TL_EXPORTS)
+    target_compile_definitions(tlUI PRIVATE TL_UI_EXPORTS)
+else()
+    target_compile_definitions(tlUI PUBLIC TL_UI_STATIC)
 endif()
 
 target_include_directories(tlUI

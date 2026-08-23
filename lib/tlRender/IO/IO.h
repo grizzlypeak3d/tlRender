@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include <tlRender/IO/Export.h>
 #include <tlRender/Core/Audio.h>
 #include <tlRender/Core/Time.h>
 
@@ -14,7 +15,7 @@ namespace tl
 {
     //! File types.
     //! The values are a bit mask; getExts() takes a combination of them.
-    enum class TL_API_TYPE FileType
+    enum class TL_IO_API_TYPE FileType
     {
         Unknown = 0,
         Media = 1,
@@ -29,30 +30,30 @@ namespace tl
     //! it is decoded to: a ProRes file is read as YUV 4:2:2 10 bit and handed
     //! over as something the renderer can take. Empty for the formats that
     //! have nothing to say beyond the decoded information.
-    struct TL_API_TYPE VideoSourceInfo
+    struct TL_IO_API_TYPE VideoSourceInfo
     {
         std::string codec;
         std::string pixelFormat;
 
-        TL_API bool operator == (const VideoSourceInfo&) const;
-        TL_API bool operator != (const VideoSourceInfo&) const;
+        TL_IO_API bool operator == (const VideoSourceInfo&) const;
+        TL_IO_API bool operator != (const VideoSourceInfo&) const;
     };
 
     //! The audio format of the file itself, which is not always the format it
     //! is decoded to.
-    struct TL_API_TYPE AudioSourceInfo
+    struct TL_IO_API_TYPE AudioSourceInfo
     {
         std::string codec;
         AudioType type = AudioType::None;
         size_t channelCount = 0;
         size_t sampleRate = 0;
 
-        TL_API bool operator == (const AudioSourceInfo&) const;
-        TL_API bool operator != (const AudioSourceInfo&) const;
+        TL_IO_API bool operator == (const AudioSourceInfo&) const;
+        TL_IO_API bool operator != (const AudioSourceInfo&) const;
     };
 
     //! I/O information.
-    struct TL_API_TYPE IOInfo
+    struct TL_IO_API_TYPE IOInfo
     {
         //! Video layer information.
         std::vector<ftk::ImageInfo> video;
@@ -77,17 +78,17 @@ namespace tl
         //! above, not mixed in here.
         ftk::ImageTags tags;
 
-        TL_API bool operator == (const IOInfo&) const;
-        TL_API bool operator != (const IOInfo&) const;
+        TL_IO_API bool operator == (const IOInfo&) const;
+        TL_IO_API bool operator != (const IOInfo&) const;
     };
 
     //! Merge the video half of the information with the audio half. Video
     //! and audio come from separate readers; this is how the two halves are
     //! put back together.
-    TL_API IOInfo merge(const IOInfo& video, const IOInfo& audio);
+    TL_IO_API IOInfo merge(const IOInfo& video, const IOInfo& audio);
 
     //! Video I/O data.
-    struct TL_API_TYPE VideoData
+    struct TL_IO_API_TYPE VideoData
     {
         VideoData();
         VideoData(
@@ -108,9 +109,9 @@ namespace tl
         //! The frame repeated in place of it, when there was one to repeat.
         std::optional<int64_t>      heldFrom;
 
-        TL_API bool operator == (const VideoData&) const;
-        TL_API bool operator != (const VideoData&) const;
-        TL_API bool operator < (const VideoData&) const;
+        TL_IO_API bool operator == (const VideoData&) const;
+        TL_IO_API bool operator != (const VideoData&) const;
+        TL_IO_API bool operator < (const VideoData&) const;
     };
 
     //! Audio I/O data.
@@ -124,23 +125,23 @@ namespace tl
         OTIO_NS::RationalTime  time;
         std::shared_ptr<Audio> audio;
 
-        TL_API bool operator == (const AudioData&) const;
-        TL_API bool operator != (const AudioData&) const;
-        TL_API bool operator < (const AudioData&) const;
+        TL_IO_API bool operator == (const AudioData&) const;
+        TL_IO_API bool operator != (const AudioData&) const;
+        TL_IO_API bool operator < (const AudioData&) const;
     };
 
     //! Get an integer image type for the given channel count and bit depth.
-    TL_API ftk::ImageType getIntImageType(size_t channelCount, size_t bitDepth);
+    TL_IO_API ftk::ImageType getIntImageType(size_t channelCount, size_t bitDepth);
 
     //! Get a floating point image type for the given channel count and bit
     //! depth.
-    TL_API ftk::ImageType getFloatImageType(size_t channelCount, size_t bitDepth);
+    TL_IO_API ftk::ImageType getFloatImageType(size_t channelCount, size_t bitDepth);
 
     //! Options.
     typedef std::map<std::string, std::string> IOOptions;
 
     //! Merge options.
-    TL_API IOOptions merge(const IOOptions&, const IOOptions&);
+    TL_IO_API IOOptions merge(const IOOptions&, const IOOptions&);
 }
 
 #include <tlRender/IO/IOInline.h>

@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include <tlRender/UI/Export.h>
 #include <tlRender/IO/IO.h>
 
 #include <ftk/UI/FileBrowser.h>
@@ -22,29 +23,29 @@ namespace tl
         //!
         //! Only the built-in browser draws them; the native file dialog is
         //! the operating system's and shows whatever it shows.
-        class TL_API_TYPE FileBrowserThumbnails : public ftk::IFileBrowserThumbnails
+        class TL_UI_API_TYPE FileBrowserThumbnails : public ftk::IFileBrowserThumbnails
         {
         protected:
             FileBrowserThumbnails(const std::shared_ptr<ftk::Context>&);
 
         public:
-            TL_API virtual ~FileBrowserThumbnails();
+            TL_UI_API virtual ~FileBrowserThumbnails();
 
             //! Create new thumbnails.
-            TL_API static std::shared_ptr<FileBrowserThumbnails> create(
+            TL_UI_API static std::shared_ptr<FileBrowserThumbnails> create(
                 const std::shared_ptr<ftk::Context>&);
 
             //! Get the I/O options.
-            TL_API const IOOptions& getIOOptions() const;
+            TL_UI_API const IOOptions& getIOOptions() const;
 
             //! Set the I/O options.
-            TL_API void setIOOptions(const IOOptions&);
+            TL_UI_API void setIOOptions(const IOOptions&);
 
-            TL_API bool isSupported(const ftk::Path&) const override;
-            TL_API ftk::FileBrowserThumbnailRequest request(
+            TL_UI_API bool isSupported(const ftk::Path&) const override;
+            TL_UI_API ftk::FileBrowserThumbnailRequest request(
                 const ftk::Path&,
                 int height) override;
-            TL_API void cancelRequests(const std::vector<uint64_t>&) override;
+            TL_UI_API void cancelRequests(const std::vector<uint64_t>&) override;
 
         private:
             FTK_PRIVATE();

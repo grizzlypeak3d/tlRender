@@ -40,25 +40,25 @@ namespace tl
     ///@}
 
     //! Get the frames in a time range.
-    TL_API std::vector<OTIO_NS::RationalTime> frames(const OTIO_NS::TimeRange&);
+    TL_CORE_API std::vector<OTIO_NS::RationalTime> frames(const OTIO_NS::TimeRange&);
 
     //! Split a time range at into seconds.
-    TL_API std::vector<OTIO_NS::TimeRange> seconds(const OTIO_NS::TimeRange&);
+    TL_CORE_API std::vector<OTIO_NS::TimeRange> seconds(const OTIO_NS::TimeRange&);
 
     //! Convert a floating point rate to a rational.
-    TL_API std::pair<int, int> toRational(double);
+    TL_CORE_API std::pair<int, int> toRational(double);
 
     //! \name Keycode
     ///@{
 
-    TL_API std::string keycodeToString(
+    TL_CORE_API std::string keycodeToString(
         int id,
         int type,
         int prefix,
         int count,
         int offset);
 
-    TL_API void stringToKeycode(
+    TL_CORE_API void stringToKeycode(
         const std::string&,
         int& id,
         int& type,
@@ -71,22 +71,22 @@ namespace tl
     //! \name Timecode
     ///@{
 
-    TL_API void timecodeToTime(
+    TL_CORE_API void timecodeToTime(
         uint32_t,
         int& hour,
         int& minute,
         int& second,
         int& frame);
 
-    TL_API uint32_t timeToTimecode(
+    TL_CORE_API uint32_t timeToTimecode(
         int hour,
         int minute,
         int second,
         int frame);
 
-    TL_API std::string timecodeToString(uint32_t);
+    TL_CORE_API std::string timecodeToString(uint32_t);
 
-    TL_API void stringToTimecode(const std::string&, uint32_t&);
+    TL_CORE_API void stringToTimecode(const std::string&, uint32_t&);
 
     ///@}
 }
@@ -95,23 +95,23 @@ namespace opentime
 {
     namespace OPENTIME_VERSION_NS
     {
-        TL_API std::string to_string(const RationalTime&);
-        TL_API std::string to_string(const TimeRange&);
+        TL_CORE_API std::string to_string(const RationalTime&);
+        TL_CORE_API std::string to_string(const TimeRange&);
 
-        TL_API bool from_string(const std::string&, RationalTime&);
-        TL_API bool from_string(const std::string&, TimeRange&);
+        TL_CORE_API bool from_string(const std::string&, RationalTime&);
+        TL_CORE_API bool from_string(const std::string&, TimeRange&);
 
-        TL_API void to_json(nlohmann::json&, const RationalTime&);
-        TL_API void to_json(nlohmann::json&, const TimeRange&);
+        TL_CORE_API void to_json(nlohmann::json&, const RationalTime&);
+        TL_CORE_API void to_json(nlohmann::json&, const TimeRange&);
 
-        TL_API void from_json(const nlohmann::json&, RationalTime&);
-        TL_API void from_json(const nlohmann::json&, TimeRange&);
+        TL_CORE_API void from_json(const nlohmann::json&, RationalTime&);
+        TL_CORE_API void from_json(const nlohmann::json&, TimeRange&);
 
-        TL_API std::ostream& operator << (std::ostream&, const RationalTime&);
-        TL_API std::ostream& operator << (std::ostream&, const TimeRange&);
+        TL_CORE_API std::ostream& operator << (std::ostream&, const RationalTime&);
+        TL_CORE_API std::ostream& operator << (std::ostream&, const TimeRange&);
 
-        TL_API bool cmdLineParse(std::vector<std::string>&, std::vector<std::string>::iterator&, RationalTime&);
-        TL_API bool cmdLineParse(std::vector<std::string>&, std::vector<std::string>::iterator&, TimeRange&);
+        TL_CORE_API bool cmdLineParse(std::vector<std::string>&, std::vector<std::string>::iterator&, RationalTime&);
+        TL_CORE_API bool cmdLineParse(std::vector<std::string>&, std::vector<std::string>::iterator&, TimeRange&);
     }
 }
 

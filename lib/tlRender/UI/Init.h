@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include <tlRender/UI/Export.h>
 #include <tlRender/Core/Export.h>
 
 #include <memory>
@@ -19,6 +20,6 @@ namespace tl
     namespace ui
     {
         //! Initialize the library.
-        TL_API void init(const std::shared_ptr<ftk::Context>&);
+        TL_UI_API void init(const std::shared_ptr<ftk::Context>&);
     }
 }

@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include <tlRender/Timeline/Export.h>
 #include <tlRender/Timeline/DisplayOptions.h>
 #include <tlRender/Timeline/Video.h>
 
@@ -11,7 +12,7 @@
 namespace tl
 {
     //! Comparison modes.
-    enum class TL_API_TYPE Compare
+    enum class TL_TIMELINE_API_TYPE Compare
     {
         //! Not comparing: the A file on its own. The comparisons are a set of
         //! toggles in the user interface, and this is the state with none of
@@ -38,7 +39,7 @@ namespace tl
     TL_ENUM(Compare);
 
     //! Comparison time modes.
-    enum class TL_API_TYPE CompareTime
+    enum class TL_TIMELINE_API_TYPE CompareTime
     {
         Relative,
         Absolute,
@@ -49,7 +50,7 @@ namespace tl
     TL_ENUM(CompareTime);
 
     //! Comparison options.
-    struct TL_API_TYPE CompareOptions
+    struct TL_TIMELINE_API_TYPE CompareOptions
     {
         Compare  compare      = Compare::None;
         ftk::V2F wipeCenter   = ftk::V2F(.5F, .5F);
@@ -64,42 +65,42 @@ namespace tl
 
         bool     sameSize     = true;
 
-        TL_API bool operator == (const CompareOptions&) const;
-        TL_API bool operator != (const CompareOptions&) const;
+        TL_TIMELINE_API bool operator == (const CompareOptions&) const;
+        TL_TIMELINE_API bool operator != (const CompareOptions&) const;
     };
 
     //! Get the bounds for the given compare mode.
-    TL_API std::vector<ftk::Box2I> getBounds(
+    TL_TIMELINE_API std::vector<ftk::Box2I> getBounds(
         const CompareOptions&,
         const AspectRatioOptions&,
         const std::vector<ftk::ImageInfo>&);
 
     //! Get the boxes for the given compare mode.
-    TL_API std::vector<ftk::Box2I> getBoxes(
+    TL_TIMELINE_API std::vector<ftk::Box2I> getBoxes(
         const CompareOptions&,
         const AspectRatioOptions&,
         const std::vector<ftk::ImageInfo>&);
 
     //! Get the boxes for the given compare mode.
-    TL_API std::vector<ftk::Box2I> getBoxes(
+    TL_TIMELINE_API std::vector<ftk::Box2I> getBoxes(
         const CompareOptions&,
         const AspectRatioOptions&,
         const std::vector<VideoFrame>&);
 
     //! Get the render size for the given compare mode.
-    TL_API ftk::Size2I getRenderSize(
+    TL_TIMELINE_API ftk::Size2I getRenderSize(
         const CompareOptions&,
         const AspectRatioOptions&,
         const std::vector<ftk::ImageInfo>&);
 
     //! Get the render size for the given compare mode.
-    TL_API ftk::Size2I getRenderSize(
+    TL_TIMELINE_API ftk::Size2I getRenderSize(
         const CompareOptions&,
         const AspectRatioOptions&,
         const std::vector<VideoFrame>&);
 
     //! Get a compare time.
-    TL_API OTIO_NS::RationalTime getCompareTime(
+    TL_TIMELINE_API OTIO_NS::RationalTime getCompareTime(
         const OTIO_NS::RationalTime& sourceTime,
         const OTIO_NS::TimeRange& sourceTimeRange,
         const OTIO_NS::TimeRange& compareTimeRange,
@@ -108,9 +109,9 @@ namespace tl
     //! \name Serialize
     ///@{
 
-    TL_API void to_json(nlohmann::json&, const CompareOptions&);
+    TL_TIMELINE_API void to_json(nlohmann::json&, const CompareOptions&);
 
-    TL_API void from_json(const nlohmann::json&, CompareOptions&);
+    TL_TIMELINE_API void from_json(const nlohmann::json&, CompareOptions&);
 
     ///@}
 }

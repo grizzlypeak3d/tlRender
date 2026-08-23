@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include <tlRender/Timeline/Export.h>
 #include <tlRender/Core/Time.h>
 #include <tlRender/Core/Util.h>
 
@@ -16,7 +17,7 @@ namespace ftk
 namespace tl
 {
     //! Time units.
-    enum class TL_API_TYPE TimeUnits
+    enum class TL_TIMELINE_API_TYPE TimeUnits
     {
         Frames,
         Seconds,
@@ -29,42 +30,42 @@ namespace tl
 
     //! Convert a time value to text. An unset time gives the placeholder
     //! text for the units, so a widget with no value still reads as a time.
-    TL_API std::string timeToText(
+    TL_TIMELINE_API std::string timeToText(
         const std::optional<OTIO_NS::RationalTime>&,
         TimeUnits);
 
     //! Convert text to a time value. Unset when the text does not parse.
-    TL_API std::optional<OTIO_NS::RationalTime> textToTime(
+    TL_TIMELINE_API std::optional<OTIO_NS::RationalTime> textToTime(
         const std::string&     text,
         double                 rate,
         TimeUnits              units,
         opentime::ErrorStatus* error = nullptr);
 
     //! Get a time units format string.
-    TL_API std::string formatString(TimeUnits);
+    TL_TIMELINE_API std::string formatString(TimeUnits);
 
     //! Get a time units validator regular expression.
-    TL_API std::string validator(TimeUnits);
+    TL_TIMELINE_API std::string validator(TimeUnits);
 
     //! Base class for time units models.
-    class TL_API_TYPE ITimeUnitsModel : public std::enable_shared_from_this<ITimeUnitsModel>
+    class TL_TIMELINE_API_TYPE ITimeUnitsModel : public std::enable_shared_from_this<ITimeUnitsModel>
     {
         FTK_NON_COPYABLE(ITimeUnitsModel);
 
     protected:
-        TL_API void _init(const std::shared_ptr<ftk::Context>&);
+        TL_TIMELINE_API void _init(const std::shared_ptr<ftk::Context>&);
 
         ITimeUnitsModel();
 
     public:
-        TL_API virtual ~ITimeUnitsModel() = 0;
+        TL_TIMELINE_API virtual ~ITimeUnitsModel() = 0;
 
         //! Observe when the time units are changed.
-        TL_API std::shared_ptr<ftk::IObservable<bool> > observeTimeUnitsChanged() const;
+        TL_TIMELINE_API std::shared_ptr<ftk::IObservable<bool> > observeTimeUnitsChanged() const;
 
         //! Get a time label in the current time units. An unset time gives
         //! the placeholder text for the units.
-        TL_API virtual std::string getLabel(
+        TL_TIMELINE_API virtual std::string getLabel(
             const std::optional<OTIO_NS::RationalTime>&) const = 0;
 
     protected:
@@ -72,32 +73,32 @@ namespace tl
     };
 
     //! Time units model.
-    class TL_API_TYPE TimeUnitsModel : public ITimeUnitsModel
+    class TL_TIMELINE_API_TYPE TimeUnitsModel : public ITimeUnitsModel
     {
         FTK_NON_COPYABLE(TimeUnitsModel);
 
     protected:
-        TL_API void _init(const std::shared_ptr<ftk::Context>&);
+        TL_TIMELINE_API void _init(const std::shared_ptr<ftk::Context>&);
 
-        TL_API TimeUnitsModel();
+        TL_TIMELINE_API TimeUnitsModel();
 
     public:
-        TL_API virtual ~TimeUnitsModel();
+        TL_TIMELINE_API virtual ~TimeUnitsModel();
 
         //! Create a new model.
-        TL_API static std::shared_ptr<TimeUnitsModel> create(
+        TL_TIMELINE_API static std::shared_ptr<TimeUnitsModel> create(
             const std::shared_ptr<ftk::Context>&);
 
         //! Get the time units.
-        TL_API TimeUnits getTimeUnits() const;
+        TL_TIMELINE_API TimeUnits getTimeUnits() const;
 
         //! Observe the time units.
-        TL_API std::shared_ptr<ftk::IObservable<TimeUnits> > observeTimeUnits() const;
+        TL_TIMELINE_API std::shared_ptr<ftk::IObservable<TimeUnits> > observeTimeUnits() const;
             
         //! Set the time units.
-        TL_API void setTimeUnits(TimeUnits);
+        TL_TIMELINE_API void setTimeUnits(TimeUnits);
 
-        TL_API std::string getLabel(
+        TL_TIMELINE_API std::string getLabel(
             const std::optional<OTIO_NS::RationalTime>&) const override;
 
     private:

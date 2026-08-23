@@ -20,10 +20,13 @@ set(SOURCE
 
 add_library(tlCore ${HEADERS} ${SOURCE})
 
+# Private when building, so this library's own API is dllexport here and
+# dllimport to everything else. Public when static, which a consumer does
+# have to know: the API then carries no declspec at all.
 if(BUILD_SHARED_LIBS)
-    target_compile_definitions(tlCore PRIVATE TL_EXPORTS)
+    target_compile_definitions(tlCore PRIVATE TL_CORE_EXPORTS)
 else()
-    target_compile_definitions(tlCore PUBLIC TL_STATIC)
+    target_compile_definitions(tlCore PUBLIC TL_CORE_STATIC)
 endif()
 target_compile_definitions(tlCore PUBLIC $<$<CONFIG:Debug>:FTK_ASSERT>)
 

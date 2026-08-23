@@ -47,8 +47,13 @@ set(SOURCE
     Zip.cpp)
 
 add_library(tlTimeline ${HEADERS} ${PRIVATE_HEADERS} ${SOURCE})
+# Private when building, so this library's own API is dllexport here and
+# dllimport to everything else. Public when static, which a consumer does
+# have to know: the API then carries no declspec at all.
 if(BUILD_SHARED_LIBS)
-    target_compile_definitions(tlTimeline PRIVATE TL_EXPORTS)
+    target_compile_definitions(tlTimeline PRIVATE TL_TIMELINE_EXPORTS)
+else()
+    target_compile_definitions(tlTimeline PUBLIC TL_TIMELINE_STATIC)
 endif()
 
 target_include_directories(tlTimeline

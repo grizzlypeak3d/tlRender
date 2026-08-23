@@ -3,7 +3,6 @@
 
 #pragma once
 
-#include <tlRender/Core/Export.h>
 
 #include <pybind11/pybind11.h>
 
@@ -11,7 +10,7 @@ namespace tl
 {
     namespace python
     {
-        TL_API void timelineWidget(pybind11::module_&);
+        void timelineWidget(pybind11::module_&);
     }
 }
 

@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include <tlRender/Timeline/Export.h>
 #include <tlRender/Timeline/Player.h>
 
 #include <tlRender/Timeline/Util.h>
@@ -143,8 +144,8 @@ namespace tl
             double audioOffset = 0.0;
             PlayerCacheOptions cacheOptions;
 
-            TL_API bool operator == (const PlaybackState&) const;
-            TL_API bool operator != (const PlaybackState&) const;
+            TL_TIMELINE_API bool operator == (const PlaybackState&) const;
+            TL_TIMELINE_API bool operator != (const PlaybackState&) const;
         };
 
         // What the cache eviction and fill depend on. They are idempotent:

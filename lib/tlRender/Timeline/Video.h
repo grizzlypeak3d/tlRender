@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include <tlRender/Timeline/Export.h>
 #include <tlRender/Timeline/Transition.h>
 
 #include <tlRender/Core/Time.h>
@@ -16,7 +17,7 @@
 namespace tl
 {
     //! Video layer.
-    struct TL_API_TYPE VideoLayer
+    struct TL_TIMELINE_API_TYPE VideoLayer
     {
         std::shared_ptr<ftk::Image> image;
         ftk::ImageOptions           imageOptions;
@@ -64,12 +65,12 @@ namespace tl
         //! The frame repeated in place of it, when there was one to repeat.
         std::optional<int64_t>      heldFrom;
 
-        TL_API bool operator == (const VideoLayer&) const;
-        TL_API bool operator != (const VideoLayer&) const;
+        TL_TIMELINE_API bool operator == (const VideoLayer&) const;
+        TL_TIMELINE_API bool operator != (const VideoLayer&) const;
     };
 
     //! Video frame.
-    struct TL_API_TYPE VideoFrame
+    struct TL_TIMELINE_API_TYPE VideoFrame
     {
         ftk::Size2I             size;
 
@@ -82,10 +83,10 @@ namespace tl
         OTIO_NS::RationalTime   time;
         std::vector<VideoLayer> layers;
 
-        TL_API bool operator == (const VideoFrame&) const;
-        TL_API bool operator != (const VideoFrame&) const;
+        TL_TIMELINE_API bool operator == (const VideoFrame&) const;
+        TL_TIMELINE_API bool operator != (const VideoFrame&) const;
     };
 
     //! Compare the time values of video frames.
-    TL_API bool isTimeEqual(const VideoFrame&, const VideoFrame&);
+    TL_TIMELINE_API bool isTimeEqual(const VideoFrame&, const VideoFrame&);
 }

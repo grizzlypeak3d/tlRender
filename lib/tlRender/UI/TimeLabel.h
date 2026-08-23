@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include <tlRender/UI/Export.h>
 #include <tlRender/Core/Export.h>
 
 #include <ftk/UI/IWidget.h>
@@ -16,7 +17,7 @@ namespace tl
     namespace ui
     {
         //! Time label.
-        class TL_API_TYPE TimeLabel : public ftk::IWidget
+        class TL_UI_API_TYPE TimeLabel : public ftk::IWidget
         {
             FTK_NON_COPYABLE(TimeLabel);
 
@@ -29,34 +30,34 @@ namespace tl
             TimeLabel();
 
         public:
-            TL_API virtual ~TimeLabel();
+            TL_UI_API virtual ~TimeLabel();
 
             //! Create a new widget.
-            TL_API static std::shared_ptr<TimeLabel> create(
+            TL_UI_API static std::shared_ptr<TimeLabel> create(
                 const std::shared_ptr<ftk::Context>&,
                 const std::shared_ptr<TimeUnitsModel>&,
                 const std::shared_ptr<IWidget>& parent = nullptr);
 
             //! Get the time units model.
-            TL_API const std::shared_ptr<TimeUnitsModel>& getTimeUnitsModel() const;
+            TL_UI_API const std::shared_ptr<TimeUnitsModel>& getTimeUnitsModel() const;
 
             //! Get the time value, unset when the label has none.
-            TL_API const std::optional<OTIO_NS::RationalTime>& getValue() const;
+            TL_UI_API const std::optional<OTIO_NS::RationalTime>& getValue() const;
 
             //! Set the time value.
-            TL_API void setValue(const std::optional<OTIO_NS::RationalTime>&);
+            TL_UI_API void setValue(const std::optional<OTIO_NS::RationalTime>&);
 
             //! Set the margin role.
-            TL_API void setMarginRole(ftk::SizeRole);
+            TL_UI_API void setMarginRole(ftk::SizeRole);
 
             //! Set the font 
-            TL_API void setFont(ftk::FontType);
+            TL_UI_API void setFont(ftk::FontType);
 
-            TL_API ftk::Size2I getSizeHint() const override;
-            TL_API void styleEvent(const ftk::StyleEvent&) override;
-            TL_API void sizeHintEvent(const ftk::SizeHintEvent&) override;
-            TL_API void clipEvent(const ftk::Box2I&, bool) override;
-            TL_API void drawEvent(const ftk::Box2I&, const ftk::DrawEvent&) override;
+            TL_UI_API ftk::Size2I getSizeHint() const override;
+            TL_UI_API void styleEvent(const ftk::StyleEvent&) override;
+            TL_UI_API void sizeHintEvent(const ftk::SizeHintEvent&) override;
+            TL_UI_API void clipEvent(const ftk::Box2I&, bool) override;
+            TL_UI_API void drawEvent(const ftk::Box2I&, const ftk::DrawEvent&) override;
 
         private:
             void _textUpdate();

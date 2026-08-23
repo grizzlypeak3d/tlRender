@@ -22,10 +22,10 @@ set(SOURCE
     TimelineWidget.cpp
     Viewport.cpp)
 
-add_library(tlUIPy ${HEADERS} ${HEADERS_PRIVATE} ${SOURCE})
-if(BUILD_SHARED_LIBS)
-    target_compile_definitions(tlUIPy PRIVATE TL_EXPORTS)
-endif()
+# Static. The bindings are linked by tlRenderPy and nothing else, so there
+# is no API here for anything to import -- the module absorbs them.
+add_library(tlUIPy STATIC ${HEADERS} ${HEADERS_PRIVATE} ${SOURCE})
+set_target_properties(tlUIPy PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 target_include_directories(tlUIPy
     PUBLIC

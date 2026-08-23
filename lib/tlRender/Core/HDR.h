@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include <tlRender/Core/Export.h>
 #include <tlRender/Core/Util.h>
 
 #include <ftk/Core/Range.h>
@@ -16,7 +17,7 @@
 namespace tl
 {
     //! HDR EOTF.
-    enum class TL_API_TYPE HDR_EOTF
+    enum class TL_CORE_API_TYPE HDR_EOTF
     {
         SDR,
         HDR,
@@ -28,7 +29,7 @@ namespace tl
     TL_ENUM(HDR_EOTF);
 
     //! HDR color primaries.
-    enum class TL_API_TYPE HDRPrimaries
+    enum class TL_CORE_API_TYPE HDRPrimaries
     {
         Red,
         Green,
@@ -41,7 +42,7 @@ namespace tl
     TL_ENUM(HDRPrimaries);
 
     //! HDR data.
-    struct TL_API_TYPE HDRData
+    struct TL_CORE_API_TYPE HDRData
     {
         HDR_EOTF eotf = HDR_EOTF::SDR;
 
@@ -57,16 +58,16 @@ namespace tl
         float maxCLL = 1000.F;
         float maxFALL = 400.F;
 
-        TL_API bool operator == (const HDRData&) const;
-        TL_API bool operator != (const HDRData&) const;
+        TL_CORE_API bool operator == (const HDRData&) const;
+        TL_CORE_API bool operator != (const HDRData&) const;
     };
 
     //! \name Serialize
     ///@{
 
-    TL_API void to_json(nlohmann::json&, const HDRData&);
+    TL_CORE_API void to_json(nlohmann::json&, const HDRData&);
 
-    TL_API void from_json(const nlohmann::json&, HDRData&);
+    TL_CORE_API void from_json(const nlohmann::json&, HDRData&);
 
     ///@}
 }

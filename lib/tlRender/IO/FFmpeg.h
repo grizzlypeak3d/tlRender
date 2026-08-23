@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include <tlRender/IO/Export.h>
 #include <tlRender/IO/Read.h>
 #include <tlRender/IO/Write.h>
 
@@ -14,24 +15,24 @@ namespace tl
     namespace ffmpeg
     {
         //! FFmpeg options.
-        struct TL_API_TYPE Options
+        struct TL_IO_API_TYPE Options
         {
             bool   yuvToRgb    = false;
             bool   hwAccel     = false;
             size_t threadCount = 0;
 
-            TL_API bool operator == (const Options&) const;
-            TL_API bool operator != (const Options&) const;
+            TL_IO_API bool operator == (const Options&) const;
+            TL_IO_API bool operator != (const Options&) const;
         };
 
         //! Get FFmpeg options.
-        TL_API IOOptions getOptions(const Options&);
+        TL_IO_API IOOptions getOptions(const Options&);
 
         //! FFmpeg video reader.
         //!
         //! The video and audio readers each own a demuxer; they share
         //! nothing but the file name.
-        class TL_API_TYPE VideoRead : public IVideoRead
+        class TL_IO_API_TYPE VideoRead : public IVideoRead
         {
         protected:
             void _init(
@@ -43,29 +44,29 @@ namespace tl
             VideoRead();
 
         public:
-            TL_API virtual ~VideoRead();
+            TL_IO_API virtual ~VideoRead();
 
             //! Create a new reader.
-            TL_API static std::shared_ptr<VideoRead> create(
+            TL_IO_API static std::shared_ptr<VideoRead> create(
                 const ftk::Path&,
                 const IOOptions&,
                 const std::shared_ptr<ftk::LogSystem>&);
 
             //! Create a new reader.
-            TL_API static std::shared_ptr<VideoRead> create(
+            TL_IO_API static std::shared_ptr<VideoRead> create(
                 const ftk::Path&,
                 const std::vector<ftk::MemFile>&,
                 const IOOptions&,
                 const std::shared_ptr<ftk::LogSystem>&);
 
-            TL_API std::future<IOInfo> getInfo() override;
-            TL_API std::future<VideoData> readVideo(
+            TL_IO_API std::future<IOInfo> getInfo() override;
+            TL_IO_API std::future<VideoData> readVideo(
                 const OTIO_NS::RationalTime&,
                 const IOOptions& = IOOptions()) override;
-            TL_API void cancelRequests() override;
+            TL_IO_API void cancelRequests() override;
 
-            TL_API std::string getError() const override;
-            TL_API size_t getErrorCount() const override;
+            TL_IO_API std::string getError() const override;
+            TL_IO_API size_t getErrorCount() const override;
 
         private:
             void _run();
@@ -74,7 +75,7 @@ namespace tl
         };
 
         //! FFmpeg audio reader.
-        class TL_API_TYPE AudioRead : public IAudioRead
+        class TL_IO_API_TYPE AudioRead : public IAudioRead
         {
         protected:
             void _init(
@@ -86,29 +87,29 @@ namespace tl
             AudioRead();
 
         public:
-            TL_API virtual ~AudioRead();
+            TL_IO_API virtual ~AudioRead();
 
             //! Create a new reader.
-            TL_API static std::shared_ptr<AudioRead> create(
+            TL_IO_API static std::shared_ptr<AudioRead> create(
                 const ftk::Path&,
                 const IOOptions&,
                 const std::shared_ptr<ftk::LogSystem>&);
 
             //! Create a new reader.
-            TL_API static std::shared_ptr<AudioRead> create(
+            TL_IO_API static std::shared_ptr<AudioRead> create(
                 const ftk::Path&,
                 const std::vector<ftk::MemFile>&,
                 const IOOptions&,
                 const std::shared_ptr<ftk::LogSystem>&);
 
-            TL_API std::future<IOInfo> getInfo() override;
-            TL_API std::future<AudioData> readAudio(
+            TL_IO_API std::future<IOInfo> getInfo() override;
+            TL_IO_API std::future<AudioData> readAudio(
                 const OTIO_NS::TimeRange&,
                 const IOOptions& = IOOptions()) override;
-            TL_API void cancelRequests() override;
+            TL_IO_API void cancelRequests() override;
 
-            TL_API std::string getError() const override;
-            TL_API size_t getErrorCount() const override;
+            TL_IO_API std::string getError() const override;
+            TL_IO_API size_t getErrorCount() const override;
 
         private:
             void _run();
@@ -117,7 +118,7 @@ namespace tl
         };
 
         //! FFmpeg writer.
-        class TL_API_TYPE Write : public IWrite
+        class TL_IO_API_TYPE Write : public IWrite
         {
         protected:
             void _init(
@@ -129,26 +130,26 @@ namespace tl
             Write();
 
         public:
-            TL_API virtual ~Write();
+            TL_IO_API virtual ~Write();
 
             //! Create a new writer.
-            TL_API static std::shared_ptr<Write> create(
+            TL_IO_API static std::shared_ptr<Write> create(
                 const ftk::Path&,
                 const IOInfo&,
                 const IOOptions&,
                 const std::shared_ptr<ftk::LogSystem>&);
 
-            TL_API void writeVideo(
+            TL_IO_API void writeVideo(
                 const OTIO_NS::RationalTime&,
                 const std::shared_ptr<ftk::Image>&,
                 const IOOptions& = IOOptions()) override;
 
-            TL_API void writeAudio(
+            TL_IO_API void writeAudio(
                 const OTIO_NS::TimeRange&,
                 const std::shared_ptr<Audio>&,
                 const IOOptions& = IOOptions()) override;
 
-            TL_API void finish() override;
+            TL_IO_API void finish() override;
 
         private:
             void _encodeVideo(AVFrame*);
@@ -159,7 +160,7 @@ namespace tl
         };
 
         //! FFmpeg read plugin.
-        class TL_API_TYPE ReadPlugin : public IReadPlugin
+        class TL_IO_API_TYPE ReadPlugin : public IReadPlugin
         {
         protected:
             void _init(const std::shared_ptr<ftk::LogSystem>&);
@@ -168,26 +169,26 @@ namespace tl
 
         public:
             //! Create a new plugin.
-            TL_API static std::shared_ptr<ReadPlugin> create(
+            TL_IO_API static std::shared_ptr<ReadPlugin> create(
                 const std::shared_ptr<ftk::LogSystem>&);
 
-            TL_API std::shared_ptr<IVideoRead> videoRead(
+            TL_IO_API std::shared_ptr<IVideoRead> videoRead(
                 const ftk::Path&,
                 const IOOptions& = IOOptions()) override;
-            TL_API std::shared_ptr<IVideoRead> videoRead(
+            TL_IO_API std::shared_ptr<IVideoRead> videoRead(
                 const ftk::Path&,
                 const std::vector<ftk::MemFile>&,
                 const IOOptions & = IOOptions()) override;
 
-            TL_API std::shared_ptr<IAudioRead> audioRead(
+            TL_IO_API std::shared_ptr<IAudioRead> audioRead(
                 const ftk::Path&,
                 const IOOptions& = IOOptions()) override;
-            TL_API std::shared_ptr<IAudioRead> audioRead(
+            TL_IO_API std::shared_ptr<IAudioRead> audioRead(
                 const ftk::Path&,
                 const std::vector<ftk::MemFile>&,
                 const IOOptions & = IOOptions()) override;
 
-            TL_API std::string getPluginInfo(
+            TL_IO_API std::string getPluginInfo(
                 const IOOptions& = IOOptions()) const override;
 
         private:
@@ -203,7 +204,7 @@ namespace tl
         };
 
         //! FFmpeg write plugin.
-        class TL_API_TYPE WritePlugin : public IWritePlugin
+        class TL_IO_API_TYPE WritePlugin : public IWritePlugin
         {
         protected:
             void _init(const std::shared_ptr<ftk::LogSystem>&);
@@ -212,24 +213,24 @@ namespace tl
 
         public:
             //! Create a new plugin.
-            TL_API static std::shared_ptr<WritePlugin> create(
+            TL_IO_API static std::shared_ptr<WritePlugin> create(
                 const std::shared_ptr<ftk::LogSystem>&);
 
             //! Get the list of video codecs.
-            TL_API const std::vector<std::string>& getCodecs() const;
+            TL_IO_API const std::vector<std::string>& getCodecs() const;
 
             //! Get the list of audio codecs.
-            TL_API const std::vector<std::string>& getAudioCodecs() const;
+            TL_IO_API const std::vector<std::string>& getAudioCodecs() const;
 
-            TL_API ftk::ImageInfo getInfo(
+            TL_IO_API ftk::ImageInfo getInfo(
                 const ftk::ImageInfo&,
                 const IOOptions& = IOOptions()) const override;
-            TL_API std::shared_ptr<IWrite> write(
+            TL_IO_API std::shared_ptr<IWrite> write(
                 const ftk::Path&,
                 const IOInfo&,
                 const IOOptions& = IOOptions()) override;
 
-            TL_API std::string getPluginInfo(
+            TL_IO_API std::string getPluginInfo(
                 const IOOptions& = IOOptions()) const override;
 
         private:
@@ -239,9 +240,9 @@ namespace tl
         //! \name Serialize
         ///@{
 
-        TL_API void to_json(nlohmann::json&, const Options&);
+        TL_IO_API void to_json(nlohmann::json&, const Options&);
 
-        TL_API void from_json(const nlohmann::json&, Options&);
+        TL_IO_API void from_json(const nlohmann::json&, Options&);
 
         ///@}
     }

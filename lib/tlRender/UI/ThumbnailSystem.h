@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include <tlRender/UI/Export.h>
 #include <tlRender/IO/IO.h>
 
 #include <ftk/Core/FileIO.h>
@@ -19,14 +20,14 @@ namespace tl
     namespace ui
     {
         //! Information request.
-        struct TL_API_TYPE InfoRequest
+        struct TL_UI_API_TYPE InfoRequest
         {
             uint64_t id = 0;
             std::future<IOInfo> future;
         };
 
         //! Video thumbnail request.
-        struct TL_API_TYPE ThumbnailRequest
+        struct TL_UI_API_TYPE ThumbnailRequest
         {
             uint64_t id = 0;
             int height = 0;
@@ -35,7 +36,7 @@ namespace tl
         };
 
         //! Audio waveform request.
-        struct TL_API_TYPE WaveformRequest
+        struct TL_UI_API_TYPE WaveformRequest
         {
             uint64_t id = 0;
             ftk::Size2I size;
@@ -44,7 +45,7 @@ namespace tl
         };
 
         //! Thumbnails cache options.
-        struct TL_API_TYPE ThumbnailCacheOptions
+        struct TL_UI_API_TYPE ThumbnailCacheOptions
         {
             //! Video cache size in megabytes.
             float thumbnailMB = 16.F;
@@ -52,27 +53,27 @@ namespace tl
             //! Audio cache size in megabytes.
             float waveformMB = 16.F;
 
-            TL_API bool operator == (const ThumbnailCacheOptions&) const;
-            TL_API bool operator != (const ThumbnailCacheOptions&) const;
+            TL_UI_API bool operator == (const ThumbnailCacheOptions&) const;
+            TL_UI_API bool operator != (const ThumbnailCacheOptions&) const;
         };
 
         //! Thumbnail system.
-        class TL_API_TYPE ThumbnailSystem : public ftk::ISystem
+        class TL_UI_API_TYPE ThumbnailSystem : public ftk::ISystem
         {
         protected:
             ThumbnailSystem(const std::shared_ptr<ftk::Context>&);
 
         public:
-            TL_API ~ThumbnailSystem();
+            TL_UI_API ~ThumbnailSystem();
 
-            TL_API void shutdown() override;
+            TL_UI_API void shutdown() override;
 
             //! Create a new system.
-            TL_API static std::shared_ptr<ThumbnailSystem> create(
+            TL_UI_API static std::shared_ptr<ThumbnailSystem> create(
                 const std::shared_ptr<ftk::Context>&);
 
             //! Get information.
-            TL_API InfoRequest getInfo(
+            TL_UI_API InfoRequest getInfo(
                 const ftk::Path&,
                 const IOOptions& = IOOptions());
 
@@ -80,20 +81,20 @@ namespace tl
             //!
             //! A bundle's media are byte ranges rather than files, so naming
             //! the timeline as well as the media is what lets them be read.
-            TL_API InfoRequest getInfo(
+            TL_UI_API InfoRequest getInfo(
                 const ftk::Path& timelinePath,
                 const ftk::Path& mediaPath,
                 const IOOptions& = IOOptions());
 
             //! Get a video thumbnail.
-            TL_API ThumbnailRequest getThumbnail(
+            TL_UI_API ThumbnailRequest getThumbnail(
                 const ftk::Path&,
                 int height,
                 const std::optional<OTIO_NS::RationalTime>& = std::nullopt,
                 const IOOptions& = IOOptions());
 
             //! Get a video thumbnail of media inside a timeline.
-            TL_API ThumbnailRequest getThumbnail(
+            TL_UI_API ThumbnailRequest getThumbnail(
                 const ftk::Path& timelinePath,
                 const ftk::Path& mediaPath,
                 int height,
@@ -101,14 +102,14 @@ namespace tl
                 const IOOptions& = IOOptions());
 
             //! Get an audio waveform.
-            TL_API WaveformRequest getWaveform(
+            TL_UI_API WaveformRequest getWaveform(
                 const ftk::Path&,
                 const ftk::Size2I&,
                 const std::optional<OTIO_NS::TimeRange>& = std::nullopt,
                 const IOOptions& = IOOptions());
 
             //! Get an audio waveform of media inside a timeline.
-            TL_API WaveformRequest getWaveform(
+            TL_UI_API WaveformRequest getWaveform(
                 const ftk::Path& timelinePath,
                 const ftk::Path& mediaPath,
                 const ftk::Size2I&,
@@ -116,19 +117,19 @@ namespace tl
                 const IOOptions& = IOOptions());
 
             //! Cancel pending requests.
-            TL_API void cancelRequests(const std::vector<uint64_t>&);
+            TL_UI_API void cancelRequests(const std::vector<uint64_t>&);
 
             //! Get the cache options.
-            TL_API const ThumbnailCacheOptions& getCacheOptions() const;
+            TL_UI_API const ThumbnailCacheOptions& getCacheOptions() const;
 
             //! Observe the cache opions.
-            TL_API std::shared_ptr<ftk::IObservable<ThumbnailCacheOptions> > observeCacheOptions() const;
+            TL_UI_API std::shared_ptr<ftk::IObservable<ThumbnailCacheOptions> > observeCacheOptions() const;
 
             //! Set the cache options.
-            TL_API void setCacheOptions(const ThumbnailCacheOptions&);
+            TL_UI_API void setCacheOptions(const ThumbnailCacheOptions&);
 
             //! Clear the cache.
-            TL_API void clearCache();
+            TL_UI_API void clearCache();
 
             ///@}
 
@@ -146,9 +147,9 @@ namespace tl
         //! \name Serialize
         ///@{
 
-        TL_API void to_json(nlohmann::json&, const ThumbnailCacheOptions&);
+        TL_UI_API void to_json(nlohmann::json&, const ThumbnailCacheOptions&);
 
-        TL_API void from_json(const nlohmann::json&, ThumbnailCacheOptions&);
+        TL_UI_API void from_json(const nlohmann::json&, ThumbnailCacheOptions&);
 
         ///@}
     }

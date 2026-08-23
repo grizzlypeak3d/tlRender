@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include <tlRender/Timeline/Export.h>
 #include <tlRender/Timeline/Audio.h>
 #include <tlRender/Timeline/TimelineOptions.h>
 #include <tlRender/IO/SeqDecode.h>
@@ -27,21 +28,21 @@ namespace ftk
 namespace tl
 {
     //! Video request.
-    struct TL_API_TYPE VideoRequest
+    struct TL_TIMELINE_API_TYPE VideoRequest
     {
         uint64_t id = 0;
         std::future<VideoFrame> future;
     };
 
     //! Audio request.
-    struct TL_API_TYPE AudioRequest
+    struct TL_TIMELINE_API_TYPE AudioRequest
     {
         uint64_t id = 0;
         std::future<AudioFrame> future;
     };
 
     //! Timeline.
-    class TL_API_TYPE Timeline : public std::enable_shared_from_this<Timeline>
+    class TL_TIMELINE_API_TYPE Timeline : public std::enable_shared_from_this<Timeline>
     {
         FTK_NON_COPYABLE(Timeline);
 
@@ -59,24 +60,24 @@ namespace tl
         Timeline();
 
     public:
-        TL_API ~Timeline();
+        TL_TIMELINE_API ~Timeline();
 
         //! Create a new timeline.
-        TL_API static std::shared_ptr<Timeline> create(
+        TL_TIMELINE_API static std::shared_ptr<Timeline> create(
             const std::shared_ptr<ftk::Context>&,
             const OTIO_NS::SerializableObject::Retainer<OTIO_NS::Timeline>&,
             const Options& = Options());
 
         //! Create a new timeline from a path. The path can point to an
         //! .otio file, movie file, or image sequence.
-        TL_API static std::shared_ptr<Timeline> create(
+        TL_TIMELINE_API static std::shared_ptr<Timeline> create(
             const std::shared_ptr<ftk::Context>&,
             const ftk::Path&,
             const Options& = Options());
 
         //! Create a new timeline from a path and audio path. The path can
         //! point to an .otio file, movie file, or image sequence.
-        TL_API static std::shared_ptr<Timeline> create(
+        TL_TIMELINE_API static std::shared_ptr<Timeline> create(
             const std::shared_ptr<ftk::Context>&,
             const ftk::Path& path,
             const ftk::Path& audioPath,
@@ -84,7 +85,7 @@ namespace tl
 
         //! Create a new timeline from a file name. The file name can point
         //! to an .otio file, movie file, or image sequence.
-        TL_API static std::shared_ptr<Timeline> create(
+        TL_TIMELINE_API static std::shared_ptr<Timeline> create(
             const std::shared_ptr<ftk::Context>&,
             const std::string&,
             const Options& = Options());
@@ -92,29 +93,29 @@ namespace tl
         //! Create a new timeline from a file name and audio file name.
         //! The file name can point to an .otio file, movie file, or
         //! image sequence.
-        TL_API static std::shared_ptr<Timeline> create(
+        TL_TIMELINE_API static std::shared_ptr<Timeline> create(
             const std::shared_ptr<ftk::Context>&,
             const std::string& fileName,
             const std::string& audioFilename,
             const Options& = Options());
 
         //! Get the context.
-        TL_API std::shared_ptr<ftk::Context> getContext() const;
+        TL_TIMELINE_API std::shared_ptr<ftk::Context> getContext() const;
 
         //! Get the timeline.
-        TL_API const OTIO_NS::SerializableObject::Retainer<OTIO_NS::Timeline>& getTimeline() const;
+        TL_TIMELINE_API const OTIO_NS::SerializableObject::Retainer<OTIO_NS::Timeline>& getTimeline() const;
 
         //! Get the file path.
-        TL_API const ftk::Path& getPath() const;
+        TL_TIMELINE_API const ftk::Path& getPath() const;
 
         //! Get the audio file path.
-        TL_API const ftk::Path& getAudioPath() const;
+        TL_TIMELINE_API const ftk::Path& getAudioPath() const;
 
         //! Get the timeline options.
-        TL_API const Options& getOptions() const;
+        TL_TIMELINE_API const Options& getOptions() const;
 
         //! Get the memory for the given media reference.
-        TL_API std::vector<ftk::MemFile> getMem(
+        TL_TIMELINE_API std::vector<ftk::MemFile> getMem(
             const OTIO_NS::MediaReference*);
 
         //! Get how many video requests the timeline keeps in flight.
@@ -122,10 +123,10 @@ namespace tl
         //! Twice the decoding threads: enough that a thread finishing a frame
         //! always has another waiting, without queueing work that a seek
         //! would only throw away.
-        TL_API size_t getVideoRequestMax() const;
+        TL_TIMELINE_API size_t getVideoRequestMax() const;
 
         //! Get how many sequence frames the timeline decodes at once.
-        TL_API size_t getReadThreadCount() const;
+        TL_TIMELINE_API size_t getReadThreadCount() const;
 
         //! Get the paths of the media in the timeline.
         //!
@@ -133,10 +134,10 @@ namespace tl
         //! caller that wants one of them read cannot open its path. These
         //! name the media to getMediaInfo() and readMedia() instead, which
         //! keeps the reading on the side that knows where the bytes are.
-        TL_API std::vector<ftk::Path> getMediaPaths() const;
+        TL_TIMELINE_API std::vector<ftk::Path> getMediaPaths() const;
 
         //! Get the information for one of the media in the timeline.
-        TL_API bool getMediaInfo(
+        TL_TIMELINE_API bool getMediaInfo(
             const ftk::Path&,
             IOInfo&,
             const IOOptions& = IOOptions());
@@ -155,17 +156,17 @@ namespace tl
         //! This is the time to show someone watching, whatever units they
         //! read it in: it matches the file on disk, where the timeline's own
         //! time only counts off the frames that are being played.
-        TL_API std::optional<OTIO_NS::RationalTime> getMediaTime(
+        TL_TIMELINE_API std::optional<OTIO_NS::RationalTime> getMediaTime(
             const OTIO_NS::RationalTime&);
 
         //! The timeline time that shows the given media time, taking the clip
         //! from the given time.
-        TL_API std::optional<OTIO_NS::RationalTime> getTimelineTime(
+        TL_TIMELINE_API std::optional<OTIO_NS::RationalTime> getTimelineTime(
             const OTIO_NS::RationalTime&,
             const OTIO_NS::RationalTime& mediaTime);
 
         //! The frame number the media gives to a timeline time.
-        TL_API std::optional<int64_t> getMediaFrame(
+        TL_TIMELINE_API std::optional<int64_t> getMediaFrame(
             const OTIO_NS::RationalTime&);
 
         //! The timeline time that reads the given media frame number, taking
@@ -173,7 +174,7 @@ namespace tl
         //!
         //! A frame the media does not have snaps as the media requires, so
         //! there is always an answer for a clip that was found.
-        TL_API std::optional<OTIO_NS::RationalTime> getMediaFrameTime(
+        TL_TIMELINE_API std::optional<OTIO_NS::RationalTime> getMediaFrameTime(
             const OTIO_NS::RationalTime&,
             int64_t frame);
 
@@ -185,20 +186,20 @@ namespace tl
         //! one piece or in the runs a sparse sequence is cut into. Cutting
         //! between media, or playing the same media twice, restarts the
         //! numbering.
-        TL_API bool isMediaTimeContinuous() const;
+        TL_TIMELINE_API bool isMediaTimeContinuous() const;
 
         ///@}
 
         //! Read one frame of one of the media in the timeline.
         //!
         //! On a timeline with no thread the future comes back resolved.
-        TL_API std::future<VideoData> readMedia(
+        TL_TIMELINE_API std::future<VideoData> readMedia(
             const ftk::Path&,
             const OTIO_NS::RationalTime&,
             const IOOptions& = IOOptions());
 
         //! Read audio from one of the media in the timeline.
-        TL_API std::future<AudioData> readMediaAudio(
+        TL_TIMELINE_API std::future<AudioData> readMediaAudio(
             const ftk::Path&,
             const OTIO_NS::TimeRange&,
             const IOOptions& = IOOptions());
@@ -214,12 +215,12 @@ namespace tl
 
         //! Get the media reference keys used anywhere in the timeline, sorted
         //! and without duplicates.
-        TL_API std::vector<std::string> getMediaReferenceKeys() const;
+        TL_TIMELINE_API std::vector<std::string> getMediaReferenceKeys() const;
 
         //! Get the media reference key applied to the whole timeline. An empty
         //! key, the default, leaves every clip on the media reference that
         //! OTIO has active.
-        TL_API std::string getMediaReferenceKey() const;
+        TL_TIMELINE_API std::string getMediaReferenceKey() const;
 
         //! Set the media reference key for the whole timeline. Clips that have
         //! no media reference with this key fall back to
@@ -229,23 +230,23 @@ namespace tl
         //! The change applies to media read after it; the caller is
         //! responsible for discarding anything already read, for example with
         //! Player::clearCache().
-        TL_API void setMediaReferenceKey(const std::string&);
+        TL_TIMELINE_API void setMediaReferenceKey(const std::string&);
 
         //! Get the media reference key applied to the given clip, which may be
         //! empty. This is the key set for the clip alone, not the timeline
         //! wide key it falls back to.
-        TL_API std::string getMediaReferenceKey(const OTIO_NS::Clip*) const;
+        TL_TIMELINE_API std::string getMediaReferenceKey(const OTIO_NS::Clip*) const;
 
         //! Set the media reference key for a single clip, overriding the
         //! timeline wide key. An empty key returns the clip to the timeline
         //! wide key.
-        TL_API void setMediaReferenceKey(
+        TL_TIMELINE_API void setMediaReferenceKey(
             const OTIO_NS::Clip*,
             const std::string&);
 
         //! Get the media reference a clip is read from, honoring the keys set
         //! above.
-        TL_API OTIO_NS::MediaReference* getMediaReference(
+        TL_TIMELINE_API OTIO_NS::MediaReference* getMediaReference(
             const OTIO_NS::Clip*) const;
 
         ///@}
@@ -254,10 +255,10 @@ namespace tl
         ///@{
 
         //! Get the time range.
-        TL_API const OTIO_NS::TimeRange& getTimeRange() const;
+        TL_TIMELINE_API const OTIO_NS::TimeRange& getTimeRange() const;
 
         //! Get the duration.
-        TL_API OTIO_NS::RationalTime getDuration() const;
+        TL_TIMELINE_API OTIO_NS::RationalTime getDuration() const;
 
         //! Get the I/O information. This information is retrieved from
         //! the first clip in the timeline.
@@ -265,16 +266,16 @@ namespace tl
         //! The video information follows the media reference the clip is
         //! being read from, so that it describes the media on screen rather
         //! than the media that was active when the timeline was read.
-        TL_API const IOInfo& getIOInfo() const;
+        TL_TIMELINE_API const IOInfo& getIOInfo() const;
 
         //! Get the first error encountered while reading, or an empty
         //! string. Errors are also sent to the log.
-        TL_API std::string getReadError() const;
+        TL_TIMELINE_API std::string getReadError() const;
 
         //! Get the number of errors encountered while reading. The count
         //! is a lower bound; errors from readers that have been evicted
         //! from the internal cache may not be included.
-        TL_API size_t getReadErrorCount() const;
+        TL_TIMELINE_API size_t getReadErrorCount() const;
 
         ///@}
 
@@ -282,22 +283,22 @@ namespace tl
         ///@{
 
         //! Get video.
-        TL_API VideoRequest getVideo(
+        TL_TIMELINE_API VideoRequest getVideo(
             const OTIO_NS::RationalTime&,
             const IOOptions& = IOOptions());
 
         //! Get audio.
-        TL_API AudioRequest getAudio(
+        TL_TIMELINE_API AudioRequest getAudio(
             double seconds,
             const IOOptions& = IOOptions());
 
         //! Cancel requests.
-        TL_API void cancelRequests(const std::vector<uint64_t>&);
+        TL_TIMELINE_API void cancelRequests(const std::vector<uint64_t>&);
 
         ///@}
 
         //! Get the number of objects currenty instantiated.
-        TL_API static size_t getObjectCount();
+        TL_TIMELINE_API static size_t getObjectCount();
 
     private:
         //! What is needed to convert between timeline time and media time for

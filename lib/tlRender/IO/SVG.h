@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include <tlRender/IO/Export.h>
 #include <tlRender/IO/SeqIO.h>
 
 namespace tl
@@ -23,22 +24,22 @@ namespace tl
         //!
         //! Giving one keeps the document's aspect ratio; giving neither uses
         //! the size the document asks for.
-        class TL_API_TYPE Decode : public IDecode
+        class TL_IO_API_TYPE Decode : public IDecode
         {
         protected:
             Decode(const IOOptions&);
 
         public:
-            TL_API virtual ~Decode();
+            TL_IO_API virtual ~Decode();
 
             //! Create a new decoder.
-            TL_API static std::shared_ptr<Decode> create(
+            TL_IO_API static std::shared_ptr<Decode> create(
                 const IOOptions& = IOOptions());
 
-            TL_API IOInfo getInfo(
+            TL_IO_API IOInfo getInfo(
                 const std::string& fileName,
                 const ftk::MemFile* = nullptr) override;
-            TL_API VideoData readVideo(
+            TL_IO_API VideoData readVideo(
                 const std::string& fileName,
                 const ftk::MemFile*,
                 const OTIO_NS::RationalTime&,
@@ -49,7 +50,7 @@ namespace tl
         };
 
         //! SVG read plugin.
-        class TL_API_TYPE ReadPlugin : public IReadPlugin
+        class TL_IO_API_TYPE ReadPlugin : public IReadPlugin
         {
         protected:
             void _init(const std::shared_ptr<ftk::LogSystem>&);
@@ -58,13 +59,13 @@ namespace tl
 
         public:
             //! Create a new plugin.
-            TL_API static std::shared_ptr<ReadPlugin> create(
+            TL_IO_API static std::shared_ptr<ReadPlugin> create(
                 const std::shared_ptr<ftk::LogSystem>&);
 
-            TL_API std::shared_ptr<IDecode> decode(
+            TL_IO_API std::shared_ptr<IDecode> decode(
                 const IOOptions& = IOOptions()) override;
 
-            TL_API std::string getPluginInfo(
+            TL_IO_API std::string getPluginInfo(
                 const IOOptions& = IOOptions()) const override;
         };
     }

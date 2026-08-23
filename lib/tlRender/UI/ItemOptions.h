@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include <tlRender/UI/Export.h>
 #include <tlRender/Timeline/ColorOptions.h>
 #include <tlRender/Timeline/TimeUnits.h>
 #include <tlRender/Timeline/Timeline.h>
@@ -17,7 +18,7 @@ namespace tl
     namespace ui
     {
         //! Item data.
-        struct TL_API_TYPE ItemData
+        struct TL_UI_API_TYPE ItemData
         {
             double speed = 0.0;
             std::string dir;
@@ -35,7 +36,7 @@ namespace tl
         };
 
         //! In/out points display options.
-        enum class TL_API_TYPE InOutDisplay
+        enum class TL_UI_API_TYPE InOutDisplay
         {
             InsideRange,
             OutsideRange,
@@ -46,7 +47,7 @@ namespace tl
         TL_ENUM(InOutDisplay);
         
         //! Cache display options.
-        enum class TL_API_TYPE CacheDisplay
+        enum class TL_UI_API_TYPE CacheDisplay
         {
             VideoAndAudio,
             VideoOnly,
@@ -57,7 +58,7 @@ namespace tl
         TL_ENUM(CacheDisplay);
 
         //! Waveform primitive type.
-        enum class TL_API_TYPE WaveformPrim
+        enum class TL_UI_API_TYPE WaveformPrim
         {
             Mesh,
             Image,
@@ -68,12 +69,12 @@ namespace tl
         TL_ENUM(WaveformPrim);
 
         //! Item options.
-        struct TL_API_TYPE ItemOptions
+        struct TL_UI_API_TYPE ItemOptions
         {
             bool inputEnabled = true;
 
-            TL_API bool operator == (const ItemOptions&) const;
-            TL_API bool operator != (const ItemOptions&) const;
+            TL_UI_API bool operator == (const ItemOptions&) const;
+            TL_UI_API bool operator != (const ItemOptions&) const;
         };
 
         //! Colors for timeline items, keyed by track and then by where the
@@ -84,7 +85,7 @@ namespace tl
         typedef std::map<int, std::map<OTIO_NS::RationalTime, ftk::Color4F> > ItemColors;
 
         //! Display options.
-        struct TL_API_TYPE DisplayOptions
+        struct TL_UI_API_TYPE DisplayOptions
         {
             InOutDisplay inOutDisplay = InOutDisplay::InsideRange;
             CacheDisplay cacheDisplay = CacheDisplay::VideoAndAudio;
@@ -107,12 +108,12 @@ namespace tl
             OCIOOptions ocio;
             LUTOptions lut;
 
-            TL_API bool operator == (const DisplayOptions&) const;
-            TL_API bool operator != (const DisplayOptions&) const;
+            TL_UI_API bool operator == (const DisplayOptions&) const;
+            TL_UI_API bool operator != (const DisplayOptions&) const;
         };
 
         //! Marker.
-        struct TL_API_TYPE Marker
+        struct TL_UI_API_TYPE Marker
         {
             std::string name;
             ftk::Color4F color;
@@ -120,21 +121,21 @@ namespace tl
         };
 
         //! Get the markers from an item.
-        TL_API std::vector<Marker> getMarkers(const OTIO_NS::Item*);
+        TL_UI_API std::vector<Marker> getMarkers(const OTIO_NS::Item*);
 
         //! Convert an OTIO color.
         //!
         //! The components are sRGB encoded and range from zero to one, which
         //! is what the user interface works in, so they are used as they are.
-        TL_API ftk::Color4F toColor(const OTIO_NS::Color&);
+        TL_UI_API ftk::Color4F toColor(const OTIO_NS::Color&);
 
         //! Convert a marker color, which is optional; markers without one are
         //! given the color OTIO uses by default.
-        TL_API ftk::Color4F getMarkerColor(const std::optional<OTIO_NS::Color>&);
+        TL_UI_API ftk::Color4F getMarkerColor(const std::optional<OTIO_NS::Color>&);
 
         //! Get the color for an item, which is the color the OTIO item carries
         //! where it has one, and the given default otherwise.
-        TL_API ftk::Color4F getItemColor(
+        TL_UI_API ftk::Color4F getItemColor(
             const OTIO_NS::Item*,
             const ftk::Color4F& defaultColor,
             const DisplayOptions&);
@@ -142,11 +143,11 @@ namespace tl
         //! \name Serialize
         ///@{
 
-        TL_API void to_json(nlohmann::json&, const ItemOptions&);
-        TL_API void to_json(nlohmann::json&, const DisplayOptions&);
+        TL_UI_API void to_json(nlohmann::json&, const ItemOptions&);
+        TL_UI_API void to_json(nlohmann::json&, const DisplayOptions&);
 
-        TL_API void from_json(const nlohmann::json&, ItemOptions&);
-        TL_API void from_json(const nlohmann::json&, DisplayOptions&);
+        TL_UI_API void from_json(const nlohmann::json&, ItemOptions&);
+        TL_UI_API void from_json(const nlohmann::json&, DisplayOptions&);
 
         ///@}
     }

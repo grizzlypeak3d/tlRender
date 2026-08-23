@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include <tlRender/Timeline/Export.h>
 #include <tlRender/Core/Util.h>
 
 #include <ftk/Core/Image.h>
@@ -17,7 +18,7 @@
 namespace tl
 {
     //! OpenColorIO configuration options.
-    enum class TL_API_TYPE OCIOConfig
+    enum class TL_TIMELINE_API_TYPE OCIOConfig
     {
         BuiltIn,
         EnvVar,
@@ -29,7 +30,7 @@ namespace tl
     TL_ENUM(OCIOConfig);
 
     //! OpenColorIO options.
-    struct TL_API_TYPE OCIOOptions
+    struct TL_TIMELINE_API_TYPE OCIOOptions
     {
         bool        enabled  = false;
         OCIOConfig  config   = OCIOConfig::BuiltIn;
@@ -39,8 +40,8 @@ namespace tl
         std::string view;
         std::string look;
 
-        TL_API bool operator == (const OCIOOptions&) const;
-        TL_API bool operator != (const OCIOOptions&) const;
+        TL_TIMELINE_API bool operator == (const OCIOOptions&) const;
+        TL_TIMELINE_API bool operator != (const OCIOOptions&) const;
     };
 
     //! Get the color description tags for pixels rendered through the
@@ -51,12 +52,12 @@ namespace tl
     //! take the "Chromaticities" tag, movies "Color Primaries" and
     //! "Color Transfer"; the YUV matrix is left unsaid either way, since
     //! it belongs to the encoder's conversion, not the display.
-    TL_API ftk::ImageTags getDisplayColorTags(
+    TL_TIMELINE_API ftk::ImageTags getDisplayColorTags(
         const OCIOOptions&,
         bool sequence);
 
     //! LUT operation order.
-    enum class TL_API_TYPE LUTOrder
+    enum class TL_TIMELINE_API_TYPE LUTOrder
     {
         PostConfig,
         PreConfig,
@@ -67,30 +68,30 @@ namespace tl
     FTK_ENUM(LUTOrder);
 
     //! LUT options.
-    struct TL_API_TYPE LUTOptions
+    struct TL_TIMELINE_API_TYPE LUTOptions
     {
         bool        enabled  = false;
         std::string fileName;
         LUTOrder    order    = LUTOrder::First;
 
-        TL_API bool operator == (const LUTOptions&) const;
-        TL_API bool operator != (const LUTOptions&) const;
+        TL_TIMELINE_API bool operator == (const LUTOptions&) const;
+        TL_TIMELINE_API bool operator != (const LUTOptions&) const;
     };
 
     //! Get the list of LUT format names.
-    TL_API std::vector<std::string> getLUTFormatNames();
+    TL_TIMELINE_API std::vector<std::string> getLUTFormatNames();
 
     //! Get the list of LUT format file extensions.
-    TL_API std::vector<std::string> getLUTFormatExts();
+    TL_TIMELINE_API std::vector<std::string> getLUTFormatExts();
 
     //! \name Serialize
     ///@{
 
-    TL_API void to_json(nlohmann::json&, const OCIOOptions&);
-    TL_API void to_json(nlohmann::json&, const LUTOptions&);
+    TL_TIMELINE_API void to_json(nlohmann::json&, const OCIOOptions&);
+    TL_TIMELINE_API void to_json(nlohmann::json&, const LUTOptions&);
 
-    TL_API void from_json(const nlohmann::json&, OCIOOptions&);
-    TL_API void from_json(const nlohmann::json&, LUTOptions&);
+    TL_TIMELINE_API void from_json(const nlohmann::json&, OCIOOptions&);
+    TL_TIMELINE_API void from_json(const nlohmann::json&, LUTOptions&);
 
     ///@}
 }

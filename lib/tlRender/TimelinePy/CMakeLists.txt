@@ -21,10 +21,10 @@ set(SOURCE
     Util.cpp
     Video.cpp)
 
-add_library(tlTimelinePy ${HEADERS} ${HEADERS_PRIVATE} ${SOURCE})
-if(BUILD_SHARED_LIBS)
-    target_compile_definitions(tlTimelinePy PRIVATE TL_EXPORTS)
-endif()
+# Static. The bindings are linked by tlRenderPy and nothing else, so there
+# is no API here for anything to import -- the module absorbs them.
+add_library(tlTimelinePy STATIC ${HEADERS} ${HEADERS_PRIVATE} ${SOURCE})
+set_target_properties(tlTimelinePy PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 target_include_directories(tlTimelinePy
     PUBLIC

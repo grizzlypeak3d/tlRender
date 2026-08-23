@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include <tlRender/Timeline/Export.h>
 #include <tlRender/Core/Util.h>
 
 #include <ftk/Core/Color.h>
@@ -12,7 +13,7 @@
 namespace tl
 {
     //! Background type.
-    enum class TL_API_TYPE Background
+    enum class TL_TIMELINE_API_TYPE Background
     {
         Solid,
         Checkers,
@@ -24,18 +25,18 @@ namespace tl
     TL_ENUM(Background);
 
     //! Outline.
-    struct TL_API_TYPE Outline
+    struct TL_TIMELINE_API_TYPE Outline
     {
         bool         enabled = false;
         int          width   = 2;
         ftk::Color4F color   = ftk::Color4F(1.F, 0.F, 0.F);
 
-        TL_API bool operator == (const Outline&) const;
-        TL_API bool operator != (const Outline&) const;
+        TL_TIMELINE_API bool operator == (const Outline&) const;
+        TL_TIMELINE_API bool operator != (const Outline&) const;
     };
 
     //! Background options.
-    struct TL_API_TYPE BackgroundOptions
+    struct TL_TIMELINE_API_TYPE BackgroundOptions
     {
         Background type = Background::Solid;
 
@@ -56,18 +57,18 @@ namespace tl
 
         Outline outline;
 
-        TL_API bool operator == (const BackgroundOptions&) const;
-        TL_API bool operator != (const BackgroundOptions&) const;
+        TL_TIMELINE_API bool operator == (const BackgroundOptions&) const;
+        TL_TIMELINE_API bool operator != (const BackgroundOptions&) const;
     };
 
     //! \name Serialize
     ///@{
 
-    TL_API void to_json(nlohmann::json&, const Outline&);
-    TL_API void to_json(nlohmann::json&, const BackgroundOptions&);
+    TL_TIMELINE_API void to_json(nlohmann::json&, const Outline&);
+    TL_TIMELINE_API void to_json(nlohmann::json&, const BackgroundOptions&);
 
-    TL_API void from_json(const nlohmann::json&, Outline&);
-    TL_API void from_json(const nlohmann::json&, BackgroundOptions&);
+    TL_TIMELINE_API void from_json(const nlohmann::json&, Outline&);
+    TL_TIMELINE_API void from_json(const nlohmann::json&, BackgroundOptions&);
 
     ///@}
 }

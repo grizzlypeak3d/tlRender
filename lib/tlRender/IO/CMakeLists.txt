@@ -54,8 +54,13 @@ if(TLRENDER_SVG)
 endif()
 
 add_library(tlIO ${HEADERS})
+# Private when building, so this library's own API is dllexport here and
+# dllimport to everything else. Public when static, which a consumer does
+# have to know: the API then carries no declspec at all.
 if(BUILD_SHARED_LIBS)
-    target_compile_definitions(tlIO PRIVATE TL_EXPORTS)
+    target_compile_definitions(tlIO PRIVATE TL_IO_EXPORTS)
+else()
+    target_compile_definitions(tlIO PUBLIC TL_IO_STATIC)
 endif()
 target_sources(tlIO PRIVATE ${HEADERS_PRIVATE} ${SOURCE})
 

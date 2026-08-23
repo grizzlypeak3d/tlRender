@@ -9,10 +9,10 @@ set(SOURCE
     System.cpp
     Write.cpp)
 
-add_library(tlIOPy ${HEADERS} ${HEADERS_PRIVATE} ${SOURCE})
-if(BUILD_SHARED_LIBS)
-    target_compile_definitions(tlIOPy PRIVATE TL_EXPORTS)
-endif()
+# Static. The bindings are linked by tlRenderPy and nothing else, so there
+# is no API here for anything to import -- the module absorbs them.
+add_library(tlIOPy STATIC ${HEADERS} ${HEADERS_PRIVATE} ${SOURCE})
+set_target_properties(tlIOPy PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 target_include_directories(tlIOPy
     PUBLIC

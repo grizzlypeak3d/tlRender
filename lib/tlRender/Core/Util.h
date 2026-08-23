@@ -12,12 +12,12 @@
 //! * string
 //! * vector
 #define TL_ENUM(ENUM) \
-    TL_API std::vector<ENUM> get##ENUM##Enums(); \
-    TL_API std::vector<std::string> get##ENUM##Labels(); \
-    TL_API std::string getLabel(ENUM); \
-    TL_API std::string to_string(ENUM); \
-    TL_API bool from_string(const std::string&, ENUM&); \
-    TL_API std::ostream& operator << (std::ostream&, ENUM)
+    TL_CORE_API std::vector<ENUM> get##ENUM##Enums(); \
+    TL_CORE_API std::vector<std::string> get##ENUM##Labels(); \
+    TL_CORE_API std::string getLabel(ENUM); \
+    TL_CORE_API std::string to_string(ENUM); \
+    TL_CORE_API bool from_string(const std::string&, ENUM&); \
+    TL_CORE_API std::ostream& operator << (std::ostream&, ENUM)
 
 //! Implementation macro for enum utilities.
 //! 

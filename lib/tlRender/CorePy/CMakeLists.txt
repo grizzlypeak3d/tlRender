@@ -9,10 +9,10 @@ set(SOURCE
     Time.cpp
     URL.cpp)
 
-add_library(tlCorePy ${HEADERS} ${HEADERS_PRIVATE} ${SOURCE})
-if(BUILD_SHARED_LIBS)
-    target_compile_definitions(tlCorePy PRIVATE TL_EXPORTS)
-endif()
+# Static. The bindings are linked by tlRenderPy and nothing else, so there
+# is no API here for anything to import -- the module absorbs them.
+add_library(tlCorePy STATIC ${HEADERS} ${HEADERS_PRIVATE} ${SOURCE})
+set_target_properties(tlCorePy PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 target_include_directories(tlCorePy
     PUBLIC

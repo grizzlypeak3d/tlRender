@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include <tlRender/IO/Export.h>
 #include <tlRender/IO/Read.h>
 #include <tlRender/IO/Write.h>
 
@@ -23,7 +24,7 @@ namespace tl
     //! order to build the clips, they only apply to an image sequence opened
     //! directly -- a timeline that was authored already says what its clips
     //! are, and those are not ours to rewrite.
-    enum class TL_API_TYPE MissingFrames
+    enum class TL_IO_API_TYPE MissingFrames
     {
         Error,  //!< The frame does not read.
         Hold,   //!< Repeat the nearest frame before it.
@@ -38,28 +39,28 @@ namespace tl
 
     //! Get whether a policy is settled when the sequence is opened, by
     //! deciding the clips, rather than per read.
-    TL_API bool isStructural(MissingFrames);
+    TL_IO_API bool isStructural(MissingFrames);
 
     //! Sequence I/O options.
-    struct TL_API_TYPE SeqOptions
+    struct TL_IO_API_TYPE SeqOptions
     {
-        TL_API SeqOptions();
+        TL_IO_API SeqOptions();
 
         double        defaultSpeed  = 24.0;
         MissingFrames missingFrames = MissingFrames::Error;
 
-        TL_API bool operator == (const SeqOptions&) const;
-        TL_API bool operator != (const SeqOptions&) const;
+        TL_IO_API bool operator == (const SeqOptions&) const;
+        TL_IO_API bool operator != (const SeqOptions&) const;
     };
 
     //! Get sequence I/O options.
-    TL_API IOOptions getOptions(const SeqOptions&);
+    TL_IO_API IOOptions getOptions(const SeqOptions&);
 
     //! Get the missing frame policy from the options.
-    TL_API MissingFrames getMissingFrames(const IOOptions&);
+    TL_IO_API MissingFrames getMissingFrames(const IOOptions&);
 
     //! Base class for image sequence writers.
-    class TL_API_TYPE ISeqWrite : public IWrite
+    class TL_IO_API_TYPE ISeqWrite : public IWrite
     {
     protected:
         void _init(
@@ -71,9 +72,9 @@ namespace tl
         ISeqWrite();
 
     public:
-        TL_API virtual ~ISeqWrite();
+        TL_IO_API virtual ~ISeqWrite();
 
-        TL_API void writeVideo(
+        TL_IO_API void writeVideo(
             const OTIO_NS::RationalTime&,
             const std::shared_ptr<ftk::Image>&,
             const IOOptions& = IOOptions()) override;
@@ -92,9 +93,9 @@ namespace tl
     //! \name Serialize
     ///@{
 
-    TL_API void to_json(nlohmann::json&, const SeqOptions&);
+    TL_IO_API void to_json(nlohmann::json&, const SeqOptions&);
 
-    TL_API void from_json(const nlohmann::json&, SeqOptions&);
+    TL_IO_API void from_json(const nlohmann::json&, SeqOptions&);
 
     ///@}
 }
