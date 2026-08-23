@@ -1,1 +1,6 @@
 * text=auto
+
+# Patches are applied by git, not compiled, and are the one thing here whose
+# bytes have to survive a checkout as they were written. git apply copes with
+# either ending in practice; this takes the question away.
+*.patch -text

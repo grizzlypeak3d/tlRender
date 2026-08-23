@@ -143,8 +143,8 @@ namespace tl
             double audioOffset = 0.0;
             PlayerCacheOptions cacheOptions;
 
-            bool operator == (const PlaybackState&) const;
-            bool operator != (const PlaybackState&) const;
+            TL_API bool operator == (const PlaybackState&) const;
+            TL_API bool operator != (const PlaybackState&) const;
         };
 
         // What the cache eviction and fill depend on. They are idempotent:

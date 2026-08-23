@@ -64,17 +64,28 @@ set(ftk_API "GL_4_1" CACHE STRING "")
 # thing more loudly on macOS, where the duplicate announces itself as an
 # Objective-C class implemented twice.
 #
-# Not on Windows. The libraries do carry export macros now -- FTK_API,
-# TL_API and DJV_API, selected by the *_EXPORTS and *_STATIC definitions this
-# flag sets -- so that is no longer what stands in the way. What does is that
-# *_EXPORTS is defined PUBLIC, so a project consuming these libraries compiles
-# their API as dllexport where it should be dllimport. Windows can be shared
-# once that is sorted.
-if(WIN32)
-    set(BUILD_SHARED_LIBS OFF CACHE BOOL "")
-else()
-    set(BUILD_SHARED_LIBS ${TLRENDER_PYTHON} CACHE BOOL "")
-endif()
+# Windows as well, now. Three things were in the way and none of them was the
+# export macros being absent:
+#
+# * TL_API_TYPE on a class is empty on Windows -- only the per-member
+#   TL_API carries the declspec there, where the other platforms get the
+#   whole class from one visibility attribute. The members that had been
+#   marked at the class level alone are marked individually.
+# * OpenTimelineIO defined OTIO_EXPORTS PUBLIC, so everything consuming it
+#   compiled its API as dllexport where it wanted dllimport, and its own
+#   members were marked the same class-at-a-time way. The super build patches
+#   both until that is upstream.
+# * The libraries with no API of their own -- resources, glad, the test
+#   helpers -- are built static. A shared library exporting nothing gets no
+#   import library on Windows, and the first thing to ask for one stops.
+#
+# One wrinkle is left. TL_API is a single macro for every library in this
+# project rather than one apiece, so a library compiling a sibling's headers
+# has TL_EXPORTS set for its own API and reads the sibling's as dllexport.
+# Functions live with that -- the linker takes them from the import library --
+# and data does not, so a variable exported across two of these libraries will
+# not link. There is none today.
+set(BUILD_SHARED_LIBS ${TLRENDER_PYTHON} CACHE BOOL "")
 
 if(APPLE)
     # The deployment target is policy: the oldest system that is supported.

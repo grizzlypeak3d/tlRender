@@ -4,7 +4,9 @@ set(HEADERS
 set(SOURCE
     RenderTest.cpp)
 
-add_library(tlGLTest ${SOURCE} ${HEADERS})
+# Static, for the reason in ftk's TestLib.
+add_library(tlGLTest STATIC ${SOURCE} ${HEADERS})
+set_target_properties(tlGLTest PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 target_include_directories(tlGLTest
     PUBLIC

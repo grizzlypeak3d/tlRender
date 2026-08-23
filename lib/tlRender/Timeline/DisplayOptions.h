@@ -72,7 +72,7 @@ namespace tl
     struct TL_API_TYPE AspectRatio
     {
         AspectRatio() = default;
-        explicit AspectRatio(float num, float den = 1.F);
+        TL_API explicit AspectRatio(float num, float den = 1.F);
 
         float num = 1.F;
         float den = 1.F;
@@ -103,7 +103,7 @@ namespace tl
     struct TL_API_TYPE AspectRatioOptions
     {
         AspectRatioOptions() = default;
-        AspectRatioOptions(const AspectRatio&, AspectRatioType);
+        TL_API AspectRatioOptions(const AspectRatio&, AspectRatioType);
 
         AspectRatio     value = AspectRatio(0.F, 0.F);
         AspectRatioType type  = AspectRatioType::Pixel;

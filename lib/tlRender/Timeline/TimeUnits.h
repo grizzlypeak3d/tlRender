@@ -52,7 +52,7 @@ namespace tl
         FTK_NON_COPYABLE(ITimeUnitsModel);
 
     protected:
-        void _init(const std::shared_ptr<ftk::Context>&);
+        TL_API void _init(const std::shared_ptr<ftk::Context>&);
 
         ITimeUnitsModel();
 
@@ -77,9 +77,9 @@ namespace tl
         FTK_NON_COPYABLE(TimeUnitsModel);
 
     protected:
-        void _init(const std::shared_ptr<ftk::Context>&);
+        TL_API void _init(const std::shared_ptr<ftk::Context>&);
 
-        TimeUnitsModel();
+        TL_API TimeUnitsModel();
 
     public:
         TL_API virtual ~TimeUnitsModel();

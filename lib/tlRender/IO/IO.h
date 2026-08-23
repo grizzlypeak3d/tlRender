@@ -34,8 +34,8 @@ namespace tl
         std::string codec;
         std::string pixelFormat;
 
-        bool operator == (const VideoSourceInfo&) const;
-        bool operator != (const VideoSourceInfo&) const;
+        TL_API bool operator == (const VideoSourceInfo&) const;
+        TL_API bool operator != (const VideoSourceInfo&) const;
     };
 
     //! The audio format of the file itself, which is not always the format it
@@ -47,8 +47,8 @@ namespace tl
         size_t channelCount = 0;
         size_t sampleRate = 0;
 
-        bool operator == (const AudioSourceInfo&) const;
-        bool operator != (const AudioSourceInfo&) const;
+        TL_API bool operator == (const AudioSourceInfo&) const;
+        TL_API bool operator != (const AudioSourceInfo&) const;
     };
 
     //! I/O information.
@@ -77,8 +77,8 @@ namespace tl
         //! above, not mixed in here.
         ftk::ImageTags tags;
 
-        bool operator == (const IOInfo&) const;
-        bool operator != (const IOInfo&) const;
+        TL_API bool operator == (const IOInfo&) const;
+        TL_API bool operator != (const IOInfo&) const;
     };
 
     //! Merge the video half of the information with the audio half. Video
@@ -108,9 +108,9 @@ namespace tl
         //! The frame repeated in place of it, when there was one to repeat.
         std::optional<int64_t>      heldFrom;
 
-        bool operator == (const VideoData&) const;
-        bool operator != (const VideoData&) const;
-        bool operator < (const VideoData&) const;
+        TL_API bool operator == (const VideoData&) const;
+        TL_API bool operator != (const VideoData&) const;
+        TL_API bool operator < (const VideoData&) const;
     };
 
     //! Audio I/O data.
@@ -124,9 +124,9 @@ namespace tl
         OTIO_NS::RationalTime  time;
         std::shared_ptr<Audio> audio;
 
-        bool operator == (const AudioData&) const;
-        bool operator != (const AudioData&) const;
-        bool operator < (const AudioData&) const;
+        TL_API bool operator == (const AudioData&) const;
+        TL_API bool operator != (const AudioData&) const;
+        TL_API bool operator < (const AudioData&) const;
     };
 
     //! Get an integer image type for the given channel count and bit depth.

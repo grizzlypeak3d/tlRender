@@ -1,5 +1,7 @@
 include(ExternalProject)
 
+find_package(Git REQUIRED)
+
 set(OTIO_GIT_REPOSITORY "https://github.com/AcademySoftwareFoundation/OpenTimelineIO.git")
 # "Add core C++ support for otioz and otiod, take 2 (#2021)", which also adds
 # bundle support for multiple media references and image sequences. Newer than
@@ -19,34 +21,57 @@ set(OTIO_ARGS
     # depends on the patch below.
     -DOTIO_FIND_MINIZIP_NG=ON
     -DOTIO_SHARED_LIBS=${OTIO_SHARED_LIBS}
+    # The same interpreter the rest of the build was pointed at. OTIO is an
+    # external project, so it does not inherit the cache entry that says which
+    # one, and it asks by a different name: OTIO calls find_package(Python)
+    # where feather-tk, tlRender and DJV call find_package(Python3), and the
+    # two read their own ROOT_DIR. Left to find its own OTIO can pick another
+    # interpreter, and on Windows a Debug build then stops at the link:
+    #
+    #     LINK : fatal error LNK1104: cannot open file 'python313.lib'
+    #
+    # pybind11 undefines _DEBUG around Python.h, so the module is compiled
+    # against the release ABI while CMake, configuring Debug, links the debug
+    # import library by full path. pyconfig.h then asks for the release one by
+    # bare name, with no directory to find it on. An interpreter that ships no
+    # debug library never gets into this. Empty here is no argument at all,
+    # which is the ordinary case and what continuous integration does.
+    -DPython_ROOT_DIR=${Python3_ROOT_DIR}
     -DOTIO_PYTHON_INSTALL=${TLRENDER_PYTHON})
 
-# The patched files are copies of the ones from OTIO_GIT_TAG that link
-# whichever minizip-ng target is present instead of assuming the one from the
-# compatibility layer; see the notes in them. Without this OTIO cannot be
+# OTIO is patched, with two changes; see the notes in the patch itself.
+#
+# The first has it link whichever minizip-ng target is present rather than
+# assuming the one from the compatibility layer. Without it OTIO cannot be
 # built against the super build's minizip-ng, which is built without that
 # layer.
 #
-# Because these are whole-file copies, moving OTIO_GIT_TAG silently reverts
-# whatever else upstream changed in them. Re-copy all three from the new
-# source and re-apply the change. Watch the top-level CMakeLists.txt in
-# particular: it is where the target is chosen, and it sees far more unrelated
-# churn than the other two. They can be dropped once the change is upstream.
+# The second is what a shared build on Windows needs. OTIO_EXPORTS and
+# OPENTIME_EXPORTS become PRIVATE rather than PUBLIC, so a consumer's headers
+# declare the API dllimport instead of dllexport, and the members that had no
+# OTIO_API on them get it -- OTIO_API_TYPE on the class is empty on Windows,
+# where only the per-member marking carries the declspec. Two source files that
+# define exported functions without including the header that marks them are
+# given the include as well.
+#
+# A patch rather than whole file copies: it is smaller, it reads as the change
+# it makes, and moving OTIO_GIT_TAG stops the build instead of silently
+# dropping whatever upstream changed in the files. git is what applies it,
+# which the clone above needs anyway, so nothing new is asked of the machine --
+# the patch program itself is not on Windows.
+#
+# It goes away once these are upstream.
 ExternalProject_Add(
     OTIO
     PREFIX ${CMAKE_CURRENT_BINARY_DIR}/OTIO
     DEPENDS Imath minizip-ng
     GIT_REPOSITORY ${OTIO_GIT_REPOSITORY}
     GIT_TAG ${OTIO_GIT_TAG}
-    PATCH_COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        ${CMAKE_CURRENT_SOURCE_DIR}/OTIO-patch/CMakeLists.txt
-        ${CMAKE_CURRENT_BINARY_DIR}/OTIO/src/OTIO/CMakeLists.txt
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        ${CMAKE_CURRENT_SOURCE_DIR}/OTIO-patch/src/opentimelineio/CMakeLists.txt
-        ${CMAKE_CURRENT_BINARY_DIR}/OTIO/src/OTIO/src/opentimelineio/CMakeLists.txt
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        ${CMAKE_CURRENT_SOURCE_DIR}/OTIO-patch/tests/CMakeLists.txt
-        ${CMAKE_CURRENT_BINARY_DIR}/OTIO/src/OTIO/tests/CMakeLists.txt
+    PATCH_COMMAND ${CMAKE_COMMAND}
+        -DGIT_EXECUTABLE=${GIT_EXECUTABLE}
+        -DOTIO_SOURCE_DIR=${CMAKE_CURRENT_BINARY_DIR}/OTIO/src/OTIO
+        -DOTIO_PATCH=${CMAKE_CURRENT_SOURCE_DIR}/OTIO-patch/otio.patch
+        -P ${CMAKE_CURRENT_LIST_DIR}/OTIOApplyPatch.cmake
     LIST_SEPARATOR |
     CMAKE_ARGS ${OTIO_ARGS})
 

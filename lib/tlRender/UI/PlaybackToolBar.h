@@ -17,11 +17,11 @@ namespace tl
             FTK_NON_COPYABLE(PlaybackToolBar);
 
         protected:
-            void _init(
+            TL_API void _init(
                 const std::shared_ptr<ftk::Context>&,
                 const std::shared_ptr<IWidget>& parent);
 
-            PlaybackToolBar();
+            TL_API PlaybackToolBar();
 
         public:
             TL_API virtual ~PlaybackToolBar();
@@ -32,13 +32,13 @@ namespace tl
                 const std::shared_ptr<IWidget>& parent = nullptr);
             
             //! Get the actions.
-            const std::map<std::string, std::shared_ptr<ftk::Action> >& getActions() const;
+            TL_API const std::map<std::string, std::shared_ptr<ftk::Action> >& getActions() const;
 
             //! Get the player.
-            const std::shared_ptr<Player>& getPlayer() const;
+            TL_API const std::shared_ptr<Player>& getPlayer() const;
 
             //! Set the player.
-            void setPlayer(const std::shared_ptr<Player>&);
+            TL_API void setPlayer(const std::shared_ptr<Player>&);
 
         private:
             void _widgetUpdate();

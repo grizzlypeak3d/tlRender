@@ -66,12 +66,12 @@ namespace tl
         //! Get the byte count.
         size_t getByteCount() const;
 
-        bool operator == (const AudioInfo&) const;
-        bool operator != (const AudioInfo&) const;
+        TL_API bool operator == (const AudioInfo&) const;
+        TL_API bool operator != (const AudioInfo&) const;
     };
 
     //! Get an audio information label.
-    std::string getLabel(const AudioInfo&, bool minimal = false);
+    TL_API std::string getLabel(const AudioInfo&, bool minimal = false);
 
     //! Audio data.
     class TL_API_TYPE Audio : public std::enable_shared_from_this<Audio>

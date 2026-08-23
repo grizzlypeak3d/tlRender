@@ -24,7 +24,9 @@ set(SOURCE
     TimelineTest.cpp
     UtilTest.cpp)
 
-add_library(tlTimelineTest ${SOURCE} ${HEADERS})
+# Static, for the reason in ftk's TestLib.
+add_library(tlTimelineTest STATIC ${SOURCE} ${HEADERS})
+set_target_properties(tlTimelineTest PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 target_compile_definitions(tlTimelineTest PUBLIC TLRENDER_SAMPLE_DATA="${PROJECT_SOURCE_DIR}/etc/SampleData")
 

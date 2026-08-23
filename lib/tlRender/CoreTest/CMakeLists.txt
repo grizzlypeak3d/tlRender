@@ -10,7 +10,9 @@ set(SOURCE
     TimeTest.cpp
     URLTest.cpp)
 
-add_library(tlCoreTest ${SOURCE} ${HEADERS})
+# Static, for the reason in ftk's TestLib.
+add_library(tlCoreTest STATIC ${SOURCE} ${HEADERS})
+set_target_properties(tlCoreTest PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 target_include_directories(tlCoreTest
     PUBLIC

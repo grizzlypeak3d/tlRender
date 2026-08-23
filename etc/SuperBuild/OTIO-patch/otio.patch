@@ -1,0 +1,582 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index ea11696..41dc22b 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -191,12 +191,20 @@ else()
+     message(STATUS "Building C++ with Coverage: OFF")
+ endif()
+ 
+-if(WIN32)
+-    # Windows debug builds for Python require a d in order for the module to
+-    # load. This also helps ensure that debug builds in general are matched
+-    # to the Microsoft debug CRT.
+-    set(OTIO_DEBUG_POSTFIX "_d")
+-endif()
++# No debug postfix, where upstream sets "_d" on Windows. That is for a debug
++# interpreter, which looks for _opentime_d.pyd and nothing else, and there is
++# no debug interpreter here: pybind11 undefines _DEBUG around Python.h, so a
++# module is compiled against the release ABI in every configuration, and the
++# continuous integration runners ship no python_d.exe to load it with either.
++# The postfix only hides the module from the release interpreter that does
++# run the tests:
++#
++#     ModuleNotFoundError: No module named 'opentimelineio._opentime'
++#
++# The C++ libraries lose the postfix with it, which costs nothing. Debug and
++# Release install to separate prefixes, so the names do not meet, and both
++# tlRender and OTIO's own Python package reach these through the exported
++# OTIO::opentimelineio target rather than by file name.
+ 
+ set_property(GLOBAL PROPERTY USE_FOLDERS ON)
+ 
+@@ -295,6 +303,25 @@ endif()
+ # set up the internally hosted dependencies
+ add_subdirectory(src/deps)
+ 
++# minizip-ng names its target for how it was built: with the compatibility
++# layer it is MINIZIP::minizip, and without it MINIZIP::minizip-ng. Only an
++# installed one found by find_package can be missing the compatibility name --
++# the copy in src/deps aliases it either way -- but that is the configuration
++# find_package can actually resolve, so probe rather than assume. The probe has
++# to come after src/deps, which is where that target is defined.
++if(TARGET MINIZIP::minizip-ng)
++    set(OTIO_MINIZIP_TARGET MINIZIP::minizip-ng)
++else()
++    set(OTIO_MINIZIP_TARGET MINIZIP::minizip)
++endif()
++
++# Installing the bundled copy needs the library itself: install(TARGETS) does
++# not accept an alias.
++get_target_property(OTIO_MINIZIP_LIB ${OTIO_MINIZIP_TARGET} ALIASED_TARGET)
++if(NOT OTIO_MINIZIP_LIB)
++    set(OTIO_MINIZIP_LIB ${OTIO_MINIZIP_TARGET})
++endif()
++
+ add_subdirectory(src/opentime)
+ add_subdirectory(src/opentimelineio)
+ 
+diff --git a/src/opentime/CMakeLists.txt b/src/opentime/CMakeLists.txt
+index 4f07106..7674d22 100644
+--- a/src/opentime/CMakeLists.txt
++++ b/src/opentime/CMakeLists.txt
+@@ -28,9 +28,15 @@ if(OTIO_SHARED_LIBS)
+     set_target_properties(opentime PROPERTIES
+         SOVERSION ${OTIO_SOVERSION}
+         VERSION ${OTIO_VERSION})
++    # Private: this says the library is being built, not consumed. Public it
++    # reaches everything that links opentime, and their headers then declare
++    # the API dllexport where it has to be dllimport. OPENTIME_STATIC below
++    # stays public, which is the opposite case: a consumer does have to know
++    # the API carries no declspec at all. Same split as the opentimelineio
++    # library beside it, and as feather-tk, tlRender and DJV.
+     target_compile_definitions(
+         opentime
+-        PUBLIC
++        PRIVATE
+         OPENTIME_EXPORTS)
+ else()
+     target_compile_definitions(
+diff --git a/src/opentimelineio/CMakeLists.txt b/src/opentimelineio/CMakeLists.txt
+index dd1c881..2c527cc 100644
+--- a/src/opentimelineio/CMakeLists.txt
++++ b/src/opentimelineio/CMakeLists.txt
+@@ -94,7 +94,7 @@ endif()
+ 
+ target_link_libraries(opentimelineio
+     PUBLIC opentime Imath::Imath
+-    PRIVATE MINIZIP::minizip)
++    PRIVATE ${OTIO_MINIZIP_TARGET})
+ 
+ set_target_properties(opentimelineio PROPERTIES
+     DEBUG_POSTFIX "${OTIO_DEBUG_POSTFIX}"
+@@ -105,9 +105,21 @@ if(OTIO_SHARED_LIBS)
+     set_target_properties(opentimelineio PROPERTIES
+         SOVERSION ${OTIO_SOVERSION}
+         VERSION ${OTIO_VERSION})
++    # Private: this says the library is being built, not consumed. Public it
++    # reaches everything that links opentimelineio, and their headers then
++    # declare the API dllexport where it has to be dllimport -- the bindings
++    # stop with the symbols the library does hold:
++    #
++    #     error LNK2001: unresolved external symbol
++    #     opentimelineio::v0_19::Color::black
++    #     error LNK1120: 74 unresolved externals [_otio.vcxproj]
++    #
++    # OTIO_STATIC below stays public, which is the opposite case: a consumer
++    # does have to know the API carries no declspec at all. Same split as
++    # feather-tk, tlRender and DJV.
+     target_compile_definitions(
+         opentimelineio
+-        PUBLIC
++        PRIVATE
+         OTIO_EXPORTS)
+ else()
+     target_compile_definitions(
+@@ -137,7 +149,7 @@ if(OTIO_CXX_INSTALL)
+     set(OPENTIMELINEIO_INCLUDES ${OTIO_RESOLVED_CXX_INSTALL_DIR}/include)
+ 
+     if(NOT OTIO_FIND_MINIZIP_NG)
+-        install(TARGETS minizip
++        install(TARGETS ${OTIO_MINIZIP_LIB}
+             EXPORT OpenTimelineIOTargets
+             ARCHIVE DESTINATION "${OTIO_RESOLVED_CXX_DYLIB_INSTALL_DIR}"
+             LIBRARY DESTINATION "${OTIO_RESOLVED_CXX_DYLIB_INSTALL_DIR}"
+diff --git a/src/opentimelineio/bundle.h b/src/opentimelineio/bundle.h
+index daa46a7..d708ed3 100644
+--- a/src/opentimelineio/bundle.h
++++ b/src/opentimelineio/bundle.h
+@@ -37,7 +37,7 @@ namespace bundle {
+     };
+ 
+     /// @brief Get a file from a URL.
+-    std::optional<std::string> file_from_url(std::string const& url);
++    OTIO_API std::optional<std::string> file_from_url(std::string const& url);
+ 
+     /// @brief Options for writing bundles.
+     struct OTIO_API_TYPE WriteOptions
+diff --git a/src/opentimelineio/color.h b/src/opentimelineio/color.h
+index d20bf87..48c3552 100644
+--- a/src/opentimelineio/color.h
++++ b/src/opentimelineio/color.h
+@@ -39,23 +39,23 @@ public:
+ 
+     OTIO_API Color(Color const& other);
+ 
+-    static const Color pink;
+-    static const Color red;
+-    static const Color orange;
+-    static const Color yellow;
+-    static const Color green;
+-    static const Color cyan;
+-    static const Color blue;
+-    static const Color purple;
+-    static const Color magenta;
+-    static const Color black;
+-    static const Color white;
+-    static const Color transparent;
+-
+-    static Color* from_hex(std::string const& color);
+-    static Color* from_int_list(std::vector<int> const& color, int bit_depth);
+-    static Color* from_agbr_int(unsigned int agbr) noexcept;
+-    static Color* from_float_list(std::vector<double> const& color);
++    OTIO_API static const Color pink;
++    OTIO_API static const Color red;
++    OTIO_API static const Color orange;
++    OTIO_API static const Color yellow;
++    OTIO_API static const Color green;
++    OTIO_API static const Color cyan;
++    OTIO_API static const Color blue;
++    OTIO_API static const Color purple;
++    OTIO_API static const Color magenta;
++    OTIO_API static const Color black;
++    OTIO_API static const Color white;
++    OTIO_API static const Color transparent;
++
++    OTIO_API static Color* from_hex(std::string const& color);
++    OTIO_API static Color* from_int_list(std::vector<int> const& color, int bit_depth);
++    OTIO_API static Color* from_agbr_int(unsigned int agbr) noexcept;
++    OTIO_API static Color* from_float_list(std::vector<double> const& color);
+ 
+     friend bool operator==(Color lhs, Color rhs) noexcept
+     {
+diff --git a/src/opentimelineio/composition.h b/src/opentimelineio/composition.h
+index e2a72a4..4133c08 100644
+--- a/src/opentimelineio/composition.h
++++ b/src/opentimelineio/composition.h
+@@ -157,7 +157,7 @@ public:
+     /// @param shallow_search The search is recursive unless shallow_search is
+     /// set to true.
+     template <typename T = Composable>
+-    OTIO_API std::vector<Retainer<T>> find_children(
++    std::vector<Retainer<T>> find_children(
+         ErrorStatus*             error_status   = nullptr,
+         std::optional<TimeRange> search_range   = std::nullopt,
+         bool                     shallow_search = false) const;
+diff --git a/src/opentimelineio/deserialization.cpp b/src/opentimelineio/deserialization.cpp
+index 51f85c6..151cac9 100644
+--- a/src/opentimelineio/deserialization.cpp
++++ b/src/opentimelineio/deserialization.cpp
+@@ -1,6 +1,8 @@
+ // SPDX-License-Identifier: Apache-2.0
+ // Copyright Contributors to the OpenTimelineIO project
+ 
++#include "opentimelineio/deserialization.h"
++
+ #include "opentime/rationalTime.h"
+ #include "opentime/timeRange.h"
+ #include "opentime/timeTransform.h"
+diff --git a/src/opentimelineio/imageSequenceReference.h b/src/opentimelineio/imageSequenceReference.h
+index 007a9f6..4ff1ead 100644
+--- a/src/opentimelineio/imageSequenceReference.h
++++ b/src/opentimelineio/imageSequenceReference.h
+@@ -136,23 +136,23 @@ public:
+     }
+ 
+     /// @brief Return the end frame.
+-    int end_frame() const;
++    OTIO_API int end_frame() const;
+ 
+     /// @brief Return the number of images in the sequence.
+-    int number_of_images_in_sequence() const;
++    OTIO_API int number_of_images_in_sequence() const;
+ 
+     /// @brief Return the frame for the given time.
+-    int frame_for_time(
++    OTIO_API int frame_for_time(
+         RationalTime const& time,
+         ErrorStatus*        error_status = nullptr) const;
+ 
+     /// @brief Return the target URL for the given image number.
+-    std::string target_url_for_image_number(
++    OTIO_API std::string target_url_for_image_number(
+         int          image_number,
+         ErrorStatus* error_status = nullptr) const;
+ 
+     /// @brief Return the presentation time for the given image number.
+-    RationalTime presentation_time_for_image_number(
++    OTIO_API RationalTime presentation_time_for_image_number(
+         int          image_number,
+         ErrorStatus* error_status = nullptr) const;
+ 
+diff --git a/src/opentimelineio/safely_typed_any.h b/src/opentimelineio/safely_typed_any.h
+index f9586b9..6aa6151 100644
+--- a/src/opentimelineio/safely_typed_any.h
++++ b/src/opentimelineio/safely_typed_any.h
+@@ -19,6 +19,7 @@
+ /// common library. That's why the seemingly silly code in safely_typed_any.cpp
+ /// exists.
+ 
++#include "opentimelineio/export.h"
+ #include "opentime/rationalTime.h"
+ #include "opentime/timeRange.h"
+ #include "opentime/timeTransform.h"
+@@ -31,48 +32,48 @@ namespace opentimelineio { namespace OPENTIMELINEIO_VERSION_NS {
+ /// @name Any Create
+ ///@{
+ 
+-std::any create_safely_typed_any(bool&&);
+-std::any create_safely_typed_any(int&&);
+-std::any create_safely_typed_any(int64_t&&);
+-std::any create_safely_typed_any(uint64_t&&);
+-std::any create_safely_typed_any(double&&);
+-std::any create_safely_typed_any(std::string&&);
+-std::any create_safely_typed_any(RationalTime&&);
+-std::any create_safely_typed_any(TimeRange&&);
+-std::any create_safely_typed_any(Color&&);
+-std::any create_safely_typed_any(TimeTransform&&);
+-std::any create_safely_typed_any(IMATH_NAMESPACE::V2d&&);
+-std::any create_safely_typed_any(IMATH_NAMESPACE::Box2d&&);
+-std::any create_safely_typed_any(AnyVector&&);
+-std::any create_safely_typed_any(AnyDictionary&&);
+-std::any create_safely_typed_any(SerializableObject*);
++OTIO_API std::any create_safely_typed_any(bool&&);
++OTIO_API std::any create_safely_typed_any(int&&);
++OTIO_API std::any create_safely_typed_any(int64_t&&);
++OTIO_API std::any create_safely_typed_any(uint64_t&&);
++OTIO_API std::any create_safely_typed_any(double&&);
++OTIO_API std::any create_safely_typed_any(std::string&&);
++OTIO_API std::any create_safely_typed_any(RationalTime&&);
++OTIO_API std::any create_safely_typed_any(TimeRange&&);
++OTIO_API std::any create_safely_typed_any(Color&&);
++OTIO_API std::any create_safely_typed_any(TimeTransform&&);
++OTIO_API std::any create_safely_typed_any(IMATH_NAMESPACE::V2d&&);
++OTIO_API std::any create_safely_typed_any(IMATH_NAMESPACE::Box2d&&);
++OTIO_API std::any create_safely_typed_any(AnyVector&&);
++OTIO_API std::any create_safely_typed_any(AnyDictionary&&);
++OTIO_API std::any create_safely_typed_any(SerializableObject*);
+ 
+ ///@}
+ 
+ /// @name Any Casting
+ ///@{
+ 
+-bool                   safely_cast_bool_any(std::any const& a);
+-int                    safely_cast_int_any(std::any const& a);
+-int64_t                safely_cast_int64_any(std::any const& a);
+-uint64_t               safely_cast_uint64_any(std::any const& a);
+-double                 safely_cast_double_any(std::any const& a);
+-std::string            safely_cast_string_any(std::any const& a);
+-RationalTime           safely_cast_rational_time_any(std::any const& a);
+-TimeRange              safely_cast_time_range_any(std::any const& a);
+-TimeTransform          safely_cast_time_transform_any(std::any const& a);
+-Color                  safely_cast_color_any(std::any const& a);
+-IMATH_NAMESPACE::V2d   safely_cast_point_any(std::any const& a);
+-IMATH_NAMESPACE::Box2d safely_cast_box_any(std::any const& a);
++OTIO_API bool                   safely_cast_bool_any(std::any const& a);
++OTIO_API int                    safely_cast_int_any(std::any const& a);
++OTIO_API int64_t                safely_cast_int64_any(std::any const& a);
++OTIO_API uint64_t               safely_cast_uint64_any(std::any const& a);
++OTIO_API double                 safely_cast_double_any(std::any const& a);
++OTIO_API std::string            safely_cast_string_any(std::any const& a);
++OTIO_API RationalTime           safely_cast_rational_time_any(std::any const& a);
++OTIO_API TimeRange              safely_cast_time_range_any(std::any const& a);
++OTIO_API TimeTransform          safely_cast_time_transform_any(std::any const& a);
++OTIO_API Color                  safely_cast_color_any(std::any const& a);
++OTIO_API IMATH_NAMESPACE::V2d   safely_cast_point_any(std::any const& a);
++OTIO_API IMATH_NAMESPACE::Box2d safely_cast_box_any(std::any const& a);
+ 
+-SerializableObject* safely_cast_retainer_any(std::any const& a);
++OTIO_API SerializableObject* safely_cast_retainer_any(std::any const& a);
+ 
+-AnyDictionary safely_cast_any_dictionary_any(std::any const& a);
++OTIO_API AnyDictionary safely_cast_any_dictionary_any(std::any const& a);
+ AnyVector     safely_cast_any_vector_any(std::any const& a);
+ 
+ /// @bug Don't use these unless you know what you're doing...
+-AnyDictionary& temp_safely_cast_any_dictionary_any(std::any const& a);
+-AnyVector&     temp_safely_cast_any_vector_any(std::any const& a);
++OTIO_API AnyDictionary& temp_safely_cast_any_dictionary_any(std::any const& a);
++OTIO_API AnyVector&     temp_safely_cast_any_vector_any(std::any const& a);
+ 
+ ///@}
+ 
+diff --git a/src/opentimelineio/serializableCollection.h b/src/opentimelineio/serializableCollection.h
+index cf2d008..d0760e5 100644
+--- a/src/opentimelineio/serializableCollection.h
++++ b/src/opentimelineio/serializableCollection.h
+@@ -98,7 +98,7 @@ public:
+     /// @param shallow_search The search is recursive unless shallow_search is
+     /// set to true.
+     template <typename T = Composable>
+-    OTIO_API std::vector<Retainer<T>> find_children(
++    std::vector<Retainer<T>> find_children(
+         ErrorStatus*             error_status   = nullptr,
+         std::optional<TimeRange> search_range   = std::nullopt,
+         bool                     shallow_search = false) const;
+diff --git a/src/opentimelineio/serializableObject.h b/src/opentimelineio/serializableObject.h
+index 4f2e6c6..91d8d5c 100644
+--- a/src/opentimelineio/serializableObject.h
++++ b/src/opentimelineio/serializableObject.h
+@@ -604,13 +604,13 @@ public:
+     };
+ 
+     /// @brief Deserialize from the given reader.
+-    virtual bool read_from(Reader&);
++    OTIO_API virtual bool read_from(Reader&);
+ 
+     /// @brief Serialize to the given writer.
+-    virtual void write_to(Writer&) const;
++    OTIO_API virtual void write_to(Writer&) const;
+ 
+     /// @brief Return whether this schema is unknown.
+-    virtual bool is_unknown_schema() const;
++    OTIO_API virtual bool is_unknown_schema() const;
+ 
+     /// @brief Return the schema name.
+     std::string schema_name() const { return _type_record()->schema_name; }
+@@ -675,9 +675,9 @@ public:
+ protected:
+     virtual ~SerializableObject();
+ 
+-    virtual bool _is_deletable();
++    OTIO_API virtual bool _is_deletable();
+ 
+-    virtual std::string _schema_name_for_reference() const;
++    OTIO_API virtual std::string _schema_name_for_reference() const;
+ 
+ private:
+     SerializableObject(SerializableObject const&)            = delete;
+@@ -700,12 +700,12 @@ public:
+     };
+ 
+     /// @todo Add comment.
+-    void install_external_keepalive_monitor(
++    OTIO_API void install_external_keepalive_monitor(
+         std::function<void()> monitor,
+         bool                  apply_now);
+ 
+     /// @brief Return the current reference count.
+-    int current_ref_count() const;
++    OTIO_API int current_ref_count() const;
+ 
+     /// @brief This struct provides an unknown type.
+     struct UnknownType
+@@ -719,7 +719,7 @@ private:
+         _cached_type_record = type_record;
+     }
+ 
+-    TypeRegistry::_TypeRecord const* _type_record() const;
++    OTIO_API TypeRegistry::_TypeRecord const* _type_record() const;
+ 
+     mutable TypeRegistry::_TypeRecord const* _cached_type_record;
+     int                                      _managed_ref_count;
+diff --git a/src/opentimelineio/serializableObjectWithMetadata.h b/src/opentimelineio/serializableObjectWithMetadata.h
+index 4eeac3f..a7e558c 100644
+--- a/src/opentimelineio/serializableObjectWithMetadata.h
++++ b/src/opentimelineio/serializableObjectWithMetadata.h
+@@ -42,10 +42,10 @@ public:
+     AnyDictionary metadata() const noexcept { return _metadata; }
+ 
+ protected:
+-    virtual ~SerializableObjectWithMetadata();
++    OTIO_API virtual ~SerializableObjectWithMetadata();
+ 
+-    bool read_from(Reader&) override;
+-    void write_to(Writer&) const override;
++    OTIO_API bool read_from(Reader&) override;
++    OTIO_API void write_to(Writer&) const override;
+ 
+ private:
+     std::string   _name;
+diff --git a/src/opentimelineio/stringUtils.cpp b/src/opentimelineio/stringUtils.cpp
+index 20ac2c2..c6b6051 100644
+--- a/src/opentimelineio/stringUtils.cpp
++++ b/src/opentimelineio/stringUtils.cpp
+@@ -1,6 +1,8 @@
+ // SPDX-License-Identifier: Apache-2.0
+ // Copyright Contributors to the OpenTimelineIO project
+ 
++#include "stringUtils.h"
++
+ #include "opentimelineio/serializableObject.h"
+ #include <cstdlib>
+ #include <memory>
+diff --git a/src/opentimelineio/stringUtils.h b/src/opentimelineio/stringUtils.h
+index 709b5c1..aee94a2 100644
+--- a/src/opentimelineio/stringUtils.h
++++ b/src/opentimelineio/stringUtils.h
+@@ -4,6 +4,7 @@
+ #pragma once
+ 
+ #include "opentime/stringPrintf.h"
++#include "opentimelineio/export.h"
+ #include "opentimelineio/version.h"
+ using opentime::string_printf;
+ 
+@@ -17,9 +18,9 @@ namespace opentimelineio { namespace OPENTIMELINEIO_VERSION_NS {
+ 
+ void fatal_error(std::string const& errMsg);
+ 
+-std::string type_name_for_error_message(std::type_info const&);
+-std::string type_name_for_error_message(std::any const& a);
+-std::string type_name_for_error_message(class SerializableObject*);
++OTIO_API std::string type_name_for_error_message(std::type_info const&);
++OTIO_API std::string type_name_for_error_message(std::any const& a);
++OTIO_API std::string type_name_for_error_message(class SerializableObject*);
+ 
+ template <typename T>
+ std::string
+diff --git a/src/opentimelineio/timeline.h b/src/opentimelineio/timeline.h
+index 9273ad5..470dcff 100644
+--- a/src/opentimelineio/timeline.h
++++ b/src/opentimelineio/timeline.h
+@@ -44,7 +44,7 @@ public:
+     }*/
+ 
+     /// @brief Set the timeline stack.
+-    void set_tracks(Stack* stack);
++    OTIO_API void set_tracks(Stack* stack);
+ 
+     /// @brief Return the global start time.
+     std::optional<RationalTime> global_start_time() const noexcept
+@@ -97,7 +97,7 @@ public:
+     /// @param shallow_search The search is recursive unless shallow_search is
+     /// set to true.
+     template <typename T = Composable>
+-    OTIO_API std::vector<Retainer<T>> find_children(
++    std::vector<Retainer<T>> find_children(
+         ErrorStatus*             error_status   = nullptr,
+         std::optional<TimeRange> search_range   = std::nullopt,
+         bool                     shallow_search = false) const;
+diff --git a/src/opentimelineio/transition.h b/src/opentimelineio/transition.h
+index 2dd75cf..187eb78 100644
+--- a/src/opentimelineio/transition.h
++++ b/src/opentimelineio/transition.h
+@@ -82,11 +82,11 @@ public:
+     RationalTime duration(ErrorStatus* error_status = nullptr) const override;
+ 
+     /// @brief Return the range in the parent's time.
+-    std::optional<TimeRange>
++    OTIO_API std::optional<TimeRange>
+     range_in_parent(ErrorStatus* error_status = nullptr) const;
+ 
+     /// @brief Return the range trimmed in the parent's time.
+-    std::optional<TimeRange>
++    OTIO_API std::optional<TimeRange>
+     trimmed_range_in_parent(ErrorStatus* error_status = nullptr) const;
+ 
+ protected:
+diff --git a/src/opentimelineio/typeRegistry.h b/src/opentimelineio/typeRegistry.h
+index 2f9182a..77d9d3e 100644
+--- a/src/opentimelineio/typeRegistry.h
++++ b/src/opentimelineio/typeRegistry.h
+@@ -33,7 +33,7 @@ using label_to_schema_version_map =
+ 
+ ///@}
+ 
+-extern const label_to_schema_version_map CORE_VERSION_MAP;
++extern OTIO_API const label_to_schema_version_map CORE_VERSION_MAP;
+ 
+ /// @brief Type registry.
+ class OTIO_API_TYPE TypeRegistry
+@@ -42,7 +42,7 @@ public:
+     /// @brief Get the type registry singleton.
+     ///
+     /// Access to functions are thread-safe.
+-    static TypeRegistry& instance();
++    OTIO_API static TypeRegistry& instance();
+ 
+     /// @brief Register a new schema.
+     ///
+@@ -51,7 +51,7 @@ public:
+     /// the templated form of this call.
+     ///
+     /// If the specified schema_name has already been registered, this function does nothing and returns false.
+-    bool register_type(
++    OTIO_API bool register_type(
+         std::string const&                   schema_name,
+         int                                  schema_version,
+         std::type_info const*                type,
+@@ -98,7 +98,7 @@ public:
+     ///
+     /// Returns false if an upgrade function has been registered for this (schema_name, version)
+     /// pair, or if schema_name itself has not been registered, and true otherwise.
+-    bool register_upgrade_function(
++    OTIO_API bool register_upgrade_function(
+         std::string const&                  schema_name,
+         int                                 version_to_upgrade_to,
+         std::function<void(AnyDictionary*)> upgrade_function);
+@@ -119,7 +119,7 @@ public:
+ 
+     /// @brief Downgrade function from version_to_downgrade_from to
+     /// version_to_downgrade_from - 1
+-    bool register_downgrade_function(
++    OTIO_API bool register_downgrade_function(
+         std::string const&                  schema_name,
+         int                                 version_to_downgrade_from,
+         std::function<void(AnyDictionary*)> downgrade_function);
+@@ -154,13 +154,13 @@ public:
+     }
+ 
+     /// @brief For use by external bridging systems.
+-    bool set_type_record(
++    OTIO_API bool set_type_record(
+         SerializableObject*,
+         std::string const& schema_name,
+         ErrorStatus*       error_status = nullptr);
+ 
+     /// @brief For inspecting the type registry, build a map of schema name to version.
+-    void type_version_map(schema_version_map& result);
++    OTIO_API void type_version_map(schema_version_map& result);
+ 
+ private:
+     TypeRegistry();
+@@ -204,7 +204,7 @@ private:
+         return it == _type_records.end() ? nullptr : it->second;
+     }
+ 
+-    SerializableObject* _instance_from_schema(
++    OTIO_API SerializableObject* _instance_from_schema(
+         std::string    schema_name,
+         int            schema_version,
+         AnyDictionary& dict,
+diff --git a/tests/CMakeLists.txt b/tests/CMakeLists.txt
+index 510df88..4c73a81 100644
+--- a/tests/CMakeLists.txt
++++ b/tests/CMakeLists.txt
+@@ -40,4 +40,4 @@ foreach(test ${tests_opentimelineio})
+            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
+ endforeach()
+ 
+-target_link_libraries(test_bundle MINIZIP::minizip)
++target_link_libraries(test_bundle ${OTIO_MINIZIP_TARGET})

@@ -25,7 +25,9 @@ if(TLRENDER_SVG)
     list(APPEND SOURCE SVGTest.cpp)
 endif()
 
-add_library(tlIOTest ${SOURCE} ${HEADERS})
+# Static, for the reason in ftk's TestLib.
+add_library(tlIOTest STATIC ${SOURCE} ${HEADERS})
+set_target_properties(tlIOTest PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 target_include_directories(tlIOTest
     PUBLIC

@@ -33,6 +33,12 @@ target_include_directories(tlTimelinePy
 
 target_link_libraries(tlTimelinePy tlTimeline Python3::Python)
 
+# The player bindings alone go past what a COFF object can hold, which is what
+# pybind11 does to a translation unit that names a lot of types:
+#
+#     error C1128: number of sections exceeded object file format limit
+target_compile_options(tlTimelinePy PRIVATE $<$<CXX_COMPILER_ID:MSVC>:/bigobj>)
+
 set_target_properties(tlTimelinePy PROPERTIES FOLDER lib)
 set_target_properties(tlTimelinePy PROPERTIES PUBLIC_HEADER "${HEADERS}")
 

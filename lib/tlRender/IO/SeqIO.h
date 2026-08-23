@@ -43,7 +43,7 @@ namespace tl
     //! Sequence I/O options.
     struct TL_API_TYPE SeqOptions
     {
-        SeqOptions();
+        TL_API SeqOptions();
 
         double        defaultSpeed  = 24.0;
         MissingFrames missingFrames = MissingFrames::Error;

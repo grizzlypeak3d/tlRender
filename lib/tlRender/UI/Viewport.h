@@ -22,11 +22,11 @@ namespace tl
             FTK_NON_COPYABLE(Viewport);
 
         protected:
-            void _init(
+            TL_API void _init(
                 const std::shared_ptr<ftk::Context>&,
                 const std::shared_ptr<IWidget>& parent);
 
-            Viewport();
+            TL_API Viewport();
 
         public:
             TL_API virtual ~Viewport();
@@ -251,10 +251,10 @@ namespace tl
             ///@{
 
             //! Get whether input is enabled.
-            bool isInputEnabled() const;
+            TL_API bool isInputEnabled() const;
 
             //! Set whether input is enabled.
-            void setInputEnabled(bool);
+            TL_API void setInputEnabled(bool);
 
             //! Set the pan binding.
             TL_API void setPanBinding(ftk::MouseButton, ftk::KeyModifier);
@@ -282,7 +282,7 @@ namespace tl
 
         protected:
             bool _isMouseInside() const;
-            const ftk::V2I& _getMousePressPos() const;
+            TL_API const ftk::V2I& _getMousePressPos() const;
 
         private:
             ftk::Size2I _getRenderSize() const;

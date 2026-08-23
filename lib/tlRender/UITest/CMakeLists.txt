@@ -4,7 +4,9 @@ set(HEADERS
 set(SOURCE
     ThumbnailSystemTest.cpp)
 
-add_library(tlUITest ${SOURCE} ${HEADERS})
+# Static, for the reason in ftk's TestLib.
+add_library(tlUITest STATIC ${SOURCE} ${HEADERS})
+set_target_properties(tlUITest PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 target_compile_definitions(tlUITest PUBLIC TLRENDER_SAMPLE_DATA="${PROJECT_SOURCE_DIR}/etc/SampleData")
 
