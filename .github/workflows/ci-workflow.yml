@@ -34,7 +34,7 @@ jobs:
     - name: Run tests
       run: |
         cd build-Debug
-        xvfb-run ctest --verbose --rerun-failed --output-on-failure -C Debug
+        xvfb-run ctest --verbose --rerun-failed --output-on-failure --timeout 600 -C Debug
     
     - name: Code coverage
       run: |
@@ -73,7 +73,7 @@ jobs:
     - name: Run tests
       run: |
         cd build-Debug
-        xvfb-run ctest --verbose --rerun-failed --output-on-failure -C Debug
+        xvfb-run ctest --verbose --rerun-failed --output-on-failure --timeout 600 -C Debug
     
     - name: Code coverage
       run: |
@@ -110,7 +110,7 @@ jobs:
     - name: Run tests
       run: |
         cd build-Debug
-        xvfb-run ctest --verbose --rerun-failed --output-on-failure -C Debug
+        xvfb-run ctest --verbose --rerun-failed --output-on-failure --timeout 600 -C Debug
 
   linux-gles2-minimal-build:
     runs-on: ubuntu-latest
@@ -143,7 +143,7 @@ jobs:
     - name: Run tests
       run: |
         cd build-Debug
-        xvfb-run ctest --verbose --rerun-failed --output-on-failure -C Debug
+        xvfb-run ctest --verbose --rerun-failed --output-on-failure --timeout 600 -C Debug
 
   macos-build:
     runs-on: macos-latest
@@ -180,7 +180,7 @@ jobs:
       run: |
         export DYLD_LIBRARY_PATH=$PWD/install-Debug/lib:$DYLD_LIBRARY_PATH
         cd build-Debug
-        ctest --verbose --rerun-failed --output-on-failure -C Debug
+        ctest --verbose --rerun-failed --output-on-failure --timeout 600 -C Debug
 
 
   macos-build-python:
@@ -218,7 +218,7 @@ jobs:
       run: |
         export DYLD_LIBRARY_PATH=$PWD/install-Debug/lib:$DYLD_LIBRARY_PATH
         cd build-Debug
-        ctest --verbose --rerun-failed --output-on-failure -C Debug
+        ctest --verbose --rerun-failed --output-on-failure --timeout 600 -C Debug
   windows-build:
     runs-on: windows-latest
 
@@ -257,7 +257,7 @@ jobs:
       shell: cmd
       run: |
         cd build-Debug
-        ctest --verbose --rerun-failed --output-on-failure -C Debug
+        ctest --verbose --rerun-failed --output-on-failure --timeout 600 -C Debug
 
 
   windows-build-python:
@@ -298,4 +298,4 @@ jobs:
       shell: cmd
       run: |
         cd build-Debug
-        ctest --verbose --rerun-failed --output-on-failure -C Debug
+        ctest --verbose --rerun-failed --output-on-failure --timeout 600 -C Debug
