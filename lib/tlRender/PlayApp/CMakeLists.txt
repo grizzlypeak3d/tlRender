@@ -34,7 +34,16 @@ set(SOURCE
 
 set(LIBRARIES tlUI)
 
-add_library(tlPlayApp ${HEADERS} ${SOURCE})
+# Static. This is one program's code kept in a library so the tests can reach
+# it, linked by tlplay and nothing else, and it carries no export macros. A
+# shared build on Windows would give it a library that exports nothing and no
+# import library to link against:
+#
+#     LINK : fatal error LNK1104: cannot open file 'tlPlayApp.lib'
+#
+# There is no third party to import this, so there is nothing to mark.
+add_library(tlPlayApp STATIC ${HEADERS} ${SOURCE})
+set_target_properties(tlPlayApp PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 target_include_directories(tlPlayApp
     PUBLIC

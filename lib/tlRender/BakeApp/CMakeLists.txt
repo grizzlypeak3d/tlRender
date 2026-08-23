@@ -4,7 +4,16 @@ set(HEADERS
 set(SOURCE
     App.cpp)
 
-add_library(tlBakeApp ${HEADERS} ${SOURCE})
+# Static. This is one program's code kept in a library so the tests can reach
+# it, linked by tlbake and nothing else, and it carries no export macros. A
+# shared build on Windows would give it a library that exports nothing and no
+# import library to link against:
+#
+#     LINK : fatal error LNK1104: cannot open file 'tlBakeApp.lib'
+#
+# There is no third party to import this, so there is nothing to mark.
+add_library(tlBakeApp STATIC ${HEADERS} ${SOURCE})
+set_target_properties(tlBakeApp PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 target_include_directories(tlBakeApp
     PUBLIC
