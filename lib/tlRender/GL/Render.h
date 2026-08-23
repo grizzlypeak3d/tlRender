@@ -122,7 +122,7 @@ namespace tl
                 const ftk::Box2F&,
                 const ftk::Color4F& = ftk::Color4F(1.F, 1.F, 1.F, 1.F),
                 const ftk::ImageOptions& = ftk::ImageOptions()) override;
-            FTK_API ftk::RenderDiag getDiag() const override;
+            TL_API ftk::RenderDiag getDiag() const override;
 
         private:
             std::shared_ptr<ftk::gl::Shader> _displayShader(
