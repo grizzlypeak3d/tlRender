@@ -28,7 +28,7 @@ namespace tl
             Count,
             First = None
         };
-        TL_ENUM(Compression);
+        FTK_ENUM(TL_IO_API, Compression);
 
         //! Get default channels.
         std::set<std::string> TL_IO_API getDefaultChannels(const std::set<std::string>&);

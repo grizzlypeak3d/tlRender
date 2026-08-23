@@ -20,7 +20,7 @@ namespace tl
         Count,
         First = None
     };
-    TL_ENUM(ImageSeqAudio);
+    FTK_ENUM(TL_TIMELINE_API, ImageSeqAudio);
 
     //! Spatial coordinate options.
     enum class TL_TIMELINE_API_TYPE Spatial
@@ -40,7 +40,7 @@ namespace tl
         Count,
         First = None
     };
-    TL_ENUM(Spatial);
+    FTK_ENUM(TL_TIMELINE_API, Spatial);
 
     //! Get the default number of sequence decoding threads.
     TL_TIMELINE_API size_t getDefaultReadThreadCount();

@@ -44,7 +44,7 @@ namespace tl
             Count,
             First = InsideRange
         };
-        TL_ENUM(InOutDisplay);
+        FTK_ENUM(TL_UI_API, InOutDisplay);
         
         //! Cache display options.
         enum class TL_UI_API_TYPE CacheDisplay
@@ -55,7 +55,7 @@ namespace tl
             Count,
             First = VideoAndAudio
         };
-        TL_ENUM(CacheDisplay);
+        FTK_ENUM(TL_UI_API, CacheDisplay);
 
         //! Waveform primitive type.
         enum class TL_UI_API_TYPE WaveformPrim
@@ -66,7 +66,7 @@ namespace tl
             Count,
             First = Mesh
         };
-        TL_ENUM(WaveformPrim);
+        FTK_ENUM(TL_UI_API, WaveformPrim);
 
         //! Item options.
         struct TL_UI_API_TYPE ItemOptions

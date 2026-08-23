@@ -35,7 +35,7 @@ namespace tl
         Count,
         First = Error
     };
-    FTK_ENUM(MissingFrames);
+    FTK_ENUM(TL_IO_API, MissingFrames);
 
     //! Get whether a policy is settled when the sequence is opened, by
     //! deciding the clips, rather than per read.

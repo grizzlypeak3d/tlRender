@@ -12,7 +12,7 @@
 
 namespace tl
 {
-    TL_ENUM_IMPL(
+    FTK_ENUM_IMPL(
         TimeUnits,
         "Frames",
         "Seconds",

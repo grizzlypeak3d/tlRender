@@ -20,7 +20,7 @@ namespace OCIO = OCIO_NAMESPACE;
 
 namespace tl
 {
-    TL_ENUM_IMPL(
+    FTK_ENUM_IMPL(
         OCIOConfig,
         "Built In",
         "Environment Variable",

@@ -22,7 +22,7 @@ namespace tl
         Count,
         First = Solid
     };
-    TL_ENUM(Background);
+    FTK_ENUM(TL_TIMELINE_API, Background);
 
     //! Outline.
     struct TL_TIMELINE_API_TYPE Outline

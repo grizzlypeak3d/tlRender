@@ -33,7 +33,7 @@ namespace tl
         Count,
         First = None
     };
-    TL_ENUM(AudioType);
+    FTK_ENUM(TL_CORE_API, AudioType);
 
     //! Get the byte count for the given data type.
     TL_CORE_API size_t getByteCount(AudioType);

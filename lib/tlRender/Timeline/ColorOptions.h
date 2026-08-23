@@ -27,7 +27,7 @@ namespace tl
         Count,
         First = BuiltIn
     };
-    TL_ENUM(OCIOConfig);
+    FTK_ENUM(TL_TIMELINE_API, OCIOConfig);
 
     //! OpenColorIO options.
     struct TL_TIMELINE_API_TYPE OCIOOptions
@@ -65,7 +65,7 @@ namespace tl
         Count,
         First = PostConfig
     };
-    FTK_ENUM(LUTOrder);
+    FTK_ENUM(TL_TIMELINE_API, LUTOrder);
 
     //! LUT options.
     struct TL_TIMELINE_API_TYPE LUTOptions

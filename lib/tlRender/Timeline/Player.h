@@ -43,7 +43,7 @@ namespace tl
         Count,
         First = Stop
     };
-    TL_ENUM(Playback);
+    FTK_ENUM(TL_TIMELINE_API, Playback);
 
     //! Playback loop modes.
     enum class TL_TIMELINE_API_TYPE Loop
@@ -55,7 +55,7 @@ namespace tl
         Count,
         First = Loop
     };
-    TL_ENUM(Loop);
+    FTK_ENUM(TL_TIMELINE_API, Loop);
 
     //! Time actions.
     enum class TL_TIMELINE_API_TYPE TimeAction
@@ -76,7 +76,7 @@ namespace tl
         Count,
         First = Start
     };
-    TL_ENUM(TimeAction);
+    FTK_ENUM(TL_TIMELINE_API, TimeAction);
 
     //! Timeline player.
     class TL_TIMELINE_API_TYPE Player : public std::enable_shared_from_this<Player>

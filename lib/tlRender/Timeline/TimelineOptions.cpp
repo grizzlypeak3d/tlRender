@@ -12,13 +12,13 @@
 
 namespace tl
 {
-    TL_ENUM_IMPL(
+    FTK_ENUM_IMPL(
         ImageSeqAudio,
         "None",
         "Ext",
         "FileName");
 
-    TL_ENUM_IMPL(
+    FTK_ENUM_IMPL(
         Spatial,
         "None",
         "Coordinates",

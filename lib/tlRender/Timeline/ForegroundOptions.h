@@ -20,7 +20,7 @@ namespace tl
         Count,
         First = CellSize
     };
-    TL_ENUM(GridCellMode);
+    FTK_ENUM(TL_TIMELINE_API, GridCellMode);
 
     //! Grid labels.
     enum class TL_TIMELINE_API_TYPE GridLabels
@@ -32,7 +32,7 @@ namespace tl
         Count,
         First = None
     };
-    TL_ENUM(GridLabels);
+    FTK_ENUM(TL_TIMELINE_API, GridLabels);
 
     //! Get a grid label.
     TL_TIMELINE_API std::string getLabel(GridLabels, int x, int y);

@@ -108,7 +108,7 @@ namespace tl
         return !(*this == other);
     }
 
-    TL_ENUM_IMPL(
+    FTK_ENUM_IMPL(
         AspectRatioType,
         "Pixel",
         "Display");

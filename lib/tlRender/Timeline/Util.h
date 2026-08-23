@@ -56,7 +56,7 @@ namespace tl
         Count,
         First = Forward
     };
-    TL_ENUM(CacheDir);
+    FTK_ENUM(TL_TIMELINE_API, CacheDir);
 
     //! Get the root (highest parent).
     TL_TIMELINE_API const OTIO_NS::Composable* getRoot(const OTIO_NS::Composable*);

@@ -26,7 +26,7 @@ namespace tl
         Count,
         First = Frames
     };
-    TL_ENUM(TimeUnits);
+    FTK_ENUM(TL_TIMELINE_API, TimeUnits);
 
     //! Convert a time value to text. An unset time gives the placeholder
     //! text for the units, so a widget with no value still reads as a time.

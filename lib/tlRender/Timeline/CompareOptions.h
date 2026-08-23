@@ -36,7 +36,7 @@ namespace tl
         Count,
         First = None
     };
-    TL_ENUM(Compare);
+    FTK_ENUM(TL_TIMELINE_API, Compare);
 
     //! Comparison time modes.
     enum class TL_TIMELINE_API_TYPE CompareTime
@@ -47,7 +47,7 @@ namespace tl
         Count,
         First = Relative
     };
-    TL_ENUM(CompareTime);
+    FTK_ENUM(TL_TIMELINE_API, CompareTime);
 
     //! Comparison options.
     struct TL_TIMELINE_API_TYPE CompareOptions

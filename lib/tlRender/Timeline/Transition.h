@@ -24,7 +24,7 @@ namespace tl
         Count,
         First = None
     };
-    TL_ENUM(Transition);
+    FTK_ENUM(TL_TIMELINE_API, Transition);
 
     //! Convert to a transition.
     TL_TIMELINE_API Transition toTransition(const std::string&);

@@ -15,17 +15,17 @@ namespace tl
 {
     namespace ui
     {
-        TL_ENUM_IMPL(
+        FTK_ENUM_IMPL(
             InOutDisplay,
             "Inside Range",
             "Outside Range");
 
-        TL_ENUM_IMPL(
+        FTK_ENUM_IMPL(
             CacheDisplay,
             "Video And Audio",
             "Video Only");
 
-        TL_ENUM_IMPL(
+        FTK_ENUM_IMPL(
             WaveformPrim,
             "Mesh",
             "Image");

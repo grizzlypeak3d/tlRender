@@ -98,7 +98,7 @@ namespace tl
         Count,
         First = Pixel
     };
-    TL_ENUM(AspectRatioType);
+    FTK_ENUM(TL_TIMELINE_API, AspectRatioType);
 
     //! Aspect ratio options.
     struct TL_TIMELINE_API_TYPE AspectRatioOptions

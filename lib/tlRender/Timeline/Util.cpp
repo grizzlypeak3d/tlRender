@@ -197,7 +197,7 @@ namespace tl
         return out;
     }
 
-    TL_ENUM_IMPL(
+    FTK_ENUM_IMPL(
         CacheDir,
         "Forward",
         "Reverse");

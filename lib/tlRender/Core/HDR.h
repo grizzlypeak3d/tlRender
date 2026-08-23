@@ -26,7 +26,7 @@ namespace tl
         Count,
         First = SDR
     };
-    TL_ENUM(HDR_EOTF);
+    FTK_ENUM(TL_CORE_API, HDR_EOTF);
 
     //! HDR color primaries.
     enum class TL_CORE_API_TYPE HDRPrimaries
@@ -39,7 +39,7 @@ namespace tl
         Count,
         First = Red
     };
-    TL_ENUM(HDRPrimaries);
+    FTK_ENUM(TL_CORE_API, HDRPrimaries);
 
     //! HDR data.
     struct TL_CORE_API_TYPE HDRData

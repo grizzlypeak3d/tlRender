@@ -16,7 +16,7 @@
 
 namespace tl
 {
-    TL_ENUM_IMPL(
+    FTK_ENUM_IMPL(
         Compare,
         "None",
         "B",
@@ -28,7 +28,7 @@ namespace tl
         "Vertical",
         "Tile");
 
-    TL_ENUM_IMPL(
+    FTK_ENUM_IMPL(
         CompareTime,
         "Relative",
         "Absolute");

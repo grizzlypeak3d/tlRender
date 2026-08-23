@@ -10,12 +10,12 @@
 
 namespace tl
 {
-    TL_ENUM_IMPL(
+    FTK_ENUM_IMPL(
         GridCellMode,
         "Cell Size",
         "Cell Count");
 
-    TL_ENUM_IMPL(
+    FTK_ENUM_IMPL(
         GridLabels,
         "None",
         "Pixels",
