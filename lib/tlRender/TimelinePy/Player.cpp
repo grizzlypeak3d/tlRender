@@ -59,6 +59,7 @@ namespace tl
             ftk::python::observable<Playback>(m, "Playback");
             ftk::python::observable<Loop>(m, "Loop");
             ftk::python::observable<PlayerCacheOptions>(m, "PlayerCacheOptions");
+            ftk::python::observable<PlayerCacheInfo>(m, "PlayerCacheInfo");
             ftk::python::observable<OTIO_NS::RationalTime>(m, "RationalTime");
             ftk::python::observable<std::shared_ptr<Player> >(m, "Player");
 
@@ -143,6 +144,7 @@ namespace tl
 
                 .def_property("cacheOptions", &Player::getCacheOptions, &Player::setCacheOptions, py::return_value_policy::copy)
                 .def_property_readonly("observeCacheOptions", &Player::observeCacheOptions)
+                .def_property_readonly("observeCacheInfo", &Player::observeCacheInfo)
                 .def("clearCache", &Player::clearCache);
         }
     }
