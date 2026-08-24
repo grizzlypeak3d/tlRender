@@ -8,6 +8,7 @@
 #include <ftk/CorePy/Bindings.h>
 #include <ftk/Core/Context.h>
 
+#include <pybind11/functional.h>
 #include <pybind11/stl.h>
 
 namespace py = pybind11;
@@ -21,6 +22,8 @@ namespace tl
             using namespace ui;
 
             ftk::python::observable<std::pair<ftk::V2I, double> >(m, "ViewPosAndZoom");
+            ftk::python::observable<std::optional<ftk::V2I> >(m, "OptionalV2I");
+            ftk::python::observable<std::optional<ftk::Color4F> >(m, "OptionalColor4F");
             
             py::class_<Viewport, ftk::IWidget, std::shared_ptr<Viewport> >(m, "Viewport")
                 .def(
@@ -155,6 +158,16 @@ namespace tl
                     "observeDroppedFrames",
                     &Viewport::observeDroppedFrames)
                 .def("getColorSample", &Viewport::getColorSample)
+                .def_property_readonly(
+                    "observeSamplePos",
+                    &Viewport::observeSamplePos)
+                .def_property_readonly(
+                    "observePick",
+                    &Viewport::observePick)
+                .def_property_readonly(
+                    "observeColorSample",
+                    &Viewport::observeColorSample)
+                .def("pick", &Viewport::pick, py::arg("imagePos"))
                 .def_property(
                     "inputEnabled",
                     &Viewport::isInputEnabled,
@@ -166,7 +179,12 @@ namespace tl
                     py::arg("modifier"))
                 .def(
                     "setWipeBinding",
-                    &Viewport::setPanBinding,
+                    &Viewport::setWipeBinding,
+                    py::arg("button"),
+                    py::arg("modifier"))
+                .def(
+                    "setPickBinding",
+                    &Viewport::setPickBinding,
                     py::arg("button"),
                     py::arg("modifier"))
                 .def(
