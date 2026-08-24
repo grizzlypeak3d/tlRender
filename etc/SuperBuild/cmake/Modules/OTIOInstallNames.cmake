@@ -50,6 +50,35 @@ if(OTIO_APPLE)
     endforeach()
 endif()
 
+# The Python modules name Imath by rpath but carry no rpath to resolve it
+# with, so importing opentimelineio on its own cannot load; importing after
+# something that already pulled Imath in masks it. The rpath added is
+# relative to the prefix's lib, keeping the install relocatable. The
+# libraries need none of their own: dyld resolves their references with the
+# rpaths of the module whose import loaded them.
+if(OTIO_APPLE)
+    file(GLOB otioModules
+        "${OTIO_DYLIB_DIR}/_otio.*.so"
+        "${OTIO_DYLIB_DIR}/_opentime.*.so")
+    file(RELATIVE_PATH otioLibRel "${OTIO_DYLIB_DIR}" "${OTIO_LIB_DIR}")
+    foreach(otioModule ${otioModules})
+        set(otioRPath "@loader_path/${otioLibRel}")
+        execute_process(
+            COMMAND otool -l "${otioModule}"
+            OUTPUT_VARIABLE otioLoadOutput)
+        if(otioLoadOutput MATCHES "path ${otioRPath} ")
+            continue()
+        endif()
+        message(STATUS "OTIO rpath: ${otioModule} += ${otioRPath}")
+        execute_process(
+            COMMAND install_name_tool -add_rpath "${otioRPath}" "${otioModule}"
+            RESULT_VARIABLE otioResult)
+        if(NOT otioResult EQUAL 0)
+            message(FATAL_ERROR "Could not add the rpath of ${otioModule}")
+        endif()
+    endforeach()
+endif()
+
 # Linked into the prefix's lib rather than copied there. Two images of
 # libopentimelineio in one process do not share their type information, which
 # is the thing shared libraries were turned on to avoid.
