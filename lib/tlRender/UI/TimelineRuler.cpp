@@ -19,10 +19,10 @@ namespace tl
             void addRect(ftk::TriMesh2F& mesh, const ftk::Box2I& box)
             {
                 const size_t v = mesh.v.size();
-                mesh.v.emplace_back(box.min.x, box.min.y);
-                mesh.v.emplace_back(box.max.x + 1, box.min.y);
-                mesh.v.emplace_back(box.max.x + 1, box.max.y + 1);
-                mesh.v.emplace_back(box.min.x, box.max.y + 1);
+                mesh.v.emplace_back(ftk::V2F(box.min.x, box.min.y));
+                mesh.v.emplace_back(ftk::V2F(box.max.x + 1, box.min.y));
+                mesh.v.emplace_back(ftk::V2F(box.max.x + 1, box.max.y + 1));
+                mesh.v.emplace_back(ftk::V2F(box.min.x, box.max.y + 1));
                 mesh.triangles.push_back({
                     ftk::Vertex2(v + 1),
                     ftk::Vertex2(v + 3),
