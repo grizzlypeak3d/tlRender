@@ -121,7 +121,11 @@ namespace tl
 
                 .def_property("ioOptions", &Player::getIOOptions, &Player::setIOOptions)
                 .def_property_readonly("observeIOOptions", &Player::observeIOOptions)
-                
+
+                .def_property("mediaReferenceKey", &Player::getMediaReferenceKey, &Player::setMediaReferenceKey, py::return_value_policy::copy)
+                .def_property_readonly("observeMediaReferenceKey", &Player::observeMediaReferenceKey)
+                .def_property_readonly("mediaReferenceKeys", &Player::getMediaReferenceKeys)
+
                 .def_property("videoLayer", &Player::getVideoLayer, &Player::setVideoLayer)
                 .def_property_readonly("observeVideoLayer", &Player::observeVideoLayer)
                 .def_property("compareVideoLayers", &Player::getCompareVideoLayers, &Player::setCompareVideoLayers)
