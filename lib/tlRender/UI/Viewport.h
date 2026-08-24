@@ -246,6 +246,22 @@ namespace tl
             //!   every frame stalls the playback being sampled.
             TL_UI_API ftk::Color4F getColorSample(const ftk::V2I&);
 
+            //! Observe the sample position, in the viewport's own
+            //! coordinates.
+            TL_UI_API std::shared_ptr<ftk::IObservable<ftk::V2I> > observeSamplePos() const;
+
+            //! Observe picking. Unset when the position is not over an
+            //! image, where there is no pixel to name.
+            TL_UI_API std::shared_ptr<ftk::IObservable<std::optional<ftk::V2I> > > observePick() const;
+
+            //! Observe the color sample. Unset when the position is not
+            //! over an image.
+            TL_UI_API std::shared_ptr<ftk::IObservable<std::optional<ftk::Color4F> > > observeColorSample() const;
+
+            //! Sample the image at the given image pixel, as the pick mouse
+            //! action would.
+            TL_UI_API void pick(const ftk::V2I& imagePos);
+
             ///@}
 
             //! \name Input
@@ -263,6 +279,9 @@ namespace tl
             //! Set the wipe binding.
             TL_UI_API void setWipeBinding(ftk::MouseButton, ftk::KeyModifier);
 
+            //! Set the pick binding. Unbound by default.
+            TL_UI_API void setPickBinding(ftk::MouseButton, ftk::KeyModifier);
+
             //! Set the mouse wheel scale.
             TL_UI_API void setMouseWheelScale(float);
 
@@ -270,6 +289,7 @@ namespace tl
 
             TL_UI_API ftk::Size2I getSizeHint() const override;
             TL_UI_API void setGeometry(const ftk::Box2I&) override;
+            TL_UI_API void tickEvent(bool, bool, const ftk::TickEvent&) override;
             TL_UI_API void sizeHintEvent(const ftk::SizeHintEvent&) override;
             TL_UI_API void drawEvent(const ftk::Box2I&, const ftk::DrawEvent&) override;
             TL_UI_API void mouseEnterEvent(ftk::MouseEnterEvent&) override;
@@ -290,6 +310,10 @@ namespace tl
             ftk::V2I _getViewportCenter() const;
             void _frameView();
             void _drawMissingIndicators(const ftk::DrawEvent&);
+            bool _getSourceBox(ftk::Box2I&, ftk::Size2I&) const;
+            std::optional<ftk::V2I> _toSourcePixel(const ftk::V2I&) const;
+            ftk::V2I _fromSourcePixel(const ftk::V2I&) const;
+            void _sampleUpdate();
 
             FTK_PRIVATE();
         };

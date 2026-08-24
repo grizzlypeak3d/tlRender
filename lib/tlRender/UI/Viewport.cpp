@@ -19,6 +19,31 @@ namespace tl
 {
     namespace ui
     {
+        namespace
+        {
+            // A position inside a box, in the coordinates of what the box
+            // holds. Clamped because a box and its contents are different
+            // sizes whenever the image is scaled, and the far edge rounds up
+            // to a pixel past the last one.
+            ftk::V2I mapInto(
+                const ftk::V2I& pos,
+                const ftk::Box2I& box,
+                const ftk::Size2I& size)
+            {
+                return ftk::V2I(
+                    std::clamp<int>(
+                        std::lround(
+                            (pos.x - box.min.x) / static_cast<double>(box.w()) * size.w),
+                        0,
+                        size.w - 1),
+                    std::clamp<int>(
+                        std::lround(
+                            (pos.y - box.min.y) / static_cast<double>(box.h()) * size.h),
+                        0,
+                        size.h - 1));
+            }
+        }
+
         struct Viewport::Private
         {
             std::shared_ptr<ftk::Observable<CompareOptions> > compareOptions;
@@ -53,7 +78,17 @@ namespace tl
                 std::make_pair(ftk::MouseButton::Middle, ftk::KeyModifier::None);
             std::pair<ftk::MouseButton, ftk::KeyModifier> wipeBinding =
                 std::make_pair(ftk::MouseButton::Left, ftk::KeyModifier::Alt);
+            std::pair<ftk::MouseButton, ftk::KeyModifier> pickBinding =
+                std::make_pair(ftk::MouseButton::None, ftk::KeyModifier::None);
             float mouseWheelScale = 1.1F;
+
+            bool picked = false;
+            enum class Resample { None, Wait, Read };
+            Resample resample = Resample::None;
+            bool resampleOnFrames = false;
+            std::shared_ptr<ftk::Observable<ftk::V2I> > samplePos;
+            std::shared_ptr<ftk::Observable<std::optional<ftk::V2I> > > pick;
+            std::shared_ptr<ftk::Observable<std::optional<ftk::Color4F> > > colorSample;
 
             bool doRender = false;
             std::shared_ptr<ftk::gl::OffscreenBuffer> buffer;
@@ -71,7 +106,8 @@ namespace tl
             {
                 None,
                 View,
-                Wipe
+                Wipe,
+                Picker
             };
             struct MouseData
             {
@@ -116,6 +152,9 @@ namespace tl
             p.framed = ftk::Observable<bool>::create(false);
             p.fps = ftk::Observable<double>::create(0.0);
             p.droppedFrames = ftk::Observable<size_t>::create(0);
+            p.samplePos = ftk::Observable<ftk::V2I>::create();
+            p.pick = ftk::Observable<std::optional<ftk::V2I> >::create();
+            p.colorSample = ftk::Observable<std::optional<ftk::Color4F> >::create();
         }
 
         Viewport::Viewport() :
@@ -147,6 +186,14 @@ namespace tl
         void Viewport::setCompareOptions(const CompareOptions& value)
         {
             FTK_P();
+            // A comparison change can bring a different image under the
+            // sample position, or none at all, so the sample is retaken
+            // once the comparison's frames have arrived and been drawn.
+            if (value.compare != p.compareOptions->get().compare && p.picked)
+            {
+                p.resample = Private::Resample::Wait;
+                p.resampleOnFrames = true;
+            }
             if (p.compareOptions->setIfChanged(value))
             {
                 p.doRender = true;
@@ -350,6 +397,15 @@ namespace tl
                     {
                         FTK_P();
                         p.videoFrame = value;
+
+                        if (p.resampleOnFrames)
+                        {
+                            // The frames a comparison had to read to be
+                            // shown, which arrive after the comparison
+                            // itself changed.
+                            p.resampleOnFrames = false;
+                            p.resample = Private::Resample::Wait;
+                        }
 
                         if (p.fpsData.has_value())
                         {
@@ -617,6 +673,178 @@ namespace tl
             return out;
         }
 
+        std::shared_ptr<ftk::IObservable<ftk::V2I> > Viewport::observeSamplePos() const
+        {
+            return _p->samplePos;
+        }
+
+        std::shared_ptr<ftk::IObservable<std::optional<ftk::V2I> > > Viewport::observePick() const
+        {
+            return _p->pick;
+        }
+
+        std::shared_ptr<ftk::IObservable<std::optional<ftk::Color4F> > > Viewport::observeColorSample() const
+        {
+            return _p->colorSample;
+        }
+
+        void Viewport::pick(const ftk::V2I& imagePos)
+        {
+            FTK_P();
+            // Image pixel -> widget-local position, inverting the pick math
+            // used by the mouse handlers (image = (widget - viewPos) / zoom).
+            // Then sample exactly as a pick mouse action would. The incoming
+            // position is a source pixel, so it goes through the canvas
+            // first.
+            const ftk::V2I pos = fromRenderPos(_fromSourcePixel(imagePos));
+            p.samplePos->setIfChanged(pos);
+            p.picked = true;
+            _sampleUpdate();
+            // The pixel asked for rather than the one that comes back from
+            // converting it to a position and then converting it again,
+            // which is a pixel out at some zooms.
+            p.pick->setIfChanged(imagePos);
+        }
+
+        bool Viewport::_getSourceBox(ftk::Box2I& box, ftk::Size2I& size) const
+        {
+            FTK_P();
+            // With OTIO spatial coordinates the render space is the timeline
+            // canvas rather than the media, so the box the image is drawn
+            // into is needed to relate the two. Returns false without
+            // spatial coordinates, where render space is already the image.
+            if (!p.videoFrame.empty() && p.videoFrame.front().canvasSize.isValid())
+            {
+                const auto& displayOptions = p.displayOptions->get();
+                const AspectRatioOptions aspectRatio =
+                    !displayOptions.empty() ?
+                    displayOptions.front().aspectRatio :
+                    AspectRatioOptions();
+                for (const auto& layer : p.videoFrame.front().layers)
+                {
+                    const auto& image = layer.image ? layer.image : layer.imageB;
+                    const auto& bounds = layer.image ? layer.bounds : layer.boundsB;
+                    if (image && bounds.has_value())
+                    {
+                        // The image is fitted into its canvas box, so use
+                        // the same box the renderer draws into.
+                        box = getBox(
+                            ftk::Box2I(
+                                ftk::V2I(
+                                    std::lround(bounds.value().min.x),
+                                    std::lround(bounds.value().min.y)),
+                                ftk::V2I(
+                                    std::lround(bounds.value().max.x),
+                                    std::lround(bounds.value().max.y))),
+                            image->getInfo(),
+                            aspectRatio);
+                        size = image->getInfo().size;
+                        return box.w() > 0 && box.h() > 0 && size.isValid();
+                    }
+                }
+            }
+            return false;
+        }
+
+        std::optional<ftk::V2I> Viewport::_toSourcePixel(const ftk::V2I& renderPos) const
+        {
+            FTK_P();
+            // Which image the position is over, and where in it. Side by
+            // side comparisons give every image its own box, so a position
+            // has to be measured against the one it is over rather than
+            // against the first -- otherwise the second image reports where
+            // it sits in the first's coordinates, which is a pixel the file
+            // does not have. Over no image there is no pixel to name, so
+            // nothing is returned rather than a position carried on past
+            // the edge.
+            const auto& displayOptions = p.displayOptions->get();
+            const AspectRatioOptions aspectRatio =
+                !displayOptions.empty() ?
+                displayOptions.front().aspectRatio :
+                AspectRatioOptions();
+            const auto boxes = getBoxes(
+                p.compareOptions->get(), aspectRatio, p.videoFrame);
+            for (size_t i = 0; i < boxes.size() && i < p.videoFrame.size(); ++i)
+            {
+                if (!ftk::contains(boxes[i], renderPos))
+                    continue;
+                if (p.videoFrame[i].canvasSize.isValid())
+                {
+                    // With OTIO spatial coordinates the box holds the
+                    // timeline canvas rather than the media, so the position
+                    // crosses into the canvas before it can find an image.
+                    const ftk::V2I canvasPos = mapInto(
+                        renderPos, boxes[i], p.videoFrame[i].canvasSize);
+                    for (const auto& layer : p.videoFrame[i].layers)
+                    {
+                        const auto& image = layer.image ? layer.image : layer.imageB;
+                        const auto& bounds = layer.image ? layer.bounds : layer.boundsB;
+                        if (image && bounds.has_value())
+                        {
+                            const ftk::Box2I box = getBox(
+                                ftk::Box2I(
+                                    ftk::V2I(
+                                        std::lround(bounds.value().min.x),
+                                        std::lround(bounds.value().min.y)),
+                                    ftk::V2I(
+                                        std::lround(bounds.value().max.x),
+                                        std::lround(bounds.value().max.y))),
+                                image->getInfo(),
+                                aspectRatio);
+                            if (ftk::contains(box, canvasPos))
+                            {
+                                return mapInto(
+                                    canvasPos, box, image->getInfo().size);
+                            }
+                        }
+                    }
+                    return std::nullopt;
+                }
+                for (const auto& layer : p.videoFrame[i].layers)
+                {
+                    const auto& image = layer.image ? layer.image : layer.imageB;
+                    if (image)
+                    {
+                        return mapInto(
+                            renderPos, boxes[i], image->getInfo().size);
+                    }
+                }
+            }
+            return std::nullopt;
+        }
+
+        ftk::V2I Viewport::_fromSourcePixel(const ftk::V2I& sourcePos) const
+        {
+            ftk::Box2I box;
+            ftk::Size2I size;
+            ftk::V2I out = sourcePos;
+            if (_getSourceBox(box, size))
+            {
+                out = ftk::V2I(
+                    std::lround(
+                        box.min.x + sourcePos.x /
+                        static_cast<double>(size.w) * box.w()),
+                    std::lround(
+                        box.min.y + sourcePos.y /
+                        static_cast<double>(size.h) * box.h()));
+            }
+            return out;
+        }
+
+        void Viewport::_sampleUpdate()
+        {
+            FTK_P();
+            const ftk::V2I& pos = p.samplePos->get();
+            const auto pixel = _toSourcePixel(toRenderPos(pos));
+            p.pick->setIfChanged(pixel);
+            // The color is read back from what was rendered, so away from
+            // the media it is the background rather than a value from
+            // anything being reviewed.
+            p.colorSample->setIfChanged(pixel.has_value() ?
+                std::optional<ftk::Color4F>(getColorSample(pos)) :
+                std::nullopt);
+        }
+
         bool Viewport::isInputEnabled() const
         {
             return _p->inputEnabled;
@@ -635,6 +863,11 @@ namespace tl
         void Viewport::setWipeBinding(ftk::MouseButton button, ftk::KeyModifier modifier)
         {
             _p->wipeBinding = std::make_pair(button, modifier);
+        }
+
+        void Viewport::setPickBinding(ftk::MouseButton button, ftk::KeyModifier modifier)
+        {
+            _p->pickBinding = std::make_pair(button, modifier);
         }
 
         void Viewport::setMouseWheelScale(float value)
@@ -656,6 +889,22 @@ namespace tl
             if (changed)
             {
                 p.doRender = true;
+            }
+        }
+
+        void Viewport::tickEvent(
+            bool parentsVisible,
+            bool parentsEnabled,
+            const ftk::TickEvent& event)
+        {
+            IWidget::tickEvent(parentsVisible, parentsEnabled, event);
+            FTK_P();
+            if (Private::Resample::Read == p.resample)
+            {
+                p.resample = Private::Resample::None;
+                // Through the same path as a pick: a comparison can bring a
+                // different image under the position, or none at all.
+                _sampleUpdate();
             }
         }
 
@@ -863,6 +1112,13 @@ namespace tl
             }
 
             _drawMissingIndicators(event);
+
+            if (Private::Resample::Wait == p.resample)
+            {
+                // This drawing carries the new picture; the next tick
+                // reads it.
+                p.resample = Private::Resample::Read;
+            }
         }
 
         void Viewport::_drawMissingIndicators(const ftk::DrawEvent& event)
@@ -1014,6 +1270,13 @@ namespace tl
                     }
                     break;
                 }
+                case Private::MouseMode::Picker:
+                    p.picked = true;
+                    if (p.samplePos->setIfChanged(p.mouse.pos))
+                    {
+                        _sampleUpdate();
+                    }
+                    break;
                 case Private::MouseMode::Wipe:
                 {
                     if (p.player)
@@ -1061,6 +1324,16 @@ namespace tl
                     ftk::checkKeyModifier(p.wipeBinding.second, event.modifiers))
                 {
                     p.mouse.mode = Private::MouseMode::Wipe;
+                }
+                else if (p.pickBinding.first == event.button &&
+                    ftk::checkKeyModifier(p.pickBinding.second, event.modifiers))
+                {
+                    p.mouse.mode = Private::MouseMode::Picker;
+                    p.picked = true;
+                    if (p.samplePos->setIfChanged(p.mouse.pos))
+                    {
+                        _sampleUpdate();
+                    }
                 }
                 else
                 {
