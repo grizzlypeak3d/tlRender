@@ -61,6 +61,7 @@ namespace tl
             ftk::python::observable<PlayerCacheOptions>(m, "PlayerCacheOptions");
             ftk::python::observable<PlayerCacheInfo>(m, "PlayerCacheInfo");
             ftk::python::observable<OTIO_NS::RationalTime>(m, "RationalTime");
+            ftk::python::observable<OTIO_NS::TimeRange>(m, "TimeRange");
             ftk::python::observable<std::shared_ptr<Player> >(m, "Player");
 
             py::class_<Player, std::shared_ptr<Player> >(m, "Player")
@@ -86,6 +87,7 @@ namespace tl
                 .def_property_readonly("defaultSpeed", &Player::getDefaultSpeed)
                 .def_property("speed", &Player::getSpeed, &Player::setSpeed)
                 .def_property_readonly("observeSpeed", &Player::observeSpeed)
+                .def_property_readonly("observeActualSpeed", &Player::observeActualSpeed)
                 .def_property("speedMult", &Player::getSpeedMult, &Player::setSpeedMult)
                 .def_property_readonly("observeSpeedMult", &Player::observeSpeedMult)
                 .def_property("playback", &Player::getPlayback, &Player::setPlayback)

@@ -31,7 +31,8 @@ namespace tl
                     py::arg("context"),
                     py::arg("timeUnitsModel"),
                     py::arg("parent") = nullptr)
-                .def_property("value", &TimeLabel::getValue, &TimeLabel::setValue);
+                .def_property("value", &TimeLabel::getValue, &TimeLabel::setValue)
+                .def("setMarginRole", &TimeLabel::setMarginRole);
         }
     }
 }
