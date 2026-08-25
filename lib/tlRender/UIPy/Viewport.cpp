@@ -145,6 +145,7 @@ namespace tl
                 .def("resetZoom", &Viewport::resetZoom)
                 .def("zoomIn", &Viewport::zoomIn)
                 .def("zoomOut", &Viewport::zoomOut)
+                .def("center", &Viewport::center)
                 .def_property_readonly(
                     "FPS",
                     &Viewport::getFPS)

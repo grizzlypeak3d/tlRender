@@ -32,7 +32,8 @@ namespace tl
                     py::arg("timeUnitsModel"),
                     py::arg("parent") = nullptr)
                 .def_property("value", &TimeEdit::getValue, &TimeEdit::setValue)
-                .def("setCallback", &TimeEdit::setCallback);
+                .def("setCallback", &TimeEdit::setCallback)
+                .def("selectAll", &TimeEdit::selectAll);
         }
     }
 }
