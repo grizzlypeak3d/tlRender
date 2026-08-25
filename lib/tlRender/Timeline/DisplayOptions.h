@@ -78,9 +78,9 @@ namespace tl
         float num = 1.F;
         float den = 1.F;
 
-        bool isValid() const;
+        TL_TIMELINE_API bool isValid() const;
 
-        operator float () const;
+        TL_TIMELINE_API operator float () const;
 
         TL_TIMELINE_API bool operator == (const AspectRatio&) const;
         TL_TIMELINE_API bool operator != (const AspectRatio&) const;
