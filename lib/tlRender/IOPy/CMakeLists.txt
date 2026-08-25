@@ -6,6 +6,7 @@ set(SOURCE
     IO.cpp
     Plugin.cpp
     Read.cpp
+    SeqIO.cpp
     System.cpp
     Write.cpp)
 

@@ -12,6 +12,7 @@ namespace tl
     {
         void io(pybind11::module_&);
         void plugin(pybind11::module_&);
+        void seqIO(pybind11::module_&);
         void read(pybind11::module_&);
         void ioSystem(pybind11::module_&);
         void write(pybind11::module_&);

@@ -57,7 +57,20 @@ namespace tl
                 .def_property_readonly("options", &Timeline::getOptions, py::return_value_policy::copy)
                 .def_property_readonly("timeRange", &Timeline::getTimeRange)
                 .def_property_readonly("duration", &Timeline::getDuration)
-                .def_property_readonly("ioInfo", &Timeline::getIOInfo, py::return_value_policy::copy);
+                .def_property_readonly("ioInfo", &Timeline::getIOInfo, py::return_value_policy::copy)
+                .def("getMediaTime", &Timeline::getMediaTime, py::arg("time"))
+                .def(
+                    "getTimelineTime",
+                    &Timeline::getTimelineTime,
+                    py::arg("time"),
+                    py::arg("mediaTime"))
+                .def("getMediaFrame", &Timeline::getMediaFrame, py::arg("time"))
+                .def(
+                    "getMediaFrameTime",
+                    &Timeline::getMediaFrameTime,
+                    py::arg("time"),
+                    py::arg("frame"))
+                .def("isMediaTimeContinuous", &Timeline::isMediaTimeContinuous);
         }
     }
 }

@@ -15,6 +15,7 @@ namespace tl
         {
             io(m);
             plugin(m);
+            seqIO(m);
             read(m);
             write(m);
             ioSystem(m);
