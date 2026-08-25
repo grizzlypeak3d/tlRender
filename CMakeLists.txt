@@ -14,8 +14,11 @@ string(REGEX MATCH "VERSION_PATCH ([0-9]*)" _ ${VERSION_H})
 set(TLRENDER_VERSION_PATCH ${CMAKE_MATCH_1})
 string(REGEX MATCH "VERSION_DEV \"([0-9a-z\.\-]*)\"" _ ${VERSION_H})
 set(TLRENDER_VERSION_DEV ${CMAKE_MATCH_1})
-string(REGEX MATCH "VERSION_FULL \"([0-9a-z\.\-]*)\"" _ ${VERSION_H})
-set(TLRENDER_VERSION_FULL ${CMAKE_MATCH_1})
+# Composed here rather than read: the header builds it from the macros
+# above, so there is no literal in the file to match. Keep this in step
+# with the way the header spells it.
+set(TLRENDER_VERSION_FULL
+    "${TLRENDER_VERSION_MAJOR}.${TLRENDER_VERSION_MINOR}.${TLRENDER_VERSION_PATCH}${TLRENDER_VERSION_DEV}")
 
 project(
     tlRender
