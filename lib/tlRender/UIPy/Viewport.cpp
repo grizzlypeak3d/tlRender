@@ -124,9 +124,9 @@ namespace tl
                     &Viewport::observeViewPosAndZoom)
                 .def(
                     "setZoom",
-                    &Viewport::setViewPosAndZoom,
+                    &Viewport::setZoom,
                     py::arg("zoom"),
-                    py::arg("focus"))
+                    py::arg("focus") = ftk::V2I())
                 .def_property(
                     "zoomRange",
                     &Viewport::getZoomRange,
