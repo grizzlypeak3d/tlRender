@@ -34,9 +34,28 @@ namespace tl
                 .def(pybind11::self == pybind11::self)
                 .def(pybind11::self != pybind11::self);
 
+            py::class_<CenterMarker>(m, "CenterMarker")
+                .def(py::init())
+                .def_readwrite("enabled", &CenterMarker::enabled)
+                .def_readwrite("size", &CenterMarker::size)
+                .def_readwrite("width", &CenterMarker::width)
+                .def_readwrite("color", &CenterMarker::color)
+                .def(pybind11::self == pybind11::self)
+                .def(pybind11::self != pybind11::self);
+
+            py::class_<MissingIndicator>(m, "MissingIndicator")
+                .def(py::init())
+                .def_readwrite("enabled", &MissingIndicator::enabled)
+                .def_readwrite("width", &MissingIndicator::width)
+                .def_readwrite("color", &MissingIndicator::color)
+                .def(pybind11::self == pybind11::self)
+                .def(pybind11::self != pybind11::self);
+
             py::class_<ForegroundOptions>(m, "ForegroundOptions")
                 .def(py::init())
                 .def_readwrite("grid", &ForegroundOptions::grid)
+                .def_readwrite("centerMarker", &ForegroundOptions::centerMarker)
+                .def_readwrite("missingIndicator", &ForegroundOptions::missingIndicator)
                 .def(pybind11::self == pybind11::self)
                 .def(pybind11::self != pybind11::self);
 

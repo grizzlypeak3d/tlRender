@@ -5,6 +5,8 @@
 
 #include <tlRender/Timeline/DisplayOptions.h>
 
+#include <ftk/CorePy/Bindings.h>
+
 #include <pybind11/operators.h>
 #include <pybind11/stl.h>
 
@@ -57,6 +59,48 @@ namespace tl
                 .def_readwrite("value", &SoftClip::value)
                 .def(pybind11::self == pybind11::self)
                 .def(pybind11::self != pybind11::self);
+
+            py::class_<AspectRatio>(m, "AspectRatio")
+                .def(py::init())
+                .def(
+                    py::init<float, float>(),
+                    py::arg("num"),
+                    py::arg("den") = 1.F)
+                .def_readwrite("num", &AspectRatio::num)
+                .def_readwrite("den", &AspectRatio::den)
+                .def("isValid", &AspectRatio::isValid)
+                .def("__float__", [](const AspectRatio& value)
+                    {
+                        return static_cast<float>(value);
+                    })
+                .def(pybind11::self == pybind11::self)
+                .def(pybind11::self != pybind11::self);
+
+            m.def("getLabel", [](const AspectRatio& value)
+                {
+                    return getLabel(value);
+                });
+
+            py::enum_<AspectRatioType>(m, "AspectRatioType")
+                .value("Pixel", AspectRatioType::Pixel)
+                .value("Display", AspectRatioType::Display);
+            FTK_ENUM_BIND(m, AspectRatioType);
+
+            py::class_<AspectRatioOptions>(m, "AspectRatioOptions")
+                .def(py::init())
+                .def(
+                    py::init<const AspectRatio&, AspectRatioType>(),
+                    py::arg("value"),
+                    py::arg("type"))
+                .def_readwrite("value", &AspectRatioOptions::value)
+                .def_readwrite("type", &AspectRatioOptions::type)
+                .def(pybind11::self == pybind11::self)
+                .def(pybind11::self != pybind11::self);
+
+            m.def("getLabel", [](const AspectRatioOptions& value)
+                {
+                    return getLabel(value);
+                });
 
             py::class_<DisplayOptions>(m, "DisplayOptions")
                 .def(py::init())
