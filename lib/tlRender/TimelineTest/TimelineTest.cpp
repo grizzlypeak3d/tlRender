@@ -582,7 +582,7 @@ namespace tl
             Options options;
             options.threaded = false;
             auto timeline = Timeline::create(_context, path, options);
-            const auto clips = timeline->getTimeline()->find_clips();
+            const auto clips = timeline->getOTIOTimeline()->find_clips();
             FTK_CHECK(!clips.empty());
             auto mediaReference = clips[0]->media_reference();
             const auto mediaPath = getPath(
@@ -972,7 +972,7 @@ namespace tl
 
                 // A key set for a single clip overrides the timeline wide key.
                 const auto otioClips =
-                    timeline->getTimeline().value->find_children<OTIO_NS::Clip>();
+                    timeline->getOTIOTimeline().value->find_children<OTIO_NS::Clip>();
                 FTK_CHECK(2 == otioClips.size());
                 timeline->setMediaReferenceKey(otioClips[0], "Proxy");
                 FTK_CHECK("Proxy" == timeline->getMediaReferenceKey(otioClips[0]));
@@ -1017,7 +1017,7 @@ namespace tl
                 _print(ftk::Format("Path: {0}").arg(path.get()));
                 auto timeline = Timeline::create(_context, path);
                 const auto otioClips =
-                    timeline->getTimeline().value->find_children<OTIO_NS::Clip>();
+                    timeline->getOTIOTimeline().value->find_children<OTIO_NS::Clip>();
                 FTK_CHECK(2 == otioClips.size());
 
                 // Both of the first clip's references are mapped, including
@@ -1066,7 +1066,7 @@ namespace tl
                 auto timeline = Timeline::create(_context, path);
 
                 const auto otioClips =
-                    timeline->getTimeline().value->find_children<OTIO_NS::Clip>();
+                    timeline->getOTIOTimeline().value->find_children<OTIO_NS::Clip>();
                 const auto mediaReferences = otioClips[0]->media_references();
                 FTK_CHECK(2 == mediaReferences.size());
                 FTK_CHECK(!timeline->getMem(mediaReferences.at("Proxy")).empty());
@@ -1109,7 +1109,7 @@ namespace tl
                 auto timeline = Timeline::create(_context, path);
 
                 const auto otioClips =
-                    timeline->getTimeline().value->find_children<OTIO_NS::Clip>();
+                    timeline->getOTIOTimeline().value->find_children<OTIO_NS::Clip>();
                 const auto mediaReference = otioClips[0]->media_reference();
                 const auto mem = timeline->getMem(mediaReference);
 
@@ -1437,7 +1437,7 @@ namespace tl
                 _print(ftk::Format("Path: {0}").arg(path.get()));
                 auto timeline = Timeline::create(_context, path);
                 const auto otioClips =
-                    timeline->getTimeline().value->find_children<OTIO_NS::Clip>();
+                    timeline->getOTIOTimeline().value->find_children<OTIO_NS::Clip>();
                 FTK_CHECK(2 == otioClips.size());
 
                 const auto color = otioClips[0]->color();

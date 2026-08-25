@@ -51,7 +51,7 @@ namespace tl
                     py::arg("audioFileName"),
                     py::arg("options") = Options())
                 .def_property_readonly("context", &Timeline::getContext)
-                .def_property_readonly("timeline", &Timeline::getTimeline)
+                .def_property_readonly("otioTimeline", &Timeline::getOTIOTimeline)
                 .def_property_readonly("path", &Timeline::getPath, py::return_value_policy::copy)
                 .def_property_readonly("audioPath", &Timeline::getAudioPath, py::return_value_policy::copy)
                 .def_property_readonly("options", &Timeline::getOptions, py::return_value_policy::copy)

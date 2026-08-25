@@ -1152,7 +1152,7 @@ namespace tl
         return _p->context.lock();
     }
         
-    const OTIO_NS::SerializableObject::Retainer<OTIO_NS::Timeline>& Timeline::getTimeline() const
+    const OTIO_NS::SerializableObject::Retainer<OTIO_NS::Timeline>& Timeline::getOTIOTimeline() const
     {
         return _p->otioTimeline;
     }

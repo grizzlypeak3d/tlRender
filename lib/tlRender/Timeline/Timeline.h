@@ -102,8 +102,8 @@ namespace tl
         //! Get the context.
         TL_TIMELINE_API std::shared_ptr<ftk::Context> getContext() const;
 
-        //! Get the timeline.
-        TL_TIMELINE_API const OTIO_NS::SerializableObject::Retainer<OTIO_NS::Timeline>& getTimeline() const;
+        //! Get the OTIO timeline.
+        TL_TIMELINE_API const OTIO_NS::SerializableObject::Retainer<OTIO_NS::Timeline>& getOTIOTimeline() const;
 
         //! Get the file path.
         TL_TIMELINE_API const ftk::Path& getPath() const;

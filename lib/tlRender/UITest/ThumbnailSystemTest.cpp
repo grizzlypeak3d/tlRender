@@ -65,7 +65,7 @@ namespace tl
                 try
                 {
                     auto timeline = Timeline::create(_context, path);
-                    for (const auto& clip : timeline->getTimeline()->find_clips())
+                    for (const auto& clip : timeline->getOTIOTimeline()->find_clips())
                     {
                         const auto mediaPath = getPath(
                             clip->media_reference(),
@@ -131,7 +131,7 @@ namespace tl
             ftk::Path mediaPathFor(const std::shared_ptr<Timeline>& timeline)
             {
                 return getPath(
-                    timeline->getTimeline()->find_clips()[0]->media_reference(),
+                    timeline->getOTIOTimeline()->find_clips()[0]->media_reference(),
                     timeline->getPath().getDir(),
                     ftk::PathOptions());
             }

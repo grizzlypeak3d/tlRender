@@ -956,7 +956,7 @@ namespace tl
             FTK_P();
 
             auto timeline = p.timeline;
-            const auto otioTimeline = timeline->getTimeline();
+            const auto otioTimeline = timeline->getOTIOTimeline();
             for (const auto& child : otioTimeline->tracks()->children())
             {
                 auto otioTrack = OTIO_NS::dynamic_retainer_cast<OTIO_NS::Track>(child);
