@@ -55,7 +55,7 @@ namespace tl
                 .def_property_readonly("path", &Timeline::getPath, py::return_value_policy::copy)
                 .def_property_readonly("audioPath", &Timeline::getAudioPath, py::return_value_policy::copy)
                 .def_property_readonly("options", &Timeline::getOptions, py::return_value_policy::copy)
-                .def_property_readonly("timeRange", &Timeline::getTimeRange)
+                .def_property_readonly("timeRange", &Timeline::getTimeRange, py::return_value_policy::copy)
                 .def_property_readonly("duration", &Timeline::getDuration)
                 .def_property_readonly("ioInfo", &Timeline::getIOInfo, py::return_value_policy::copy)
                 .def("getMediaTime", &Timeline::getMediaTime, py::arg("time"))

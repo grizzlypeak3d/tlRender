@@ -80,7 +80,7 @@ namespace tl
                 .def_property_readonly("audioPath", &Player::getAudioPath, py::return_value_policy::copy)
                 .def_property_readonly("playerOptions", &Player::getPlayerOptions, py::return_value_policy::copy)
                 .def_property_readonly("options", &Player::getOptions, py::return_value_policy::copy)
-                .def_property_readonly("timeRange", &Player::getTimeRange)
+                .def_property_readonly("timeRange", &Player::getTimeRange, py::return_value_policy::copy)
                 .def_property_readonly("duration", &Player::getDuration)
                 .def_property_readonly("ioInfo", &Player::getIOInfo, py::return_value_policy::copy)
 
@@ -100,7 +100,7 @@ namespace tl
                 .def_property("loop", &Player::getLoop, &Player::setLoop)
                 .def_property_readonly("observeLoop", &Player::observeLoop)
 
-                .def_property("currentTime", &Player::getCurrentTime, &Player::seek)
+                .def_property("currentTime", &Player::getCurrentTime, &Player::seek, py::return_value_policy::copy)
                 .def_property_readonly("observeCurrentTime", &Player::observeCurrentTime)
                 .def_property_readonly("observeSeek", &Player::observeSeek)
                 .def("timeAction", &Player::timeAction)
@@ -109,7 +109,7 @@ namespace tl
                 .def("framePrev", &Player::framePrev)
                 .def("frameNext", &Player::frameNext)
 
-                .def_property("inOutRange", &Player::getInOutRange, &Player::setInOutRange)
+                .def_property("inOutRange", &Player::getInOutRange, &Player::setInOutRange, py::return_value_policy::copy)
                 .def_property_readonly("observeInOutRange", &Player::observeInOutRange)
                 .def("setInPoint", &Player::setInPoint)
                 .def("resetInPoint", &Player::resetInPoint)
