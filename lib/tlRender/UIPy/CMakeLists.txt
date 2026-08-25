@@ -2,6 +2,7 @@ set(HEADERS
     Bindings.h
     ItemOptions.h
     PlaybackLoopWidget.h
+    ThumbnailSystem.h
     TimeEdit.h
     TimeLabel.h
     TimeUnitsWidget.h
@@ -15,6 +16,7 @@ set(SOURCE
     ItemOptions.cpp
     PlaybackLoopWidget.cpp
     PlaybackToolBar.cpp
+    ThumbnailSystem.cpp
     TimeEdit.cpp
     TimeLabel.cpp
     TimeUnitsWidget.cpp

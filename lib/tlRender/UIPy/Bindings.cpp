@@ -5,6 +5,7 @@
 
 #include <tlRender/UIPy/ItemOptions.h>
 #include <tlRender/UIPy/PlaybackLoopWidget.h>
+#include <tlRender/UIPy/ThumbnailSystem.h>
 #include <tlRender/UIPy/TimeEdit.h>
 #include <tlRender/UIPy/TimeLabel.h>
 #include <tlRender/UIPy/TimeUnitsWidget.h>
@@ -37,6 +38,7 @@ namespace tl
             frameToolBar(mUI);
             playbackToolBar(mUI);
             playbackLoopWidget(mUI);
+            thumbnailSystem(mUI);
             timeEdit(mUI);
             timeLabel(mUI);
             timeUnitsWidget(mUI);
