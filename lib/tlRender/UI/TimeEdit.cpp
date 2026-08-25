@@ -42,6 +42,7 @@ namespace tl
             }
 
             p.lineEdit = ftk::LineEdit::create(context, shared_from_this());
+            p.lineEdit->setSelectAllOnFocus(true);
             p.lineEdit->getModel()->setRegex("[0-9\\-\\.\\,\\:]+");
             p.lineEdit->setFont(ftk::FontType::Mono);
             p.lineEdit->setHStretch(ftk::Stretch::Expanding);
