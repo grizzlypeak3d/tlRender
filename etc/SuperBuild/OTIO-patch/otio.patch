@@ -496,6 +496,24 @@ index 2dd75cf..187eb78 100644
      trimmed_range_in_parent(ErrorStatus* error_status = nullptr) const;
  
  protected:
+diff --git a/src/opentimelineio/typeRegistry.cpp b/src/opentimelineio/typeRegistry.cpp
+index 3950796..560a7ff 100644
+--- a/src/opentimelineio/typeRegistry.cpp
++++ b/src/opentimelineio/typeRegistry.cpp
+@@ -410,7 +410,12 @@ TypeRegistry::_instance_from_schema(
+     {
+         for (const auto& e: type_record->upgrade_functions)
+         {
+-            if (schema_version <= e.first
++            // Strictly below: a function registered for version N upgrades
++            // a dictionary from version N-1, so a file already at N must
++            // not run it. Re-running the Marker version 2 upgrade on a
++            // Marker.2 file assigns the missing "range" key -- which
++            // operator[] creates as a null -- over the good "marked_range".
++            if (schema_version < e.first
+                 && e.first <= type_record->schema_version)
+             {
+                 e.second(&dict);
 diff --git a/src/opentimelineio/typeRegistry.h b/src/opentimelineio/typeRegistry.h
 index 2f9182a..77d9d3e 100644
 --- a/src/opentimelineio/typeRegistry.h
