@@ -26,6 +26,17 @@ namespace tl
             std::future<IOInfo> future;
         };
 
+        //! What the timeline behind a thumbnail is for. The timeline
+        //! widget comes back for frame after frame of the same file, so
+        //! its timeline is kept for the next request; the file browser
+        //! takes one frame per file, and keeping those open held every
+        //! file in the folder -- gigabytes for a folder of movies.
+        enum class ThumbnailType
+        {
+            Timeline,
+            Browser
+        };
+
         //! Video thumbnail request.
         struct TL_UI_API_TYPE ThumbnailRequest
         {
@@ -91,7 +102,8 @@ namespace tl
                 const ftk::Path&,
                 int height,
                 const std::optional<OTIO_NS::RationalTime>& = std::nullopt,
-                const IOOptions& = IOOptions());
+                const IOOptions& = IOOptions(),
+                ThumbnailType = ThumbnailType::Timeline);
 
             //! Get a video thumbnail of media inside a timeline.
             TL_UI_API ThumbnailRequest getThumbnail(
@@ -99,7 +111,8 @@ namespace tl
                 const ftk::Path& mediaPath,
                 int height,
                 const std::optional<OTIO_NS::RationalTime>& = std::nullopt,
-                const IOOptions& = IOOptions());
+                const IOOptions& = IOOptions(),
+                ThumbnailType = ThumbnailType::Timeline);
 
             //! Get an audio waveform.
             TL_UI_API WaveformRequest getWaveform(

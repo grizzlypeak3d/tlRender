@@ -51,8 +51,10 @@ namespace tl
             // Timelines, which are opened without a thread and so hold none:
             // a file browser listing can keep the ones it is showing rather
             // than reopening two at a time. Idle entries are
-            // dropped after ioCacheTimeout regardless.
-            const size_t ioCacheMax   = 100;
+            // dropped after ioCacheTimeout regardless. The unit is open
+            // readers, so the count stays small: each entry can hold tens
+            // of megabytes of decoder state (#828).
+            const size_t ioCacheMax   = 12;
             // How long a thread holds its open timelines once it goes idle.
             // The point is to let go of readers, and the decode subprocesses
             // they keep alive, after a file is closed. It has to be long
@@ -120,7 +122,8 @@ namespace tl
                 ftk::LRUCache<std::string, std::shared_ptr<Timeline> >& cache,
                 std::mutex& mutex,
                 const ftk::Path& path,
-                const IOOptions& ioOptions)
+                const IOOptions& ioOptions,
+                bool keep = true)
             {
                 // One timeline per file, shared by the three threads rather
                 // than one each. Opening a bundle of 25,000 entries takes
@@ -152,6 +155,7 @@ namespace tl
                 // the launch daemon's PATH, not a shell's.
                 options.ioOptions = ioOptions;
                 out = Timeline::create(context, path, options);
+                if (keep)
                 {
                     std::unique_lock<std::mutex> lock(mutex);
                     std::shared_ptr<Timeline> other;
@@ -235,6 +239,7 @@ namespace tl
                 int height = 0;
                 std::optional<OTIO_NS::RationalTime> time;
                 IOOptions options;
+                ThumbnailType type = ThumbnailType::Timeline;
                 std::promise<std::shared_ptr<ftk::Image> > promise;
             };
 
@@ -544,9 +549,10 @@ namespace tl
             const ftk::Path& path,
             int height,
             const std::optional<OTIO_NS::RationalTime>& time,
-            const IOOptions& options)
+            const IOOptions& options,
+            ThumbnailType type)
         {
-            return getThumbnail(path, path, height, time, options);
+            return getThumbnail(path, path, height, time, options, type);
         }
 
         ThumbnailRequest ThumbnailSystem::getThumbnail(
@@ -554,7 +560,8 @@ namespace tl
             const ftk::Path& mediaPath,
             int height,
             const std::optional<OTIO_NS::RationalTime>& time,
-            const IOOptions& options)
+            const IOOptions& options,
+            ThumbnailType type)
         {
             FTK_P();
             (p.requestId)++;
@@ -566,6 +573,7 @@ namespace tl
             request->height = height;
             request->time = time;
             request->options = options;
+            request->type = type;
 
             const std::string key = getThumbnailKey(
                 path,
@@ -863,7 +871,8 @@ namespace tl
                         auto context = p.context.lock();
                         auto timeline = getTimeline(
                             context, p.ioCache, p.ioCacheMutex, request->path,
-                            request->options);
+                            request->options,
+                            ThumbnailType::Timeline == request->type);
                         IOInfo info;
                         if (timeline &&
                             timeline->getMediaInfo(

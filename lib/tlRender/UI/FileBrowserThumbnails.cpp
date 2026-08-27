@@ -75,11 +75,15 @@ namespace tl
             ftk::FileBrowserThumbnailRequest out;
             if (auto thumbnailSystem = p.thumbnailSystem.lock())
             {
+                // One frame per file: keeping the timelines open held
+                // every file in the folder, and the browser never comes
+                // back for a second frame.
                 ThumbnailRequest request = thumbnailSystem->getThumbnail(
                     path,
                     height,
                     std::nullopt,
-                    p.ioOptions);
+                    p.ioOptions,
+                    ThumbnailType::Browser);
                 out.id = request.id;
                 out.future = std::move(request.future);
             }
