@@ -112,7 +112,7 @@ jobs:
         cd build-Debug
         xvfb-run ctest --verbose --rerun-failed --output-on-failure --timeout 600 -C Debug
 
-  linux-gles2-minimal-build:
+  linux-gles3-minimal-build:
     runs-on: ubuntu-latest
 
     env:
@@ -138,7 +138,7 @@ jobs:
 
     - name: Build tlRender
       run: |
-        sh tl/etc/Linux/sbuild.sh tl Debug minimal-gles2
+        sh tl/etc/Linux/sbuild.sh tl Debug minimal-gles3
 
     - name: Run tests
       run: |
