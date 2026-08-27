@@ -1107,7 +1107,7 @@ namespace tl
             unsigned int videoScaledID = 0;
             ftk::Size2I scaledBufferSize;
 
-#if !defined(FTK_API_GLES_2)
+#if !defined(FTK_API_GLES_3)
             // The picture has been drawn at its own size; the view's zoom is
             // applied by the draw below. When that is a large reduction the
             // four texels a linear fetch reads miss most of it, so reduce the
@@ -1171,7 +1171,7 @@ namespace tl
                 }
             }
 
-#endif // FTK_API_GLES_2
+#endif // FTK_API_GLES_3
 
             if (p.buffers["video"])
             {
@@ -1193,7 +1193,7 @@ namespace tl
                 // Enlarging is sampled here rather than resampled into a
                 // buffer first, so this is where the view's magnify setting
                 // is answered.
-#if !defined(FTK_API_GLES_2)
+#if !defined(FTK_API_GLES_3)
                 // The GLES 2 display shader has no kernel to answer this with;
                 // see ftk's drawTextureScaled().
                 const ftk::Size2I displaySize = videoID == videoScaledID ?
@@ -1205,7 +1205,7 @@ namespace tl
                 displayShader->setUniform(
                     "textureSize",
                     ftk::V2F(displaySize.w, displaySize.h));
-#endif // FTK_API_GLES_2
+#endif // FTK_API_GLES_3
                 displayShader->setUniform("channels", static_cast<int>(displayOptions.channels));
                 displayShader->setUniform("negative", displayOptions.negative);
                 displayShader->setUniform("mirrorX", displayOptions.mirror.x);
