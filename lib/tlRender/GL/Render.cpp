@@ -66,6 +66,19 @@ namespace tl
                 glTexParameteri(textureType, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
             }
 
+            // OCIO emits the dialect asked of it. ES 3.0 filters 32 bit
+            // float textures only with an extension, and half float in
+            // core; a LUT interpolates fine at half.
+#if defined(FTK_API_GLES_3)
+            const OCIO::GpuLanguage gpuLanguage = OCIO::GPU_LANGUAGE_GLSL_ES_3_0;
+            const GLint lutInternalFormatRGB = GL_RGB16F;
+            const GLint lutInternalFormatR = GL_R16F;
+#else // FTK_API_GLES_3
+            const OCIO::GpuLanguage gpuLanguage = OCIO::GPU_LANGUAGE_GLSL_4_0;
+            const GLint lutInternalFormatRGB = GL_RGB32F;
+            const GLint lutInternalFormatR = GL_R32F;
+#endif // FTK_API_GLES_3
+
             // Compile a processor for the GPU: the shader function under
             // the given names, and the textures it samples.
             void ocioStageInit(
@@ -83,14 +96,17 @@ namespace tl
                 {
                     throw std::runtime_error("Cannot create OCIO shader description");
                 }
-                stage.shaderDesc->setLanguage(OCIO::GPU_LANGUAGE_GLSL_4_0);
+                stage.shaderDesc->setLanguage(gpuLanguage);
                 stage.shaderDesc->setFunctionName(functionName);
                 stage.shaderDesc->setResourcePrefix(resourcePrefix);
                 stage.gpuProcessor->extractGpuShaderInfo(stage.shaderDesc);
 
                 // Create 3D textures.
                 glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
+#if !defined(FTK_API_GLES_3)
+                // ES has no byte swapping; the data is native order.
                 glPixelStorei(GL_UNPACK_SWAP_BYTES, 0);
+#endif // FTK_API_GLES_3
                 const unsigned num3DTextures = stage.shaderDesc->getNum3DTextures();
                 unsigned currentTexture = 0;
                 for (unsigned i = 0; i < num3DTextures; ++i, ++currentTexture)
@@ -120,7 +136,7 @@ namespace tl
                     glGenTextures(1, &textureId);
                     glBindTexture(GL_TEXTURE_3D, textureId);
                     setTextureParameters(GL_TEXTURE_3D, interpolation);
-                    glTexImage3D(GL_TEXTURE_3D, 0, GL_RGB32F, edgelen, edgelen, edgelen, 0, GL_RGB, GL_FLOAT, values);
+                    glTexImage3D(GL_TEXTURE_3D, 0, lutInternalFormatRGB, edgelen, edgelen, edgelen, 0, GL_RGB, GL_FLOAT, values);
                     stage.textures.push_back(OCIOTexture(textureId, textureName, samplerName, GL_TEXTURE_3D));
                 }
 
@@ -161,20 +177,28 @@ namespace tl
                     }
 
                     unsigned textureId = 0;
-                    GLint internalformat = GL_RGB32F;
+                    GLint internalformat = lutInternalFormatRGB;
                     GLenum format = GL_RGB;
                     if (OCIO::GpuShaderCreator::TEXTURE_RED_CHANNEL == channel)
                     {
-                        internalformat = GL_R32F;
+                        internalformat = lutInternalFormatR;
                         format = GL_RED;
                     }
                     glGenTextures(1, &textureId);
                     switch (dimensions)
                     {
                     case OCIO::GpuShaderDesc::TEXTURE_1D:
+#if defined(FTK_API_GLES_3)
+                        // ES has no 1D textures; the ES shader samples a
+                        // height of one.
+                        glBindTexture(GL_TEXTURE_2D, textureId);
+                        setTextureParameters(GL_TEXTURE_2D, interpolation);
+                        glTexImage2D(GL_TEXTURE_2D, 0, internalformat, width, 1, 0, format, GL_FLOAT, values);
+#else // FTK_API_GLES_3
                         glBindTexture(GL_TEXTURE_1D, textureId);
                         setTextureParameters(GL_TEXTURE_1D, interpolation);
                         glTexImage1D(GL_TEXTURE_1D, 0, internalformat, width, 0, format, GL_FLOAT, values);
+#endif // FTK_API_GLES_3
                         break;
                     case OCIO::GpuShaderDesc::TEXTURE_2D:
                         glBindTexture(GL_TEXTURE_2D, textureId);
@@ -186,7 +210,11 @@ namespace tl
                         textureId,
                         textureName,
                         samplerName,
+#if defined(FTK_API_GLES_3)
+                        GL_TEXTURE_2D));
+#else // FTK_API_GLES_3
                         (height > 1) ? GL_TEXTURE_2D : GL_TEXTURE_1D));
+#endif // FTK_API_GLES_3
                 }
             }
 
@@ -439,14 +467,17 @@ namespace tl
                     p.lutData.reset();
                     throw std::runtime_error("Cannot create OCIO shader description");
                 }
-                p.lutData->shaderDesc->setLanguage(OCIO::GPU_LANGUAGE_GLSL_4_0);
+                p.lutData->shaderDesc->setLanguage(gpuLanguage);
                 p.lutData->shaderDesc->setFunctionName("lutFunc");
                 p.lutData->shaderDesc->setResourcePrefix("lut");
                 p.lutData->gpuProcessor->extractGpuShaderInfo(p.lutData->shaderDesc);
 
                 // Create 3D textures.
                 glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
+#if !defined(FTK_API_GLES_3)
+                // ES has no byte swapping; the data is native order.
                 glPixelStorei(GL_UNPACK_SWAP_BYTES, 0);
+#endif // FTK_API_GLES_3
                 const unsigned num3DTextures = p.lutData->shaderDesc->getNum3DTextures();
                 unsigned currentTexture = 0;
                 for (unsigned i = 0; i < num3DTextures; ++i, ++currentTexture)
@@ -478,7 +509,7 @@ namespace tl
                     glGenTextures(1, &textureId);
                     glBindTexture(GL_TEXTURE_3D, textureId);
                     setTextureParameters(GL_TEXTURE_3D, interpolation);
-                    glTexImage3D(GL_TEXTURE_3D, 0, GL_RGB32F, edgelen, edgelen, edgelen, 0, GL_RGB, GL_FLOAT, values);
+                    glTexImage3D(GL_TEXTURE_3D, 0, lutInternalFormatRGB, edgelen, edgelen, edgelen, 0, GL_RGB, GL_FLOAT, values);
                     p.lutData->textures.push_back(OCIOTexture(textureId, textureName, samplerName, GL_TEXTURE_3D));
                 }
 
@@ -520,20 +551,28 @@ namespace tl
                     }
 
                     unsigned textureId = 0;
-                    GLint internalformat = GL_RGB32F;
+                    GLint internalformat = lutInternalFormatRGB;
                     GLenum format = GL_RGB;
                     if (OCIO::GpuShaderCreator::TEXTURE_RED_CHANNEL == channel)
                     {
-                        internalformat = GL_R32F;
+                        internalformat = lutInternalFormatR;
                         format = GL_RED;
                     }
                     glGenTextures(1, &textureId);
                     switch (dimensions)
                     {
                     case OCIO::GpuShaderDesc::TEXTURE_1D:
+#if defined(FTK_API_GLES_3)
+                        // ES has no 1D textures; the ES shader samples a
+                        // height of one.
+                        glBindTexture(GL_TEXTURE_2D, textureId);
+                        setTextureParameters(GL_TEXTURE_2D, interpolation);
+                        glTexImage2D(GL_TEXTURE_2D, 0, internalformat, width, 1, 0, format, GL_FLOAT, values);
+#else // FTK_API_GLES_3
                         glBindTexture(GL_TEXTURE_1D, textureId);
                         setTextureParameters(GL_TEXTURE_1D, interpolation);
                         glTexImage1D(GL_TEXTURE_1D, 0, internalformat, width, 0, format, GL_FLOAT, values);
+#endif // FTK_API_GLES_3
                         break;
                     case OCIO::GpuShaderDesc::TEXTURE_2D:
                         glBindTexture(GL_TEXTURE_2D, textureId);
@@ -545,7 +584,11 @@ namespace tl
                         textureId,
                         textureName,
                         samplerName,
+#if defined(FTK_API_GLES_3)
+                        GL_TEXTURE_2D));
+#else // FTK_API_GLES_3
                         (height > 1) ? GL_TEXTURE_2D : GL_TEXTURE_1D));
+#endif // FTK_API_GLES_3
                 }
             }
 #endif // TLRENDER_OCIO

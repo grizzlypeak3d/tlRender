@@ -93,7 +93,26 @@ namespace tl
             const std::string& lut,
             LUTOrder lutOrder)
         {
-             return ftk::Format(
+            // What runs before the color corrections and what runs after:
+            // the transform to linear comes before so the corrections
+            // operate on linear values, the display transform after, and
+            // the LUT is on whichever side of the color management it was
+            // asked for.
+            std::string before;
+            std::string after;
+            switch (lutOrder)
+            {
+            case LUTOrder::PreConfig:
+                before = lut + "\n    " + toLinear;
+                after = colorConfig;
+                break;
+            case LUTOrder::PostConfig:
+                before = toLinear;
+                after = colorConfig + "\n    " + lut;
+                break;
+            default: break;
+            }
+            return ftk::Format(
                 "#version 300 es\n"
                 "precision mediump float;\n"
                 "out vec4 outColor;\n"
@@ -126,6 +145,12 @@ namespace tl
                 "};\n"
                 "\n"
                 "{0}\n"
+                "\n"
+                "{1}\n"
+                "\n"
+                "{2}\n"
+                "\n"
+                "{3}\n"
                 "\n"
                 "uniform sampler2D textureSampler;\n"
                 "\n"
@@ -242,6 +267,10 @@ namespace tl
                 "        outColor.b = outColor.b * scale + offset;\n"
                 "    }\n"
                 "\n"
+                "    // To linear, so the color transformations operate on\n"
+                "    // linear values.\n"
+                "    {4}\n"
+                "\n"
                 "    // Apply color transformations.\n"
                 "    if (colorEnabled)\n"
                 "    {\n"
@@ -259,6 +288,9 @@ namespace tl
                 "    {\n"
                 "        outColor = softClipFunc(outColor, softClip);\n"
                 "    }\n"
+                "\n"
+                "    // Apply color management.\n"
+                "    {5}\n"
                 "\n"
                 "    // Swizzle for the channels display.\n"
                 "    if (Channels_Red == channels)\n"
@@ -283,7 +315,12 @@ namespace tl
                 "        outColor.b = outColor.a;\n"
                 "    }\n"
                 "}\n").
-                arg(videoLevels);
+                arg(videoLevels).
+                arg(toLinearDef).
+                arg(colorConfigDef).
+                arg(lutDef).
+                arg(before).
+                arg(after);
         }
 
         std::string dissolveFragmentSource()
