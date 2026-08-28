@@ -73,7 +73,10 @@ namespace tl
             EM_JS(void, wcRegister, (int handle, const char* url, void* ctrl, int audio), {
                 if (!globalThis.__tlWCWorker)
                 {
-                    globalThis.__tlWCWorker = new Worker('WebCodecsWorker.js');
+                    // The shell can name the worker with its build id
+                    // for cache busting.
+                    globalThis.__tlWCWorker = new Worker(
+                        globalThis.__tlWCWorkerUrl || 'WebCodecsWorker.js');
                     globalThis.__tlWCWorker.postMessage(
                         { memory: wasmMemory });
                 }
