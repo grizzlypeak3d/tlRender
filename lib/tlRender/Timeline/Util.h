@@ -79,7 +79,8 @@ namespace tl
         const ftk::Path&,
         const ftk::DirListOptions&);
 
-    //! Get an absolute path.
+    //! Get an absolute path. The directory may include a protocol, so
+    //! that media next to a remote timeline resolves remote.
     TL_TIMELINE_API ftk::Path getPath(
         const std::string& url,
         const std::string& directory,

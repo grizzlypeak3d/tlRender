@@ -910,7 +910,8 @@ namespace tl
             auto out = std::make_shared<ItemData>();
             out->timeUnitsModel = p.timeUnitsModel;
             out->speed = timeline->getTimeRange().duration().rate();
-            out->dir = timeline->getPath().getDir();
+            out->dir = timeline->getPath().getProtocol() +
+                timeline->getPath().getDir();
             out->options = timeline->getOptions();
 
             // Only where media times are one number for the whole timeline.

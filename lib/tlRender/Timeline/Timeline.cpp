@@ -946,7 +946,7 @@ namespace tl
                 {
                     const ftk::Path mediaPath = tl::getPath(
                         i.second,
-                        p.path.getDir(),
+                        p.path.getProtocol() + p.path.getDir(),
                         p.options.pathOptions);
                     p.mediaByPath[mediaPath.get()] = i.second;
                     p.mediaByNormalPath[normalMediaPath(mediaPath)] = i.second;
@@ -1626,7 +1626,7 @@ namespace tl
                 }
                 const std::string clipPath = tl::getPath(
                     p.mediaReference(otioClip),
-                    p.path.getDir(),
+                    p.path.getProtocol() + p.path.getDir(),
                     p.options.pathOptions).get();
                 if (path.has_value() && clipPath != path.value())
                 {
@@ -2046,7 +2046,7 @@ namespace tl
         }
         const auto mediaPath = tl::getPath(
             mediaReference,
-            path.getDir(),
+            path.getProtocol() + path.getDir(),
             options.pathOptions);
         const std::string key = getKey(mediaPath);
         std::unique_lock<std::mutex> lock(readCacheMutex);

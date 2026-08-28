@@ -341,8 +341,10 @@ namespace tl
                         &p.control->requestSeq, seq, __ATOMIC_SEQ_CST);
                     emscripten_futex_wake(&p.control->requestSeq, 1);
 
+                    // Enough for a cold seek: a keyframe restart over the
+                    // network fetches before it decodes.
                     const bool delivered =
-                        waitResponse(p.control, seq, 5000.0);
+                        waitResponse(p.control, seq, 10000.0);
                     VideoData data;
                     data.time = videoRequest->time;
                     if (delivered && p.control->deliveredTs >= 0.0)
@@ -584,8 +586,9 @@ namespace tl
                             &p.control->requestSeq, seq, __ATOMIC_SEQ_CST);
                         emscripten_futex_wake(&p.control->requestSeq, 1);
 
+                        // The window may fetch and decode before it answers.
                         const bool delivered =
-                            waitResponse(p.control, seq, 5000.0);
+                            waitResponse(p.control, seq, 10000.0);
                         if (delivered && p.control->deliveredTs >= 0.0)
                         {
                             data.audio = audio;
