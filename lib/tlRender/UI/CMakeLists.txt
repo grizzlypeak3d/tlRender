@@ -1,4 +1,5 @@
 set(HEADERS
+    Export.h
     FileBrowserThumbnails.h
     FrameToolBar.h
     Init.h

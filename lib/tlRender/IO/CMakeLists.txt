@@ -2,6 +2,7 @@
 # there, so every configuration has one image format.
 set(HEADERS
     Decode.h
+    Export.h
     IO.h
     IOInline.h
     PNG.h

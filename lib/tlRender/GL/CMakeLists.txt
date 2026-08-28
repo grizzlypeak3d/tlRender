@@ -1,4 +1,5 @@
 set(HEADERS
+    Export.h
     Render.h)
 set(PRIVATE_HEADERS
     RenderPrivate.h)

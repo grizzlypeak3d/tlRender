@@ -129,7 +129,6 @@ include("${CMAKE_CURRENT_LIST_DIR}/tlCoreTargets.cmake")
 include("${CMAKE_CURRENT_LIST_DIR}/tlIOTargets.cmake")
 include("${CMAKE_CURRENT_LIST_DIR}/tlTimelineTargets.cmake")
 include("${CMAKE_CURRENT_LIST_DIR}/tlGLTargets.cmake")
-include("${CMAKE_CURRENT_LIST_DIR}/tlDeviceTargets.cmake")
 include("${CMAKE_CURRENT_LIST_DIR}/tlUITargets.cmake")
 
 # \todo Is this the correct way to add the include directory?

@@ -5,6 +5,7 @@ set(HEADERS
     ColorOptions.h
     CompareOptions.h
     DisplayOptions.h
+    Export.h
     ForegroundOptions.h
     IRender.h
     Init.h
