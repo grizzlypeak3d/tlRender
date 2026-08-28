@@ -363,7 +363,10 @@ namespace tl
         //
         // Not for a sequence, whose path is a pattern rather than a file and
         // whose missing frames are the sequence's own business, nor for a
-        // protocol, which is not the filesystem's to answer for.
+        // protocol, which is not the filesystem's to answer for. Nor on the
+        // web, where a relative path can be a URL that only the fetch can
+        // answer for.
+#if !defined(__EMSCRIPTEN__)
         if (!path.hasProtocol() &&
             !path.isSeq() &&
             !std::filesystem::exists(
@@ -373,6 +376,7 @@ namespace tl
                 ftk::Format("No such file or directory: \"{0}\"").
                 arg(path.get()).str());
         }
+#endif // __EMSCRIPTEN__
 
         OTIO_NS::SerializableObject::Retainer<OTIO_NS::Timeline> otioTimeline;
 

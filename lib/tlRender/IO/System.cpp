@@ -6,6 +6,9 @@
 #if defined(TLRENDER_FFMPEG_PLUGIN)
 #include <tlRender/IO/FFmpeg.h>
 #endif // TLRENDER_FFMPEG_PLUGIN
+#if defined(__EMSCRIPTEN__)
+#include <tlRender/IO/WebCodecs.h>
+#endif // __EMSCRIPTEN__
 #if defined(TLRENDER_EXR)
 #include <tlRender/IO/EXR.h>
 #endif // TLRENDER_EXR
@@ -58,6 +61,9 @@ namespace tl
 #if defined(TLRENDER_FFMPEG_PLUGIN)
             _plugins.push_back(ffmpeg::ReadPlugin::create(logSystem));
 #endif // TLRENDER_FFMPEG_PLUGIN
+#if defined(__EMSCRIPTEN__)
+            _plugins.push_back(webcodecs::ReadPlugin::create(logSystem));
+#endif // __EMSCRIPTEN__
         }
 
         for (const auto& plugin : _plugins)

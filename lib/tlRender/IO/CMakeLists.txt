@@ -35,6 +35,10 @@ if(TLRENDER_EXR)
     list(APPEND HEADERS_PRIVATE EXRPrivate.h)
     list(APPEND SOURCE EXR.cpp EXRRead.cpp EXRWrite.cpp)
 endif()
+if(EMSCRIPTEN)
+    list(APPEND HEADERS WebCodecs.h)
+    list(APPEND SOURCE WebCodecs.cpp)
+endif()
 if(TLRENDER_FFMPEG_PLUGIN)
     # The command line is a path within the plugin rather than a plugin of
     # its own, so it is built with it: every configuration that tests FFmpeg

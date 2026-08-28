@@ -1,0 +1,401 @@
+// SPDX-License-Identifier: BSD-3-Clause
+// Copyright Contributors to the tlRender project.
+
+#include <tlRender/IO/WebCodecs.h>
+
+#include <tlRender/IO/RequestQueuePrivate.h>
+
+#include <ftk/Core/Format.h>
+#include <ftk/Core/LogSystem.h>
+
+#include <emscripten.h>
+#include <emscripten/proxying.h>
+#include <emscripten/threading.h>
+
+#include <cerrno>
+#include <cstddef>
+#include <cstring>
+#include <map>
+#include <mutex>
+#include <thread>
+
+namespace tl
+{
+    namespace webcodecs
+    {
+        namespace
+        {
+            //! The block a reader shares with the decode worker; see the
+            //! layout comment in WebCodecsWorker.js, which this must
+            //! match. The wasm heap is shared memory, so the worker reads
+            //! and writes it directly, and the sequence numbers carry the
+            //! handshake through Atomics.
+            struct Control
+            {
+                int32_t requestSeq = 0;
+                int32_t command = 0;
+                double targetUs = 0.0;
+                uint32_t ptr = 0;
+                uint32_t cap = 0;
+                int32_t responseSeq = 0;
+                // 0 is RGBA_U8; 1 is planar 4:2:0, written Y then U
+                // then V.
+                int32_t deliveredFormat = 0;
+                double deliveredTs = -1.0;
+                int32_t width = 0;
+                int32_t height = 0;
+                int32_t frameCount = 0;
+                int32_t pad2 = 0;
+                double duration = 0.0;
+                double frameDur = 0.0;
+            };
+            static_assert(offsetof(Control, targetUs) == 8, "Control layout");
+            static_assert(offsetof(Control, responseSeq) == 24, "Control layout");
+            static_assert(offsetof(Control, deliveredFormat) == 28, "Control layout");
+            static_assert(offsetof(Control, deliveredTs) == 32, "Control layout");
+            static_assert(offsetof(Control, width) == 40, "Control layout");
+            static_assert(offsetof(Control, duration) == 56, "Control layout");
+            static_assert(offsetof(Control, frameDur) == 64, "Control layout");
+
+            //! What the main thread needs for the one dispatch it still
+            //! performs: creating the worker and introducing a reader to
+            //! it. Everything after that runs without the main thread.
+            struct Registration
+            {
+                std::string url;
+                Control* control = nullptr;
+            };
+            std::mutex registryMutex;
+            std::map<int, Registration> registry;
+            int registryHandle = 0;
+
+            EM_JS(void, wcRegister, (int handle, const char* url, void* ctrl), {
+                if (!globalThis.__tlWCWorker)
+                {
+                    globalThis.__tlWCWorker = new Worker('WebCodecsWorker.js');
+                    globalThis.__tlWCWorker.postMessage(
+                        { memory: wasmMemory });
+                }
+                globalThis.__tlWCWorker.postMessage({
+                    handle: handle,
+                    url: UTF8ToString(url),
+                    ctrl: ctrl });
+            });
+
+            void registerMain(void* arg)
+            {
+                const int handle = static_cast<int>(
+                    reinterpret_cast<intptr_t>(arg));
+                std::string url;
+                Control* control = nullptr;
+                {
+                    std::unique_lock<std::mutex> lock(registryMutex);
+                    const auto i = registry.find(handle);
+                    if (i != registry.end())
+                    {
+                        url = i->second.url;
+                        control = i->second.control;
+                    }
+                }
+                if (control)
+                {
+                    wcRegister(handle, url.c_str(), control);
+                }
+            }
+
+            //! Wait for the response sequence number to reach a value,
+            //! or the timeout. Returns whether it arrived.
+            bool waitResponse(Control* control, int32_t value, double timeoutMs)
+            {
+                for (;;)
+                {
+                    const int32_t current = __atomic_load_n(
+                        &control->responseSeq, __ATOMIC_SEQ_CST);
+                    if (current >= value)
+                    {
+                        return true;
+                    }
+                    if (emscripten_futex_wait(
+                        &control->responseSeq,
+                        current,
+                        timeoutMs) == -ETIMEDOUT)
+                    {
+                        return __atomic_load_n(
+                            &control->responseSeq, __ATOMIC_SEQ_CST) >= value;
+                    }
+                }
+            }
+        }
+
+        struct VideoRead::Private
+        {
+            int handle = 0;
+            Control* control = nullptr;
+
+            IOInfo info;
+            struct InfoRequest
+            {
+                std::promise<IOInfo> promise;
+            };
+            struct VideoRequest
+            {
+                OTIO_NS::RationalTime time;
+                std::promise<VideoData> promise;
+            };
+            RequestCondition condition;
+            RequestQueue<InfoRequest, IOInfo> infoRequests{ condition };
+            RequestQueue<VideoRequest, VideoData> videoRequests{ condition };
+
+            std::thread thread;
+
+            struct ErrorMutex
+            {
+                std::string error;
+                size_t count = 0;
+                std::mutex mutex;
+            };
+            ErrorMutex errorMutex;
+        };
+
+        void VideoRead::_init(
+            const ftk::Path& path,
+            const IOOptions& options,
+            const std::shared_ptr<ftk::LogSystem>& logSystem)
+        {
+            IRead::_init(path, {}, options, logSystem);
+            FTK_P();
+
+            p.control = new Control;
+            {
+                std::unique_lock<std::mutex> lock(registryMutex);
+                p.handle = ++registryHandle;
+                // The page fetches the path as a URL.
+                registry[p.handle] = { path.get(), p.control };
+            }
+
+            p.thread = std::thread(
+                [this]
+                {
+                    FTK_P();
+                    try
+                    {
+                        emscripten_proxy_async(
+                            emscripten_proxy_get_system_queue(),
+                            emscripten_main_runtime_thread_id(),
+                            registerMain,
+                            reinterpret_cast<void*>(
+                                static_cast<intptr_t>(p.handle)));
+                        // The open covers the fetch and the demux, so it
+                        // gets a generous timeout.
+                        if (!waitResponse(p.control, 1, 30000.0) ||
+                            p.control->width <= 0 ||
+                            p.control->frameCount <= 0)
+                        {
+                            throw std::runtime_error(
+                                "Cannot open: " + _path.get());
+                        }
+                        const double rate =
+                            p.control->duration > 0.0 ?
+                            p.control->frameCount /
+                                (p.control->duration / 1000000.0) :
+                            24.0;
+                        p.info.video.push_back(ftk::ImageInfo(
+                            p.control->width,
+                            p.control->height,
+                            ftk::ImageType::RGBA_U8));
+                        p.info.videoTime = OTIO_NS::TimeRange(
+                            OTIO_NS::RationalTime(0.0, rate),
+                            OTIO_NS::RationalTime(
+                                p.control->frameCount, rate));
+
+                        _run();
+                    }
+                    catch (const std::exception& e)
+                    {
+                        if (auto logSystem = _logSystem.lock())
+                        {
+                            logSystem->print(
+                                "tl::webcodecs::VideoRead",
+                                e.what(),
+                                ftk::LogType::Error);
+                        }
+                        std::unique_lock<std::mutex> lock(p.errorMutex.mutex);
+                        ++p.errorMutex.count;
+                        if (p.errorMutex.error.empty())
+                        {
+                            p.errorMutex.error = e.what();
+                        }
+                    }
+
+                    p.condition.stopQueues();
+                });
+        }
+
+        VideoRead::VideoRead() :
+            _p(new Private)
+        {}
+
+        VideoRead::~VideoRead()
+        {
+            FTK_P();
+            p.condition.stop();
+            if (p.thread.joinable())
+            {
+                p.thread.join();
+            }
+            p.control->command = 2;
+            __atomic_add_fetch(&p.control->requestSeq, 1, __ATOMIC_SEQ_CST);
+            emscripten_futex_wake(&p.control->requestSeq, 1);
+            {
+                std::unique_lock<std::mutex> lock(registryMutex);
+                registry.erase(p.handle);
+            }
+            // The block leaks by design: the worker may still read it
+            // after the close lands, and it is 80 bytes per file opened.
+        }
+
+        std::shared_ptr<VideoRead> VideoRead::create(
+            const ftk::Path& path,
+            const IOOptions& options,
+            const std::shared_ptr<ftk::LogSystem>& logSystem)
+        {
+            auto out = std::shared_ptr<VideoRead>(new VideoRead);
+            out->_init(path, options, logSystem);
+            return out;
+        }
+
+        std::future<IOInfo> VideoRead::getInfo()
+        {
+            FTK_P();
+            return p.infoRequests.push(
+                std::make_shared<Private::InfoRequest>());
+        }
+
+        std::future<VideoData> VideoRead::readVideo(
+            const OTIO_NS::RationalTime& time,
+            const IOOptions&)
+        {
+            FTK_P();
+            auto request = std::make_shared<Private::VideoRequest>();
+            request->time = time;
+            return p.videoRequests.push(request);
+        }
+
+        void VideoRead::cancelRequests()
+        {
+            FTK_P();
+            p.infoRequests.cancel();
+            p.videoRequests.cancel();
+        }
+
+        std::string VideoRead::getError() const
+        {
+            FTK_P();
+            std::unique_lock<std::mutex> lock(p.errorMutex.mutex);
+            return p.errorMutex.error;
+        }
+
+        size_t VideoRead::getErrorCount() const
+        {
+            FTK_P();
+            std::unique_lock<std::mutex> lock(p.errorMutex.mutex);
+            return p.errorMutex.count;
+        }
+
+        void VideoRead::_run()
+        {
+            FTK_P();
+            int32_t seq = 1;
+            while (p.condition.wait())
+            {
+                for (const auto& request : p.infoRequests.popAll())
+                {
+                    request->promise.set_value(p.info);
+                }
+
+                if (auto videoRequest = p.videoRequests.pop())
+                {
+                    PromiseGuard<VideoData> guard(videoRequest->promise);
+
+                    auto image = ftk::Image::create(p.info.video[0]);
+                    // Half a frame of margin so that a frame's own exact
+                    // time cannot round to just before it.
+                    const double tUs =
+                        videoRequest->time.value() /
+                            videoRequest->time.rate() * 1000000.0 +
+                        p.control->frameDur / 2.0;
+                    p.control->targetUs = tUs;
+                    p.control->ptr = reinterpret_cast<uintptr_t>(
+                        image->getData());
+                    p.control->cap = image->getByteCount();
+                    p.control->command = 1;
+                    ++seq;
+                    __atomic_store_n(
+                        &p.control->requestSeq, seq, __ATOMIC_SEQ_CST);
+                    emscripten_futex_wake(&p.control->requestSeq, 1);
+
+                    const bool delivered =
+                        waitResponse(p.control, seq, 5000.0);
+                    VideoData data;
+                    data.time = videoRequest->time;
+                    if (delivered && p.control->deliveredTs >= 0.0)
+                    {
+                        if (1 == p.control->deliveredFormat)
+                        {
+                            // The worker delivered the decoder's native
+                            // planes; the renderer draws planar YUV
+                            // itself.
+                            auto yuv = ftk::Image::create(ftk::ImageInfo(
+                                p.info.video[0].size,
+                                ftk::ImageType::YUV_420P_U8));
+                            memcpy(
+                                yuv->getData(),
+                                image->getData(),
+                                yuv->getByteCount());
+                            data.image = yuv;
+                        }
+                        else
+                        {
+                            data.image = image;
+                        }
+                    }
+                    guard.setValue(std::move(data));
+                }
+            }
+        }
+
+        void ReadPlugin::_init(const std::shared_ptr<ftk::LogSystem>& logSystem)
+        {
+            IReadPlugin::_init(
+                "WebCodecs",
+                {
+                    { ".mp4", FileType::Media },
+                    { ".m4v", FileType::Media },
+                    { ".mov", FileType::Media }
+                },
+                logSystem);
+        }
+
+        ReadPlugin::ReadPlugin()
+        {}
+
+        ReadPlugin::~ReadPlugin()
+        {}
+
+        std::shared_ptr<ReadPlugin> ReadPlugin::create(
+            const std::shared_ptr<ftk::LogSystem>& logSystem)
+        {
+            auto out = std::shared_ptr<ReadPlugin>(new ReadPlugin);
+            out->_init(logSystem);
+            return out;
+        }
+
+        std::shared_ptr<IVideoRead> ReadPlugin::videoRead(
+            const ftk::Path& path,
+            const std::vector<ftk::MemFile>&,
+            const IOOptions& options)
+        {
+            return VideoRead::create(path, options, _logSystem.lock());
+        }
+    }
+}
