@@ -5,6 +5,7 @@ set(HEADERS
     Export.h
     HDR.h
     HDRInline.h
+    ImageScale.h
     Time.h
     TimeInline.h
     URL.h
@@ -15,6 +16,7 @@ set(SOURCE
     Audio.cpp
     AudioResample.cpp
     HDR.cpp
+    ImageScale.cpp
     Time.cpp
     URL.cpp)
 
@@ -49,7 +51,7 @@ if(TLRENDER_OCIO)
 endif()
 if(TLRENDER_FFMPEG)
     target_compile_definitions(tlCore PUBLIC TLRENDER_FFMPEG)
-    target_link_libraries(tlCore PRIVATE FFmpeg::swresample FFmpeg::avutil)
+    target_link_libraries(tlCore PRIVATE FFmpeg::swscale FFmpeg::swresample FFmpeg::avutil)
 endif()
 
 set_target_properties(tlCore PROPERTIES FOLDER lib)

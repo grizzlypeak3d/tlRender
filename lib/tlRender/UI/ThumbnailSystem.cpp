@@ -3,17 +3,13 @@
 
 #include <tlRender/UI/ThumbnailSystem.h>
 
-#include <tlRender/GL/Render.h>
-
 #include <tlRender/Timeline/Timeline.h>
 
 #include <tlRender/IO/System.h>
 
 #include <tlRender/Core/AudioResample.h>
+#include <tlRender/Core/ImageScale.h>
 
-#include <ftk/GL/GL.h>
-#include <ftk/GL/Window.h>
-#include <ftk/GL/OffscreenBuffer.h>
 #include <ftk/Core/Context.h>
 #include <ftk/Core/Format.h>
 #include <ftk/Core/LRUCache.h>
@@ -218,7 +214,6 @@ namespace tl
         struct ThumbnailSystem::Private
         {
             std::weak_ptr<ftk::Context> context;
-            std::shared_ptr<ftk::gl::Window> window;
             uint64_t requestId = 0;
             std::shared_ptr<ftk::Observable<ThumbnailCacheOptions> > cacheOptions;
 
@@ -296,8 +291,7 @@ namespace tl
 
             struct ThumbnailThread
             {
-                std::shared_ptr<gl::Render> render;
-                std::shared_ptr<ftk::gl::OffscreenBuffer> buffer;
+                std::shared_ptr<ImageScale> scale;
                 std::atomic<bool> ioCacheClear = false;
                 std::condition_variable cv;
                 std::thread thread;
@@ -351,12 +345,6 @@ namespace tl
             
             p.context = context;
 
-            p.window = ftk::gl::Window::create(
-                context,
-                "tl::ui::ThumbnailSystem",
-                ftk::Size2I(1, 1),
-                static_cast<int>(ftk::gl::WindowOptions::None));
-
             p.cacheOptions = ftk::Observable<ThumbnailCacheOptions>::create();
 
             p.infoMutex.cache.setMax(infoCacheMax);
@@ -375,31 +363,26 @@ namespace tl
 
             p.thumbnailMutex.cache.setMax(p.cacheOptions->get().thumbnailMB * ftk::megabyte);
             p.ioCache.setMax(ioCacheMax);
+#if defined(TLRENDER_FFMPEG)
             p.thumbnailThread.running = true;
             p.thumbnailThread.thread = std::thread(
                 [this]
                 {
                     FTK_P();
-                    p.window->makeCurrent();
-                    if (auto context = p.context.lock())
-                    {
-                        p.thumbnailThread.render = gl::Render::create(
-                            context->getLogSystem(),
-                            context->getSystem<ftk::FontSystem>());
-                    }
-                    if (p.thumbnailThread.render)
-                    {
-                        _thumbnailRun();
-                    }
+                    _thumbnailRun();
                     {
                         std::unique_lock<std::mutex> lock(p.thumbnailMutex.mutex);
                         p.thumbnailMutex.stopped = true;
                     }
-                    p.thumbnailThread.buffer.reset();
-                    p.thumbnailThread.render.reset();
+                    p.thumbnailThread.scale.reset();
                     _thumbnailCancel();
-                    p.window->clearCurrent();
                 });
+#else // TLRENDER_FFMPEG
+            // The thumbnails are scaled with FFmpeg, like the audio is
+            // resampled with it; without FFmpeg requests cancel rather than
+            // wait forever.
+            p.thumbnailMutex.stopped = true;
+#endif // TLRENDER_FFMPEG
 
             p.waveformMutex.cache.setMax(p.cacheOptions->get().waveformMB * ftk::megabyte);
             
@@ -831,6 +814,27 @@ namespace tl
             }
         }
 
+        namespace
+        {
+            // The scaler is keyed by its formats, so the caller's slot is
+            // reused across the frames of one file and replaced when a
+            // request brings a different image or size.
+            std::shared_ptr<ftk::Image> scaleImage(
+                std::shared_ptr<ImageScale>& scale,
+                const std::shared_ptr<ftk::Image>& image,
+                const ftk::Size2I& size)
+            {
+                const ftk::ImageInfo outputInfo(size, ftk::ImageType::RGBA_U8);
+                if (!scale ||
+                    scale->getInputInfo() != image->getInfo() ||
+                    scale->getOutputInfo() != outputInfo)
+                {
+                    scale = ImageScale::create(image->getInfo(), outputInfo);
+                }
+                return scale->process(image);
+            }
+        }
+
         void ThumbnailSystem::_thumbnailRun()
         {
             FTK_P();
@@ -886,15 +890,6 @@ namespace tl
                             }
                             if (size.isValid())
                             {
-                                if (ftk::gl::doCreate(
-                                    p.thumbnailThread.buffer,
-                                    size,
-                                    ftk::gl::TextureType::RGBA_U8))
-                                {
-                                    p.thumbnailThread.buffer = ftk::gl::OffscreenBuffer::create(
-                                        size,
-                                        ftk::gl::TextureType::RGBA_U8);
-                                }
                                 const OTIO_NS::RationalTime time =
                                     request->time.value_or(
                                         info.videoTime->start_time());
@@ -903,34 +898,13 @@ namespace tl
                                 if (videoRequest.valid())
                                 {
                                     const auto videoData = videoRequest.get();
-                                    if (p.thumbnailThread.render &&
-                                        p.thumbnailThread.buffer &&
-                                        videoData.image &&
+                                    if (videoData.image &&
                                         p.thumbnailThread.running)
                                     {
-                                        ftk::gl::OffscreenBufferBinding binding(p.thumbnailThread.buffer);
-                                        p.thumbnailThread.render->begin(size);
-                                        ftk::ImageOptions imageOptions;
-                                        imageOptions.cache = false;
-                                        imageOptions.imageFilters.minify =
-                                            ftk::ImageFilter::HighQuality;
-                                        p.thumbnailThread.render->IRender::drawImage(
+                                        image = scaleImage(
+                                            p.thumbnailThread.scale,
                                             videoData.image,
-                                            ftk::Box2I(0, 0, size.w, size.h),
-                                            ftk::Color4F(1.F, 1.F, 1.F),
-                                            imageOptions);
-                                        p.thumbnailThread.render->end();
-                                        image = ftk::Image::create(
-                                            ftk::ImageInfo(size.w, size.h, ftk::ImageType::RGBA_U8));
-                                        glPixelStorei(GL_PACK_ALIGNMENT, 1);
-                                        glReadPixels(
-                                            0,
-                                            0,
-                                            size.w,
-                                            size.h,
-                                            GL_RGBA,
-                                            GL_UNSIGNED_BYTE,
-                                            image->getData());
+                                            size);
                                     }
                                 }
                             }
@@ -975,36 +949,24 @@ namespace tl
                             }
                             if (size.isValid())
                             {
-                                if (ftk::gl::doCreate(
-                                    p.thumbnailThread.buffer,
-                                    size,
-                                    ftk::gl::TextureType::RGBA_U8))
+                                // The thumbnail is the first layer's image;
+                                // a miniature of a compare is not worth a
+                                // renderer here.
+                                std::shared_ptr<ftk::Image> layerImage;
+                                for (const auto& layer : videoData.layers)
                                 {
-                                    p.thumbnailThread.buffer = ftk::gl::OffscreenBuffer::create(
-                                        size,
-                                        ftk::gl::TextureType::RGBA_U8);
+                                    if (layer.image)
+                                    {
+                                        layerImage = layer.image;
+                                        break;
+                                    }
                                 }
-                                if (p.thumbnailThread.render && p.thumbnailThread.buffer)
+                                if (layerImage && p.thumbnailThread.running)
                                 {
-                                    ftk::gl::OffscreenBufferBinding binding(p.thumbnailThread.buffer);
-                                    p.thumbnailThread.render->begin(size);
-                                    p.thumbnailThread.render->drawVideo(
-                                        { videoData },
-                                        { ftk::Box2I(0, 0, size.w, size.h) });
-                                    p.thumbnailThread.render->end();
-                                    ftk::ImageInfo info(size.w,
-                                        size.h,
-                                        ftk::ImageType::RGBA_U8);
-                                    image = ftk::Image::create(info);
-                                    glPixelStorei(GL_PACK_ALIGNMENT, 1);
-                                    glReadPixels(
-                                        0,
-                                        0,
-                                        size.w,
-                                        size.h,
-                                        GL_RGBA,
-                                        GL_UNSIGNED_BYTE,
-                                        image->getData());
+                                    image = scaleImage(
+                                        p.thumbnailThread.scale,
+                                        layerImage,
+                                        size);
                                 }
                             }
                         }

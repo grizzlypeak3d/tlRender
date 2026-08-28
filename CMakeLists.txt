@@ -191,11 +191,27 @@ if(TLRENDER_FFMPEG)
             FFmpeg::swresample
             FFmpeg::swscale
             FFmpeg::avutil)
+    elseif(EMSCRIPTEN)
+        # Only the libraries Core uses: the I/O plugin is not built for
+        # the web, and neither is the rest of FFmpeg.
+        set(FFmpeg_FOUND TRUE)
+        add_library(FFmpeg::avutil STATIC IMPORTED)
+        set_property(TARGET FFmpeg::avutil PROPERTY
+             IMPORTED_LOCATION "${CMAKE_INSTALL_PREFIX}/lib/libavutil.a")
+        add_library(FFmpeg::swresample STATIC IMPORTED)
+        set_property(TARGET FFmpeg::swresample PROPERTY
+             IMPORTED_LOCATION "${CMAKE_INSTALL_PREFIX}/lib/libswresample.a")
+        add_library(FFmpeg::swscale STATIC IMPORTED)
+        set_property(TARGET FFmpeg::swscale PROPERTY
+             IMPORTED_LOCATION "${CMAKE_INSTALL_PREFIX}/lib/libswscale.a")
     else()
         find_package(PkgConfig REQUIRED)
         pkg_check_modules(
             swresample REQUIRED IMPORTED_TARGET
             libswresample)
+        pkg_check_modules(
+            swscale REQUIRED IMPORTED_TARGET
+            libswscale)
         pkg_check_modules(
             avutil REQUIRED IMPORTED_TARGET
             libavutil)
@@ -209,6 +225,7 @@ if(TLRENDER_FFMPEG)
             libavutil)
         add_library(FFmpeg::FFmpeg ALIAS PkgConfig::FFmpeg)
         add_library(FFmpeg::swresample ALIAS PkgConfig::swresample)
+        add_library(FFmpeg::swscale ALIAS PkgConfig::swscale)
         add_library(FFmpeg::avutil ALIAS PkgConfig::avutil)
     endif()
 endif()
