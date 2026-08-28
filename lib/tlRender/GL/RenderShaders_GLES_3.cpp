@@ -326,6 +326,7 @@ namespace tl
         std::string dissolveFragmentSource()
         {
             return
+                "#version 300 es\n"
                 "precision mediump float;\n"
                 "out vec4 outColor;\n"
                 "\n"
