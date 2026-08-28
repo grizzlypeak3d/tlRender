@@ -64,12 +64,13 @@ namespace tl
             {
                 std::string url;
                 Control* control = nullptr;
+                bool audio = false;
             };
             std::mutex registryMutex;
             std::map<int, Registration> registry;
             int registryHandle = 0;
 
-            EM_JS(void, wcRegister, (int handle, const char* url, void* ctrl), {
+            EM_JS(void, wcRegister, (int handle, const char* url, void* ctrl, int audio), {
                 if (!globalThis.__tlWCWorker)
                 {
                     globalThis.__tlWCWorker = new Worker('WebCodecsWorker.js');
@@ -79,7 +80,8 @@ namespace tl
                 globalThis.__tlWCWorker.postMessage({
                     handle: handle,
                     url: UTF8ToString(url),
-                    ctrl: ctrl });
+                    ctrl: ctrl,
+                    audio: 0 !== audio });
             });
 
             void registerMain(void* arg)
@@ -88,6 +90,7 @@ namespace tl
                     reinterpret_cast<intptr_t>(arg));
                 std::string url;
                 Control* control = nullptr;
+                bool audio = false;
                 {
                     std::unique_lock<std::mutex> lock(registryMutex);
                     const auto i = registry.find(handle);
@@ -95,11 +98,12 @@ namespace tl
                     {
                         url = i->second.url;
                         control = i->second.control;
+                        audio = i->second.audio;
                     }
                 }
                 if (control)
                 {
-                    wcRegister(handle, url.c_str(), control);
+                    wcRegister(handle, url.c_str(), control, audio ? 1 : 0);
                 }
             }
 
@@ -170,7 +174,7 @@ namespace tl
                 std::unique_lock<std::mutex> lock(registryMutex);
                 p.handle = ++registryHandle;
                 // The page fetches the path as a URL.
-                registry[p.handle] = { path.get(), p.control };
+                registry[p.handle] = { path.get(), p.control, false };
             }
 
             p.thread = std::thread(
@@ -364,6 +368,231 @@ namespace tl
             }
         }
 
+
+        struct AudioRead::Private
+        {
+            int handle = 0;
+            Control* control = nullptr;
+
+            IOInfo info;
+            struct InfoRequest
+            {
+                std::promise<IOInfo> promise;
+            };
+            struct AudioRequest
+            {
+                OTIO_NS::TimeRange timeRange;
+                std::promise<AudioData> promise;
+            };
+            RequestCondition condition;
+            RequestQueue<InfoRequest, IOInfo> infoRequests{ condition };
+            RequestQueue<AudioRequest, AudioData> audioRequests{ condition };
+
+            std::thread thread;
+
+            struct ErrorMutex
+            {
+                std::string error;
+                size_t count = 0;
+                std::mutex mutex;
+            };
+            ErrorMutex errorMutex;
+        };
+
+        void AudioRead::_init(
+            const ftk::Path& path,
+            const IOOptions& options,
+            const std::shared_ptr<ftk::LogSystem>& logSystem)
+        {
+            IRead::_init(path, {}, options, logSystem);
+            FTK_P();
+
+            p.control = new Control;
+            {
+                std::unique_lock<std::mutex> lock(registryMutex);
+                p.handle = ++registryHandle;
+                registry[p.handle] = { path.get(), p.control, true };
+            }
+
+            p.thread = std::thread(
+                [this]
+                {
+                    FTK_P();
+                    try
+                    {
+                        emscripten_proxy_async(
+                            emscripten_proxy_get_system_queue(),
+                            emscripten_main_runtime_thread_id(),
+                            registerMain,
+                            reinterpret_cast<void*>(
+                                static_cast<intptr_t>(p.handle)));
+                        // The open covers the fetch, the demux, and the
+                        // whole track's decode.
+                        if (!waitResponse(p.control, 1, 60000.0))
+                        {
+                            throw std::runtime_error(
+                                "Cannot open: " + _path.get());
+                        }
+                        // No audio track is an answer rather than an
+                        // error; the information stays empty.
+                        if (p.control->width > 0 &&
+                            p.control->height > 0 &&
+                            p.control->frameCount > 0)
+                        {
+                            p.info.audio = AudioInfo(
+                                p.control->height,
+                                AudioType::F32,
+                                p.control->width);
+                            p.info.audioTime = OTIO_NS::TimeRange(
+                                OTIO_NS::RationalTime(
+                                    0.0, p.control->width),
+                                OTIO_NS::RationalTime(
+                                    p.control->frameCount,
+                                    p.control->width));
+                        }
+
+                        _run();
+                    }
+                    catch (const std::exception& e)
+                    {
+                        if (auto logSystem = _logSystem.lock())
+                        {
+                            logSystem->print(
+                                "tl::webcodecs::AudioRead",
+                                e.what(),
+                                ftk::LogType::Error);
+                        }
+                        std::unique_lock<std::mutex> lock(p.errorMutex.mutex);
+                        ++p.errorMutex.count;
+                        if (p.errorMutex.error.empty())
+                        {
+                            p.errorMutex.error = e.what();
+                        }
+                    }
+
+                    p.condition.stopQueues();
+                });
+        }
+
+        AudioRead::AudioRead() :
+            _p(new Private)
+        {}
+
+        AudioRead::~AudioRead()
+        {
+            FTK_P();
+            p.condition.stop();
+            if (p.thread.joinable())
+            {
+                p.thread.join();
+            }
+            p.control->command = 2;
+            __atomic_add_fetch(&p.control->requestSeq, 1, __ATOMIC_SEQ_CST);
+            emscripten_futex_wake(&p.control->requestSeq, 1);
+            {
+                std::unique_lock<std::mutex> lock(registryMutex);
+                registry.erase(p.handle);
+            }
+            // The block leaks by design, like the video reader's.
+        }
+
+        std::shared_ptr<AudioRead> AudioRead::create(
+            const ftk::Path& path,
+            const IOOptions& options,
+            const std::shared_ptr<ftk::LogSystem>& logSystem)
+        {
+            auto out = std::shared_ptr<AudioRead>(new AudioRead);
+            out->_init(path, options, logSystem);
+            return out;
+        }
+
+        std::future<IOInfo> AudioRead::getInfo()
+        {
+            FTK_P();
+            return p.infoRequests.push(
+                std::make_shared<Private::InfoRequest>());
+        }
+
+        std::future<AudioData> AudioRead::readAudio(
+            const OTIO_NS::TimeRange& timeRange,
+            const IOOptions&)
+        {
+            FTK_P();
+            auto request = std::make_shared<Private::AudioRequest>();
+            request->timeRange = timeRange;
+            return p.audioRequests.push(request);
+        }
+
+        void AudioRead::cancelRequests()
+        {
+            FTK_P();
+            p.infoRequests.cancel();
+            p.audioRequests.cancel();
+        }
+
+        std::string AudioRead::getError() const
+        {
+            FTK_P();
+            std::unique_lock<std::mutex> lock(p.errorMutex.mutex);
+            return p.errorMutex.error;
+        }
+
+        size_t AudioRead::getErrorCount() const
+        {
+            FTK_P();
+            std::unique_lock<std::mutex> lock(p.errorMutex.mutex);
+            return p.errorMutex.count;
+        }
+
+        void AudioRead::_run()
+        {
+            FTK_P();
+            int32_t seq = 1;
+            while (p.condition.wait())
+            {
+                for (const auto& request : p.infoRequests.popAll())
+                {
+                    request->promise.set_value(p.info);
+                }
+
+                if (auto audioRequest = p.audioRequests.pop())
+                {
+                    PromiseGuard<AudioData> guard(audioRequest->promise);
+
+                    AudioData data;
+                    data.time = audioRequest->timeRange.start_time();
+                    if (p.info.audio.isValid())
+                    {
+                        const double rate = p.info.audio.sampleRate;
+                        const size_t count = std::max(
+                            0.0,
+                            audioRequest->timeRange.duration().
+                                rescaled_to(rate).value());
+                        auto audio = Audio::create(p.info.audio, count);
+                        p.control->targetUs =
+                            audioRequest->timeRange.start_time().
+                                rescaled_to(rate).value();
+                        p.control->ptr = reinterpret_cast<uintptr_t>(
+                            audio->getData());
+                        p.control->cap = audio->getByteCount();
+                        p.control->command = 1;
+                        ++seq;
+                        __atomic_store_n(
+                            &p.control->requestSeq, seq, __ATOMIC_SEQ_CST);
+                        emscripten_futex_wake(&p.control->requestSeq, 1);
+
+                        const bool delivered =
+                            waitResponse(p.control, seq, 5000.0);
+                        if (delivered && p.control->deliveredTs >= 0.0)
+                        {
+                            data.audio = audio;
+                        }
+                    }
+                    guard.setValue(std::move(data));
+                }
+            }
+        }
+
         void ReadPlugin::_init(const std::shared_ptr<ftk::LogSystem>& logSystem)
         {
             IReadPlugin::_init(
@@ -396,6 +625,14 @@ namespace tl
             const IOOptions& options)
         {
             return VideoRead::create(path, options, _logSystem.lock());
+        }
+
+        std::shared_ptr<IAudioRead> ReadPlugin::audioRead(
+            const ftk::Path& path,
+            const std::vector<ftk::MemFile>&,
+            const IOOptions& options)
+        {
+            return AudioRead::create(path, options, _logSystem.lock());
         }
     }
 }
