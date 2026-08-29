@@ -126,8 +126,16 @@ int main(int argc, char** argv)
                     timer->stop();
                     if (open->timeline)
                     {
+                        tl::PlayerOptions playerOptions;
+#if defined(__EMSCRIPTEN__)
+                        // The wasm heap tops out at 2GB; the desktop
+                        // cache default would spend it all and the
+                        // browser kills the page.
+                        playerOptions.cache.videoGB = .5F;
+                        playerOptions.cache.audioGB = .1F;
+#endif
                         open->player = tl::Player::create(
-                            context, open->timeline);
+                            context, open->timeline, playerOptions);
                         viewport->setPlayer(open->player);
                         timelineWidget->setPlayer(open->player);
                         playbackToolBar->setPlayer(open->player);
