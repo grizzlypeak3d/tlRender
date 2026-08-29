@@ -178,11 +178,15 @@ int main(int argc, char** argv)
             context, timeUnitsModel, layout);
         Divider::create(context, Orientation::Vertical, layout);
         auto bottomLayout = HorizontalLayout::create(context, layout);
+        bottomLayout->setMarginRole(SizeRole::MarginInside);
         bottomLayout->setSpacingRole(SizeRole::SpacingSmall);
+        auto transportLayout = HorizontalLayout::create(
+            context, bottomLayout);
+        transportLayout->setSpacingRole(SizeRole::SpacingTool);
         auto playbackToolBar = tl::ui::PlaybackToolBar::create(
-            context, bottomLayout);
+            context, transportLayout);
         auto frameToolBar = tl::ui::FrameToolBar::create(
-            context, bottomLayout);
+            context, transportLayout);
         auto timeEdit = tl::ui::TimeEdit::create(
             context, timeUnitsModel, bottomLayout);
         auto durationLabel = tl::ui::TimeLabel::create(
@@ -202,6 +206,7 @@ int main(int argc, char** argv)
         Divider::create(context, Orientation::Vertical, layout);
         auto statusLabel = Label::create(context, layout);
         statusLabel->setMarginRole(SizeRole::MarginInside);
+        statusLabel->setHAlign(HAlign::Right);
 
         const std::string url =
             urlOption->found() ? urlOption->getValue() : "test.mp4";
