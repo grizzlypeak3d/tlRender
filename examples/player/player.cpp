@@ -20,7 +20,10 @@
 #include <tlRender/Timeline/TimeUnits.h>
 
 #include <ftk/UI/App.h>
+#include <ftk/UI/Label.h>
+#include <ftk/UI/OverlayLayout.h>
 #include <ftk/UI/RowLayout.h>
+#include <ftk/UI/Spacer.h>
 #include <ftk/UI/Window.h>
 
 #include <ftk/Core/CmdLine.h>
@@ -41,6 +44,7 @@ namespace
     struct Open
     {
         std::atomic<bool> done{ false };
+        std::string error;
         std::shared_ptr<tl::Timeline> timeline;
         std::shared_ptr<tl::Player> player;
         std::shared_ptr<ftk::Observer<OTIO_NS::RationalTime> > currentTimeObserver;
@@ -72,8 +76,20 @@ int main(int argc, char** argv)
         auto window = Window::create(context, app, "player");
         auto layout = VerticalLayout::create(context, window);
         layout->setSpacingRole(SizeRole::None);
-        auto viewport = tl::ui::Viewport::create(context, layout);
-        viewport->setVStretch(Stretch::Expanding);
+        auto overlayLayout = OverlayLayout::create(context, layout);
+        overlayLayout->setVStretch(Stretch::Expanding);
+        auto viewport = tl::ui::Viewport::create(context, overlayLayout);
+        // The overlay gives the full box; the spacers and the cross
+        // axis alignment are what center the label in it.
+        auto loadingLayout = HorizontalLayout::create(context, overlayLayout);
+        auto spacer = Spacer::create(
+            context, Orientation::Horizontal, loadingLayout);
+        spacer->setHStretch(Stretch::Expanding);
+        auto loadingLabel = Label::create(context, "Loading", loadingLayout);
+        loadingLabel->setVAlign(VAlign::Center);
+        spacer = Spacer::create(
+            context, Orientation::Horizontal, loadingLayout);
+        spacer->setHStretch(Stretch::Expanding);
         auto timeUnitsModel = tl::TimeUnitsModel::create(context);
         auto timelineWidget = tl::ui::TimelineWidget::create(
             context, timeUnitsModel, layout);
@@ -108,6 +124,7 @@ int main(int argc, char** argv)
                 }
                 catch (const std::exception& e)
                 {
+                    open->error = e.what();
                     std::cout << "ERROR: " << e.what() << std::endl;
                 }
                 open->done = true;
@@ -115,24 +132,36 @@ int main(int argc, char** argv)
 
         auto timer = Timer::create(context);
         timer->setRepeating(true);
+        auto ticks = std::make_shared<int>(0);
         timer->start(
             std::chrono::milliseconds(100),
             [open, context, viewport, timelineWidget, playbackToolBar,
-                frameToolBar, timeEdit, durationLabel, timer]
+                frameToolBar, timeEdit, durationLabel, loadingLabel,
+                ticks, timer]
             {
+                if (!open->done)
+                {
+                    // A remote open can take a while; the dots are the
+                    // sign of life.
+                    ++(*ticks);
+                    loadingLabel->setText(
+                        "Loading" + std::string(*ticks / 5 % 4, '.'));
+                }
                 if (open->done && !open->player)
                 {
                     open->thread.join();
                     timer->stop();
                     if (open->timeline)
                     {
+                        loadingLabel->hide();
                         tl::PlayerOptions playerOptions;
 #if defined(__EMSCRIPTEN__)
-                        // The wasm heap tops out at 2GB; the desktop
-                        // cache default would spend it all and the
-                        // browser kills the page.
-                        playerOptions.cache.videoGB = .5F;
-                        playerOptions.cache.audioGB = .1F;
+                        // The desktop cache default would fill the
+                        // heap, and Safari kills a page over its
+                        // memory budget -- the cache stays a fraction
+                        // of the heap.
+                        playerOptions.cache.videoGB = 1.F;
+                        playerOptions.cache.audioGB = .25F;
 #endif
                         open->player = tl::Player::create(
                             context, open->timeline, playerOptions);
@@ -158,8 +187,14 @@ int main(int argc, char** argv)
                         durationLabel->setValue(
                             open->player->getTimeRange().duration());
                     }
+                    else
+                    {
+                        loadingLabel->setText(
+                            !open->error.empty() ?
+                            open->error :
+                            "Cannot open");
+                    }
                 }
-
             });
 
         app->run();

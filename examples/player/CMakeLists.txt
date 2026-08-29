@@ -12,6 +12,8 @@ if(EMSCRIPTEN)
         "-sPTHREAD_POOL_SIZE=32"
         "-sPTHREAD_POOL_DELAY_LOAD=1"
         "-sALLOW_MEMORY_GROWTH=1"
+        # wasm32's ceiling; the default maximum is 2GB.
+        "-sMAXIMUM_MEMORY=4GB"
         "-sFULL_ES3=1"
         "-sMIN_WEBGL_VERSION=2"
         "-sMAX_WEBGL_VERSION=2")
