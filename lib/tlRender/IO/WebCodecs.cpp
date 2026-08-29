@@ -70,9 +70,9 @@ namespace tl
             std::mutex registryMutex;
             std::map<int, Registration> registry;
             int registryHandle = 0;
-            //! A timed out request's buffer cannot be freed while the
-            //! worker may still write into it; a reader that closes
-            //! holding one parks it here for good.
+            //! A scratch buffer cannot be freed while the worker may
+            //! still write into it; one that is retired parks here for
+            //! good, like the control blocks.
             std::vector<std::shared_ptr<void> > parkedForever;
 
             EM_JS(void, wcRegister, (int handle, const char* url, void* ctrl, int audio), {
@@ -158,11 +158,13 @@ namespace tl
             RequestQueue<InfoRequest, IOInfo> infoRequests{ condition };
             RequestQueue<VideoRequest, VideoData> videoRequests{ condition };
 
-            //! The image of the last request that timed out: the worker
-            //! may still write the frame into it, so it lives until the
-            //! next timeout -- by which time the worker has long since
-            //! seen a newer request and can no longer touch it.
-            std::shared_ptr<ftk::Image> parked;
+            //! The one buffer the worker ever writes into. A late
+            //! write after a timeout can land arbitrarily long after
+            //! the request -- a stalled fetch completes when it
+            //! completes -- so the answer is copied out on success
+            //! rather than decoded in place, and this buffer never
+            //! moves while the reader lives.
+            std::shared_ptr<ftk::Image> scratch;
 
             //! Bumped by cancelRequests(): an in-flight wait whose
             //! generation is stale serves a request nobody wants
@@ -271,9 +273,9 @@ namespace tl
             emscripten_futex_wake(&p.control->requestSeq, 1);
             {
                 std::unique_lock<std::mutex> lock(registryMutex);
-                if (p.parked)
+                if (p.scratch)
                 {
-                    parkedForever.push_back(p.parked);
+                    parkedForever.push_back(p.scratch);
                 }
                 registry.erase(p.handle);
             }
@@ -345,7 +347,10 @@ namespace tl
                 {
                     PromiseGuard<VideoData> guard(videoRequest->promise);
 
-                    auto image = ftk::Image::create(p.info.video[0]);
+                    if (!p.scratch)
+                    {
+                        p.scratch = ftk::Image::create(p.info.video[0]);
+                    }
                     // Half a frame of margin so that a frame's own exact
                     // time cannot round to just before it.
                     const double tUs =
@@ -354,24 +359,23 @@ namespace tl
                         p.control->frameDur / 2.0;
                     p.control->targetUs = tUs;
                     p.control->ptr = reinterpret_cast<uintptr_t>(
-                        image->getData());
-                    p.control->cap = image->getByteCount();
+                        p.scratch->getData());
+                    p.control->cap = p.scratch->getByteCount();
                     p.control->command = 1;
                     ++seq;
                     __atomic_store_n(
                         &p.control->requestSeq, seq, __ATOMIC_SEQ_CST);
                     emscripten_futex_wake(&p.control->requestSeq, 1);
 
-                    // The wait is sliced so that a cancellation -- a
-                    // scrub has moved on -- abandons this request within
-                    // a slice instead of serializing the drag behind
-                    // one-second stalls. Uncancelled, the wait is long
-                    // enough for a cold fetch and decode, so waveform
-                    // tiles and frames fill instead of coming back
-                    // empty.
+                    // The wait is sliced so a cancellation -- a scrub
+                    // has moved on -- abandons this request within a
+                    // slice. The total stays short: in Firefox a
+                    // pending wait stalls the page (unexplained), so
+                    // every wait is a bound on that stall; empty
+                    // answers are retried by the callers.
                     const int gen = p.cancelGen;
                     bool delivered = false;
-                    for (int i = 0; i < 150 && !delivered; ++i)
+                    for (int i = 0; i < 10 && !delivered; ++i)
                     {
                         delivered = waitResponse(p.control, seq, 100.0);
                         if (!delivered && gen != p.cancelGen)
@@ -393,21 +397,20 @@ namespace tl
                                 ftk::ImageType::YUV_420P_U8));
                             memcpy(
                                 yuv->getData(),
-                                image->getData(),
+                                p.scratch->getData(),
                                 yuv->getByteCount());
                             data.image = yuv;
                         }
                         else
                         {
+                            auto image = ftk::Image::create(
+                                p.info.video[0]);
+                            memcpy(
+                                image->getData(),
+                                p.scratch->getData(),
+                                image->getByteCount());
                             data.image = image;
                         }
-                    }
-                    else if (!delivered)
-                    {
-                        // Freeing this while the worker can still write
-                        // into it scribbled over live allocations; the
-                        // crashes pointed everywhere but here.
-                        p.parked = image;
                     }
                     guard.setValue(std::move(data));
                 }
@@ -434,8 +437,9 @@ namespace tl
             RequestQueue<InfoRequest, IOInfo> infoRequests{ condition };
             RequestQueue<AudioRequest, AudioData> audioRequests{ condition };
 
-            //! See VideoRead::Private::parked.
-            std::shared_ptr<Audio> parked;
+            //! See VideoRead::Private::scratch; grown when a request
+            //! wants more than it holds.
+            std::shared_ptr<Audio> scratch;
 
             //! See VideoRead::Private::cancelGen.
             std::atomic<int> cancelGen{ 0 };
@@ -543,9 +547,9 @@ namespace tl
             emscripten_futex_wake(&p.control->requestSeq, 1);
             {
                 std::unique_lock<std::mutex> lock(registryMutex);
-                if (p.parked)
+                if (p.scratch)
                 {
-                    parkedForever.push_back(p.parked);
+                    parkedForever.push_back(p.scratch);
                 }
                 registry.erase(p.handle);
             }
@@ -625,13 +629,24 @@ namespace tl
                             0.0,
                             audioRequest->timeRange.duration().
                                 rescaled_to(rate).value());
-                        auto audio = Audio::create(p.info.audio, count);
+                        if (!p.scratch || p.scratch->getSampleCount() < count)
+                        {
+                            if (p.scratch)
+                            {
+                                // The worker may still write the old one.
+                                std::unique_lock<std::mutex> lock(
+                                    registryMutex);
+                                parkedForever.push_back(p.scratch);
+                            }
+                            p.scratch = Audio::create(p.info.audio, count);
+                        }
                         p.control->targetUs =
                             audioRequest->timeRange.start_time().
                                 rescaled_to(rate).value();
                         p.control->ptr = reinterpret_cast<uintptr_t>(
-                            audio->getData());
-                        p.control->cap = audio->getByteCount();
+                            p.scratch->getData());
+                        p.control->cap =
+                            count * p.info.audio.getByteCount();
                         p.control->command = 1;
                         ++seq;
                         __atomic_store_n(
@@ -641,7 +656,7 @@ namespace tl
                         // Sliced like the video wait.
                         const int gen = p.cancelGen;
                         bool delivered = false;
-                        for (int i = 0; i < 150 && !delivered; ++i)
+                        for (int i = 0; i < 10 && !delivered; ++i)
                         {
                             delivered = waitResponse(p.control, seq, 100.0);
                             if (!delivered && gen != p.cancelGen)
@@ -651,11 +666,12 @@ namespace tl
                         }
                         if (delivered && p.control->deliveredTs >= 0.0)
                         {
+                            auto audio = Audio::create(p.info.audio, count);
+                            memcpy(
+                                audio->getData(),
+                                p.scratch->getData(),
+                                audio->getByteCount());
                             data.audio = audio;
-                        }
-                        else if (!delivered)
-                        {
-                            p.parked = audio;
                         }
                     }
                     guard.setValue(std::move(data));

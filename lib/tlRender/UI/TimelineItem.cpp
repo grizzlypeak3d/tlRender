@@ -737,7 +737,16 @@ namespace tl
                         if (k->second.future.valid() &&
                             k->second.future.wait_for(std::chrono::seconds(0)) == std::future_status::ready)
                         {
-                            item.thumbnails[*k->second.time] = k->second.future.get();
+                            auto image = k->second.future.get();
+#if defined(__EMSCRIPTEN__)
+                            // On the web an empty answer is a timed out
+                            // wait, not an answer; dropped, the tile is
+                            // asked for again on the next draw.
+                            if (image)
+#endif // __EMSCRIPTEN__
+                            {
+                                item.thumbnails[*k->second.time] = image;
+                            }
                             k = item.thumbnailRequests.erase(k);
                             drawUpdate = true;
                         }
@@ -753,7 +762,14 @@ namespace tl
                         if (l->second.future.valid() &&
                             l->second.future.wait_for(std::chrono::seconds(0)) == std::future_status::ready)
                         {
-                            item.waveforms[l->second.timeRange->start_time()] = l->second.future.get();
+                            auto mesh = l->second.future.get();
+#if defined(__EMSCRIPTEN__)
+                            // See the thumbnails above.
+                            if (mesh)
+#endif // __EMSCRIPTEN__
+                            {
+                                item.waveforms[l->second.timeRange->start_time()] = mesh;
+                            }
                             l = item.waveformRequests.erase(l);
                             drawUpdate = true;
                         }
