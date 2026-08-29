@@ -19,17 +19,26 @@
 #include <tlRender/Timeline/Player.h>
 #include <tlRender/Timeline/TimeUnits.h>
 
+#include <tlRender/Core/Audio.h>
+
 #include <ftk/UI/App.h>
+#include <ftk/UI/Divider.h>
+#include <ftk/UI/IWidgetPopup.h>
+#include <ftk/UI/IntEditSlider.h>
 #include <ftk/UI/Label.h>
 #include <ftk/UI/OverlayLayout.h>
 #include <ftk/UI/RowLayout.h>
 #include <ftk/UI/Spacer.h>
+#include <ftk/UI/ToolButton.h>
 #include <ftk/UI/Window.h>
 
 #include <ftk/Core/CmdLine.h>
+#include <ftk/Core/Format.h>
+#include <ftk/Core/String.h>
 #include <ftk/Core/Timer.h>
 
 #include <atomic>
+#include <cmath>
 #include <iostream>
 #include <thread>
 
@@ -37,6 +46,77 @@ using namespace ftk;
 
 namespace
 {
+    //! The volume slider and the mute, in a popup under the volume
+    //! button.
+    class AudioPopup : public IWidgetPopup
+    {
+    protected:
+        AudioPopup() = default;
+
+    public:
+        virtual ~AudioPopup() {}
+
+        static std::shared_ptr<AudioPopup> create(
+            const std::shared_ptr<Context>& context,
+            const std::shared_ptr<tl::Player>& player,
+            const std::shared_ptr<IWidget>& parent = nullptr)
+        {
+            auto out = std::shared_ptr<AudioPopup>(new AudioPopup);
+            out->_init(context, "AudioPopup", parent);
+
+            out->_volumeSlider = IntEditSlider::create(context);
+            out->_volumeSlider->setRange(0, 100);
+            out->_volumeSlider->setStep(1);
+            out->_volumeSlider->setLargeStep(10);
+            out->_volumeSlider->setTooltip("Audio volume");
+
+            out->_muteButton = ToolButton::create(context);
+            out->_muteButton->setIcon("Mute");
+            out->_muteButton->setCheckable(true);
+            out->_muteButton->setTooltip("Mute the audio");
+
+            auto layout = HorizontalLayout::create(context);
+            layout->setMarginRole(SizeRole::MarginSmall);
+            layout->setSpacingRole(SizeRole::SpacingSmall);
+            out->_volumeSlider->setParent(layout);
+            out->_muteButton->setParent(layout);
+            out->setWidget(layout);
+
+            out->_volumeSlider->setCallback(
+                [player](int value)
+                {
+                    player->setVolume(value / 100.F);
+                });
+            out->_muteButton->setCheckedCallback(
+                [player](bool value)
+                {
+                    player->setMute(value);
+                });
+
+            auto* p = out.get();
+            out->_volumeObserver = ftk::Observer<float>::create(
+                player->observeVolume(),
+                [p](float value)
+                {
+                    p->_volumeSlider->setValue(std::roundf(value * 100.F));
+                });
+            out->_muteObserver = ftk::Observer<bool>::create(
+                player->observeMute(),
+                [p](bool value)
+                {
+                    p->_muteButton->setChecked(value);
+                });
+
+            return out;
+        }
+
+    private:
+        std::shared_ptr<IntEditSlider> _volumeSlider;
+        std::shared_ptr<ToolButton> _muteButton;
+        std::shared_ptr<ftk::Observer<float> > _volumeObserver;
+        std::shared_ptr<ftk::Observer<bool> > _muteObserver;
+    };
+
     //! Opening blocks on the readers' information, and on the web the
     //! WebCodecs reader cannot answer until the main thread's event
     //! loop runs -- so the open happens on a thread and the main
@@ -48,6 +128,9 @@ namespace
         std::shared_ptr<tl::Timeline> timeline;
         std::shared_ptr<tl::Player> player;
         std::shared_ptr<ftk::Observer<OTIO_NS::RationalTime> > currentTimeObserver;
+        std::shared_ptr<ftk::Observer<float> > volumeObserver;
+        std::shared_ptr<ftk::Observer<bool> > muteObserver;
+        std::shared_ptr<AudioPopup> audioPopup;
         std::thread thread;
     };
 }
@@ -93,6 +176,7 @@ int main(int argc, char** argv)
         auto timeUnitsModel = tl::TimeUnitsModel::create(context);
         auto timelineWidget = tl::ui::TimelineWidget::create(
             context, timeUnitsModel, layout);
+        Divider::create(context, Orientation::Vertical, layout);
         auto bottomLayout = HorizontalLayout::create(context, layout);
         bottomLayout->setSpacingRole(SizeRole::SpacingSmall);
         auto playbackToolBar = tl::ui::PlaybackToolBar::create(
@@ -105,6 +189,19 @@ int main(int argc, char** argv)
             context, timeUnitsModel, bottomLayout);
         auto timeUnitsWidget = tl::ui::TimeUnitsWidget::create(
             context, timeUnitsModel, bottomLayout);
+        spacer = Spacer::create(
+            context, Orientation::Horizontal, bottomLayout);
+        spacer->setHStretch(Stretch::Expanding);
+        auto volumeLabel = Label::create(context, bottomLayout);
+        volumeLabel->setFont(FontType::Mono);
+        volumeLabel->setTooltip("Audio volume.");
+        auto volumeButton = ToolButton::create(context, bottomLayout);
+        volumeButton->setIcon("Volume");
+        volumeButton->setPopupIcon(true);
+        volumeButton->setTooltip("Audio controls.");
+        Divider::create(context, Orientation::Vertical, layout);
+        auto statusLabel = Label::create(context, layout);
+        statusLabel->setMarginRole(SizeRole::MarginInside);
 
         const std::string url =
             urlOption->found() ? urlOption->getValue() : "test.mp4";
@@ -137,7 +234,7 @@ int main(int argc, char** argv)
             std::chrono::milliseconds(100),
             [open, context, viewport, timelineWidget, playbackToolBar,
                 frameToolBar, timeEdit, durationLabel, loadingLabel,
-                ticks, timer]
+                volumeLabel, volumeButton, statusLabel, ticks, timer]
             {
                 if (!open->done)
                 {
@@ -186,6 +283,35 @@ int main(int argc, char** argv)
                                 });
                         durationLabel->setValue(
                             open->player->getTimeRange().duration());
+                        open->volumeObserver = ftk::Observer<float>::create(
+                            open->player->observeVolume(),
+                            [volumeLabel](float value)
+                            {
+                                volumeLabel->setText(Format("{0}%").arg(
+                                    static_cast<int>(value * 100.F), 3));
+                            });
+                        open->muteObserver = ftk::Observer<bool>::create(
+                            open->player->observeMute(),
+                            [volumeButton](bool value)
+                            {
+                                volumeButton->setIcon(
+                                    value ? "Mute" : "Volume");
+                            });
+                        std::vector<std::string> text;
+                        text.push_back(
+                            open->player->getPath().getFileName());
+                        const auto& ioInfo = open->player->getIOInfo();
+                        if (!ioInfo.video.empty())
+                        {
+                            text.push_back("video: " +
+                                getLabel(ioInfo.video.front()));
+                        }
+                        if (ioInfo.audio.isValid())
+                        {
+                            text.push_back("audio: " +
+                                tl::getLabel(ioInfo.audio, true));
+                        }
+                        statusLabel->setText(join(text, ", "));
                     }
                     else
                     {
@@ -194,6 +320,23 @@ int main(int argc, char** argv)
                             open->error :
                             "Cannot open");
                     }
+                }
+            });
+
+        volumeButton->setClickedCallback(
+            [open, context, window, volumeButton]
+            {
+                if (open->player && !open->audioPopup)
+                {
+                    open->audioPopup = AudioPopup::create(
+                        context, open->player);
+                    open->audioPopup->open(
+                        window, volumeButton->getGeometry());
+                    open->audioPopup->setCloseCallback(
+                        [open]
+                        {
+                            open->audioPopup.reset();
+                        });
                 }
             });
 
