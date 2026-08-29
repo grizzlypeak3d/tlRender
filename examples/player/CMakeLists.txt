@@ -12,8 +12,10 @@ if(EMSCRIPTEN)
         "-sPTHREAD_POOL_SIZE=32"
         "-sPTHREAD_POOL_DELAY_LOAD=1"
         "-sALLOW_MEMORY_GROWTH=1"
-        # wasm32's ceiling; the default maximum is 2GB.
-        "-sMAXIMUM_MEMORY=4GB"
+        # The default 2GB maximum stays: growing past it turned into
+        # out-of-bounds crashes in Firefox once the heap crossed 2GB --
+        # a pointer-sign bug somewhere in the stack, unfound.
+        "-sMAXIMUM_MEMORY=2GB"
         "-sFULL_ES3=1"
         "-sMIN_WEBGL_VERSION=2"
         "-sMAX_WEBGL_VERSION=2")

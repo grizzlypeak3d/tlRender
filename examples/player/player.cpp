@@ -274,7 +274,7 @@ int main(int argc, char** argv)
                         // so scrubbing ratchets the footprint toward
                         // the limit -- a shallow cache lowers the
                         // ceiling it ratchets to.
-                        playerOptions.cache.videoGB = mobile ? .1F : 1.F;
+                        playerOptions.cache.videoGB = mobile ? .1F : .5F;
                         playerOptions.cache.audioGB = mobile ? .05F : .25F;
 #endif
                         open->player = tl::Player::create(
