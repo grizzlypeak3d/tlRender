@@ -341,10 +341,13 @@ namespace tl
                         &p.control->requestSeq, seq, __ATOMIC_SEQ_CST);
                     emscripten_futex_wake(&p.control->requestSeq, 1);
 
-                    // Enough for a cold seek: a keyframe restart over the
-                    // network fetches before it decodes.
+                    // Short on purpose: in Firefox a pending wait here
+                    // freezes the page (unexplained; the worker's fetches
+                    // stall against it), so the wait gives up fast and the
+                    // cache loop asks again -- the worker keeps working and
+                    // parks the answer for the retry.
                     const bool delivered =
-                        waitResponse(p.control, seq, 10000.0);
+                        waitResponse(p.control, seq, 1000.0);
                     VideoData data;
                     data.time = videoRequest->time;
                     if (delivered && p.control->deliveredTs >= 0.0)
@@ -586,9 +589,9 @@ namespace tl
                             &p.control->requestSeq, seq, __ATOMIC_SEQ_CST);
                         emscripten_futex_wake(&p.control->requestSeq, 1);
 
-                        // The window may fetch and decode before it answers.
+                        // Short for the same reason as the video wait.
                         const bool delivered =
-                            waitResponse(p.control, seq, 10000.0);
+                            waitResponse(p.control, seq, 1000.0);
                         if (delivered && p.control->deliveredTs >= 0.0)
                         {
                             data.audio = audio;
