@@ -118,7 +118,13 @@ namespace tl
                         ++thumbnailCount;
                     }
                 }
+#if defined(TLRENDER_FFMPEG)
                 FTK_CHECK(!mediaReadable || thumbnailCount > 0);
+#else // TLRENDER_FFMPEG
+                // Without FFmpeg there is no scaler and no thumbnails;
+                // the requests still answer, with nothing.
+                FTK_CHECK(0 == thumbnailCount);
+#endif // TLRENDER_FFMPEG
                 for (auto& request : waveformRequests)
                 {
                     const auto waveform = request.future.get();
@@ -188,12 +194,18 @@ namespace tl
                 FTK_CHECK(!path.isSeq());
                 auto request = thumbnailSystem->getThumbnail(path, 16);
                 auto image = request.future.get();
+#if defined(TLRENDER_FFMPEG)
                 FTK_CHECK(image);
                 values.push_back(image->getData()[0]);
                 _print(ftk::Format("Frame {0} thumbnail: {1}").
                     arg(frame).arg(values.back()));
+#else // TLRENDER_FFMPEG
+                FTK_CHECK(!image);
+#endif // TLRENDER_FFMPEG
             }
+#if defined(TLRENDER_FFMPEG)
             FTK_CHECK(values[0] != values[1]);
+#endif // TLRENDER_FFMPEG
         }
 
         void ThumbnailSystemTest::_gapSeq()
@@ -290,7 +302,11 @@ namespace tl
             // is what the old unset-time marker of -1/-1 was worth. Comparing
             // times rescales them, so a request for it once read as "no time
             // given" and came back with the first frame.
+#if defined(TLRENDER_FFMPEG)
             FTK_CHECK(onDisk == withImage);
+#else // TLRENDER_FFMPEG
+            FTK_CHECK(withImage.empty());
+#endif // TLRENDER_FFMPEG
         }
     }
 }
