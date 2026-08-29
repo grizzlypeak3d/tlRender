@@ -270,7 +270,11 @@ int main(int argc, char** argv)
                             return (navigator.maxTouchPoints || 0) > 1 ?
                                 1 : 0;
                         });
-                        playerOptions.cache.videoGB = mobile ? .25F : 1.F;
+                        // Small on the phone: the heap never shrinks,
+                        // so scrubbing ratchets the footprint toward
+                        // the limit -- a shallow cache lowers the
+                        // ceiling it ratchets to.
+                        playerOptions.cache.videoGB = mobile ? .1F : 1.F;
                         playerOptions.cache.audioGB = mobile ? .05F : .25F;
 #endif
                         open->player = tl::Player::create(
