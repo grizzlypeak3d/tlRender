@@ -39,6 +39,11 @@ canvas { display: block; width: 100%; height: 100%; -webkit-user-drag: none; }
 <body>
 <canvas id="canvas" oncontextmenu="event.preventDefault()"></canvas>
 <pre id="error"></pre>
+<!-- A host that cannot send the COOP/COEP headers, like GitHub
+     Pages, gets them from a service worker that re-serves every
+     response with the headers added; the first visit reloads once
+     for the worker to take over. -->
+<script src="coi-serviceworker.js"></script>
 <script>
 function tlError(text) {
     var el = document.getElementById('error');
@@ -53,8 +58,14 @@ window.onunhandledrejection = function(event) {
     tlError(String(event.reason));
 };
 if (!crossOriginIsolated) {
-    tlError('The page is not cross-origin isolated; wasm threads need ' +
-        'the COOP/COEP headers from the server.');
+    /* The coi service worker reloads the page once on its first
+       visit; the error waits out that reload. */
+    setTimeout(function() {
+        if (!crossOriginIsolated) {
+            tlError('The page is not cross-origin isolated; wasm ' +
+                'threads need the COOP/COEP headers from the server.');
+        }
+    }, 3000);
 }
 /* The browser keeps the audio device suspended until a user gesture,
    and the resume has to happen inside the gesture's own handler. The

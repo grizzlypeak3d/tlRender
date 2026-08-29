@@ -18,10 +18,12 @@ if(EMSCRIPTEN)
         "-sMIN_WEBGL_VERSION=2"
         "-sMAX_WEBGL_VERSION=2")
     # The page and the decode worker; mp4box.js is the demuxer the
-    # worker loads.
+    # worker loads, and the coi service worker supplies the isolation
+    # headers on hosts that cannot send them.
     add_custom_command(TARGET player POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
             ${PROJECT_SOURCE_DIR}/lib/tlRender/IO/WebCodecsWorker.js
             ${PROJECT_SOURCE_DIR}/etc/Web/mp4box.all.min.js
+            ${PROJECT_SOURCE_DIR}/etc/Web/coi-serviceworker.js
             $<TARGET_FILE_DIR:player>)
 endif()
