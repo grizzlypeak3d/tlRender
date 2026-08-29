@@ -170,6 +170,15 @@ function readBlock(S, b)
             }
             return r.arrayBuffer();
         });
+        p.catch(function()
+        {
+            // A failure cached is a failure forever; evicted, the
+            // next read fetches again.
+            if (S.blocks.get(b) === p)
+            {
+                S.blocks.delete(b);
+            }
+        });
     }
     S.blocks.set(b, p);
     while (S.blocks.size > CACHE_BLOCKS)
