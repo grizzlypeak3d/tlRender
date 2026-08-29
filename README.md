@@ -26,6 +26,19 @@ Features:
 * Available for Linux, macOS, and Windows
 
 
+## Web Player
+
+An experimental build of the example player runs in the browser,
+playing movies with the WebCodecs API:
+
+* [Test pattern](https://grizzlypeak3d.github.io/tlRender/player/)
+* [ASC StEM2](https://grizzlypeak3d.github.io/tlRender/player/?url=https://aswf-dpel-assets.s3.amazonaws.com/asc-stem2/ASC_StEM2_178_2K_24_100nits_Rec709_Stereo.mp4)
+  from the [ASWF Digital Production Example Library](https://dpel.aswf.io)
+
+The "url" query plays a movie from any host that allows cross-origin
+range reads.
+
+
 ## Building Dependencies
 
 A CMake super build script is provided to build all of the dependencies from
