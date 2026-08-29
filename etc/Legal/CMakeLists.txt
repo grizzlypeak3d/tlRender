@@ -1,6 +1,7 @@
 set(LEGAL
     LICENSE_aom.txt
     LICENSE_CMake.txt
+    LICENSE_coi-serviceworker.txt
     LICENSE_expat.txt
     LICENSE_FFmpeg.txt
     LICENSE_feather-tk.txt
@@ -10,6 +11,7 @@ set(LEGAL
     LICENSE_libpng.txt
     LICENSE_libtiff.txt
     LICENSE_minizip-ng.txt
+    LICENSE_mp4box.txt
     LICENSE_nlohmann_json.txt
     LICENSE_OFL.txt
     LICENSE_OpenColorIO.txt
