@@ -83,9 +83,11 @@ function getSource(url)
         {
             if (206 === r.status)
             {
-                // The size: Content-Range is not readable across
-                // origins unless the server exposes it, but a HEAD's
-                // Content-Length always is.
+                // The size is a nicety, not a requirement: Content-Range
+                // is only readable across origins when the server
+                // exposes it, and a HEAD is refused by a host whose
+                // CORS allows only GET. Unknown means streaming with
+                // reads past the end answered by 416.
                 var m = /\/(\d+)\s*$/.exec(
                     r.headers.get('Content-Range') || '');
                 var size = m ? parseInt(m[1]) : 0;
@@ -98,14 +100,14 @@ function getSource(url)
                 return Promise.all([r.arrayBuffer(), sizeP])
                 .then(function(a)
                 {
-                    if (!a[1] || a[1] <= WHOLE_MAX)
+                    if (a[1] && a[1] <= WHOLE_MAX)
                     {
                         return wholeSource(url);
                     }
                     return {
                         url: url,
                         buffer: null,
-                        size: a[1],
+                        size: a[1] ? a[1] : Infinity,
                         head: a[0],
                         blocks: new Map()
                     };
@@ -147,6 +149,11 @@ function readBlock(S, b)
             { headers: { 'Range': 'bytes=' + start + '-' + (end - 1) } })
         .then(function(r)
         {
+            if (416 === r.status)
+            {
+                // Past the end of a file whose size is unknown.
+                return new ArrayBuffer(0);
+            }
             if (206 !== r.status)
             {
                 throw new Error('HTTP ' + r.status);
@@ -232,6 +239,12 @@ function parseIndex(S)
                 }
                 else if (0 === size)
                 {
+                    // A box to the end of the file; nothing follows,
+                    // and a read past an unknown end also lands here.
+                    if ('moov' !== type)
+                    {
+                        return Promise.reject(new Error('no moov'));
+                    }
                     size = S.size - off;
                 }
                 if ('ftyp' === type)
@@ -248,6 +261,10 @@ function parseIndex(S)
         }
         S.index = walk(0).then(function()
         {
+            if (!isFinite(moov.size))
+            {
+                return Promise.reject(new Error('no moov size'));
+            }
             return Promise.all([
                 ftyp ? readRange(S, ftyp.off, ftyp.size) : null,
                 readRange(S, moov.off, moov.size)]);
