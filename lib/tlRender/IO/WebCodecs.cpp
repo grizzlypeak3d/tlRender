@@ -69,6 +69,10 @@ namespace tl
             std::mutex registryMutex;
             std::map<int, Registration> registry;
             int registryHandle = 0;
+            //! A timed out request's buffer cannot be freed while the
+            //! worker may still write into it; a reader that closes
+            //! holding one parks it here for good.
+            std::vector<std::shared_ptr<void> > parkedForever;
 
             EM_JS(void, wcRegister, (int handle, const char* url, void* ctrl, int audio), {
                 if (!globalThis.__tlWCWorker)
@@ -152,6 +156,12 @@ namespace tl
             RequestCondition condition;
             RequestQueue<InfoRequest, IOInfo> infoRequests{ condition };
             RequestQueue<VideoRequest, VideoData> videoRequests{ condition };
+
+            //! The image of the last request that timed out: the worker
+            //! may still write the frame into it, so it lives until the
+            //! next timeout -- by which time the worker has long since
+            //! seen a newer request and can no longer touch it.
+            std::shared_ptr<ftk::Image> parked;
 
             std::thread thread;
 
@@ -255,6 +265,10 @@ namespace tl
             emscripten_futex_wake(&p.control->requestSeq, 1);
             {
                 std::unique_lock<std::mutex> lock(registryMutex);
+                if (p.parked)
+                {
+                    parkedForever.push_back(p.parked);
+                }
                 registry.erase(p.handle);
             }
             // The block leaks by design: the worker may still read it
@@ -371,6 +385,13 @@ namespace tl
                             data.image = image;
                         }
                     }
+                    else if (!delivered)
+                    {
+                        // Freeing this while the worker can still write
+                        // into it scribbled over live allocations; the
+                        // crashes pointed everywhere but here.
+                        p.parked = image;
+                    }
                     guard.setValue(std::move(data));
                 }
             }
@@ -395,6 +416,9 @@ namespace tl
             RequestCondition condition;
             RequestQueue<InfoRequest, IOInfo> infoRequests{ condition };
             RequestQueue<AudioRequest, AudioData> audioRequests{ condition };
+
+            //! See VideoRead::Private::parked.
+            std::shared_ptr<Audio> parked;
 
             std::thread thread;
 
@@ -499,6 +523,10 @@ namespace tl
             emscripten_futex_wake(&p.control->requestSeq, 1);
             {
                 std::unique_lock<std::mutex> lock(registryMutex);
+                if (p.parked)
+                {
+                    parkedForever.push_back(p.parked);
+                }
                 registry.erase(p.handle);
             }
             // The block leaks by design, like the video reader's.
@@ -595,6 +623,10 @@ namespace tl
                         if (delivered && p.control->deliveredTs >= 0.0)
                         {
                             data.audio = audio;
+                        }
+                        else if (!delivered)
+                        {
+                            p.parked = audio;
                         }
                     }
                     guard.setValue(std::move(data));
