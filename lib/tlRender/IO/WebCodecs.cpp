@@ -12,6 +12,7 @@
 #include <emscripten/proxying.h>
 #include <emscripten/threading.h>
 
+#include <atomic>
 #include <cerrno>
 #include <cstddef>
 #include <cstring>
@@ -163,6 +164,11 @@ namespace tl
             //! seen a newer request and can no longer touch it.
             std::shared_ptr<ftk::Image> parked;
 
+            //! Bumped by cancelRequests(): an in-flight wait whose
+            //! generation is stale serves a request nobody wants
+            //! anymore, and yields to the fresh one.
+            std::atomic<int> cancelGen{ 0 };
+
             std::thread thread;
 
             struct ErrorMutex
@@ -305,6 +311,7 @@ namespace tl
         void VideoRead::cancelRequests()
         {
             FTK_P();
+            ++p.cancelGen;
             p.infoRequests.cancel();
             p.videoRequests.cancel();
         }
@@ -355,13 +362,23 @@ namespace tl
                         &p.control->requestSeq, seq, __ATOMIC_SEQ_CST);
                     emscripten_futex_wake(&p.control->requestSeq, 1);
 
-                    // Short on purpose: in Firefox a pending wait here
-                    // freezes the page (unexplained; the worker's fetches
-                    // stall against it), so the wait gives up fast and the
-                    // cache loop asks again -- the worker keeps working and
-                    // parks the answer for the retry.
-                    const bool delivered =
-                        waitResponse(p.control, seq, 1000.0);
+                    // The wait is sliced so that a cancellation -- a
+                    // scrub has moved on -- abandons this request within
+                    // a slice instead of serializing the drag behind
+                    // one-second stalls. Uncancelled, the wait is long
+                    // enough for a cold fetch and decode, so waveform
+                    // tiles and frames fill instead of coming back
+                    // empty.
+                    const int gen = p.cancelGen;
+                    bool delivered = false;
+                    for (int i = 0; i < 150 && !delivered; ++i)
+                    {
+                        delivered = waitResponse(p.control, seq, 100.0);
+                        if (!delivered && gen != p.cancelGen)
+                        {
+                            break;
+                        }
+                    }
                     VideoData data;
                     data.time = videoRequest->time;
                     if (delivered && p.control->deliveredTs >= 0.0)
@@ -419,6 +436,9 @@ namespace tl
 
             //! See VideoRead::Private::parked.
             std::shared_ptr<Audio> parked;
+
+            //! See VideoRead::Private::cancelGen.
+            std::atomic<int> cancelGen{ 0 };
 
             std::thread thread;
 
@@ -562,6 +582,7 @@ namespace tl
         void AudioRead::cancelRequests()
         {
             FTK_P();
+            ++p.cancelGen;
             p.infoRequests.cancel();
             p.audioRequests.cancel();
         }
@@ -617,9 +638,17 @@ namespace tl
                             &p.control->requestSeq, seq, __ATOMIC_SEQ_CST);
                         emscripten_futex_wake(&p.control->requestSeq, 1);
 
-                        // Short for the same reason as the video wait.
-                        const bool delivered =
-                            waitResponse(p.control, seq, 1000.0);
+                        // Sliced like the video wait.
+                        const int gen = p.cancelGen;
+                        bool delivered = false;
+                        for (int i = 0; i < 150 && !delivered; ++i)
+                        {
+                            delivered = waitResponse(p.control, seq, 100.0);
+                            if (!delivered && gen != p.cancelGen)
+                            {
+                                break;
+                            }
+                        }
                         if (delivered && p.control->deliveredTs >= 0.0)
                         {
                             data.audio = audio;
