@@ -37,6 +37,10 @@
 #include <ftk/Core/String.h>
 #include <ftk/Core/Timer.h>
 
+#if defined(__EMSCRIPTEN__)
+#include <emscripten.h>
+#endif
+
 #include <atomic>
 #include <cmath>
 #include <iostream>
@@ -259,11 +263,15 @@ int main(int argc, char** argv)
                         tl::PlayerOptions playerOptions;
 #if defined(__EMSCRIPTEN__)
                         // The desktop cache default would fill the
-                        // heap, and Safari kills a page over its
-                        // memory budget -- the cache stays a fraction
-                        // of the heap.
-                        playerOptions.cache.videoGB = 1.F;
-                        playerOptions.cache.audioGB = .25F;
+                        // heap, and the browser kills a page over its
+                        // memory budget -- a phone's budget is a
+                        // fraction of a desktop's.
+                        const bool mobile = EM_ASM_INT({
+                            return (navigator.maxTouchPoints || 0) > 1 ?
+                                1 : 0;
+                        });
+                        playerOptions.cache.videoGB = mobile ? .25F : 1.F;
+                        playerOptions.cache.audioGB = mobile ? .05F : .25F;
 #endif
                         open->player = tl::Player::create(
                             context, open->timeline, playerOptions);
