@@ -981,8 +981,16 @@ namespace tl
                         request->height,
                         request->time,
                         request->options);
-                    std::unique_lock<std::mutex> lock(p.thumbnailMutex.mutex);
-                    p.thumbnailMutex.cache.add(key, image, image ? image->getByteCount() : 0);
+                    // An empty answer is not cached: it is a timeout or
+                    // an unreadable file, and a cached nothing would
+                    // answer every retry with the same nothing.
+                    if (image)
+                    {
+                        std::unique_lock<std::mutex> lock(
+                            p.thumbnailMutex.mutex);
+                        p.thumbnailMutex.cache.add(
+                            key, image, image->getByteCount());
+                    }
                 }
                 else if (p.ioCacheCount() > 0 && p.ioCacheIdle(ioCacheTimeout))
                 {
@@ -1141,8 +1149,14 @@ namespace tl
                         request->size,
                         request->timeRange,
                         request->options);
-                    std::unique_lock<std::mutex> lock(p.waveformMutex.mutex);
-                    p.waveformMutex.cache.add(key, mesh, mesh ? mesh->getByteCount() : 0);
+                    // See the thumbnail cache above.
+                    if (mesh)
+                    {
+                        std::unique_lock<std::mutex> lock(
+                            p.waveformMutex.mutex);
+                        p.waveformMutex.cache.add(
+                            key, mesh, mesh->getByteCount());
+                    }
                 }
                 else if (p.ioCacheCount() > 0 && p.ioCacheIdle(ioCacheTimeout))
                 {
