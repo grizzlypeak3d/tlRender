@@ -16,6 +16,11 @@ namespace tl
         struct VideoRead::Private
         {
             IOInfo info;
+            //! Set once the open has filled the information, which
+            //! never changes afterwards, so getInfo() can answer
+            //! immediately instead of queueing behind the request
+            //! being served.
+            std::atomic<bool> infoValid{ false };
 
             struct InfoRequest
             {
@@ -51,6 +56,8 @@ namespace tl
         struct AudioRead::Private
         {
             IOInfo info;
+            //! See VideoRead::Private::infoValid.
+            std::atomic<bool> infoValid{ false };
 
             struct InfoRequest
             {
@@ -97,6 +104,7 @@ namespace tl
                 {
                     FTK_P();
                     p.info = getIOInfo(path, options, _logSystem.lock());
+                    p.infoValid = true;
                     _run();
                 });
         }
@@ -151,6 +159,12 @@ namespace tl
         std::future<IOInfo> VideoRead::getInfo()
         {
             FTK_P();
+            if (p.infoValid)
+            {
+                std::promise<IOInfo> promise;
+                promise.set_value(p.info);
+                return promise.get_future();
+            }
             auto request = std::make_shared<Private::InfoRequest>();
             {
                 std::unique_lock<std::mutex> lock(p.mutex.mutex);
@@ -210,6 +224,7 @@ namespace tl
                 {
                     FTK_P();
                     p.info = getIOInfo(path, options, _logSystem.lock());
+                    p.infoValid = true;
                     _run();
                 });
         }
@@ -264,6 +279,12 @@ namespace tl
         std::future<IOInfo> AudioRead::getInfo()
         {
             FTK_P();
+            if (p.infoValid)
+            {
+                std::promise<IOInfo> promise;
+                promise.set_value(p.info);
+                return promise.get_future();
+            }
             auto request = std::make_shared<Private::InfoRequest>();
             {
                 std::unique_lock<std::mutex> lock(p.mutex.mutex);

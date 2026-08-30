@@ -196,6 +196,7 @@ namespace tl
                             p.info.videoSource = p.readVideo->getSource();
                             p.info.tags = p.readVideo->getTags();
                         }
+                        p.infoValid = true;
 
                         _run();
                     }
@@ -262,6 +263,12 @@ namespace tl
         std::future<IOInfo> VideoRead::getInfo()
         {
             FTK_P();
+            if (p.infoValid)
+            {
+                std::promise<IOInfo> promise;
+                promise.set_value(p.info);
+                return promise.get_future();
+            }
             return p.infoRequests.push(std::make_shared<Private::InfoRequest>());
         }
 
@@ -413,6 +420,7 @@ namespace tl
                             // thread stays to serve information requests.
                             p.audioRequests.stop();
                         }
+                        p.infoValid = true;
 
                         _run();
                     }
@@ -479,6 +487,12 @@ namespace tl
         std::future<IOInfo> AudioRead::getInfo()
         {
             FTK_P();
+            if (p.infoValid)
+            {
+                std::promise<IOInfo> promise;
+                promise.set_value(p.info);
+                return promise.get_future();
+            }
             return p.infoRequests.push(std::make_shared<Private::InfoRequest>());
         }
 

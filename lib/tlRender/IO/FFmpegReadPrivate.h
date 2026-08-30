@@ -206,6 +206,11 @@ namespace tl
             std::shared_ptr<ReadVideo> readVideo;
 
             IOInfo info;
+            //! Set once the open has filled the information, which
+            //! never changes afterwards, so getInfo() can answer
+            //! immediately instead of queueing behind the request
+            //! being served.
+            std::atomic<bool> infoValid{ false };
             struct InfoRequest
             {
                 std::promise<IOInfo> promise;
@@ -236,6 +241,9 @@ namespace tl
             std::shared_ptr<ReadAudio> readAudio;
 
             IOInfo info;
+            //! See VideoRead::Private::infoValid; a file without an
+            //! audio track sets it too, since empty is the answer.
+            std::atomic<bool> infoValid{ false };
             struct InfoRequest
             {
                 std::promise<IOInfo> promise;
