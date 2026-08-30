@@ -135,6 +135,7 @@ namespace
         std::shared_ptr<ftk::Observer<float> > volumeObserver;
         std::shared_ptr<ftk::Observer<bool> > muteObserver;
         std::shared_ptr<AudioPopup> audioPopup;
+        std::shared_ptr<ftk::Timer> scrubTimer;
         std::thread thread;
     };
 }
@@ -149,6 +150,10 @@ int main(int argc, char** argv)
             { "-url" },
             "The file to play.",
             "Player");
+        auto autoscrubOption = CmdLineFlag::create(
+            { "-autoscrub" },
+            "Continuously seek to random times, for profiling.",
+            "Player");
         auto app = App::create(
             context,
             argc,
@@ -156,7 +161,7 @@ int main(int argc, char** argv)
             "player",
             "Example player.",
             {},
-            { urlOption });
+            { urlOption, autoscrubOption });
         if (app->hasCmdLineHelp())
             return 0;
 
@@ -243,7 +248,8 @@ int main(int argc, char** argv)
             std::chrono::milliseconds(100),
             [open, context, viewport, timelineWidget, playbackToolBar,
                 frameToolBar, timeEdit, durationLabel, loadingLabel,
-                volumeLabel, volumeButton, statusLabel, ticks, timer]
+                volumeLabel, volumeButton, statusLabel, ticks, timer,
+                autoscrubOption]
             {
                 if (!open->done)
                 {
@@ -329,6 +335,32 @@ int main(int argc, char** argv)
                                 tl::getLabel(ioInfo.audio, true));
                         }
                         statusLabel->setText(join(text, ", "));
+                        // Profiling harness: seek to a new time three
+                        // times a second.
+                        if (autoscrubOption->found())
+                        {
+                            open->scrubTimer = Timer::create(context);
+                            open->scrubTimer->setRepeating(true);
+                            auto n = std::make_shared<int>(0);
+                            open->scrubTimer->start(
+                                std::chrono::milliseconds(300),
+                                [open, n]
+                                {
+                                    // The golden ratio spreads the
+                                    // seeks over the timeline so each
+                                    // one is a cold jump.
+                                    const auto& range =
+                                        open->player->getTimeRange();
+                                    const double t = std::fmod(
+                                        ++(*n) * .618, 1.0);
+                                    const auto dur = range.duration();
+                                    open->player->seek(
+                                        range.start_time() +
+                                        OTIO_NS::RationalTime(
+                                            std::round(dur.value() * t),
+                                            dur.rate()));
+                                });
+                        }
                     }
                     else
                     {

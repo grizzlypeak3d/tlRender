@@ -18,7 +18,8 @@ if(EMSCRIPTEN)
         "-sMAXIMUM_MEMORY=2GB"
         "-sFULL_ES3=1"
         "-sMIN_WEBGL_VERSION=2"
-        "-sMAX_WEBGL_VERSION=2")
+        "-sMAX_WEBGL_VERSION=2"
+        "--profiling-funcs")
     # The page and the decode worker; mp4box.js is the demuxer the
     # worker loads, and the coi service worker supplies the isolation
     # headers on hosts that cannot send them.
