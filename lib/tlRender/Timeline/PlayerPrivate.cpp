@@ -209,7 +209,10 @@ namespace tl
         const double behindFrames = std::min(
             OTIO_NS::RationalTime(thread.state.cacheOptions.readBehind, 1.0).
                 rescaled_to(rate).round().value(),
-            max > 0 ? static_cast<double>(max - 1) : 0.0);
+            // No more than a quarter of the cache: against a budget of
+            // only a couple dozen frames, a fixed half second behind
+            // would leave almost nothing ahead.
+            max > 0 ? std::floor((max - 1) / 4.0) : 0.0);
         const double aheadFrames = std::max(
             static_cast<double>(max) - behindFrames - 1.0,
             0.0);

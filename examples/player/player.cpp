@@ -282,7 +282,7 @@ int main(int argc, char** argv)
                         // ceiling it ratchets to. The depth lives in
                         // the worker's compressed block cache, which
                         // re-decodes instead of replaying.
-                        playerOptions.cache.videoGB = mobile ? .1F : .15F;
+                        playerOptions.cache.videoGB = mobile ? .1F : .25F;
                         playerOptions.cache.audioGB = mobile ? .05F : .1F;
 #endif
                         open->player = tl::Player::create(
