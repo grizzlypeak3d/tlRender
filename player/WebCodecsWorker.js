@@ -695,6 +695,17 @@ function open(R)
             }).catch(function() {});
         }
     };
+    R.recycle = function(item)
+    {
+        // Safari's collector falls behind a fresh 8MB copy buffer per
+        // decoded frame -- the process grows by a gigabyte a minute
+        // until the page is killed -- so the buffers are reused
+        // instead of left as garbage.
+        if (item && item.buf && R.pool.length < 12)
+        {
+            R.pool.push(item.buf);
+        }
+    };
     R.push = function(item)
     {
         var i = R.queue.length;
@@ -713,7 +724,7 @@ function open(R)
         var t = R.target;
         while (R.queue.length >= 2 && R.queue[1].ts <= t)
         {
-            R.queue.shift();
+            R.recycle(R.queue.shift());
             R.pump();
         }
         var head = R.queue.length ? R.queue[0] : null;
@@ -800,6 +811,7 @@ function open(R)
         v.i32[7] = fmt;
         v.f64[4] = ts;
         respond(R, R.seq);
+        R.recycle(f);
         R.pump();
     };
     function fallbackConvert(frame)
@@ -844,7 +856,11 @@ function open(R)
         try { size = frame.allocationSize(opts); } catch (e) {}
         if (size > 0)
         {
-            var buf = new Uint8Array(size);
+            var buf =
+                R.pool.length &&
+                R.pool[R.pool.length - 1].length === size ?
+                R.pool.pop() :
+                new Uint8Array(size);
             frame.copyTo(buf, opts).then(function(layout)
             {
                 // Safari resolves the copy without converting; the
@@ -990,6 +1006,10 @@ function request(R, seq)
         R.next = key;
         R.flushed = false;
         R.eos = false;
+        for (var q = 0; q < R.queue.length; ++q)
+        {
+            R.recycle(R.queue[q]);
+        }
         R.queue = [];
         // Scrubbing leaves stragglers behind; anything the new decode
         // will not feed goes.
@@ -1100,6 +1120,7 @@ onmessage = function(event)
             store: {},
             pending: {},
             queue: [],
+            pool: [],
             next: 0,
             dec: null,
             config: null,
