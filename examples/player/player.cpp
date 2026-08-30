@@ -39,6 +39,8 @@
 
 #if defined(__EMSCRIPTEN__)
 #include <emscripten.h>
+#include <emscripten/heap.h>
+#include <malloc.h>
 #endif
 
 #include <atomic>
@@ -154,6 +156,22 @@ int main(int argc, char** argv)
             { "-autoscrub" },
             "Continuously seek to random times, for profiling.",
             "Player");
+        auto playOption = CmdLineFlag::create(
+            { "-play" },
+            "Start playback once the file is open.",
+            "Player");
+        auto heapLogOption = CmdLineFlag::create(
+            { "-heapLog" },
+            "Log the heap size every ten seconds, for leak hunting.",
+            "Player");
+        auto noThumbnailsOption = CmdLineFlag::create(
+            { "-noThumbnails" },
+            "Disable the timeline thumbnails.",
+            "Player");
+        auto noWaveformsOption = CmdLineFlag::create(
+            { "-noWaveforms" },
+            "Disable the timeline waveforms.",
+            "Player");
         auto app = App::create(
             context,
             argc,
@@ -161,7 +179,8 @@ int main(int argc, char** argv)
             "player",
             "Example player.",
             {},
-            { urlOption, autoscrubOption });
+            { urlOption, autoscrubOption, playOption, heapLogOption,
+                noThumbnailsOption, noWaveformsOption });
         if (app->hasCmdLineHelp())
             return 0;
 
@@ -185,6 +204,13 @@ int main(int argc, char** argv)
         auto timeUnitsModel = tl::TimeUnitsModel::create(context);
         auto timelineWidget = tl::ui::TimelineWidget::create(
             context, timeUnitsModel, layout);
+        if (noThumbnailsOption->found() || noWaveformsOption->found())
+        {
+            auto displayOptions = timelineWidget->getDisplayOptions();
+            displayOptions.thumbnails = !noThumbnailsOption->found();
+            displayOptions.waveforms = !noWaveformsOption->found();
+            timelineWidget->setDisplayOptions(displayOptions);
+        }
         Divider::create(context, Orientation::Vertical, layout);
         auto bottomLayout = HorizontalLayout::create(context, layout);
         bottomLayout->setMarginRole(SizeRole::MarginInside);
@@ -241,6 +267,33 @@ int main(int argc, char** argv)
                 open->done = true;
             });
 
+#if defined(__EMSCRIPTEN__)
+        auto heapTimer = Timer::create(context);
+        if (heapLogOption->found())
+        {
+            heapTimer->setRepeating(true);
+            heapTimer->start(
+                std::chrono::seconds(10),
+                [context, heapTimer]
+                {
+                    // The heap never shrinks, so the trend over a long
+                    // run separates a leak from a bounded footprint.
+                    // The beacon reaches the serving host's log, for
+                    // reading a run without the browser console.
+                    const struct mallinfo mi = mallinfo();
+                    const std::string text = Format(
+                        "heap: {0}MB, used: {1}MB").
+                        arg(emscripten_get_heap_size() / 1048576).
+                        arg(static_cast<size_t>(mi.uordblks) / 1048576);
+                    context->getLogSystem()->print("player", text);
+                    EM_ASM({
+                        fetch('tlog?m=' + encodeURIComponent(
+                            UTF8ToString($0)));
+                    }, text.c_str());
+                });
+        }
+#endif
+
         auto timer = Timer::create(context);
         timer->setRepeating(true);
         auto ticks = std::make_shared<int>(0);
@@ -249,7 +302,7 @@ int main(int argc, char** argv)
             [open, context, viewport, timelineWidget, playbackToolBar,
                 frameToolBar, timeEdit, durationLabel, loadingLabel,
                 volumeLabel, volumeButton, statusLabel, ticks, timer,
-                autoscrubOption]
+                autoscrubOption, playOption]
             {
                 if (!open->done)
                 {
@@ -337,6 +390,11 @@ int main(int argc, char** argv)
                                 tl::getLabel(ioInfo.audio, true));
                         }
                         statusLabel->setText(join(text, ", "));
+                        if (playOption->found())
+                        {
+                            open->player->setPlayback(
+                                tl::Playback::Forward);
+                        }
                         // Profiling harness: seek to a new time three
                         // times a second.
                         if (autoscrubOption->found())
