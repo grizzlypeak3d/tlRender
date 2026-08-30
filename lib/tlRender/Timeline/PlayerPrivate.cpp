@@ -777,7 +777,7 @@ namespace tl
                 "    * I/O options: {3}\n"
                 "    * Video cache: {4}% {5}GB\n"
                 "    * Audio cache: {6}% {7}GB\n"
-                "    * Read behind: {8}GB\n"
+                "    * Read behind: {8} seconds\n"
                 "    * Video requests: {9}\n"
                 "    * Audio requests: {10}\n"
                 "    {11}\n"
