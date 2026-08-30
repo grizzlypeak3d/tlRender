@@ -145,6 +145,12 @@ namespace tl
             Control* control = nullptr;
 
             IOInfo info;
+            //! Set once the open has filled the information, which
+            //! never changes afterwards, so getInfo() can answer
+            //! immediately instead of queueing behind the request in
+            //! flight -- the caller can be the main thread, where a
+            //! blocked future busy-spins the page.
+            std::atomic<bool> infoValid{ false };
             struct InfoRequest
             {
                 std::promise<IOInfo> promise;
@@ -232,6 +238,7 @@ namespace tl
                             OTIO_NS::RationalTime(0.0, rate),
                             OTIO_NS::RationalTime(
                                 p.control->frameCount, rate));
+                        p.infoValid = true;
 
                         _run();
                     }
@@ -296,6 +303,12 @@ namespace tl
         std::future<IOInfo> VideoRead::getInfo()
         {
             FTK_P();
+            if (p.infoValid)
+            {
+                std::promise<IOInfo> promise;
+                promise.set_value(p.info);
+                return promise.get_future();
+            }
             return p.infoRequests.push(
                 std::make_shared<Private::InfoRequest>());
         }
@@ -424,6 +437,9 @@ namespace tl
             Control* control = nullptr;
 
             IOInfo info;
+            //! See VideoRead::Private::infoValid; media without an
+            //! audio track sets it too, since empty is the answer.
+            std::atomic<bool> infoValid{ false };
             struct InfoRequest
             {
                 std::promise<IOInfo> promise;
@@ -506,6 +522,7 @@ namespace tl
                                     p.control->frameCount,
                                     p.control->width));
                         }
+                        p.infoValid = true;
 
                         _run();
                     }
@@ -569,6 +586,12 @@ namespace tl
         std::future<IOInfo> AudioRead::getInfo()
         {
             FTK_P();
+            if (p.infoValid)
+            {
+                std::promise<IOInfo> promise;
+                promise.set_value(p.info);
+                return promise.get_future();
+            }
             return p.infoRequests.push(
                 std::make_shared<Private::InfoRequest>());
         }
