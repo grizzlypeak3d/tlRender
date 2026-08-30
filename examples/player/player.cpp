@@ -276,12 +276,14 @@ int main(int argc, char** argv)
                             return (navigator.maxTouchPoints || 0) > 1 ?
                                 1 : 0;
                         });
-                        // Small on the phone: the heap never shrinks,
+                        // Small everywhere: the heap never shrinks,
                         // so scrubbing ratchets the footprint toward
                         // the limit -- a shallow cache lowers the
-                        // ceiling it ratchets to.
-                        playerOptions.cache.videoGB = mobile ? .1F : .5F;
-                        playerOptions.cache.audioGB = mobile ? .05F : .25F;
+                        // ceiling it ratchets to. The depth lives in
+                        // the worker's compressed block cache, which
+                        // re-decodes instead of replaying.
+                        playerOptions.cache.videoGB = mobile ? .1F : .15F;
+                        playerOptions.cache.audioGB = mobile ? .05F : .1F;
 #endif
                         open->player = tl::Player::create(
                             context, open->timeline, playerOptions);
