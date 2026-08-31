@@ -323,9 +323,9 @@ int main(int argc, char** argv)
         // Styled like the time units widget rather than a combo box:
         // a flat button and a popup menu, nothing solid behind it.
         const std::vector<float> displayScales =
-            { 1.F, 1.5F, 2.F, 3.F, 4.F };
+            { 1.F, 2.F, 3.F, 4.F, 5.F };
         const std::vector<std::string> displayScaleLabels =
-            { "1x", "1.5x", "2x", "3x", "4x" };
+            { "1x", "2x", "3x", "4x", "5x" };
         auto scaleIndex = std::make_shared<int>(0);
         auto scaleButton = ToolButton::create(context, settingsParent);
         scaleButton->setPopupIcon(true);
@@ -629,6 +629,13 @@ int main(int argc, char** argv)
                         controlsLayout->show();
                         topLayout->show();
                         window->setTooltipsEnabled(true);
+                    }
+                    else if (window->getChildren().size() > 1)
+                    {
+                        // More children than the layout means an open
+                        // popup: the user is in a menu, so the clock
+                        // holds and nothing hides out from under it.
+                        *quiet = 0;
                     }
                     else if (open->player &&
                         tl::Playback::Stop !=
