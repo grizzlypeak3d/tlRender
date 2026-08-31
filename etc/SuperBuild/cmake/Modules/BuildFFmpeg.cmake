@@ -27,6 +27,9 @@ endif()
 if(TLRENDER_NASM)
     list(APPEND FFmpeg_DEPS NASM)
 endif()
+if(NOT WIN32 AND NOT APPLE)
+    list(APPEND FFmpeg_DEPS nv-codec-headers)
+endif()
 
 set(FFmpeg_SHARED_LIBS ON)
 set(FFmpeg_DEBUG OFF)
@@ -93,11 +96,8 @@ set(FFmpeg_CONFIGURE_ARGS
     --disable-amf
     --disable-audiotoolbox
     --disable-cuda-llvm
-    --disable-cuvid
     --disable-d3d12va
-    --disable-ffnvcodec
     --disable-mediafoundation
-    --disable-nvdec
     --disable-nvenc
     --disable-v4l2-m2m
     --disable-vdpau
@@ -106,6 +106,21 @@ set(FFmpeg_CONFIGURE_ARGS
     ${FFmpeg_CXXFLAGS}
     ${FFmpeg_OBJCFLAGS}
     ${FFmpeg_LDFLAGS})
+if(WIN32 OR APPLE)
+    # The native APIs cover these platforms.
+    list(APPEND FFmpeg_CONFIGURE_ARGS
+        --disable-cuvid
+        --disable-ffnvcodec
+        --disable-nvdec)
+else()
+    # NVIDIA hardware on Linux decodes through NVDEC; VAAPI means
+    # nothing to its driver (#833). The headers are built above and
+    # the driver libraries load at run time.
+    list(APPEND FFmpeg_CONFIGURE_ARGS
+        --enable-cuvid
+        --enable-ffnvcodec
+        --enable-nvdec)
+endif()
 if(TLRENDER_FFMPEG_MINIMAL)
     # Codecs that can be shipped without a patent license. AAC is left out
     # deliberately, and it is the codec a QuickTime movie defaults to, so a
