@@ -25,6 +25,7 @@
 #include <ftk/UI/Divider.h>
 #include <ftk/UI/IWidgetPopup.h>
 #include <ftk/UI/IntEditSlider.h>
+#include <ftk/UI/ComboBox.h>
 #include <ftk/UI/Label.h>
 #include <ftk/UI/OverlayLayout.h>
 #include <ftk/UI/RowLayout.h>
@@ -134,6 +135,7 @@ namespace
         std::shared_ptr<tl::Timeline> timeline;
         std::shared_ptr<tl::Player> player;
         std::shared_ptr<ftk::Observer<OTIO_NS::RationalTime> > currentTimeObserver;
+        std::shared_ptr<ftk::Observer<float> > displayScaleObserver;
         std::shared_ptr<ftk::Observer<float> > volumeObserver;
         std::shared_ptr<ftk::Observer<bool> > muteObserver;
         std::shared_ptr<AudioPopup> audioPopup;
@@ -241,11 +243,18 @@ int main(int argc, char** argv)
         auto timeUnitsModel = tl::TimeUnitsModel::create(context);
         auto timelineWidget = tl::ui::TimelineWidget::create(
             context, timeUnitsModel, controlsParent);
-        if (noThumbnailsOption->found() || noWaveformsOption->found())
+        if (noThumbnailsOption->found() || noWaveformsOption->found() ||
+            overlayUI)
         {
             auto displayOptions = timelineWidget->getDisplayOptions();
             displayOptions.thumbnails = !noThumbnailsOption->found();
             displayOptions.waveforms = !noWaveformsOption->found();
+            if (overlayUI)
+            {
+                // The scrim is the backing; a solid timeline would
+                // defeat it.
+                displayOptions.background = ColorRole::None;
+            }
             timelineWidget->setDisplayOptions(displayOptions);
         }
         if (!overlayUI)
@@ -265,6 +274,10 @@ int main(int argc, char** argv)
             context, transportLayout);
         auto timeEdit = tl::ui::TimeEdit::create(
             context, timeUnitsModel, bottomLayout);
+        if (overlayUI)
+        {
+            timeEdit->setWellRole(ColorRole::None);
+        }
         auto durationLabel = tl::ui::TimeLabel::create(
             context, timeUnitsModel, bottomLayout);
         auto timeUnitsWidget = tl::ui::TimeUnitsWidget::create(
@@ -279,6 +292,22 @@ int main(int argc, char** argv)
         volumeButton->setIcon("Volume");
         volumeButton->setPopupIcon(true);
         volumeButton->setTooltip("Audio controls.");
+        const std::vector<float> displayScales =
+            { 1.F, 1.5F, 2.F, 3.F, 4.F };
+        auto scaleComboBox = ComboBox::create(
+            context,
+            std::vector<std::string>{ "1x", "1.5x", "2x", "3x", "4x" },
+            bottomLayout);
+        scaleComboBox->setTooltip("Display scale.");
+        scaleComboBox->setIndexCallback(
+            [app, displayScales](int value)
+            {
+                if (value >= 0 &&
+                    value < static_cast<int>(displayScales.size()))
+                {
+                    app->setDisplayScale(displayScales[value]);
+                }
+            });
         // The status bar costs a row a phone does not have; in the
         // overlay layout it exists but never joins a window.
         std::shared_ptr<Label> statusLabel;
@@ -477,6 +506,25 @@ int main(int argc, char** argv)
                             "Cannot open");
                     }
                 }
+            });
+
+        // The combo follows the scale wherever it is set from -- the
+        // device pixel ratio lands after startup on the web -- and
+        // the nearest entry keeps the round trip stable.
+        open->displayScaleObserver = Observer<float>::create(
+            app->observeDisplayScale(),
+            [scaleComboBox, displayScales](float value)
+            {
+                int nearest = 0;
+                for (size_t i = 1; i < displayScales.size(); ++i)
+                {
+                    if (std::abs(displayScales[i] - value) <
+                        std::abs(displayScales[nearest] - value))
+                    {
+                        nearest = i;
+                    }
+                }
+                scaleComboBox->setCurrentIndex(nearest);
             });
 
         // The overlay controls get out of the way during playback:
