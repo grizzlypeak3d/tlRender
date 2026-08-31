@@ -863,6 +863,15 @@ namespace tl
                 }
                 if (request)
                 {
+#if defined(__EMSCRIPTEN__)
+                    // WebKit reclaims decode garbage lazily: an
+                    // unpaced sweep over a whole movie grows the page
+                    // past its memory budget before the collector
+                    // runs, and Safari kills it. The pace keeps the
+                    // churn below what reclamation can absorb.
+                    std::this_thread::sleep_for(
+                        std::chrono::milliseconds(100));
+#endif
                     // The options belong to the read, not to the timeline
                     // that is read from: a per clip option such as a camera
                     // name changes with every request, and dropping the
@@ -1098,6 +1107,12 @@ namespace tl
                 }
                 if (request)
                 {
+#if defined(__EMSCRIPTEN__)
+                    // See _thumbnailRun(): paced for WebKit's lazy
+                    // reclamation.
+                    std::this_thread::sleep_for(
+                        std::chrono::milliseconds(100));
+#endif
                     // The options belong to the read, not to the timeline
                     // that is read from: a per clip option such as a camera
                     // name changes with every request, and dropping the
