@@ -73,6 +73,10 @@ namespace tl
             //! Set the font.
             TL_UI_API void setFont(ftk::FontType);
 
+            //! Set whether the increment buttons are visible; too
+            //! small for touch, and redundant beside frame controls.
+            TL_UI_API void setIncButtonsVisible(bool);
+
             //! Set the border color role.
             TL_UI_API void setBorderRole(ftk::ColorRole);
 

@@ -321,6 +321,9 @@ int main(int argc, char** argv)
         {
             timeEdit->setWellRole(ColorRole::None);
             timeEdit->setBorderRole(ColorRole::Text);
+            // Too small for touch, and the frame controls are just
+            // to the left.
+            timeEdit->setIncButtonsVisible(false);
         }
         auto durationLabel = tl::ui::TimeLabel::create(
             context, timeUnitsModel, bottomLayout);
@@ -345,9 +348,9 @@ int main(int argc, char** argv)
         // Styled like the time units widget rather than a combo box:
         // a flat button and a popup menu, nothing solid behind it.
         const std::vector<float> displayScales =
-            { 1.F, 2.F, 3.F, 4.F, 5.F };
+            { 1.F, 2.F, 3.F, 4.F, 5.F, 6.F };
         const std::vector<std::string> displayScaleLabels =
-            { "1x", "2x", "3x", "4x", "5x" };
+            { "1x", "2x", "3x", "4x", "5x", "6x" };
         auto scaleIndex = std::make_shared<int>(0);
         auto scaleButton = ToolButton::create(context, settingsParent);
         scaleButton->setPopupIcon(true);

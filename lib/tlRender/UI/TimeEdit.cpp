@@ -157,6 +157,11 @@ namespace tl
             _p->lineEdit->setFont(value);
         }
 
+        void TimeEdit::setIncButtonsVisible(bool value)
+        {
+            _p->incButtons->setVisible(value);
+        }
+
         void TimeEdit::setBorderRole(ftk::ColorRole value)
         {
             _p->lineEdit->setBorderRole(value);
