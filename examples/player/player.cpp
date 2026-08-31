@@ -28,6 +28,7 @@
 #include <ftk/UI/IntEditSlider.h>
 #include <ftk/UI/ComboBoxPrivate.h>
 #include <ftk/UI/Label.h>
+#include <ftk/UI/Tooltip.h>
 #include <ftk/UI/OverlayLayout.h>
 #include <ftk/UI/RowLayout.h>
 #include <ftk/UI/Spacer.h>
@@ -145,6 +146,21 @@ namespace
         std::shared_ptr<ftk::Timer> scrubTimer;
         std::thread thread;
     };
+
+    bool hasPopup(const std::shared_ptr<ftk::IWindow>& window)
+    {
+        bool out = false;
+        for (const auto& child : window->getChildren())
+        {
+            if (std::dynamic_pointer_cast<ftk::IPopup>(child) &&
+                !std::dynamic_pointer_cast<ftk::Tooltip>(child))
+            {
+                out = true;
+                break;
+            }
+        }
+        return out;
+    }
 }
 
 int main(int argc, char** argv)
@@ -207,6 +223,12 @@ int main(int argc, char** argv)
         const bool overlayUI = overlayOption->found() || mobile;
 
         auto window = Window::create(context, app, "player");
+        if (mobile)
+        {
+            // Touch has no hover: a tooltip would appear under the
+            // resting cursor and never leave.
+            window->setTooltipsEnabled(false);
+        }
         auto layout = VerticalLayout::create(context, window);
         layout->setSpacingRole(SizeRole::None);
         auto overlayLayout = OverlayLayout::create(context, layout);
@@ -619,7 +641,7 @@ int main(int argc, char** argv)
             uiTimer->start(
                 std::chrono::milliseconds(200),
                 [window, controlsLayout, topLayout, open, lastPos, quiet,
-                    uiTimer]
+                    uiTimer, mobile]
                 {
                     const V2I pos = window->getCursorPos();
                     if (pos != *lastPos)
@@ -628,13 +650,18 @@ int main(int argc, char** argv)
                         *quiet = 0;
                         controlsLayout->show();
                         topLayout->show();
-                        window->setTooltipsEnabled(true);
+                        if (!mobile)
+                        {
+                            window->setTooltipsEnabled(true);
+                        }
                     }
-                    else if (window->getChildren().size() > 1)
+                    else if (hasPopup(window))
                     {
-                        // More children than the layout means an open
-                        // popup: the user is in a menu, so the clock
-                        // holds and nothing hides out from under it.
+                        // The user is in a menu or popup, so the
+                        // clock holds and nothing hides out from
+                        // under it. Tooltips do not count: on touch
+                        // one would sit under the resting cursor
+                        // forever.
                         *quiet = 0;
                     }
                     else if (open->player &&
