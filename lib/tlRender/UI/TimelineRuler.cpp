@@ -434,12 +434,16 @@ namespace tl
                 p.size.fontMetrics.lineHeight +
                 p.size.margin +
                 p.size.border * 4;
-            event.render->drawRect(
-                ftk::Box2I(g.min.x, g.min.y, g.w(), h),
-                event.style->getColorRole(ftk::ColorRole::Base));
-            event.render->drawRect(
-                ftk::Box2I(g.min.x, g.min.y + h, g.w(), p.size.border),
-                event.style->getColorRole(ftk::ColorRole::Border));
+            // No background means an overlay layout is providing it.
+            if (p.displayOptions.background != ftk::ColorRole::None)
+            {
+                event.render->drawRect(
+                    ftk::Box2I(g.min.x, g.min.y, g.w(), h),
+                    event.style->getColorRole(ftk::ColorRole::Base));
+                event.render->drawRect(
+                    ftk::Box2I(g.min.x, g.min.y + h, g.w(), p.size.border),
+                    event.style->getColorRole(ftk::ColorRole::Border));
+            }
 
             // Clipped to the ruler, since the times run the length of the
             // timelines and only this much of them is in view.
