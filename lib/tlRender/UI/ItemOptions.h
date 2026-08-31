@@ -8,6 +8,8 @@
 #include <tlRender/Timeline/TimeUnits.h>
 #include <tlRender/Timeline/Timeline.h>
 
+#include <ftk/UI/Style.h>
+
 #include <ftk/Core/Color.h>
 #include <ftk/Core/Util.h>
 
@@ -91,6 +93,10 @@ namespace tl
             CacheDisplay cacheDisplay = CacheDisplay::VideoAndAudio;
 
             bool minimize = true;
+
+            //! Background of the timeline area; None lets whatever is
+            //! underneath show through, for overlay layouts.
+            ftk::ColorRole background = ftk::ColorRole::Window;
 
             //! Color items using the color the OTIO item carries, where it
             //! has one. Items without a color are unaffected.

@@ -73,6 +73,9 @@ namespace tl
             //! Set the font.
             TL_UI_API void setFont(ftk::FontType);
 
+            //! Set the well color role.
+            TL_UI_API void setWellRole(ftk::ColorRole);
+
             TL_UI_API void takeKeyFocus() override;
             TL_UI_API void keyPressEvent(ftk::KeyEvent&) override;
             TL_UI_API void keyReleaseEvent(ftk::KeyEvent&) override;

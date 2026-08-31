@@ -47,6 +47,7 @@ namespace tl
                 inOutDisplay == other.inOutDisplay &&
                 cacheDisplay == other.cacheDisplay &&
                 minimize == other.minimize &&
+                background == other.background &&
                 clipColors == other.clipColors &&
                 thumbnails == other.thumbnails &&
                 thumbnailHeight == other.thumbnailHeight &&

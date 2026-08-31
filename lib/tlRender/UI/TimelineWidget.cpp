@@ -589,6 +589,8 @@ namespace tl
             FTK_P();
             if (p.displayOptions->setIfChanged(value))
             {
+                p.scrollWidget->getScrollArea()->setBackgroundRole(
+                    value.background);
                 for (const auto& item : p.timelineItems)
                 {
                     item->setDisplayOptions(value);
