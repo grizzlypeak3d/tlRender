@@ -25,7 +25,7 @@
 #include <ftk/UI/Divider.h>
 #include <ftk/UI/IWidgetPopup.h>
 #include <ftk/UI/IntEditSlider.h>
-#include <ftk/UI/ComboBox.h>
+#include <ftk/UI/ComboBoxPrivate.h>
 #include <ftk/UI/Label.h>
 #include <ftk/UI/OverlayLayout.h>
 #include <ftk/UI/RowLayout.h>
@@ -136,6 +136,7 @@ namespace
         std::shared_ptr<tl::Player> player;
         std::shared_ptr<ftk::Observer<OTIO_NS::RationalTime> > currentTimeObserver;
         std::shared_ptr<ftk::Observer<float> > displayScaleObserver;
+        std::shared_ptr<ftk::ComboBoxMenu> scaleMenu;
         std::shared_ptr<ftk::Observer<float> > volumeObserver;
         std::shared_ptr<ftk::Observer<bool> > muteObserver;
         std::shared_ptr<AudioPopup> audioPopup;
@@ -292,22 +293,16 @@ int main(int argc, char** argv)
         volumeButton->setIcon("Volume");
         volumeButton->setPopupIcon(true);
         volumeButton->setTooltip("Audio controls.");
+        // Styled like the time units widget rather than a combo box:
+        // a flat button and a popup menu, nothing solid behind it.
         const std::vector<float> displayScales =
             { 1.F, 1.5F, 2.F, 3.F, 4.F };
-        auto scaleComboBox = ComboBox::create(
-            context,
-            std::vector<std::string>{ "1x", "1.5x", "2x", "3x", "4x" },
-            bottomLayout);
-        scaleComboBox->setTooltip("Display scale.");
-        scaleComboBox->setIndexCallback(
-            [app, displayScales](int value)
-            {
-                if (value >= 0 &&
-                    value < static_cast<int>(displayScales.size()))
-                {
-                    app->setDisplayScale(displayScales[value]);
-                }
-            });
+        const std::vector<std::string> displayScaleLabels =
+            { "1x", "1.5x", "2x", "3x", "4x" };
+        auto scaleIndex = std::make_shared<int>(0);
+        auto scaleButton = ToolButton::create(context, bottomLayout);
+        scaleButton->setPopupIcon(true);
+        scaleButton->setTooltip("Display scale.");
         // The status bar costs a row a phone does not have; in the
         // overlay layout it exists but never joins a window.
         std::shared_ptr<Label> statusLabel;
@@ -508,12 +503,13 @@ int main(int argc, char** argv)
                 }
             });
 
-        // The combo follows the scale wherever it is set from -- the
+        // The button follows the scale wherever it is set from -- the
         // device pixel ratio lands after startup on the web -- and
         // the nearest entry keeps the round trip stable.
         open->displayScaleObserver = Observer<float>::create(
             app->observeDisplayScale(),
-            [scaleComboBox, displayScales](float value)
+            [scaleButton, scaleIndex, displayScales, displayScaleLabels]
+                (float value)
             {
                 int nearest = 0;
                 for (size_t i = 1; i < displayScales.size(); ++i)
@@ -524,7 +520,42 @@ int main(int argc, char** argv)
                         nearest = i;
                     }
                 }
-                scaleComboBox->setCurrentIndex(nearest);
+                *scaleIndex = nearest;
+                scaleButton->setText(displayScaleLabels[nearest]);
+            });
+        scaleButton->setClickedCallback(
+            [context, window, app, open, scaleButton, displayScales,
+                displayScaleLabels, scaleIndex]
+            {
+                if (!open->scaleMenu)
+                {
+                    std::vector<ftk::ComboBoxItem> items;
+                    for (const auto& label : displayScaleLabels)
+                    {
+                        items.push_back(ftk::ComboBoxItem(label));
+                    }
+                    open->scaleMenu = ftk::ComboBoxMenu::create(
+                        context, items, *scaleIndex);
+                    open->scaleMenu->open(
+                        window, scaleButton->getGeometry());
+                    open->scaleMenu->setCallback(
+                        [app, open, displayScales](int index)
+                        {
+                            open->scaleMenu->close();
+                            if (index >= 0 &&
+                                index < static_cast<int>(
+                                    displayScales.size()))
+                            {
+                                app->setDisplayScale(
+                                    displayScales[index]);
+                            }
+                        });
+                    open->scaleMenu->setCloseCallback(
+                        [open]
+                        {
+                            open->scaleMenu.reset();
+                        });
+                }
             });
 
         // The overlay controls get out of the way during playback:
