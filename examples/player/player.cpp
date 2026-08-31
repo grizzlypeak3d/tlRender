@@ -541,7 +541,9 @@ int main(int argc, char** argv)
                     open->scaleMenu->setCallback(
                         [app, open, displayScales](int index)
                         {
-                            open->scaleMenu->close();
+                            // The scale is set before the close: the
+                            // close callback releases the menu, and
+                            // this lambda lives in it.
                             if (index >= 0 &&
                                 index < static_cast<int>(
                                     displayScales.size()))
@@ -549,6 +551,7 @@ int main(int argc, char** argv)
                                 app->setDisplayScale(
                                     displayScales[index]);
                             }
+                            open->scaleMenu->close();
                         });
                     open->scaleMenu->setCloseCallback(
                         [open]
