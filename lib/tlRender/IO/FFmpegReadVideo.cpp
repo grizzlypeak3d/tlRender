@@ -623,45 +623,78 @@ namespace tl
                     ftk::LogType::Warning);
                 return;
             }
+            // The platform's native API is preferred, but the machine
+            // decides: every configuration the codec offers is tried
+            // until a device actually creates. A fixed choice broke on
+            // hardware that speaks a different API -- VAAPI means
+            // nothing to an NVIDIA driver, whose path is CUDA (#833).
 #if defined(__APPLE__)
-            const AVHWDeviceType type = AV_HWDEVICE_TYPE_VIDEOTOOLBOX;
+            const AVHWDeviceType preferred = AV_HWDEVICE_TYPE_VIDEOTOOLBOX;
 #elif defined(_WIN32)
-            const AVHWDeviceType type = AV_HWDEVICE_TYPE_D3D11VA;
+            const AVHWDeviceType preferred = AV_HWDEVICE_TYPE_D3D11VA;
 #else
-            const AVHWDeviceType type = AV_HWDEVICE_TYPE_VAAPI;
+            const AVHWDeviceType preferred = AV_HWDEVICE_TYPE_VAAPI;
 #endif
-            // Find a hardware configuration for this codec and device type.
             AVPixelFormat hwFormat = AV_PIX_FMT_NONE;
-            for (int i = 0; ; ++i)
+            AVHWDeviceType type = AV_HWDEVICE_TYPE_NONE;
+            AVBufferRef* device = nullptr;
+            bool codecHasHw = false;
+            std::string tried;
+            for (int pass = 0; pass < 2 && !device; ++pass)
             {
-                const AVCodecHWConfig* config = avcodec_get_hw_config(codec, i);
-                if (!config)
+                for (int i = 0; !device; ++i)
                 {
-                    break;
-                }
-                if ((config->methods & AV_CODEC_HW_CONFIG_METHOD_HW_DEVICE_CTX) &&
-                    config->device_type == type)
-                {
-                    hwFormat = config->pix_fmt;
-                    break;
+                    const AVCodecHWConfig* config =
+                        avcodec_get_hw_config(codec, i);
+                    if (!config)
+                    {
+                        break;
+                    }
+                    if (!(config->methods &
+                        AV_CODEC_HW_CONFIG_METHOD_HW_DEVICE_CTX))
+                    {
+                        continue;
+                    }
+                    codecHasHw = true;
+                    const bool isPreferred =
+                        config->device_type == preferred;
+                    if (0 == pass ? !isPreferred : isPreferred)
+                    {
+                        continue;
+                    }
+                    if (av_hwdevice_ctx_create(
+                        &device, config->device_type,
+                        nullptr, nullptr, 0) >= 0)
+                    {
+                        hwFormat = config->pix_fmt;
+                        type = config->device_type;
+                    }
+                    else
+                    {
+                        if (!tried.empty())
+                        {
+                            tried += ", ";
+                        }
+                        tried += av_hwdevice_get_type_name(
+                            config->device_type);
+                    }
                 }
             }
-            if (AV_PIX_FMT_NONE == hwFormat)
+            if (!codecHasHw)
             {
-                // This codec has no hardware support here; stay on the software path.
+                // This codec has no hardware support in this build of
+                // FFmpeg; stay on the software path.
                 _log(
                     ftk::Format("Hardware decoding is not available for the codec \"{0}\"; using software decoding").
                     arg(codec->name ? codec->name : "?"),
                     ftk::LogType::Warning);
                 return;
             }
-            // Create the hardware device. On failure, stay on the software path.
-            AVBufferRef* device = nullptr;
-            if (av_hwdevice_ctx_create(&device, type, nullptr, nullptr, 0) < 0)
+            if (!device)
             {
                 _log(
                     ftk::Format("Cannot create a hardware decoding device ({0}); using software decoding").
-                    arg(av_hwdevice_get_type_name(type)),
+                    arg(tried),
                     ftk::LogType::Warning);
                 return;
             }
