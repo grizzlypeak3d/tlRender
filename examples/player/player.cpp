@@ -9,6 +9,7 @@
 
 #include <tlRender/UI/FrameToolBar.h>
 #include <tlRender/UI/Init.h>
+#include <tlRender/UI/PlaybackLoopWidget.h>
 #include <tlRender/UI/PlaybackToolBar.h>
 #include <tlRender/UI/TimeEdit.h>
 #include <tlRender/UI/TimeLabel.h>
@@ -136,6 +137,7 @@ namespace
         std::shared_ptr<tl::Player> player;
         std::shared_ptr<ftk::Observer<OTIO_NS::RationalTime> > currentTimeObserver;
         std::shared_ptr<ftk::Observer<float> > displayScaleObserver;
+        std::shared_ptr<ftk::Observer<tl::Loop> > loopObserver;
         std::shared_ptr<ftk::ComboBoxMenu> scaleMenu;
         std::shared_ptr<ftk::Observer<float> > volumeObserver;
         std::shared_ptr<ftk::Observer<bool> > muteObserver;
@@ -227,11 +229,25 @@ int main(int argc, char** argv)
         // desktop they stack under the viewport as usual.
         std::shared_ptr<IWidget> controlsParent = layout;
         std::shared_ptr<VerticalLayout> controlsLayout;
+        std::shared_ptr<HorizontalLayout> topLayout;
+        std::shared_ptr<tl::ui::PlaybackLoopWidget> loopWidget;
         if (overlayUI)
         {
             auto anchorLayout = VerticalLayout::create(
                 context, overlayLayout);
             anchorLayout->setSpacingRole(SizeRole::None);
+            // The settings ride their own bar at the top, so the
+            // transport row fits a phone at a large display scale.
+            topLayout = HorizontalLayout::create(
+                context, anchorLayout);
+            topLayout->setBackgroundRole(ColorRole::Overlay);
+            topLayout->setMarginRole(SizeRole::MarginInside);
+            topLayout->setSpacingRole(SizeRole::SpacingSmall);
+            auto topSpacer = Spacer::create(
+                context, Orientation::Horizontal, topLayout);
+            topSpacer->setHStretch(Stretch::Expanding);
+            loopWidget = tl::ui::PlaybackLoopWidget::create(
+                context, topLayout);
             auto vSpacer = Spacer::create(
                 context, Orientation::Vertical, anchorLayout);
             vSpacer->setVStretch(Stretch::Expanding);
@@ -271,6 +287,10 @@ int main(int argc, char** argv)
         transportLayout->setSpacingRole(SizeRole::SpacingTool);
         auto playbackToolBar = tl::ui::PlaybackToolBar::create(
             context, transportLayout);
+        if (overlayUI)
+        {
+            playbackToolBar->setLoopVisible(false);
+        }
         auto frameToolBar = tl::ui::FrameToolBar::create(
             context, transportLayout);
         auto timeEdit = tl::ui::TimeEdit::create(
@@ -281,15 +301,21 @@ int main(int argc, char** argv)
         }
         auto durationLabel = tl::ui::TimeLabel::create(
             context, timeUnitsModel, bottomLayout);
+        auto settingsParent = overlayUI ?
+            std::static_pointer_cast<IWidget>(topLayout) :
+            std::static_pointer_cast<IWidget>(bottomLayout);
         auto timeUnitsWidget = tl::ui::TimeUnitsWidget::create(
-            context, timeUnitsModel, bottomLayout);
-        spacer = Spacer::create(
-            context, Orientation::Horizontal, bottomLayout);
-        spacer->setHStretch(Stretch::Expanding);
-        auto volumeLabel = Label::create(context, bottomLayout);
+            context, timeUnitsModel, settingsParent);
+        if (!overlayUI)
+        {
+            spacer = Spacer::create(
+                context, Orientation::Horizontal, bottomLayout);
+            spacer->setHStretch(Stretch::Expanding);
+        }
+        auto volumeLabel = Label::create(context, settingsParent);
         volumeLabel->setFont(FontType::Mono);
         volumeLabel->setTooltip("Audio volume.");
-        auto volumeButton = ToolButton::create(context, bottomLayout);
+        auto volumeButton = ToolButton::create(context, settingsParent);
         volumeButton->setIcon("Volume");
         volumeButton->setPopupIcon(true);
         volumeButton->setTooltip("Audio controls.");
@@ -300,7 +326,7 @@ int main(int argc, char** argv)
         const std::vector<std::string> displayScaleLabels =
             { "1x", "1.5x", "2x", "3x", "4x" };
         auto scaleIndex = std::make_shared<int>(0);
-        auto scaleButton = ToolButton::create(context, bottomLayout);
+        auto scaleButton = ToolButton::create(context, settingsParent);
         scaleButton->setPopupIcon(true);
         scaleButton->setTooltip("Display scale.");
         // The status bar costs a row a phone does not have; in the
@@ -377,7 +403,7 @@ int main(int argc, char** argv)
             [open, context, viewport, timelineWidget, playbackToolBar,
                 frameToolBar, timeEdit, durationLabel, loadingLabel,
                 volumeLabel, volumeButton, statusLabel, ticks, timer,
-                autoscrubOption, playOption, mobile]
+                autoscrubOption, playOption, mobile, loopWidget]
             {
                 if (!open->done)
                 {
@@ -461,6 +487,24 @@ int main(int argc, char** argv)
                                 tl::getLabel(ioInfo.audio, true));
                         }
                         statusLabel->setText(join(text, ", "));
+                        if (loopWidget)
+                        {
+                            loopWidget->setCallback(
+                                [open](tl::Loop value)
+                                {
+                                    if (open->player)
+                                    {
+                                        open->player->setLoop(value);
+                                    }
+                                });
+                            open->loopObserver =
+                                ftk::Observer<tl::Loop>::create(
+                                    open->player->observeLoop(),
+                                    [loopWidget](tl::Loop value)
+                                    {
+                                        loopWidget->setLoop(value);
+                                    });
+                        }
                         if (playOption->found())
                         {
                             open->player->setPlayback(
@@ -573,7 +617,8 @@ int main(int argc, char** argv)
             auto quiet = std::make_shared<int>(0);
             uiTimer->start(
                 std::chrono::milliseconds(200),
-                [window, controlsLayout, open, lastPos, quiet, uiTimer]
+                [window, controlsLayout, topLayout, open, lastPos, quiet,
+                    uiTimer]
                 {
                     const V2I pos = window->getCursorPos();
                     if (pos != *lastPos)
@@ -581,6 +626,7 @@ int main(int argc, char** argv)
                         *lastPos = pos;
                         *quiet = 0;
                         controlsLayout->show();
+                        topLayout->show();
                         window->setTooltipsEnabled(true);
                     }
                     else if (open->player &&
@@ -591,6 +637,7 @@ int main(int argc, char** argv)
                         if (*quiet >= 15)
                         {
                             controlsLayout->hide();
+                            topLayout->hide();
                             // A tooltip must not outlive the widget
                             // it describes; disabling also closes an
                             // open one.
