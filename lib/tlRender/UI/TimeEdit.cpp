@@ -157,6 +157,11 @@ namespace tl
             _p->lineEdit->setFont(value);
         }
 
+        void TimeEdit::setBorderRole(ftk::ColorRole value)
+        {
+            _p->lineEdit->setBorderRole(value);
+        }
+
         void TimeEdit::setWellRole(ftk::ColorRole value)
         {
             _p->lineEdit->setWellRole(value);

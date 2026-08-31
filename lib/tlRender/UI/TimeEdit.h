@@ -73,6 +73,9 @@ namespace tl
             //! Set the font.
             TL_UI_API void setFont(ftk::FontType);
 
+            //! Set the border color role.
+            TL_UI_API void setBorderRole(ftk::ColorRole);
+
             //! Set the well color role.
             TL_UI_API void setWellRole(ftk::ColorRole);
 

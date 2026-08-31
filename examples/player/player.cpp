@@ -298,6 +298,7 @@ int main(int argc, char** argv)
         if (overlayUI)
         {
             timeEdit->setWellRole(ColorRole::None);
+            timeEdit->setBorderRole(ColorRole::Text);
         }
         auto durationLabel = tl::ui::TimeLabel::create(
             context, timeUnitsModel, bottomLayout);
