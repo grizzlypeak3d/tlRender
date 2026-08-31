@@ -192,14 +192,12 @@ int main(int argc, char** argv)
         bool mobile = false;
 #if defined(__EMSCRIPTEN__)
         // A touch screen without a fine pointer is the phone shape.
+        // The display scale is left to the device pixel ratio it
+        // derives from; overriding it here made the phone SMALLER
+        // (the ratio was already two).
         mobile = EM_ASM_INT({
             return (navigator.maxTouchPoints || 0) > 1 ? 1 : 0;
         });
-        if (mobile && !app->getDisplayScaleCmdLineOption()->hasValue())
-        {
-            // Legibility on a phone; an explicit -displayScale wins.
-            app->setDisplayScale(1.5F);
-        }
 #endif
         const bool overlayUI = overlayOption->found() || mobile;
 
@@ -355,7 +353,7 @@ int main(int argc, char** argv)
             [open, context, viewport, timelineWidget, playbackToolBar,
                 frameToolBar, timeEdit, durationLabel, loadingLabel,
                 volumeLabel, volumeButton, statusLabel, ticks, timer,
-                autoscrubOption, playOption]
+                autoscrubOption, playOption, mobile]
             {
                 if (!open->done)
                 {
@@ -378,10 +376,6 @@ int main(int argc, char** argv)
                         // heap, and the browser kills a page over its
                         // memory budget -- a phone's budget is a
                         // fraction of a desktop's.
-                        const bool mobile = EM_ASM_INT({
-                            return (navigator.maxTouchPoints || 0) > 1 ?
-                                1 : 0;
-                        });
                         // Small everywhere: the heap never shrinks,
                         // so scrubbing ratchets the footprint toward
                         // the limit -- a shallow cache lowers the
