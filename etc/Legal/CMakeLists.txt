@@ -13,6 +13,7 @@ set(LEGAL
     LICENSE_minizip-ng.txt
     LICENSE_mp4box.txt
     LICENSE_nlohmann_json.txt
+    LICENSE_nv-codec-headers.txt
     LICENSE_OFL.txt
     LICENSE_OpenColorIO.txt
     LICENSE_OpenEXR.txt
