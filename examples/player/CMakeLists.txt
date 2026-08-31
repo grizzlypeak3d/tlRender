@@ -19,6 +19,9 @@ if(EMSCRIPTEN)
         "-sFULL_ES3=1"
         "-sMIN_WEBGL_VERSION=2"
         "-sMAX_WEBGL_VERSION=2"
+        # The timeline reader fetches .otio files, since there is no
+        # file system on the web.
+        "-sFETCH"
         "--profiling-funcs")
     # The page and the decode worker; mp4box.js is the demuxer the
     # worker loads, and the coi service worker supplies the isolation
@@ -28,5 +31,6 @@ if(EMSCRIPTEN)
             ${PROJECT_SOURCE_DIR}/lib/tlRender/IO/WebCodecsWorker.js
             ${PROJECT_SOURCE_DIR}/etc/Web/mp4box.all.min.js
             ${PROJECT_SOURCE_DIR}/etc/Web/coi-serviceworker.js
+            ${PROJECT_SOURCE_DIR}/etc/Web/test.otio
             $<TARGET_FILE_DIR:player>)
 endif()

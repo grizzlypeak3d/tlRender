@@ -23,6 +23,11 @@
 #include <opentimelineio/gap.h>
 #include <opentimelineio/imageSequenceReference.h>
 #include <opentimelineio/transition.h>
+
+#if defined(__EMSCRIPTEN__)
+#include <emscripten/fetch.h>
+#endif // __EMSCRIPTEN__
+
 #include <algorithm>
 
 namespace tl
@@ -666,8 +671,40 @@ namespace tl
             OTIO_NS::ErrorStatus otioError;
             if (".otio" == ext)
             {
+#if defined(__EMSCRIPTEN__)
+                // There is no file system on the web: the timeline is
+                // fetched -- a relative path resolves against the
+                // page -- and parsed from memory. The fetch can be
+                // synchronous because opening runs off the main
+                // thread.
+                emscripten_fetch_attr_t attr;
+                emscripten_fetch_attr_init(&attr);
+                strcpy(attr.requestMethod, "GET");
+                attr.attributes =
+                    EMSCRIPTEN_FETCH_LOAD_TO_MEMORY |
+                    EMSCRIPTEN_FETCH_SYNCHRONOUS;
+                emscripten_fetch_t* fetch = emscripten_fetch(
+                    &attr, fileName.c_str());
+                std::string json;
+                if (fetch)
+                {
+                    if (200 == fetch->status)
+                    {
+                        json = std::string(
+                            fetch->data, fetch->numBytes);
+                    }
+                    emscripten_fetch_close(fetch);
+                }
+                if (!json.empty())
+                {
+                    otioTimeline = dynamic_cast<OTIO_NS::Timeline*>(
+                        OTIO_NS::Timeline::from_json_string(
+                            json, &otioError));
+                }
+#else // __EMSCRIPTEN__
                 otioTimeline = dynamic_cast<OTIO_NS::Timeline*>(
                     OTIO_NS::Timeline::from_json_file(fileName, &otioError));
+#endif // __EMSCRIPTEN__
                 if (!otioTimeline)
                 {
                     throw std::runtime_error(
