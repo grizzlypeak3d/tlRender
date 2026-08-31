@@ -499,6 +499,7 @@ int main(int argc, char** argv)
                         *lastPos = pos;
                         *quiet = 0;
                         controlsLayout->show();
+                        window->setTooltipsEnabled(true);
                     }
                     else if (open->player &&
                         tl::Playback::Stop !=
@@ -508,6 +509,10 @@ int main(int argc, char** argv)
                         if (*quiet >= 15)
                         {
                             controlsLayout->hide();
+                            // A tooltip must not outlive the widget
+                            // it describes; disabling also closes an
+                            // open one.
+                            window->setTooltipsEnabled(false);
                         }
                     }
                 });
