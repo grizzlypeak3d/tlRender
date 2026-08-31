@@ -172,6 +172,11 @@ int main(int argc, char** argv)
             { "-noWaveforms" },
             "Disable the timeline waveforms.",
             "Player");
+        auto overlayOption = CmdLineFlag::create(
+            { "-overlay" },
+            "Overlay the playback controls on the viewport (the "
+            "phone layout).",
+            "Player");
         auto app = App::create(
             context,
             argc,
@@ -180,9 +185,23 @@ int main(int argc, char** argv)
             "Example player.",
             {},
             { urlOption, autoscrubOption, playOption, heapLogOption,
-                noThumbnailsOption, noWaveformsOption });
+                noThumbnailsOption, noWaveformsOption, overlayOption });
         if (app->hasCmdLineHelp())
             return 0;
+
+        bool mobile = false;
+#if defined(__EMSCRIPTEN__)
+        // A touch screen without a fine pointer is the phone shape.
+        mobile = EM_ASM_INT({
+            return (navigator.maxTouchPoints || 0) > 1 ? 1 : 0;
+        });
+        if (mobile && !app->getDisplayScaleCmdLineOption()->hasValue())
+        {
+            // Legibility on a phone; an explicit -displayScale wins.
+            app->setDisplayScale(1.5F);
+        }
+#endif
+        const bool overlayUI = overlayOption->found() || mobile;
 
         auto window = Window::create(context, app, "player");
         auto layout = VerticalLayout::create(context, window);
@@ -201,9 +220,29 @@ int main(int argc, char** argv)
         spacer = Spacer::create(
             context, Orientation::Horizontal, loadingLayout);
         spacer->setHStretch(Stretch::Expanding);
+        // On a small screen the viewport keeps the whole window and
+        // the controls ride the overlay, anchored to the bottom by
+        // the expanding spacer, over a translucent scrim; on the
+        // desktop they stack under the viewport as usual.
+        std::shared_ptr<IWidget> controlsParent = layout;
+        std::shared_ptr<VerticalLayout> controlsLayout;
+        if (overlayUI)
+        {
+            auto anchorLayout = VerticalLayout::create(
+                context, overlayLayout);
+            anchorLayout->setSpacingRole(SizeRole::None);
+            auto vSpacer = Spacer::create(
+                context, Orientation::Vertical, anchorLayout);
+            vSpacer->setVStretch(Stretch::Expanding);
+            controlsLayout = VerticalLayout::create(
+                context, anchorLayout);
+            controlsLayout->setSpacingRole(SizeRole::None);
+            controlsLayout->setBackgroundRole(ColorRole::Overlay);
+            controlsParent = controlsLayout;
+        }
         auto timeUnitsModel = tl::TimeUnitsModel::create(context);
         auto timelineWidget = tl::ui::TimelineWidget::create(
-            context, timeUnitsModel, layout);
+            context, timeUnitsModel, controlsParent);
         if (noThumbnailsOption->found() || noWaveformsOption->found())
         {
             auto displayOptions = timelineWidget->getDisplayOptions();
@@ -211,8 +250,12 @@ int main(int argc, char** argv)
             displayOptions.waveforms = !noWaveformsOption->found();
             timelineWidget->setDisplayOptions(displayOptions);
         }
-        Divider::create(context, Orientation::Vertical, layout);
-        auto bottomLayout = HorizontalLayout::create(context, layout);
+        if (!overlayUI)
+        {
+            Divider::create(context, Orientation::Vertical, layout);
+        }
+        auto bottomLayout = HorizontalLayout::create(
+            context, controlsParent);
         bottomLayout->setMarginRole(SizeRole::MarginInside);
         bottomLayout->setSpacingRole(SizeRole::SpacingSmall);
         auto transportLayout = HorizontalLayout::create(
@@ -238,8 +281,18 @@ int main(int argc, char** argv)
         volumeButton->setIcon("Volume");
         volumeButton->setPopupIcon(true);
         volumeButton->setTooltip("Audio controls.");
-        Divider::create(context, Orientation::Vertical, layout);
-        auto statusLabel = Label::create(context, layout);
+        // The status bar costs a row a phone does not have; in the
+        // overlay layout it exists but never joins a window.
+        std::shared_ptr<Label> statusLabel;
+        if (!overlayUI)
+        {
+            Divider::create(context, Orientation::Vertical, layout);
+            statusLabel = Label::create(context, layout);
+        }
+        else
+        {
+            statusLabel = Label::create(context);
+        }
         statusLabel->setMarginRole(SizeRole::MarginInside);
         statusLabel->setHAlign(HAlign::Right);
 
@@ -431,6 +484,40 @@ int main(int argc, char** argv)
                     }
                 }
             });
+
+        // The overlay controls get out of the way during playback:
+        // pointer or touch activity shows them and resets the clock,
+        // three quiet seconds hide them. A tap lands as motion first,
+        // so it registers as activity.
+        auto uiTimer = Timer::create(context);
+        if (overlayUI)
+        {
+            uiTimer->setRepeating(true);
+            auto lastPos = std::make_shared<V2I>();
+            auto quiet = std::make_shared<int>(0);
+            uiTimer->start(
+                std::chrono::milliseconds(200),
+                [window, controlsLayout, open, lastPos, quiet, uiTimer]
+                {
+                    const V2I pos = window->getCursorPos();
+                    if (pos != *lastPos)
+                    {
+                        *lastPos = pos;
+                        *quiet = 0;
+                        controlsLayout->show();
+                    }
+                    else if (open->player &&
+                        tl::Playback::Stop !=
+                            open->player->observePlayback()->get())
+                    {
+                        ++(*quiet);
+                        if (*quiet >= 15)
+                        {
+                            controlsLayout->hide();
+                        }
+                    }
+                });
+        }
 
         volumeButton->setClickedCallback(
             [open, context, window, volumeButton]
