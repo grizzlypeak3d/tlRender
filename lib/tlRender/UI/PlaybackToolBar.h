@@ -41,6 +41,10 @@ namespace tl
             //! Set the player.
             TL_UI_API void setPlayer(const std::shared_ptr<Player>&);
 
+            //! Set whether the loop widget is visible, for layouts
+            //! that place it elsewhere.
+            TL_UI_API void setLoopVisible(bool);
+
         private:
             void _widgetUpdate();
 

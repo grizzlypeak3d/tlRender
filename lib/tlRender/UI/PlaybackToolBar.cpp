@@ -152,6 +152,11 @@ namespace tl
             _widgetUpdate();
         }
 
+        void PlaybackToolBar::setLoopVisible(bool value)
+        {
+            _p->loopWidget->setVisible(value);
+        }
+
         void PlaybackToolBar::_widgetUpdate()
         {
             FTK_P();
