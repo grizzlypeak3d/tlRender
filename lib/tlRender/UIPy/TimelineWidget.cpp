@@ -51,6 +51,11 @@ namespace tl
                     &TimelineWidget::observeDisplayOptions)
                 .def("setTimelines", &TimelineWidget::setTimelines)
                 .def_property(
+                    "frameMarkers",
+                    &TimelineWidget::getFrameMarkers,
+                    &TimelineWidget::setFrameMarkers,
+                    py::return_value_policy::copy)
+                .def_property(
                     "frameView",
                     &TimelineWidget::hasFrameView,
                     &TimelineWidget::setFrameView)
