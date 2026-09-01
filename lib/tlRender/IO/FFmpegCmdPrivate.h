@@ -20,6 +20,20 @@ namespace tl
 
             std::string readAll();
 
+            //! Write to the process's standard input.
+            bool write(const uint8_t*, size_t);
+
+            //! Close the process's standard input and wait for it to
+            //! finish; the exit code is returned. For a writer this is
+            //! what finalizes the output file, so it must happen before
+            //! destruction -- the destructor kills a process still
+            //! running.
+            int finish();
+
+            //! Read whatever the process wrote to standard error, for
+            //! reporting a failure.
+            std::string readAllErrors();
+
             private:
             FTK_PRIVATE();
         };

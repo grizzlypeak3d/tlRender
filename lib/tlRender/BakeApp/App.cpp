@@ -9,6 +9,9 @@
 
 #include <tlRender/IO/SeqIO.h>
 #include <tlRender/IO/System.h>
+#if defined(TLRENDER_FFMPEG_PLUGIN)
+#include <tlRender/IO/FFmpegCmd.h>
+#endif // TLRENDER_FFMPEG_PLUGIN
 
 #include <tlRender/Core/Time.h>
 
@@ -137,6 +140,26 @@ namespace tl
                 "Number of threads for I/O.",
                 "FFmpeg",
                 static_cast<int>(ffmpeg::Options().threadCount));
+            std::vector<std::string> presetNames;
+            for (const auto& preset : ffmpeg_cmd::getWritePresets())
+            {
+                presetNames.push_back(preset.name);
+            }
+            _cmdLine.ffmpegWriteCmd = ftk::CmdLineFlag::create(
+                { "-ffmpegWriteCmd" },
+                "Write with the FFmpeg command line application instead of "
+                "the library, using its encoders.",
+                "FFmpeg");
+            _cmdLine.ffmpegWritePreset = ftk::CmdLineOption<std::string>::create(
+                { "-ffmpegWritePreset" },
+                "Encoding preset for the command line writer.",
+                "FFmpeg",
+                ffmpeg_cmd::getWritePresets().front().name,
+                ftk::quotes(presetNames));
+            _cmdLine.ffmpegWriteArgs = ftk::CmdLineOption<std::string>::create(
+                { "-ffmpegWriteArgs" },
+                "Extra arguments for the command line writer.",
+                "FFmpeg");
 #endif // TLRENDER_FFMPEG_PLUGIN
 
             IApp::_init(
@@ -171,6 +194,9 @@ namespace tl
                     _cmdLine.ffmpegCodec,
                     _cmdLine.ffmpegAudioCodec,
                     _cmdLine.ffmpegThreadCount,
+                    _cmdLine.ffmpegWriteCmd,
+                    _cmdLine.ffmpegWritePreset,
+                    _cmdLine.ffmpegWriteArgs,
 #endif // TLRENDER_FFMPEG_PLUGIN
                 });
         }
@@ -452,6 +478,18 @@ namespace tl
                 std::stringstream ss;
                 ss << _cmdLine.ffmpegThreadCount->getValue();
                 out["FFmpeg/ThreadCount"] = ss.str();
+            }
+            if (_cmdLine.ffmpegWriteCmd->found())
+            {
+                out["FFmpeg/WriteCommandLine"] = "1";
+            }
+            if (_cmdLine.ffmpegWritePreset->hasValue())
+            {
+                out["FFmpeg/WritePreset"] = _cmdLine.ffmpegWritePreset->getValue();
+            }
+            if (_cmdLine.ffmpegWriteArgs->hasValue())
+            {
+                out["FFmpeg/WriteArgs"] = _cmdLine.ffmpegWriteArgs->getValue();
             }
 #endif // TLRENDER_FFMPEG_PLUGIN
 

@@ -149,6 +149,7 @@ namespace tl
         struct Pipe::Private
         {
             subprocess_s subprocess;
+            bool joined = false;
         };
 
         namespace
@@ -207,6 +208,13 @@ namespace tl
         Pipe::~Pipe()
         {
             FTK_P();
+            if (p.joined)
+            {
+                // finish() already reaped the child; there is nothing left
+                // to wait for.
+                subprocess_destroy(&p.subprocess);
+                return;
+            }
             // Reap the child without risking a hang or a stray signal.
             //
             // subprocess_destroy() never waitpid()s on POSIX, so on its own it
@@ -229,6 +237,49 @@ namespace tl
             }
             subprocess_join(&p.subprocess, nullptr);
             subprocess_destroy(&p.subprocess);
+        }
+
+        bool Pipe::write(const uint8_t* data, size_t size)
+        {
+            FTK_P();
+            FILE* f = subprocess_stdin(&p.subprocess);
+            if (!f)
+            {
+                return false;
+            }
+            return fwrite(data, 1, size, f) == size;
+        }
+
+        int Pipe::finish()
+        {
+            FTK_P();
+            if (p.joined)
+            {
+                return 0;
+            }
+            // Joining closes the process's standard input, which is what
+            // tells it the stream is over; it then finalizes its output and
+            // exits, and the join returns its exit code.
+            int code = -1;
+            subprocess_join(&p.subprocess, &code);
+            p.joined = true;
+            return code;
+        }
+
+        std::string Pipe::readAllErrors()
+        {
+            FTK_P();
+            std::string out;
+            size_t size = 0;
+            do
+            {
+                const size_t chunkSize = 1024;
+                std::string chunk(chunkSize, 0);
+                size = subprocess_read_stderr(&p.subprocess, chunk.data(), chunkSize);
+                chunk.resize(size);
+                out += chunk;
+            } while (size > 0);
+            return out;
         }
 
         size_t Pipe::read(uint8_t* data, size_t size)

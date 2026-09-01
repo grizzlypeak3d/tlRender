@@ -558,6 +558,22 @@ namespace tl
             const IOInfo& info,
             const IOOptions& options)
         {
+            // Writing with the command line is an explicit choice, unlike
+            // reading, which asks the file: the caller says which encoder
+            // family does the work.
+            if (auto i = options.find("FFmpeg/WriteCommandLine");
+                i != options.end() && "1" == i->second)
+            {
+                auto logSystem = _logSystem.lock();
+                if (logSystem)
+                {
+                    logSystem->print(
+                        "tl::ffmpeg::WritePlugin",
+                        ftk::Format("Writing video with the command line: \"{0}\"").
+                        arg(path.get()));
+                }
+                return ffmpeg_cmd::Write::create(path, info, options, logSystem);
+            }
             if (info.video.empty() || (!info.video.empty() && !_isCompatible(info.video[0], options)))
                 throw std::runtime_error(ftk::Format("Unsupported video: \"{0}\"").
                     arg(path.get()));

@@ -113,6 +113,52 @@ namespace tl
             FTK_PRIVATE();
         };
 
+        //! A named set of video encoding arguments for the command line
+        //! writer, drawn from the Academy Software Foundation encoding
+        //! guidelines.
+        struct TL_IO_API_TYPE WritePreset
+        {
+            std::string name;
+            std::vector<std::string> args;
+        };
+
+        //! Get the video encoding presets.
+        TL_IO_API const std::vector<WritePreset>& getWritePresets();
+
+        //! FFmpeg command line video writer. Video only: the frames stream
+        //! to the process as raw video, and the process encodes and writes
+        //! the file -- so the encoders are the user's, not this build's.
+        class TL_IO_API_TYPE Write : public IWrite
+        {
+        protected:
+            void _init(
+                const ftk::Path&,
+                const IOOptions&,
+                const IOInfo&,
+                const std::shared_ptr<ftk::LogSystem>&);
+
+            Write();
+
+        public:
+            TL_IO_API virtual ~Write();
+
+            //! Create a new writer.
+            TL_IO_API static std::shared_ptr<Write> create(
+                const ftk::Path&,
+                const IOInfo&,
+                const IOOptions&,
+                const std::shared_ptr<ftk::LogSystem>&);
+
+            TL_IO_API void writeVideo(
+                const OTIO_NS::RationalTime&,
+                const std::shared_ptr<ftk::Image>&,
+                const IOOptions& = IOOptions()) override;
+            TL_IO_API void finish() override;
+
+        private:
+            FTK_PRIVATE();
+        };
+
         //! Get the version of the command line application, or nothing
         //! when there is none to ask.
         TL_IO_API std::string getVersion(

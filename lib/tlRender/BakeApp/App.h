@@ -56,6 +56,9 @@ namespace tl
             std::shared_ptr<ftk::CmdLineOption<std::string> > ffmpegCodec;
             std::shared_ptr<ftk::CmdLineOption<std::string> > ffmpegAudioCodec;
             std::shared_ptr<ftk::CmdLineOption<int> > ffmpegThreadCount;
+            std::shared_ptr<ftk::CmdLineFlag> ffmpegWriteCmd;
+            std::shared_ptr<ftk::CmdLineOption<std::string> > ffmpegWritePreset;
+            std::shared_ptr<ftk::CmdLineOption<std::string> > ffmpegWriteArgs;
 #endif // TLRENDER_FFMPEG_PLUGIN
         };
 

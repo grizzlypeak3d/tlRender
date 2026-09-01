@@ -47,7 +47,8 @@ if(TLRENDER_FFMPEG_PLUGIN)
     list(APPEND HEADERS_PRIVATE FFmpegPrivate.h FFmpegReadPrivate.h
         FFmpegCmdPrivate.h)
     list(APPEND SOURCE FFmpeg.cpp FFmpegRead.cpp FFmpegReadAudio.cpp
-        FFmpegReadVideo.cpp FFmpegWrite.cpp FFmpegCmd.cpp FFmpegCmdRead.cpp)
+        FFmpegReadVideo.cpp FFmpegWrite.cpp FFmpegCmd.cpp FFmpegCmdRead.cpp
+        FFmpegCmdWrite.cpp)
 endif()
 if(TLRENDER_OIIO)
     list(APPEND HEADERS OIIO.h)
