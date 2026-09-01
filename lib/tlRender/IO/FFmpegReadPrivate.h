@@ -90,7 +90,9 @@ namespace tl
             int _decode(const OTIO_NS::RationalTime& currentTime);
             void _copy(const std::shared_ptr<ftk::Image>&, AVFrame* frame);
             void _setError(int);
+            int _openCodec(const AVCodec*, bool hwAccel);
             void _initHwAccel(const AVCodec*);
+            bool _hwFallback(const OTIO_NS::RationalTime&);
             void _initFrame2();
             void _initSws(AVPixelFormat srcFormat);
             static AVPixelFormat _getHwFormat(AVCodecContext*, const AVPixelFormat*);
@@ -123,6 +125,11 @@ namespace tl
             AVPixelFormat _swsInputPixelFormat = AV_PIX_FMT_NONE;
             AVBufferRef* _hwDeviceContext = nullptr;
             AVPixelFormat _hwPixelFormat = AV_PIX_FMT_NONE;
+            //! The decoder in use, and the default: they differ when a
+            //! hardware-capable decoder was preferred over a software
+            //! default, and the default is the fallback.
+            const AVCodec* _avCodec = nullptr;
+            const AVCodec* _avCodecDefault = nullptr;
             AVFrame* _swFrame = nullptr;
             bool _hwAccel = false;
             bool _hwLogged = false;

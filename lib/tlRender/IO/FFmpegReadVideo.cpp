@@ -19,6 +19,30 @@ namespace tl
 {
     namespace ffmpeg
     {
+        namespace
+        {
+            //! Whether a decoder offers any hardware configuration that
+            //! works through a device context.
+            bool hasHwConfig(const AVCodec* codec)
+            {
+                for (int i = 0;; ++i)
+                {
+                    const AVCodecHWConfig* config =
+                        avcodec_get_hw_config(codec, i);
+                    if (!config)
+                    {
+                        break;
+                    }
+                    if (config->methods &
+                        AV_CODEC_HW_CONFIG_METHOD_HW_DEVICE_CTX)
+                    {
+                        return true;
+                    }
+                }
+                return false;
+            }
+        }
+
         ReadVideo::ReadVideo(
             const std::string& fileName,
             const std::vector<ftk::MemFile>& memory,
@@ -91,12 +115,35 @@ namespace tl
 
                     auto avVideoStream = _avFormatContext->streams[_avStream];
                     auto avVideoCodecParameters = avVideoStream->codecpar;
-                    auto avVideoCodec = avcodec_find_decoder(avVideoCodecParameters->codec_id);
-                    if (!avVideoCodec)
+                    const AVCodec* avVideoCodecDefault =
+                        avcodec_find_decoder(avVideoCodecParameters->codec_id);
+                    if (!avVideoCodecDefault)
                     {
                         throw std::runtime_error(
                             ftk::Format("No video codec found: \"{0}\"").
                             arg(fileName));
+                    }
+                    _avCodecDefault = avVideoCodecDefault;
+                    const AVCodec* avVideoCodec = avVideoCodecDefault;
+                    if (options.hwAccel && !hasHwConfig(avVideoCodecDefault))
+                    {
+                        // The default decoder for a codec can be a software
+                        // library with no hardware configurations at all --
+                        // FFmpeg answers AV1 with libaom -- while the
+                        // hardware-capable decoder sits behind it (#833). If
+                        // the hardware then fails to come up, the default is
+                        // put back below.
+                        void* i = nullptr;
+                        while (const AVCodec* candidate = av_codec_iterate(&i))
+                        {
+                            if (av_codec_is_decoder(candidate) &&
+                                candidate->id == avVideoCodecParameters->codec_id &&
+                                hasHwConfig(candidate))
+                            {
+                                avVideoCodec = candidate;
+                                break;
+                            }
+                        }
                     }
                     _avCodecParameters[_avStream] = avcodec_parameters_alloc();
                     if (!_avCodecParameters[_avStream])
@@ -113,30 +160,24 @@ namespace tl
                             arg(getErrorLabel(r)).
                             arg(fileName));
                     }
-                    _avCodecContext[_avStream] = avcodec_alloc_context3(avVideoCodec);
-                    if (!_avCodecContext[_avStream])
+                    _avCodec = avVideoCodec;
+                    r = _openCodec(avVideoCodec, options.hwAccel);
+                    if (avVideoCodec != avVideoCodecDefault &&
+                        (r < 0 || !_hwAccel))
                     {
-                        throw std::runtime_error(
-                            ftk::Format("Cannot allocate context: \"{0}\"").
-                            arg(fileName));
+                        // The alternative decoder was chosen only for its
+                        // hardware; without it -- the device did not come up,
+                        // or the codec did not open -- the default software
+                        // decoder is the right one after all.
+                        if (_hwDeviceContext)
+                        {
+                            av_buffer_unref(&_hwDeviceContext);
+                        }
+                        _hwAccel = false;
+                        _hwPixelFormat = AV_PIX_FMT_NONE;
+                        _avCodec = avVideoCodecDefault;
+                        r = _openCodec(_avCodec, false);
                     }
-                    r = avcodec_parameters_to_context(_avCodecContext[_avStream], _avCodecParameters[_avStream]);
-                    if (r < 0)
-                    {
-                        throw std::runtime_error(
-                            ftk::Format("{0}: \"{1}\"").
-                            arg(getErrorLabel(r)).
-                            arg(fileName));
-                    }
-                    _avCodecContext[_avStream]->thread_count = options.threadCount;
-                    _avCodecContext[_avStream]->thread_type = FF_THREAD_FRAME;
-                    if (options.hwAccel)
-                    {
-                        // Attempt hardware decode. On any failure this is a no-op
-                        // and decoding stays on the software path.
-                        _initHwAccel(avVideoCodec);
-                    }
-                    r = avcodec_open2(_avCodecContext[_avStream], avVideoCodec, 0);
                     if (r < 0)
                     {
                         throw std::runtime_error(
@@ -756,6 +797,70 @@ namespace tl
             _swsInputPixelFormat = srcFormat;
         }
 
+        int ReadVideo::_openCodec(const AVCodec* codec, bool hwAccel)
+        {
+            if (_avCodecContext[_avStream])
+            {
+                avcodec_free_context(&_avCodecContext[_avStream]);
+            }
+            _avCodecContext[_avStream] = avcodec_alloc_context3(codec);
+            if (!_avCodecContext[_avStream])
+            {
+                throw std::runtime_error(
+                    ftk::Format("Cannot allocate context: \"{0}\"").
+                    arg(_fileName));
+            }
+            int r = avcodec_parameters_to_context(
+                _avCodecContext[_avStream],
+                _avCodecParameters[_avStream]);
+            if (r < 0)
+            {
+                throw std::runtime_error(
+                    ftk::Format("{0}: \"{1}\"").
+                    arg(getErrorLabel(r)).
+                    arg(_fileName));
+            }
+            _avCodecContext[_avStream]->thread_count = _options.threadCount;
+            _avCodecContext[_avStream]->thread_type = FF_THREAD_FRAME;
+            if (hwAccel)
+            {
+                // Attempt hardware decode. On any failure this is a no-op
+                // and decoding stays on the software path.
+                _initHwAccel(codec);
+            }
+            return avcodec_open2(_avCodecContext[_avStream], codec, 0);
+        }
+
+        bool ReadVideo::_hwFallback(const OTIO_NS::RationalTime& currentTime)
+        {
+            // A hardware-only decoder can open and still fail at the first
+            // frame: the device exists, but the codec it was asked for does
+            // not -- an AV1 file on a GPU without AV1 decode. Rebuild on the
+            // software default and pick up from the current time.
+            if (_avCodec == _avCodecDefault || !_avCodecDefault)
+            {
+                return false;
+            }
+            _log(
+                ftk::Format("Hardware decoding failed for the codec \"{0}\"; using software decoding: \"{1}\"").
+                arg(_avCodec->name ? _avCodec->name : "?").
+                arg(_fileName),
+                ftk::LogType::Warning);
+            if (_hwDeviceContext)
+            {
+                av_buffer_unref(&_hwDeviceContext);
+            }
+            _hwAccel = false;
+            _hwPixelFormat = AV_PIX_FMT_NONE;
+            _avCodec = _avCodecDefault;
+            if (_openCodec(_avCodec, false) < 0)
+            {
+                return false;
+            }
+            seek(currentTime);
+            return true;
+        }
+
         void ReadVideo::seek(const OTIO_NS::RationalTime& time)
         {
 
@@ -835,6 +940,11 @@ namespace tl
                         }
                         else if (decoding < 0)
                         {
+                            if (_hwFallback(currentTime))
+                            {
+                                decoding = 0;
+                                continue;
+                            }
                             _setError(decoding);
                             break;
                         }
@@ -849,6 +959,11 @@ namespace tl
                         }
                         else if (decoding < 0)
                         {
+                            if (_hwFallback(currentTime))
+                            {
+                                decoding = 0;
+                                continue;
+                            }
                             _setError(decoding);
                             break;
                         }
