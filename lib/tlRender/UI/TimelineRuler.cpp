@@ -50,6 +50,7 @@ namespace tl
             OTIO_NS::RationalTime offset;
             int scrollPos = 0;
             std::vector<int> frameMarkers;
+            std::vector<Marker> markers;
             DisplayOptions displayOptions;
             ItemOptions options;
             bool stopOnScrub = true;
@@ -209,6 +210,15 @@ namespace tl
             if (value == p.frameMarkers)
                 return;
             p.frameMarkers = value;
+            setDrawUpdate();
+        }
+
+        void TimelineRuler::setMarkers(const std::vector<Marker>& value)
+        {
+            FTK_P();
+            if (value == p.markers)
+                return;
+            p.markers = value;
             setDrawUpdate();
         }
 
@@ -453,6 +463,7 @@ namespace tl
             event.render->setClipRect(intersect(g, drawRect));
 
             _drawInOutPoints(drawRect, event);
+            _drawMarkers(drawRect, event);
             _drawFrameMarkers(drawRect, event);
             _drawCacheInfo(drawRect, event);
             _drawTimeLabels(drawRect, event);
@@ -525,6 +536,42 @@ namespace tl
             if (!rects.empty())
             {
                 event.render->drawRects(rects, color);
+            }
+        }
+
+        void TimelineRuler::_drawMarkers(
+            const ftk::Box2I& drawRect,
+            const ftk::DrawEvent& event)
+        {
+            FTK_P();
+            const ftk::Box2I& g = getGeometry();
+            const int h =
+                p.size.margin +
+                p.size.fontMetrics.lineHeight +
+                p.size.margin +
+                p.size.border * 4;
+            for (const auto& marker : p.markers)
+            {
+                // A single frame draws as a tick, the shape the frame
+                // markers use; a span draws as a band along the bottom of
+                // the ruler, so overlapping spans still read.
+                const bool single = marker.range.duration().value() <= 1.0;
+                const int x0 = timeToPos(marker.range.start_time());
+                const ftk::Box2I g2 = single ?
+                    ftk::Box2I(
+                        x0,
+                        g.min.y,
+                        p.size.border * 2,
+                        h) :
+                    ftk::Box2I(
+                        x0,
+                        g.min.y + h - p.size.border * 2,
+                        timeToPos(marker.range.end_time_exclusive()) - x0 + 1,
+                        p.size.border * 2);
+                if (ftk::intersects(g2, drawRect))
+                {
+                    event.render->drawRect(g2, marker.color);
+                }
             }
         }
 

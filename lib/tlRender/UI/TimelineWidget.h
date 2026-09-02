@@ -134,6 +134,12 @@ namespace tl
             //! Get the frame markers.
             TL_UI_API const std::vector<int>& getFrameMarkers() const;
 
+            //! Get the markers.
+            TL_UI_API const std::vector<Marker>& getMarkers() const;
+
+            //! Set the markers.
+            TL_UI_API void setMarkers(const std::vector<Marker>&);
+
             //! Set the frame markers.
             TL_UI_API void setFrameMarkers(const std::vector<int>&);
 

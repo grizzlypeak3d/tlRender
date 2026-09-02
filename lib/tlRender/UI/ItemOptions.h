@@ -124,6 +124,9 @@ namespace tl
             std::string name;
             ftk::Color4F color;
             OTIO_NS::TimeRange range;
+
+            TL_UI_API bool operator == (const Marker&) const;
+            TL_UI_API bool operator != (const Marker&) const;
         };
 
         //! Get the markers from an item.

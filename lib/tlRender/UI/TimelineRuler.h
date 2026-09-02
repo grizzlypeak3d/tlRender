@@ -64,6 +64,9 @@ namespace tl
             //! Set the frame markers.
             TL_UI_API void setFrameMarkers(const std::vector<int>&);
 
+            //! Set the markers.
+            TL_UI_API void setMarkers(const std::vector<Marker>&);
+
             //! Set the display options.
             TL_UI_API void setDisplayOptions(const DisplayOptions&);
 
@@ -92,6 +95,7 @@ namespace tl
         private:
             void _drawInOutPoints(const ftk::Box2I&, const ftk::DrawEvent&);
             void _drawFrameMarkers(const ftk::Box2I&, const ftk::DrawEvent&);
+            void _drawMarkers(const ftk::Box2I&, const ftk::DrawEvent&);
             void _drawCacheInfo(const ftk::Box2I&, const ftk::DrawEvent&);
             void _drawTimeLabels(const ftk::Box2I&, const ftk::DrawEvent&);
             void _drawTimeTicks(const ftk::Box2I&, const ftk::DrawEvent&);

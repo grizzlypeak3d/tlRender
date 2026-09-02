@@ -56,6 +56,11 @@ namespace tl
                     &TimelineWidget::setFrameMarkers,
                     py::return_value_policy::copy)
                 .def_property(
+                    "markers",
+                    &TimelineWidget::getMarkers,
+                    &TimelineWidget::setMarkers,
+                    py::return_value_policy::copy)
+                .def_property(
                     "frameView",
                     &TimelineWidget::hasFrameView,
                     &TimelineWidget::setFrameView)

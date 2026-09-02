@@ -65,6 +65,19 @@ namespace tl
             return !(*this == other);
         }
 
+        bool Marker::operator == (const Marker& other) const
+        {
+            return
+                name == other.name &&
+                color == other.color &&
+                tl::compareExact(range, other.range);
+        }
+
+        bool Marker::operator != (const Marker& other) const
+        {
+            return !(*this == other);
+        }
+
         std::vector<Marker> getMarkers(const OTIO_NS::Item* item)
         {
             std::vector<Marker> out;

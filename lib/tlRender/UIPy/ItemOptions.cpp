@@ -52,6 +52,14 @@ namespace tl
                 .def(pybind11::self == pybind11::self)
                 .def(pybind11::self != pybind11::self);
 
+            py::class_<Marker>(m, "Marker")
+                .def(py::init())
+                .def_readwrite("name", &Marker::name)
+                .def_readwrite("color", &Marker::color)
+                .def_readwrite("range", &Marker::range)
+                .def(pybind11::self == pybind11::self)
+                .def(pybind11::self != pybind11::self);
+
             py::class_<DisplayOptions>(m, "DisplayOptions")
                 .def(py::init())
                 .def_readwrite("inOutDisplay", &DisplayOptions::inOutDisplay)

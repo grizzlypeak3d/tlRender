@@ -46,6 +46,7 @@ namespace tl
             std::shared_ptr<ftk::Observable<bool> > scrub;
             std::shared_ptr<ftk::Observable<std::optional<OTIO_NS::RationalTime> > > timeScrub;
             std::vector<int> frameMarkers;
+            std::vector<Marker> markers;
             std::vector<ItemColors> itemColors;
             std::vector<std::string> labels;
             std::vector<OTIO_NS::RationalTime> offsets;
@@ -448,6 +449,20 @@ namespace tl
                 return;
             p.frameMarkers = value;
             p.ruler->setFrameMarkers(value);
+        }
+
+        const std::vector<Marker>& TimelineWidget::getMarkers() const
+        {
+            return _p->markers;
+        }
+
+        void TimelineWidget::setMarkers(const std::vector<Marker>& value)
+        {
+            FTK_P();
+            if (value == p.markers)
+                return;
+            p.markers = value;
+            p.ruler->setMarkers(value);
         }
 
         const ItemColors& TimelineWidget::getItemColors(int index) const
@@ -1008,6 +1023,7 @@ namespace tl
                     p.ruler->setPlayer(p.player);
                     p.ruler->setScale(p.scale);
                     p.ruler->setFrameMarkers(p.frameMarkers);
+                    p.ruler->setMarkers(p.markers);
                     p.ruler->setDisplayOptions(p.displayOptions->get());
                     p.ruler->setOptions(p.itemOptions->get());
                     p.ruler->setStopOnScrub(p.stopOnScrub->get());
