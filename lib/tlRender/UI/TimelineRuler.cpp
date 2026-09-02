@@ -463,9 +463,12 @@ namespace tl
             event.render->setClipRect(intersect(g, drawRect));
 
             _drawInOutPoints(drawRect, event);
-            _drawMarkers(drawRect, event);
             _drawFrameMarkers(drawRect, event);
             _drawCacheInfo(drawRect, event);
+            // After the cache bars: the markers are content and the bars are
+            // telemetry, and they share the bottom of the ruler -- a clip
+            // that fits in memory would otherwise paint over every span.
+            _drawMarkers(drawRect, event);
             _drawTimeLabels(drawRect, event);
             _drawTimeTicks(drawRect, event);
             _drawCurrentTime(drawRect, event);
