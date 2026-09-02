@@ -292,6 +292,75 @@ namespace tl
                 FTK_CHECK(ftk::Range<int64_t>(12, 23) == looped[0]);
                 FTK_CHECK(ftk::Range<int64_t>(0, 11) == looped[1]);
             }
+            // A range entirely outside the bounds loops into them rather
+            // than answering nothing: the player's cache eviction keeps
+            // what these ranges contain, and an empty answer erased every
+            // frame the fill had just requested.
+            {
+                const OTIO_NS::TimeRange range(
+                    OTIO_NS::RationalTime(36.0, 24.0),
+                    OTIO_NS::RationalTime(12.0, 24.0));
+                const OTIO_NS::TimeRange bounds(
+                    OTIO_NS::RationalTime(0.0, 24.0),
+                    OTIO_NS::RationalTime(24.0, 24.0));
+                const auto looped = loop(range, bounds);
+                FTK_CHECK(1 == looped.size());
+                FTK_CHECK(OTIO_NS::TimeRange(
+                    OTIO_NS::RationalTime(12.0, 24.0),
+                    OTIO_NS::RationalTime(12.0, 24.0)) == looped[0]);
+            }
+            {
+                const OTIO_NS::TimeRange range(
+                    OTIO_NS::RationalTime(-24.0, 24.0),
+                    OTIO_NS::RationalTime(12.0, 24.0));
+                const OTIO_NS::TimeRange bounds(
+                    OTIO_NS::RationalTime(0.0, 24.0),
+                    OTIO_NS::RationalTime(24.0, 24.0));
+                const auto looped = loop(range, bounds);
+                FTK_CHECK(1 == looped.size());
+                FTK_CHECK(OTIO_NS::TimeRange(
+                    OTIO_NS::RationalTime(0.0, 24.0),
+                    OTIO_NS::RationalTime(12.0, 24.0)) == looped[0]);
+            }
+            {
+                // Outside, and straddling the end once looped in.
+                const OTIO_NS::TimeRange range(
+                    OTIO_NS::RationalTime(42.0, 24.0),
+                    OTIO_NS::RationalTime(12.0, 24.0));
+                const OTIO_NS::TimeRange bounds(
+                    OTIO_NS::RationalTime(0.0, 24.0),
+                    OTIO_NS::RationalTime(24.0, 24.0));
+                const auto looped = loop(range, bounds);
+                FTK_CHECK(2 == looped.size());
+                FTK_CHECK(OTIO_NS::TimeRange(
+                    OTIO_NS::RationalTime(18.0, 24.0),
+                    OTIO_NS::RationalTime(6.0, 24.0)) == looped[0]);
+                FTK_CHECK(OTIO_NS::TimeRange(
+                    OTIO_NS::RationalTime(0.0, 24.0),
+                    OTIO_NS::RationalTime(6.0, 24.0)) == looped[1]);
+            }
+            {
+                const ftk::Range<int64_t> range(36, 47);
+                const ftk::Range<int64_t> bounds(0, 23);
+                const auto looped = loop(range, bounds);
+                FTK_CHECK(1 == looped.size());
+                FTK_CHECK(ftk::Range<int64_t>(12, 23) == looped[0]);
+            }
+            {
+                const ftk::Range<int64_t> range(-24, -13);
+                const ftk::Range<int64_t> bounds(0, 23);
+                const auto looped = loop(range, bounds);
+                FTK_CHECK(1 == looped.size());
+                FTK_CHECK(ftk::Range<int64_t>(0, 11) == looped[0]);
+            }
+            {
+                const ftk::Range<int64_t> range(42, 53);
+                const ftk::Range<int64_t> bounds(0, 23);
+                const auto looped = loop(range, bounds);
+                FTK_CHECK(2 == looped.size());
+                FTK_CHECK(ftk::Range<int64_t>(18, 23) == looped[0]);
+                FTK_CHECK(ftk::Range<int64_t>(0, 5) == looped[1]);
+            }
         }
 
         void UtilTest::_util()

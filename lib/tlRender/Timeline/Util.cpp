@@ -125,14 +125,42 @@ namespace tl
         const OTIO_NS::TimeRange& bounds)
     {
         std::vector<OTIO_NS::TimeRange> out;
-        const OTIO_NS::RationalTime& rs = range.start_time();
         const OTIO_NS::RationalTime& bs = bounds.start_time();
-        const OTIO_NS::RationalTime re = range.end_time_inclusive();
         const OTIO_NS::RationalTime be = bounds.end_time_inclusive();
+        const OTIO_NS::RationalTime bd = bounds.duration();
+        if (bd.value() <= 0.0)
+        {
+            return out;
+        }
+        // A range longer than the bounds covers all of them once looped;
+        // one exactly as long maps piecewise through the cases below.
+        if (range.duration() > bd)
+        {
+            out.push_back(bounds);
+            return out;
+        }
+        // A range entirely outside the bounds loops into them the way a
+        // single time does. Without this the answer was empty, and the
+        // player's cache eviction -- which keeps what these ranges contain
+        // -- erased every frame its fill had just requested through the
+        // single-time loop, over and over.
+        OTIO_NS::RationalTime rs = range.start_time();
+        OTIO_NS::RationalTime re = range.end_time_inclusive();
+        while (re < bs)
+        {
+            rs += bd;
+            re += bd;
+        }
+        while (rs > be)
+        {
+            rs -= bd;
+            re -= bd;
+        }
         const OTIO_NS::RationalTime one(1.0, range.duration().rate());
         if (rs >= bs && re <= be)
         {
-            out.push_back(range);
+            out.push_back(
+                OTIO_NS::TimeRange::range_from_start_end_time_inclusive(rs, re));
         }
         else if (rs < bs && re > be)
         {
@@ -164,13 +192,34 @@ namespace tl
         const ftk::Range<int64_t>& bounds)
     {
         std::vector<ftk::Range<int64_t> > out;
-        const int64_t rs = range.min();
         const int64_t bs = bounds.min();
-        const int64_t re = range.max();
         const int64_t be = bounds.max();
+        const int64_t bd = be - bs + 1;
+        // The same rules as the time range overload above.
+        if (bd <= 0)
+        {
+            return out;
+        }
+        if (range.max() - range.min() + 1 > bd)
+        {
+            out.push_back(bounds);
+            return out;
+        }
+        int64_t rs = range.min();
+        int64_t re = range.max();
+        while (re < bs)
+        {
+            rs += bd;
+            re += bd;
+        }
+        while (rs > be)
+        {
+            rs -= bd;
+            re -= bd;
+        }
         if (rs >= bs && re <= be)
         {
-            out.push_back(range);
+            out.push_back(ftk::Range<int64_t>(rs, re));
         }
         else if (rs < bs && re > be)
         {
