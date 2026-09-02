@@ -462,13 +462,14 @@ namespace tl
             event.render->setClipRectEnabled(true);
             event.render->setClipRect(intersect(g, drawRect));
 
+            // Before the in/out points: the two share the strip along the
+            // top of the ruler, and the in/out band drawing over a span's
+            // band is the right answer -- an applied span reads as the
+            // in/out display.
+            _drawMarkers(drawRect, event);
             _drawInOutPoints(drawRect, event);
             _drawFrameMarkers(drawRect, event);
             _drawCacheInfo(drawRect, event);
-            // After the cache bars: the markers are content and the bars are
-            // telemetry, and they share the bottom of the ruler -- a clip
-            // that fits in memory would otherwise paint over every span.
-            _drawMarkers(drawRect, event);
             _drawTimeLabels(drawRect, event);
             _drawTimeTicks(drawRect, event);
             _drawCurrentTime(drawRect, event);
@@ -556,8 +557,8 @@ namespace tl
             for (const auto& marker : p.markers)
             {
                 // A single frame draws as a tick, the shape the frame
-                // markers use; a span draws as a band along the bottom of
-                // the ruler, so overlapping spans still read.
+                // markers use; a span draws as a band along the top of the
+                // ruler, the strip the in/out points use.
                 const bool single = marker.range.duration().value() <= 1.0;
                 const int x0 = timeToPos(marker.range.start_time());
                 const ftk::Box2I g2 = single ?
@@ -568,7 +569,7 @@ namespace tl
                         h) :
                     ftk::Box2I(
                         x0,
-                        g.min.y + h - p.size.border * 2,
+                        g.min.y,
                         timeToPos(marker.range.end_time_exclusive()) - x0 + 1,
                         p.size.border * 2);
                 if (ftk::intersects(g2, drawRect))
