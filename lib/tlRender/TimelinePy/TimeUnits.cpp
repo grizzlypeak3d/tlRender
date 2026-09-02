@@ -24,13 +24,21 @@ namespace tl
                 .value("Seconds", TimeUnits::Seconds)
                 .value("Timecode", TimeUnits::Timecode);
             FTK_ENUM_BIND(m, TimeUnits);
+            ftk::python::observable<TimeUnits>(m, "TimeUnits");
+
+            m.def(
+                "timeToText",
+                &timeToText,
+                py::arg("time"),
+                py::arg("units"));
 
             py::class_<ITimeUnitsModel, std::shared_ptr<ITimeUnitsModel> >(m, "ITimeUnitsModel")
                 .def("getLabel", &ITimeUnitsModel::getLabel, py::arg("time"));
 
             py::class_<TimeUnitsModel, ITimeUnitsModel, std::shared_ptr<TimeUnitsModel> >(m, "TimeUnitsModel")
                 .def(py::init(&TimeUnitsModel::create), py::arg("context"))
-                .def_property("timeUnits", &TimeUnitsModel::getTimeUnits, &TimeUnitsModel::setTimeUnits);
+                .def_property("timeUnits", &TimeUnitsModel::getTimeUnits, &TimeUnitsModel::setTimeUnits)
+                .def_property_readonly("observeTimeUnits", &TimeUnitsModel::observeTimeUnits);
         }
     }
 }
