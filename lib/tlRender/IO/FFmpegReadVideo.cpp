@@ -640,11 +640,16 @@ namespace tl
 
         void ReadVideo::_initHwAccel(const AVCodec* codec)
         {
-            // The hardware path outputs 4:2:0 NV12/P010 with limited-range YUV
-            // colour handling. For sources it would not reproduce faithfully --
-            // full-range, or chroma subsampling other than 4:2:0 -- stay on the
-            // software decoder so hardware decoding is always a faithful match
-            // (it silently falls back rather than altering the image).
+            // The hardware path outputs limited-range YUV, so full-range
+            // sources stay on the software decoder, and chroma other than
+            // 4:2:0 stays gated for now: newer hardware decodes 4:2:2 and
+            // 4:4:4 and this machine's VideoToolbox hands back genuine P210,
+            // but the 4:2:2 pixels that reach the screen measurably differ
+            // from the software path's at sharp chroma edges, and until that
+            // difference is accounted for the gate stands -- hardware
+            // decoding is always a faithful match, it never alters the
+            // image. The first-frame chroma and depth check below the gate
+            // is groundwork for lifting it.
             const AVPixelFormat inputFormat =
                 static_cast<AVPixelFormat>(_avCodecParameters[_avStream]->format);
             const AVPixFmtDescriptor* inputDesc = av_pix_fmt_desc_get(inputFormat);
@@ -834,10 +839,13 @@ namespace tl
         bool ReadVideo::_hwFallback(const OTIO_NS::RationalTime& currentTime)
         {
             // A hardware-only decoder can open and still fail at the first
-            // frame: the device exists, but the codec it was asked for does
-            // not -- an AV1 file on a GPU without AV1 decode. Rebuild on the
-            // software default and pick up from the current time.
-            if (_avCodec == _avCodecDefault || !_avCodecDefault)
+            // frame -- the device exists, but the codec it was asked for does
+            // not, an AV1 file on a GPU without AV1 decode -- and hardware on
+            // the default decoder can prove unfaithful at the first frame.
+            // Either way: rebuild on the software default and pick up from
+            // the current time.
+            if (!_avCodecDefault ||
+                (_avCodec == _avCodecDefault && !_hwAccel))
             {
                 return false;
             }
@@ -1029,10 +1037,35 @@ namespace tl
                     frame = _swFrame;
                     if (!_hwLogged)
                     {
+                        // The first downloaded frame says whether the hardware
+                        // kept its word: coarser chroma or fewer bits than the
+                        // source means the image would not be a faithful match,
+                        // and the error puts decoding back on software.
+                        const AVPixFmtDescriptor* srcDesc =
+                            av_pix_fmt_desc_get(_avInputPixelFormat);
+                        const AVPixFmtDescriptor* dlDesc = av_pix_fmt_desc_get(
+                            static_cast<AVPixelFormat>(_swFrame->format));
+                        if (srcDesc && dlDesc &&
+                            (dlDesc->log2_chroma_w > srcDesc->log2_chroma_w ||
+                             dlDesc->log2_chroma_h > srcDesc->log2_chroma_h ||
+                             dlDesc->comp[0].depth < srcDesc->comp[0].depth))
+                        {
+                            _log(
+                                ftk::Format("Hardware decoding is coarser than the source ({0} for {1}); using software decoding: \"{2}\"").
+                                arg(dlDesc->name ? dlDesc->name : "?").
+                                arg(srcDesc->name ? srcDesc->name : "?").
+                                arg(_fileName),
+                                ftk::LogType::Warning);
+                            return AVERROR_EXTERNAL;
+                        }
                         // Confirms frames are really decoding on the hardware, as
                         // opposed to the device being attached but the decoder
                         // having fallen back to software (see _getHwFormat()).
-                        _log(ftk::Format("Hardware decoding is active: \"{0}\"").arg(_fileName));
+                        // The downloaded format is named: it is the first
+                        // question when a hardware decode looks wrong.
+                        _log(ftk::Format("Hardware decoding is active ({0}): \"{1}\"").
+                            arg(dlDesc && dlDesc->name ? dlDesc->name : "?").
+                            arg(_fileName));
                         _hwLogged = true;
                     }
                 }
