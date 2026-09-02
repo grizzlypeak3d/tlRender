@@ -4,6 +4,7 @@
 #include <tlRender/IO/FFmpegPrivate.h>
 
 #include <ftk/Core/Format.h>
+#include <ftk/Core/String.h>
 #include <ftk/Core/LogSystem.h>
 
 #include <algorithm>
@@ -47,6 +48,44 @@ namespace tl
             bool opened = false;
             bool finished = false;
         };
+
+        const std::vector<WritePreset>& getWritePresets()
+        {
+            static const std::vector<WritePreset> presets =
+            {
+                { "MJPEG",
+                    { { "FFmpeg/Codec", "mjpeg" } },
+                    false },
+                { "ProRes 422",
+                    { { "FFmpeg/Codec", "prores_ks" },
+                      { "FFmpeg/CodecOptions", "profile=hq" } },
+                    false },
+                { "ProRes 4444",
+                    { { "FFmpeg/Codec", "prores_ks" },
+                      { "FFmpeg/CodecOptions", "profile=4444" } },
+                    false },
+                { "FFV1 (lossless)",
+                    { { "FFmpeg/Codec", "ffv1" } },
+                    false },
+                { "AV1",
+                    { { "FFmpeg/Codec", "libsvtav1" },
+                      { "FFmpeg/CodecOptions", "crf=35" } },
+                    false },
+                { "H.264 (ffmpeg command)",
+                    { { "FFmpeg/WriteCommandLine", "1" },
+                      { "FFmpeg/WritePreset", "H.264" } },
+                    true },
+                { "HEVC (ffmpeg command)",
+                    { { "FFmpeg/WriteCommandLine", "1" },
+                      { "FFmpeg/WritePreset", "H.265" } },
+                    true },
+                { "VP9 (ffmpeg command)",
+                    { { "FFmpeg/WriteCommandLine", "1" },
+                      { "FFmpeg/WritePreset", "VP9" } },
+                    true }
+            };
+            return presets;
+        }
 
         void Write::_init(
             const ftk::Path& path,
@@ -165,7 +204,26 @@ namespace tl
                 }
             }
 
-            r = avcodec_open2(p.avCodecContext, avCodec, NULL);
+            // Codec-private options, e.g. "profile=hq" for ProRes: what the
+            // presets use to say more than a codec name.
+            AVDictionary* avCodecOptions = nullptr;
+            if (auto i = options.find("FFmpeg/CodecOptions"); i != options.end())
+            {
+                for (const auto& kv : ftk::split(i->second, ' '))
+                {
+                    const auto eq = kv.find('=');
+                    if (eq != std::string::npos)
+                    {
+                        av_dict_set(
+                            &avCodecOptions,
+                            kv.substr(0, eq).c_str(),
+                            kv.substr(eq + 1).c_str(),
+                            0);
+                    }
+                }
+            }
+            r = avcodec_open2(p.avCodecContext, avCodec, &avCodecOptions);
+            av_dict_free(&avCodecOptions);
             if (r < 0)
             {
                 throw std::runtime_error(ftk::Format("{0}: \"{1}\"").arg(getErrorLabel(r)).arg(p.fileName));

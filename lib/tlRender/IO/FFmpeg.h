@@ -117,6 +117,20 @@ namespace tl
             FTK_PRIVATE();
         };
 
+        //! A movie export preset: a name for what comes out, the options
+        //! that produce it, and whether the command line writer does the
+        //! work. Curated so choosing an output does not mean picking
+        //! through every encoder FFmpeg has.
+        struct TL_IO_API_TYPE WritePreset
+        {
+            std::string name;
+            IOOptions options;
+            bool command = false;
+        };
+
+        //! Get the movie export presets.
+        TL_IO_API const std::vector<WritePreset>& getWritePresets();
+
         //! FFmpeg writer.
         class TL_IO_API_TYPE Write : public IWrite
         {
