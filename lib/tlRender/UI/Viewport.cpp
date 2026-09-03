@@ -80,6 +80,8 @@ namespace tl
                 std::make_pair(ftk::MouseButton::Left, ftk::KeyModifier::Alt);
             std::pair<ftk::MouseButton, ftk::KeyModifier> pickBinding =
                 std::make_pair(ftk::MouseButton::None, ftk::KeyModifier::None);
+            ftk::KeyModifier wheelZoomBinding = ftk::KeyModifier::None;
+            ftk::KeyModifier wheelScrubBinding = ftk::KeyModifier::Control;
             float mouseWheelScale = 1.1F;
 
             bool picked = false;
@@ -870,6 +872,16 @@ namespace tl
             _p->pickBinding = std::make_pair(button, modifier);
         }
 
+        void Viewport::setWheelZoomBinding(ftk::KeyModifier value)
+        {
+            _p->wheelZoomBinding = value;
+        }
+
+        void Viewport::setWheelScrubBinding(ftk::KeyModifier value)
+        {
+            _p->wheelScrubBinding = value;
+        }
+
         void Viewport::setMouseWheelScale(float value)
         {
             _p->mouseWheelScale = value;
@@ -1364,7 +1376,9 @@ namespace tl
             FTK_P();
             if (p.inputEnabled)
             {
-                if (static_cast<int>(ftk::KeyModifier::None) == event.modifiers)
+                // Zoom is checked first, so it wins when both actions are
+                // bound to the same modifier.
+                if (ftk::checkKeyModifier(p.wheelZoomBinding, event.modifiers))
                 {
                     event.accept = true;
 
@@ -1377,7 +1391,7 @@ namespace tl
                         zoom / p.mouseWheelScale;
                     setZoom(newZoom, p.mouse.pos);
                 }
-                else if (event.modifiers & static_cast<int>(ftk::KeyModifier::Control))
+                else if (ftk::checkKeyModifier(p.wheelScrubBinding, event.modifiers))
                 {
                     event.accept = true;
 

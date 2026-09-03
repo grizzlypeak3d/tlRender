@@ -282,6 +282,12 @@ namespace tl
             //! Set the pick binding. Unbound by default.
             TL_UI_API void setPickBinding(ftk::MouseButton, ftk::KeyModifier);
 
+            //! Set the modifier the mouse wheel zooms with.
+            TL_UI_API void setWheelZoomBinding(ftk::KeyModifier);
+
+            //! Set the modifier the mouse wheel scrubs frames with.
+            TL_UI_API void setWheelScrubBinding(ftk::KeyModifier);
+
             //! Set the mouse wheel scale.
             TL_UI_API void setMouseWheelScale(float);
 
