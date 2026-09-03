@@ -1376,6 +1376,12 @@ namespace tl
             FTK_P();
             if (p.inputEnabled)
             {
+                // macOS turns a Shift+wheel sideways itself, delivering the
+                // delta on x with y zero -- so an action bound to Shift
+                // takes whichever axis carries it.
+                const float delta =
+                    event.value.y != 0.F ? event.value.y : event.value.x;
+
                 // Zoom is checked first, so it wins when both actions are
                 // bound to the same modifier.
                 if (ftk::checkKeyModifier(p.wheelZoomBinding, event.modifiers))
@@ -1386,7 +1392,7 @@ namespace tl
 
                     const double zoom = p.zoom->get();
                     const double newZoom =
-                        event.value.y > 0 ?
+                        delta > 0 ?
                         zoom * p.mouseWheelScale :
                         zoom / p.mouseWheelScale;
                     setZoom(newZoom, p.mouse.pos);
@@ -1398,7 +1404,7 @@ namespace tl
                     if (p.player)
                     {
                         const OTIO_NS::RationalTime t = p.player->getCurrentTime();
-                        p.player->seek(t + OTIO_NS::RationalTime(event.value.y, t.rate()));
+                        p.player->seek(t + OTIO_NS::RationalTime(delta, t.rate()));
                     }
                 }
             }
