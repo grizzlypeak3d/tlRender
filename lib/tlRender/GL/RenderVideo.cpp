@@ -90,27 +90,12 @@ namespace tl
             {
                 glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE);
 
-                size_t start = 0;
-                size_t end = boxes.size();
-                switch (compareOptions.compare)
+                for (size_t i = 0; i < boxes.size(); ++i)
                 {
-                    case Compare::None:
-                        if (!boxes.empty())
-                        {
-                            end = 1;
-                        }
-                        break;
-                    case Compare::B:
-                        if (boxes.size() > 1)
-                        {
-                            start = 1;
-                            end = 2;
-                        }
-                        break;
-                    default: break;
-                }
-                for (size_t i = start; i < end; ++i)
-                {
+                    if (!isShown(compareOptions.compare, i))
+                    {
+                        continue;
+                    }
                     const ftk::Box2I box = xform(boxes[i], vm);
 
                     ftk::TriMesh2F mesh;

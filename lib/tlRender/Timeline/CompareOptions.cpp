@@ -268,6 +268,22 @@ namespace tl
         return getRenderSize(options, aspectRatioOptions, getInfos(videoFrame));
     }
 
+    bool isShown(Compare compare, size_t index)
+    {
+        bool out = true;
+        switch (compare)
+        {
+        case Compare::None:
+            out = 0 == index;
+            break;
+        case Compare::B:
+            out = 1 == index;
+            break;
+        default: break;
+        }
+        return out;
+    }
+
     OTIO_NS::RationalTime getCompareTime(
         const OTIO_NS::RationalTime& sourceTime,
         const OTIO_NS::TimeRange& sourceTimeRange,

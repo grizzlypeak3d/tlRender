@@ -83,6 +83,28 @@ namespace tl
                     FTK_CHECK(ftk::Size2I(1920, 1080) == renderSize);
                 }
 
+                // The boxes exist for every source; isShown() says which
+                // of them the mode draws.
+                FTK_CHECK(isShown(Compare::None, 0));
+                FTK_CHECK(!isShown(Compare::None, 1));
+                FTK_CHECK(!isShown(Compare::B, 0));
+                FTK_CHECK(isShown(Compare::B, 1));
+                FTK_CHECK(!isShown(Compare::B, 2));
+                for (auto compare :
+                    {
+                        Compare::Wipe,
+                        Compare::Overlay,
+                        Compare::Difference,
+                        Compare::Horizontal,
+                        Compare::Vertical,
+                        Compare::Tile
+                    })
+                {
+                    FTK_CHECK(isShown(compare, 0));
+                    FTK_CHECK(isShown(compare, 1));
+                    FTK_CHECK(isShown(compare, 2));
+                }
+
                 auto boxes = getBoxes({ Compare::Horizontal }, AspectRatioOptions(), infos);
                 FTK_CHECK(2 == boxes.size());
                 FTK_CHECK(ftk::Box2I(0, 0, 1920, 1080) == boxes[0]);

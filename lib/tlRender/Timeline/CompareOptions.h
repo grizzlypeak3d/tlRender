@@ -99,6 +99,13 @@ namespace tl
         const AspectRatioOptions&,
         const std::vector<VideoFrame>&);
 
+    //! Whether the source at the given index is shown in a comparison.
+    //! The boxes exist for every source in every mode (getBoxes()), but
+    //! "None" shows the first source alone and "B" the second alone;
+    //! anything drawn per source -- outlines, annotations -- makes this
+    //! same choice.
+    TL_TIMELINE_API bool isShown(Compare, size_t index);
+
     //! Get a compare time.
     TL_TIMELINE_API OTIO_NS::RationalTime getCompareTime(
         const OTIO_NS::RationalTime& sourceTime,
