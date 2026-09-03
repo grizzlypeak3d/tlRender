@@ -36,6 +36,11 @@ namespace tl
                 .def(pybind11::self == pybind11::self)
                 .def(pybind11::self != pybind11::self);
 
+            py::enum_<LUTDirection>(m, "LUTDirection")
+                .value("Forward", LUTDirection::Forward)
+                .value("Inverse", LUTDirection::Inverse);
+            FTK_ENUM_BIND(m, LUTDirection);
+
             py::enum_<LUTOrder>(m, "LUTOrder")
                 .value("PostConfig", LUTOrder::PostConfig)
                 .value("PreConfig", LUTOrder::PreConfig);
@@ -45,6 +50,7 @@ namespace tl
                 .def(py::init())
                 .def_readwrite("enabled", &LUTOptions::enabled)
                 .def_readwrite("fileName", &LUTOptions::fileName)
+                .def_readwrite("direction", &LUTOptions::direction)
                 .def_readwrite("order", &LUTOptions::order)
                 .def(pybind11::self == pybind11::self)
                 .def(pybind11::self != pybind11::self);

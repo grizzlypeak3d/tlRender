@@ -100,6 +100,11 @@ namespace tl
     }
 
     FTK_ENUM_IMPL(
+        LUTDirection,
+        "Forward",
+        "Inverse");
+
+    FTK_ENUM_IMPL(
         LUTOrder,
         "Post-Config",
         "Pre-Config");
@@ -109,6 +114,7 @@ namespace tl
         return
             enabled == other.enabled &&
             fileName == other.fileName &&
+            direction == other.direction &&
             order == other.order;
     }
 
@@ -161,6 +167,7 @@ namespace tl
     {
         json["Enabled"] = value.enabled;
         json["FileName"] = value.fileName;
+        json["Direction"] = to_string(value.direction);
         json["Order"] = to_string(value.order);
     }
 
@@ -179,6 +186,12 @@ namespace tl
     {
         json.at("Enabled").get_to(value.enabled);
         json.at("FileName").get_to(value.fileName);
+        // Not required: settings written before the direction existed
+        // still load.
+        if (json.contains("Direction"))
+        {
+            from_string(json.at("Direction").get<std::string>(), value.direction);
+        }
         from_string(json.at("Order").get<std::string>(), value.order);
     }
 }

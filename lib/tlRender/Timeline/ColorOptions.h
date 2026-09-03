@@ -67,12 +67,28 @@ namespace tl
     };
     FTK_ENUM(TL_TIMELINE_API, LUTOrder);
 
+    //! LUT direction.
+    //!
+    //! Forward is the direction the file itself reads. An ICC monitor
+    //! profile reads from the monitor's code values, so correcting the
+    //! display with one takes Inverse.
+    enum class TL_TIMELINE_API_TYPE LUTDirection
+    {
+        Forward,
+        Inverse,
+
+        Count,
+        First = Forward
+    };
+    FTK_ENUM(TL_TIMELINE_API, LUTDirection);
+
     //! LUT options.
     struct TL_TIMELINE_API_TYPE LUTOptions
     {
-        bool        enabled  = false;
-        std::string fileName;
-        LUTOrder    order    = LUTOrder::First;
+        bool         enabled   = false;
+        std::string  fileName;
+        LUTDirection direction = LUTDirection::First;
+        LUTOrder     order     = LUTOrder::First;
 
         TL_TIMELINE_API bool operator == (const LUTOptions&) const;
         TL_TIMELINE_API bool operator != (const LUTOptions&) const;
