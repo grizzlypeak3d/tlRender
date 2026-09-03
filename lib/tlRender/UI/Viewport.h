@@ -302,7 +302,7 @@ namespace tl
             TL_UI_API void keyReleaseEvent(ftk::KeyEvent&) override;
 
         protected:
-            bool _isMouseInside() const;
+            TL_UI_API bool _isMouseInside() const;
             TL_UI_API const ftk::V2I& _getMousePressPos() const;
 
         private:
