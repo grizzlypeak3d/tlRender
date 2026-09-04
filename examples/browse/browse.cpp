@@ -17,8 +17,11 @@
 #include <ftk/UI/App.h>
 #include <ftk/UI/Divider.h>
 #include <ftk/UI/FileBrowser.h>
+#include <ftk/UI/FileBrowserWidgets.h>
 #include <ftk/UI/Label.h>
 #include <ftk/UI/RowLayout.h>
+#include <ftk/UI/ScrollWidget.h>
+#include <ftk/UI/Splitter.h>
 #include <ftk/UI/Window.h>
 
 #include <ftk/Core/CmdLine.h>
@@ -53,7 +56,7 @@ int main(int argc, char* argv[])
 
         auto window = Window::create(context, app, "browse");
 
-        auto layout = HorizontalLayout::create(context, window);
+        auto layout = VerticalLayout::create(context, window);
         layout->setSpacingRole(SizeRole::None);
 
         std::filesystem::path startPath = std::filesystem::current_path();
@@ -61,25 +64,46 @@ int main(int argc, char* argv[])
         {
             startPath = std::filesystem::u8path(pathArg->getValue());
         }
-        auto browserLayout = VerticalLayout::create(context, layout);
+
+        // Just the pieces browsing needs -- the path bar and the view --
+        // rather than the whole dialog widget with its Ok and Cancel.
+        auto model = FileBrowserModel::create(context);
+        model->setPath(startPath);
+
+        auto splitter = Splitter::create(context, Orientation::Horizontal, layout);
+        splitter->setSplit(.3F);
+        splitter->setVStretch(Stretch::Expanding);
+
+        auto browserLayout = VerticalLayout::create(context, splitter);
         browserLayout->setSpacingRole(SizeRole::None);
-        auto browser = FileBrowserWidget::create(
-            context,
-            startPath,
-            FileBrowserMode::Open,
-            nullptr,
-            browserLayout);
-        browser->setVStretch(Stretch::Expanding);
+        auto pathWidget = FileBrowserPath::create(context, browserLayout);
+        auto view = FileBrowserView::create(
+            context, FileBrowserMode::Open, model);
+        auto scrollWidget = ScrollWidget::create(context);
+        scrollWidget->setWidget(view);
+        scrollWidget->setVStretch(Stretch::Expanding);
+        scrollWidget->setParent(browserLayout);
+
+        auto viewport = tl::ui::Viewport::create(context, splitter);
+
+        Divider::create(context, Orientation::Vertical, layout);
         // The label says what is showing and what it cost, so the feel
         // and the number stay attached to each other.
         auto statusLabel = Label::create(
-            context, "Select a file to preview it.", browserLayout);
+            context, "Select a file to preview it.", layout);
         statusLabel->setMarginRole(SizeRole::MarginSmall);
 
-        Divider::create(context, Orientation::Horizontal, layout);
-
-        auto viewport = tl::ui::Viewport::create(context, layout);
-        viewport->setHStretch(Stretch::Expanding);
+        pathWidget->setCallback(
+            [model](const std::filesystem::path& value)
+            {
+                model->setPath(value);
+            });
+        auto pathObserver = Observer<std::filesystem::path>::create(
+            model->observePath(),
+            [pathWidget](const std::filesystem::path& value)
+            {
+                pathWidget->setPath(value);
+            });
 
         std::shared_ptr<tl::Player> player;
         auto open = [context, viewport, statusLabel, &player](
@@ -124,10 +148,10 @@ int main(int argc, char* argv[])
                 std::cout << "ERROR: " << e.what() << std::endl;
             }
         };
-        browser->setSelectCallback(open);
+        view->setSelectCallback(open);
         // Choosing (Return, double-click) previews too: in this
         // experiment there is nothing else for it to mean.
-        browser->setCallback(open);
+        view->setCallback(open);
 
         // A file argument instead of a directory runs the open several
         // times and exits: the same measurement, headless and
