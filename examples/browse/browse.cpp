@@ -98,6 +98,7 @@ int main(int argc, char* argv[])
                 auto timeline = tl::Timeline::create(context, path);
                 const auto t1 = std::chrono::steady_clock::now();
                 player = tl::Player::create(context, timeline);
+                const auto t1b = std::chrono::steady_clock::now();
                 viewport->setPlayer(player);
                 const auto t2 = std::chrono::steady_clock::now();
                 const auto ms = [](const auto& a, const auto& b)
@@ -106,11 +107,12 @@ int main(int argc, char* argv[])
                         std::chrono::milliseconds>(b - a).count();
                 };
                 const std::string text = Format(
-                    "{0}: {1}ms (timeline {2}ms, player {3}ms)").
+                    "{0}: {1}ms (timeline {2}ms, player {3}ms, setPlayer {4}ms)").
                     arg(path.getFileName()).
                     arg(ms(t0, t2)).
                     arg(ms(t0, t1)).
-                    arg(ms(t1, t2));
+                    arg(ms(t1, t1b)).
+                    arg(ms(t1b, t2));
                 statusLabel->setText(text);
                 std::cout << text << std::endl;
             }
@@ -119,12 +121,26 @@ int main(int argc, char* argv[])
                 player.reset();
                 viewport->setPlayer(nullptr);
                 statusLabel->setText(e.what());
+                std::cout << "ERROR: " << e.what() << std::endl;
             }
         };
         browser->setSelectCallback(open);
         // Choosing (Return, double-click) previews too: in this
         // experiment there is nothing else for it to mean.
         browser->setCallback(open);
+
+        // A file argument instead of a directory runs the open several
+        // times and exits: the same measurement, headless and
+        // repeatable. The repeats show what stays warm between opens.
+        if (pathArg->hasValue() &&
+            !std::filesystem::is_directory(startPath))
+        {
+            for (int i = 0; i < 5; ++i)
+            {
+                open({ Path(pathArg->getValue()) });
+            }
+            return 0;
+        }
 
         window->show();
         app->run();
