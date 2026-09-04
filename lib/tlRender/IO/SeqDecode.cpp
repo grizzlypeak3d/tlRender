@@ -7,6 +7,7 @@
 
 #include <ftk/Core/Format.h>
 #include <ftk/Core/Math.h>
+#include <ftk/Core/Path.h>
 
 #include <algorithm>
 #include <filesystem>
@@ -120,7 +121,7 @@ namespace tl
                 }
             }
             else if (!std::filesystem::exists(
-                std::filesystem::u8path(fileName)))
+                ftk::toFileSystem(fileName)))
             {
                 continue;
             }
@@ -173,7 +174,7 @@ namespace tl
                 // there at open is deliberate: a render in progress gains
                 // frames while it is being watched.
                 std::filesystem::exists(
-                    std::filesystem::u8path(_path.getFrame(i, true)));
+                    ftk::toFileSystem(_path.getFrame(i, true)));
             if (exists)
             {
                 return i;

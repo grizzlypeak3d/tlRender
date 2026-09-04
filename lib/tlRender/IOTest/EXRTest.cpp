@@ -11,6 +11,7 @@
 #include <ftk/Core/FileIO.h>
 #include <ftk/Core/Format.h>
 #include <ftk/Core/Image.h>
+#include <ftk/Core/Path.h>
 
 #include <cstring>
 #include <sstream>
@@ -360,7 +361,7 @@ namespace tl
                         ss << c.fileName << ' ' << c.size << ' ' <<
                             c.pixelType << ".0.exr";
                         _print(ss.str());
-                        path = ftk::Path((_getTempDir() / ss.str()).u8string());
+                        path = ftk::Path(ftk::fromFileSystem(_getTempDir() / ss.str()));
                     }
                     auto image = ftk::Image::create(imageInfo);
                     image->zero();
@@ -386,7 +387,7 @@ namespace tl
             // losing the whole frame is what issue #308 is about.
             auto readSystem = _context->getSystem<ReadSystem>();
             auto writeSystem = _context->getSystem<WriteSystem>();
-            const ftk::Path path((_getTempDir() / "EXRPartial.exr").u8string());
+            const ftk::Path path(ftk::fromFileSystem(_getTempDir() / "EXRPartial.exr"));
             auto writePlugin = writeSystem->getPlugin(path);
             auto readPlugin = readSystem->getPlugin(path);
             if (!writePlugin || !readPlugin)
@@ -422,7 +423,7 @@ namespace tl
 
             // Two thirds of the file: the header and most of the scanlines.
             const ftk::Path partialPath(
-                (_getTempDir() / "EXRPartialCut.exr").u8string());
+                ftk::fromFileSystem(_getTempDir() / "EXRPartialCut.exr"));
             {
                 auto fileIO = ftk::FileIO::create(partialPath.get(), ftk::FileMode::Write);
                 fileIO->write(whole.data(), whole.size() * 2 / 3);
@@ -460,7 +461,7 @@ namespace tl
             // an unreadable file rather than one part way through, and it has
             // to say so instead of handing back a blank frame.
             const ftk::Path headerPath(
-                (_getTempDir() / "EXRHeaderOnly.exr").u8string());
+                ftk::fromFileSystem(_getTempDir() / "EXRHeaderOnly.exr"));
             {
                 auto fileIO = ftk::FileIO::create(headerPath.get(), ftk::FileMode::Write);
                 fileIO->write(whole.data(), std::min<size_t>(whole.size(), 200));

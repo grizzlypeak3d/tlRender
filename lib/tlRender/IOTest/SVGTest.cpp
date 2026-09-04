@@ -10,6 +10,7 @@
 #include <ftk/Core/Context.h>
 #include <ftk/Core/FileIO.h>
 #include <ftk/Core/Format.h>
+#include <ftk/Core/Path.h>
 
 namespace tl
 {
@@ -38,7 +39,7 @@ namespace tl
             const std::string& fileName,
             const std::string& text)
         {
-            const ftk::Path out((_getTempDir() / fileName).u8string());
+            const ftk::Path out(ftk::fromFileSystem(_getTempDir() / fileName));
             auto fileIO = ftk::FileIO::create(out.get(), ftk::FileMode::Write);
             fileIO->write(text.c_str(), text.size());
             return out;
@@ -135,7 +136,7 @@ namespace tl
             {
                 auto decode = plugin->decode();
                 decode->getInfo(
-                    (_getTempDir() / "SVGTestMissing.svg").u8string());
+                    ftk::fromFileSystem(_getTempDir() / "SVGTestMissing.svg"));
                 FTK_CHECK(false);
             }
             catch (const std::exception&)

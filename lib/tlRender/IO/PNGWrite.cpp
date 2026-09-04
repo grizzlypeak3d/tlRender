@@ -5,6 +5,7 @@
 
 #include <ftk/Core/Format.h>
 #include <ftk/Core/PNG.h>
+#include <ftk/Core/Path.h>
 
 namespace tl
 {
@@ -43,7 +44,7 @@ namespace tl
             const std::shared_ptr<ftk::Image>& image,
             const IOOptions& options)
         {
-            const auto path = std::filesystem::u8path(fileName);
+            const auto path = ftk::toFileSystem(fileName);
             const ftk::ImageIOOptions imageOptions(
                 options.begin(), options.end());
             const auto& info = image->getInfo();

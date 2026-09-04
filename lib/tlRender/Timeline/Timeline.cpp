@@ -18,6 +18,7 @@
 #include <ftk/Core/Format.h>
 #include <ftk/Core/LogSystem.h>
 #include <ftk/Core/Time.h>
+#include <ftk/Core/Path.h>
 
 #include <opentimelineio/externalReference.h>
 #include <opentimelineio/gap.h>
@@ -38,7 +39,7 @@ namespace tl
         //! working directory cannot be had.
         std::string absoluteFileName(const std::string& fileName)
         {
-            std::filesystem::path out = std::filesystem::u8path(fileName);
+            std::filesystem::path out = ftk::toFileSystem(fileName);
             if (!out.is_absolute())
             {
                 std::error_code ec;
@@ -48,15 +49,16 @@ namespace tl
                     out = abs;
                 }
             }
-            return out.u8string();
+            return ftk::fromFileSystem(out);
         }
 
         //! An absolute, normalized form of a media path, used only to compare
         //! paths that name the same file in different ways.
         std::string normalMediaPath(const ftk::Path& path)
         {
-            return std::filesystem::u8path(absoluteFileName(path.get())).
-                lexically_normal().u8string();
+            return ftk::fromFileSystem(
+                ftk::toFileSystem(absoluteFileName(path.get())).
+                    lexically_normal());
         }
     }
 
@@ -292,7 +294,7 @@ namespace tl
                     for (const auto& ext : imageSeqAudioExts)
                     {
                         const ftk::Path audioPath(baseName + ext, pathOptions);
-                        if (std::filesystem::exists(std::filesystem::u8path(audioPath.get())))
+                        if (std::filesystem::exists(ftk::toFileSystem(audioPath.get())))
                         {
                             out = audioPath;
                             break;
@@ -320,7 +322,7 @@ namespace tl
                     // Korean file name fails on a Korean code page and is
                     // merely mangled on a Western one.
                     const auto entries = ftk::dirList(
-                        std::filesystem::u8path(path.getDir()), listOptions);
+                        ftk::toFileSystem(path.getDir()), listOptions);
                     if (!entries.empty())
                     {
                         out = entries.front().path;
@@ -375,7 +377,7 @@ namespace tl
         if (!path.hasProtocol() &&
             !path.isSeq() &&
             !std::filesystem::exists(
-                std::filesystem::u8path(path.getFileName(true))))
+                ftk::toFileSystem(path.getFileName(true))))
         {
             throw std::runtime_error(
                 ftk::Format("No such file or directory: \"{0}\"").

@@ -4,6 +4,7 @@
 #include <tlRender/IO/PNG.h>
 
 #include <ftk/Core/PNG.h>
+#include <ftk/Core/Path.h>
 
 namespace tl
 {
@@ -36,7 +37,7 @@ namespace tl
             const std::string& fileName,
             const ftk::MemFile* memory)
         {
-            const auto path = std::filesystem::u8path(fileName);
+            const auto path = ftk::toFileSystem(fileName);
             auto reader = memory ?
                 _plugin->read(path, *memory) :
                 _plugin->read(path);
@@ -51,7 +52,7 @@ namespace tl
             const OTIO_NS::RationalTime& time,
             const IOOptions& options)
         {
-            const auto path = std::filesystem::u8path(fileName);
+            const auto path = ftk::toFileSystem(fileName);
             const auto imageOptions = imageIOOptions(options);
             auto reader = memory ?
                 _plugin->read(path, *memory, imageOptions) :

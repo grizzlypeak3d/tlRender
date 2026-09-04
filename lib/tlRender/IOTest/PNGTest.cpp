@@ -10,6 +10,7 @@
 #include <ftk/Core/Context.h>
 #include <ftk/Core/FileIO.h>
 #include <ftk/Core/Format.h>
+#include <ftk/Core/Path.h>
 
 #include <cstring>
 
@@ -102,8 +103,8 @@ namespace tl
                 // digit is a frame of a sequence, which is what the writer
                 // would then write instead.
                 const std::string letter(1, 'a' + static_cast<char>(count++));
-                const ftk::Path path((_getTempDir() /
-                    ftk::Format("PNGTest_{0}.png").arg(letter).str()).u8string());
+                const ftk::Path path(ftk::fromFileSystem(_getTempDir() /
+                    ftk::Format("PNGTest_{0}.png").arg(letter).str()));
                 IOInfo info;
                 info.video.push_back(imageInfo);
                 const OTIO_NS::RationalTime time(0.0, 24.0);

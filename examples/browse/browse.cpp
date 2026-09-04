@@ -26,6 +26,7 @@
 
 #include <ftk/Core/CmdLine.h>
 #include <ftk/Core/Format.h>
+#include <ftk/Core/Path.h>
 
 #include <chrono>
 #include <filesystem>
@@ -62,7 +63,7 @@ int main(int argc, char* argv[])
         std::filesystem::path startPath = std::filesystem::current_path();
         if (pathArg->hasValue())
         {
-            startPath = std::filesystem::u8path(pathArg->getValue());
+            startPath = ftk::toFileSystem(pathArg->getValue());
         }
 
         // Just the pieces browsing needs -- the path bar and the view --
@@ -113,7 +114,7 @@ int main(int argc, char* argv[])
                 return;
             const Path& path = value.front();
             if (std::filesystem::is_directory(
-                std::filesystem::u8path(path.get())))
+                ftk::toFileSystem(path.get())))
                 return;
             const auto t0 = std::chrono::steady_clock::now();
             try
