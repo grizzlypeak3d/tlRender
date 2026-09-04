@@ -55,7 +55,7 @@ set(TLRENDER_SANITIZE "" CACHE STRING "Enable sanitizers (comma-separated, e.g. 
 list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake/Modules)
 
 if(NOT CMAKE_CXX_STANDARD)
-    set(CMAKE_CXX_STANDARD 17)
+    set(CMAKE_CXX_STANDARD 20)
 endif()
 
 if(NOT BUILD_SHARED_LIBS)
