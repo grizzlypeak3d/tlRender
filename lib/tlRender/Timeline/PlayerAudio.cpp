@@ -490,7 +490,11 @@ namespace tl
         auto p = reinterpret_cast<Player::Private*>(userData);
         if (additional_amount > 0)
         {
-            std::vector<uint8_t> buf(additional_amount * p->audioThread.info.getByteCount());
+            // additional_amount is already in bytes. Scaling it by the
+            // frame size again fed several times too much audio per
+            // callback, which ran the audio clock in leaps and throttled
+            // playback to a fraction of the frame rate.
+            std::vector<uint8_t> buf(additional_amount);
             p->sdlCallback(buf.data(), buf.size());
             SDL_PutAudioStreamData(stream, buf.data(), buf.size());
         }
