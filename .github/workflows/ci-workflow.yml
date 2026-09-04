@@ -42,6 +42,40 @@ jobs:
         sh ../tl/etc/Linux/lcov.sh
 
 
+  linux-sdl3-build:
+    runs-on: ubuntu-latest
+
+    env:
+      CMAKE_BUILD_PARALLEL_LEVEL: 4
+
+    steps:
+    - uses: actions/checkout@v6
+      with:
+        path: tl
+        submodules: recursive
+    - uses: actions/setup-python@v6
+      with:
+        python-version: '3.11'
+
+    - name: Setup environment
+      run: |
+        echo "$PWD/install-Debug/bin" >> $GITHUB_PATH
+        echo "LD_LIBRARY_PATH=$PWD/install-Debug/lib:$LD_LIBRARY_PATH" >> $GITHUB_ENV
+        echo "PYTHONPATH=$PWD/install-Debug/lib:$PYTHONPATH" >> $GITHUB_ENV
+        cmake --version
+        python --version
+        sh tl/etc/Linux/setup-gha.sh
+
+    - name: Build tlRender
+      run: |
+        sh tl/etc/Linux/sbuild.sh tl Debug ci-linux-sdl3
+
+    - name: Run tests
+      run: |
+        cd build-Debug
+        xvfb-run ctest --verbose --rerun-failed --output-on-failure --timeout 600 -C Debug
+
+
   linux-build-python:
     runs-on: ubuntu-latest
 
