@@ -42,7 +42,7 @@ jobs:
         sh ../tl/etc/Linux/lcov.sh
 
 
-  linux-sdl3-build:
+  linux-sdl2-build:
     runs-on: ubuntu-latest
 
     env:
@@ -68,7 +68,7 @@ jobs:
 
     - name: Build tlRender
       run: |
-        sh tl/etc/Linux/sbuild.sh tl Debug ci-linux-sdl3
+        sh tl/etc/Linux/sbuild.sh tl Debug ci-linux-sdl2
 
     - name: Run tests
       run: |
