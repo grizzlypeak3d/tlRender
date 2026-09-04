@@ -92,7 +92,10 @@ set(TLRENDER_EXTERNAL_ARGS
     -DCMAKE_POLICY_DEFAULT_CMP0091:STRING=NEW
     -DCMAKE_POLICY_DEFAULT_CMP0114:STRING=NEW
     -DCMAKE_FIND_FRAMEWORK=${CMAKE_FIND_FRAMEWORK}
-    -DCMAKE_CXX_STANDARD=${CMAKE_CXX_STANDARD}
+    # The dependencies build at the standard they support rather
+    # than inheriting ours: OpenTimelineIO does not compile as
+    # C++20. Mixing the standards is ABI safe.
+    -DCMAKE_CXX_STANDARD=17
     -DCMAKE_CXX_FLAGS=${CMAKE_CXX_FLAGS}
     -DCMAKE_C_FLAGS=${CMAKE_C_FLAGS}
     -DCMAKE_MSVC_RUNTIME_LIBRARY=${CMAKE_MSVC_RUNTIME_LIBRARY}
