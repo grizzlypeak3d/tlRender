@@ -9,7 +9,11 @@
 
 #include <subprocess.h>
 
+#include <cstdlib>
 #include <mutex>
+#if !defined(_WIN32)
+#include <unistd.h>
+#endif // _WIN32
 
 #include <regex>
 
@@ -154,6 +158,50 @@ namespace tl
 
         namespace
         {
+#if !defined(_WIN32)
+            // An app launched from the Finder or a desktop gets a PATH
+            // without the package managers' directories, so a bare command
+            // name is also resolved against the usual places. PATH is
+            // searched first so an installation on it keeps precedence, and
+            // a name that already has a directory in it is taken as given.
+            std::string resolveCommand(const std::string& name)
+            {
+                if (name.find('/') != std::string::npos)
+                {
+                    return name;
+                }
+                std::vector<std::string> dirs;
+                if (const char* env = std::getenv("PATH"))
+                {
+                    dirs = ftk::split(env, ':');
+                }
+#if defined(__APPLE__)
+                dirs.push_back("/opt/homebrew/bin");
+                dirs.push_back("/opt/local/bin");
+#endif
+                dirs.push_back("/usr/local/bin");
+                for (const auto& dir : dirs)
+                {
+                    if (!dir.empty())
+                    {
+                        const std::string path = dir + '/' + name;
+                        if (::access(path.c_str(), X_OK) == 0)
+                        {
+                            return path;
+                        }
+                    }
+                }
+                return name;
+            }
+#else // _WIN32
+            // A Windows GUI app inherits the user's PATH, which the
+            // sub-process search already covers.
+            std::string resolveCommand(const std::string& name)
+            {
+                return name;
+            }
+#endif // _WIN32
+
             // Starting a process is serialized.
             //
             // subprocess_create() now makes its POSIX pipes close-on-exec, so
@@ -181,10 +229,16 @@ namespace tl
             _p(new Private)
         {
             FTK_P();
+            const std::string command =
+                !cmd.empty() ? resolveCommand(cmd[0]) : std::string();
             std::vector<const char*> args;
-            for (const auto& i : cmd)
+            if (!cmd.empty())
             {
-                args.push_back(i.c_str());
+                args.push_back(command.c_str());
+            }
+            for (size_t i = 1; i < cmd.size(); ++i)
+            {
+                args.push_back(cmd[i].c_str());
             }
             args.push_back(nullptr);
             int r = 0;
