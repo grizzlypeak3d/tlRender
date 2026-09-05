@@ -126,7 +126,13 @@ if(TLRENDER_FFMPEG_MINIMAL)
     # deliberately, and it is the codec a QuickTime movie defaults to, so a
     # minimal build writes movies without audio and cannot read the ones it
     # would otherwise have written. That is the trade, not an oversight.
+    #
+    # The blanket --enable-hwaccels above cannot survive here: enabling a
+    # hardware decoder pulls in the software decoder it depends on, which
+    # quietly put h264, hevc, and prores back into the minimal build. No
+    # hardware decoding in the minimal packages is the trade.
     list(APPEND FFmpeg_CONFIGURE_ARGS
+        --disable-hwaccels
         --disable-decoders
         --enable-decoder=apv
         --enable-decoder=av1
