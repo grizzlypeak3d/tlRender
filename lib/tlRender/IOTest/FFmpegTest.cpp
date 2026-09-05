@@ -142,6 +142,19 @@ namespace tl
                 command.videoTime->duration());
             FTK_CHECK(!library.video.empty() && !command.video.empty());
             FTK_CHECK(library.video[0].size == command.video[0].size);
+
+            // The timeline creates its readers through the memory overload
+            // with an empty vector, so the fallback has to apply there too.
+            {
+                IOOptions options;
+                options["FFmpeg/CommandLine"] = "Always";
+                auto videoReader = readPlugin->videoRead(path, {}, options);
+                FTK_CHECK(std::dynamic_pointer_cast<ffmpeg_cmd::VideoRead>(
+                    videoReader));
+                auto audioReader = readPlugin->audioRead(path, {}, options);
+                FTK_CHECK(std::dynamic_pointer_cast<ffmpeg_cmd::AudioRead>(
+                    audioReader));
+            }
         }
 
         void FFmpegTest::write(

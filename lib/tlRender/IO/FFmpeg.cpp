@@ -390,6 +390,12 @@ namespace tl
             const std::vector<ftk::MemFile>& memory,
             const IOOptions& options)
         {
+            // In-memory media cannot be handed to a sub-process, so the
+            // command line fallback applies only to files on disk.
+            if (memory.empty())
+            {
+                return videoRead(path, options);
+            }
             return VideoRead::create(path, memory, options, _logSystem.lock());
         }
 
@@ -417,6 +423,10 @@ namespace tl
             const std::vector<ftk::MemFile>& memory,
             const IOOptions& options)
         {
+            if (memory.empty())
+            {
+                return audioRead(path, options);
+            }
             return AudioRead::create(path, memory, options, _logSystem.lock());
         }
 
