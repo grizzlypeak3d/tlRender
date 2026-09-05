@@ -38,6 +38,21 @@ namespace tl
             return !(*this == other);
         }
 
+        bool hasHWDecode()
+        {
+            const AVCodec* avCodec = nullptr;
+            void* avCodecIterate = nullptr;
+            while ((avCodec = av_codec_iterate(&avCodecIterate)))
+            {
+                if (av_codec_is_decoder(avCodec) &&
+                    avcodec_get_hw_config(avCodec, 0))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
         IOOptions getOptions(const Options& value)
         {
             IOOptions out;

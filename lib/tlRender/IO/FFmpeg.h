@@ -28,6 +28,11 @@ namespace tl
         //! Get FFmpeg options.
         TL_IO_API IOOptions getOptions(const Options&);
 
+        //! Get whether any decoder in this FFmpeg can use hardware
+        //! decoding. The minimal build has none: enabling a hardware
+        //! decoder would pull in the software decoder it depends on.
+        TL_IO_API bool hasHWDecode();
+
         //! FFmpeg video reader.
         //!
         //! The video and audio readers each own a demuxer; they share
