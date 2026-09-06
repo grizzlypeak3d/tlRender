@@ -19,10 +19,10 @@
 #include <ftk/UI/FileBrowser.h>
 #include <ftk/UI/FileBrowserWidgets.h>
 #include <ftk/UI/Label.h>
+#include <ftk/UI/MainWindow.h>
 #include <ftk/UI/RowLayout.h>
 #include <ftk/UI/ScrollWidget.h>
 #include <ftk/UI/Splitter.h>
-#include <ftk/UI/Window.h>
 
 #include <ftk/Core/CmdLine.h>
 #include <ftk/Core/Format.h>
@@ -54,10 +54,15 @@ int main(int argc, char* argv[])
         if (app->hasCmdLineHelp())
             return 0;
 
-        auto window = Window::create(context, app, "browse");
+        // MainWindow rather than Window for the standard menu bar --
+        // File/Exit and the Window menu -- which an experiment gets for
+        // free.
+        auto window = MainWindow::create(context, app);
+        window->setTitle("browse");
 
-        auto layout = VerticalLayout::create(context, window);
+        auto layout = VerticalLayout::create(context);
         layout->setSpacingRole(SizeRole::None);
+        window->setWidget(layout);
 
         std::filesystem::path startPath = std::filesystem::current_path();
         if (pathArg->hasValue())
