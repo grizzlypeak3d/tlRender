@@ -277,6 +277,15 @@ namespace tl
         //! Set the timelines for comparison.
         TL_TIMELINE_API void setCompare(const std::vector<std::shared_ptr<Timeline> >&);
 
+        //! Get the selected in/out ranges for the comparison timelines.
+        TL_API const std::vector<OTIO_NS::TimeRange>& getCompareInOutRanges() const;
+
+        //! Observe the selected in/out ranges for the comparison timelines.
+        TL_API std::shared_ptr<ftk::IObservable<std::vector<OTIO_NS::TimeRange> > > observeCompareInOutRanges() const;
+
+        //! Set the selected in/out ranges for the comparison timelines.
+        TL_API void setCompareInOutRanges(const std::vector<OTIO_NS::TimeRange>&);
+
         //! Get the comparison time mode.
         TL_TIMELINE_API CompareTime getCompareTime() const;
 
@@ -285,6 +294,15 @@ namespace tl
 
         //! Set the comparison time mode.
         TL_TIMELINE_API void setCompareTime(CompareTime);
+
+        //! Get the relative comparison time options.
+        TL_API const CompareTimeOptions& getCompareTimeOptions() const;
+
+        //! Observe the relative comparison time options.
+        TL_API std::shared_ptr<ftk::IObservable<CompareTimeOptions> > observeCompareTimeOptions() const;
+
+        //! Set the relative comparison time options.
+        TL_API void setCompareTimeOptions(const CompareTimeOptions&);
 
         ///@}
 

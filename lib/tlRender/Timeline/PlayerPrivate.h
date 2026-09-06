@@ -79,7 +79,9 @@ namespace tl
         std::shared_ptr<ftk::Observable<OTIO_NS::RationalTime> > seek;
         std::shared_ptr<ftk::Observable<OTIO_NS::TimeRange> > inOutRange;
         std::shared_ptr<ftk::ObservableList<std::shared_ptr<Timeline> > > compare;
+        std::shared_ptr<ftk::Observable<std::vector<OTIO_NS::TimeRange> > > compareInOutRanges;
         std::shared_ptr<ftk::Observable<CompareTime> > compareTime;
+        std::shared_ptr<ftk::Observable<CompareTimeOptions> > compareTimeOptions;
         std::shared_ptr<ftk::Observable<IOOptions> > ioOptions;
         std::shared_ptr<ftk::Observable<std::string> > mediaReferenceKey;
         std::shared_ptr<ftk::Observable<int> > videoLayer;
@@ -137,7 +139,9 @@ namespace tl
             OTIO_NS::RationalTime currentTime;
             OTIO_NS::TimeRange inOutRange;
             std::vector<std::shared_ptr<Timeline> > compare;
+            std::vector<OTIO_NS::TimeRange> compareInOutRanges;
             CompareTime compareTime = CompareTime::Relative;
+            CompareTimeOptions compareTimeOptions;
             IOOptions ioOptions;
             int videoLayer = 0;
             std::vector<int> compareVideoLayers;

@@ -384,11 +384,23 @@ namespace tl
 
                         for (size_t k = 0; k < thread.state.compare.size(); ++k)
                         {
+                            const OTIO_NS::TimeRange compareTimeRange =
+                                thread.state.compare[k]->getTimeRange();
+                            const OTIO_NS::TimeRange compareInOutRange =
+                                k < thread.state.compareInOutRanges.size() &&
+                                !tl::compareExact(
+                                    thread.state.compareInOutRanges[k],
+                                    invalidTimeRange) ?
+                                thread.state.compareInOutRanges[k] :
+                                compareTimeRange;
                             const OTIO_NS::RationalTime t2 = tl::getCompareTime(
                                 timeLooped,
                                 timeRange,
-                                thread.state.compare[k]->getTimeRange(),
-                                thread.state.compareTime);
+                                compareTimeRange,
+                                thread.state.compareTime,
+                                thread.state.inOutRange,
+                                compareInOutRange,
+                                thread.state.compareTimeOptions);
                             ioOptions2["Layer"] = ftk::Format("{0}").
                                 arg(k < thread.state.compareVideoLayers.size() ?
                                     thread.state.compareVideoLayers[k] :

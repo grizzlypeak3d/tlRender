@@ -33,6 +33,18 @@ namespace tl
         "Relative",
         "Absolute");
 
+    bool CompareTimeOptions::operator == (const CompareTimeOptions& other) const
+    {
+        return
+            alignInPoints == other.alignInPoints &&
+            frameOffset == other.frameOffset;
+    }
+
+    bool CompareTimeOptions::operator != (const CompareTimeOptions& other) const
+    {
+        return !(*this == other);
+    }
+
     namespace
     {
         //! Get the image information used to lay out each video frame, taken
@@ -309,6 +321,45 @@ namespace tl
                 floor();
             break;
         default: break;
+        }
+        return out;
+    }
+
+    OTIO_NS::RationalTime getCompareTime(
+        const OTIO_NS::RationalTime& sourceTime,
+        const OTIO_NS::TimeRange& sourceTimeRange,
+        const OTIO_NS::TimeRange& compareTimeRange,
+        CompareTime compare,
+        const OTIO_NS::TimeRange& sourceInOutRange,
+        const OTIO_NS::TimeRange& compareInOutRange,
+        const CompareTimeOptions& options)
+    {
+        OTIO_NS::RationalTime out = getCompareTime(
+            sourceTime,
+            sourceTimeRange,
+            compareTimeRange,
+            compare);
+        if (CompareTime::Relative == compare)
+        {
+            const double compareRate = compareTimeRange.duration().rate();
+            if (options.alignInPoints)
+            {
+                const OTIO_NS::RationalTime sourceInOffset =
+                    (sourceInOutRange.start_time() - sourceTimeRange.start_time()).
+                    rescaled_to(compareRate).
+                    floor();
+                const OTIO_NS::RationalTime compareInOffset =
+                    (compareInOutRange.start_time() - compareTimeRange.start_time()).
+                    rescaled_to(compareRate).
+                    floor();
+                out = out + sourceInOffset - compareInOffset;
+            }
+            if (options.frameOffset)
+            {
+                out = out + OTIO_NS::RationalTime(
+                    options.frameOffset,
+                    compareRate);
+            }
         }
         return out;
     }

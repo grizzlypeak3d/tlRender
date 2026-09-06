@@ -49,6 +49,19 @@ namespace tl
     };
     FTK_ENUM(TL_TIMELINE_API, CompareTime);
 
+    //! Options for mapping relative comparison time.
+    struct TL_API_TYPE CompareTimeOptions
+    {
+        //! Align the selected in points instead of the full timeline starts.
+        bool alignInPoints = false;
+
+        //! Additional frame offset applied to the comparison timeline.
+        int frameOffset = 0;
+
+        TL_API bool operator == (const CompareTimeOptions&) const;
+        TL_API bool operator != (const CompareTimeOptions&) const;
+    };
+
     //! Comparison options.
     struct TL_TIMELINE_API_TYPE CompareOptions
     {
@@ -112,6 +125,17 @@ namespace tl
         const OTIO_NS::TimeRange& sourceTimeRange,
         const OTIO_NS::TimeRange& compareTimeRange,
         CompareTime);
+
+    //! Get a compare time with optional selected-in alignment and frame offset.
+    //! The additional options are applied only to relative comparison time.
+    TL_API OTIO_NS::RationalTime getCompareTime(
+        const OTIO_NS::RationalTime& sourceTime,
+        const OTIO_NS::TimeRange& sourceTimeRange,
+        const OTIO_NS::TimeRange& compareTimeRange,
+        CompareTime,
+        const OTIO_NS::TimeRange& sourceInOutRange,
+        const OTIO_NS::TimeRange& compareInOutRange,
+        const CompareTimeOptions&);
 
     //! \name Serialize
     ///@{
