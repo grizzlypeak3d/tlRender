@@ -11,6 +11,7 @@
 #include <ftk/Core/Format.h>
 #include <ftk/Core/Image.h>
 #include <ftk/Core/String.h>
+#include <ftk/Core/Path.h>
 
 #include <atomic>
 #include <cstring>
@@ -100,7 +101,7 @@ namespace tl
             for (const std::string& ext : { ".exr", ".png", ".tif", ".tga" })
             {
                 const ftk::Path path(
-                    (_getTempDir() / ("IOTestDecode" + ext)).u8string());
+                    ftk::fromFileSystem(_getTempDir() / ("IOTestDecode" + ext)));
                 auto writePlugin = writeSystem->getPlugin(path);
                 auto readPlugin = readSystem->getPlugin(path);
                 if (!writePlugin || !readPlugin)
@@ -202,9 +203,9 @@ namespace tl
             // The sequence itself is never on disk: its frames are memory,
             // so only the one file the bytes come from is written.
             const ftk::Path path(
-                (_getTempDir() / "IOTestSeq.0001.png").u8string());
+                ftk::fromFileSystem(_getTempDir() / "IOTestSeq.0001.png"));
             const ftk::Path srcPath(
-                (_getTempDir() / "IOTestSeqSrc.png").u8string());
+                ftk::fromFileSystem(_getTempDir() / "IOTestSeqSrc.png"));
             auto writePlugin = writeSystem->getPlugin(path);
             auto readPlugin = readSystem->getPlugin(path);
             if (!writePlugin || !readPlugin)
@@ -234,7 +235,7 @@ namespace tl
                 const std::string name =
                     std::string("IOTestSeqSrc") +
                     static_cast<char>('a' + i) + ".png";
-                const ftk::Path framePath((_getTempDir() / name).u8string());
+                const ftk::Path framePath(ftk::fromFileSystem(_getTempDir() / name));
                 writeSystem->write(framePath, writeInfo)->writeVideo(
                     OTIO_NS::RationalTime(0.0, 24.0), image);
                 auto fileIO = ftk::FileIO::create(framePath.get(), ftk::FileMode::Read);
@@ -306,7 +307,7 @@ namespace tl
             auto writeSystem = _context->getSystem<WriteSystem>();
             const ftk::Size2I size(16, 16);
             const ftk::Path path(
-                (_getTempDir() / "IOTestGap.0001.png").u8string());
+                ftk::fromFileSystem(_getTempDir() / "IOTestGap.0001.png"));
             auto writePlugin = writeSystem->getPlugin(path);
             auto readPlugin = readSystem->getPlugin(path);
             if (!writePlugin || !readPlugin)
@@ -476,7 +477,7 @@ namespace tl
             auto writeSystem = _context->getSystem<WriteSystem>();
             const ftk::Size2I size(16, 16);
             const ftk::Path path(
-                (_getTempDir() / "IOTestWide.0001.png").u8string());
+                ftk::fromFileSystem(_getTempDir() / "IOTestWide.0001.png"));
             auto writePlugin = writeSystem->getPlugin(path);
             auto readPlugin = readSystem->getPlugin(path);
             if (!writePlugin || !readPlugin)
@@ -543,7 +544,7 @@ namespace tl
             auto writeSystem = _context->getSystem<WriteSystem>();
             const ftk::Size2I size(16, 16);
             const ftk::Path path(
-                (_getTempDir() / "IOTestStructural.0001.png").u8string());
+                ftk::fromFileSystem(_getTempDir() / "IOTestStructural.0001.png"));
             auto writePlugin = writeSystem->getPlugin(path);
             auto readPlugin = readSystem->getPlugin(path);
             if (!writePlugin || !readPlugin)

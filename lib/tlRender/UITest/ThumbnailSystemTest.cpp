@@ -154,8 +154,8 @@ namespace tl
             auto writeSystem = _context->getSystem<WriteSystem>();
             const auto framePath = [this](int64_t frame)
                 {
-                    return ftk::Path((_getTempDir() /
-                        ftk::Format("ThumbFrame.000{0}.png").arg(frame).str()).u8string());
+                    return ftk::Path(ftk::fromFileSystem(_getTempDir() /
+                        ftk::Format("ThumbFrame.000{0}.png").arg(frame).str()));
                 };
             auto writePlugin = writeSystem->getPlugin(framePath(1));
             if (!writePlugin || !readSystem->getPlugin(framePath(1)))
@@ -216,7 +216,7 @@ namespace tl
             auto readSystem = _context->getSystem<ReadSystem>();
             auto writeSystem = _context->getSystem<WriteSystem>();
             const ftk::Path path(
-                (_getTempDir() / "ThumbGap.0001.png").u8string());
+                ftk::fromFileSystem(_getTempDir() / "ThumbGap.0001.png"));
             auto writePlugin = writeSystem->getPlugin(path);
             if (!writePlugin || !readSystem->getPlugin(path))
             {

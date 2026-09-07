@@ -5,6 +5,7 @@
 
 #include <ftk/Core/FileIO.h>
 #include <ftk/Core/Format.h>
+#include <ftk/Core/Path.h>
 
 #include <lunasvg/lunasvg.h>
 
@@ -35,7 +36,7 @@ namespace tl
                 const std::string& fileName,
                 const ftk::MemFile* memory)
             {
-                const auto path = std::filesystem::u8path(fileName);
+                const auto path = ftk::toFileSystem(fileName);
                 auto fileIO = memory ?
                     ftk::FileIO::create(path, *memory) :
                     ftk::FileIO::create(path, ftk::FileMode::Read);

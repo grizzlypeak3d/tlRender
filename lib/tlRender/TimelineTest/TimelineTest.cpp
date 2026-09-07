@@ -18,6 +18,7 @@
 #include <algorithm>
 #include <cstring>
 #include <ftk/Core/Format.h>
+#include <ftk/Core/Path.h>
 
 #include <opentimelineio/clip.h>
 #include <opentimelineio/externalReference.h>
@@ -468,9 +469,9 @@ namespace tl
             auto writeSystem = _context->getSystem<WriteSystem>();
             auto readSystem = _context->getSystem<ReadSystem>();
             const ftk::Path silentPath(
-                (_getTempDir() / "TimelineSilent.mov").u8string());
+                ftk::fromFileSystem(_getTempDir() / "TimelineSilent.mov"));
             const ftk::Path audioPath(
-                (_getTempDir() / "TimelineAudio.mov").u8string());
+                ftk::fromFileSystem(_getTempDir() / "TimelineAudio.mov"));
             auto writePlugin = writeSystem->getPlugin(silentPath);
             if (!writePlugin || !readSystem->getPlugin(silentPath))
             {
@@ -686,8 +687,8 @@ namespace tl
             std::filesystem::create_directory(dir);
             const auto frameFile = [&dir](int frame)
                 {
-                    return ftk::Path((dir / ftk::Format("render.{0}.png").
-                        arg(frame, 4, '0').str()).u8string());
+                    return ftk::Path(ftk::fromFileSystem(dir / ftk::Format("render.{0}.png").
+                        arg(frame, 4, '0').str()));
                 };
             auto writePlugin = writeSystem->getPlugin(frameFile(1));
             if (!writePlugin || !readSystem->getPlugin(frameFile(1)))
@@ -742,9 +743,9 @@ namespace tl
             // Frames taken away from the middle: the range still spans them,
             // and the holes are the sequence's own.
             std::filesystem::remove(
-                std::filesystem::u8path(frameFile(3).get()));
+                ftk::toFileSystem(frameFile(3).get()));
             std::filesystem::remove(
-                std::filesystem::u8path(frameFile(4).get()));
+                ftk::toFileSystem(frameFile(4).get()));
             {
                 const ftk::Path path = open();
                 _print("Frames on disk: " + ftk::getLabel(path.getSeq()));
@@ -756,9 +757,9 @@ namespace tl
 
             // And taken away from the end, where they shorten it.
             std::filesystem::remove(
-                std::filesystem::u8path(frameFile(5).get()));
+                ftk::toFileSystem(frameFile(5).get()));
             std::filesystem::remove(
-                std::filesystem::u8path(frameFile(6).get()));
+                ftk::toFileSystem(frameFile(6).get()));
             {
                 const ftk::Path path = open();
                 FTK_CHECK(ftk::RangeI64(1, 2) == path.getFrames().value());
@@ -850,12 +851,12 @@ namespace tl
             try
             {
                 const std::filesystem::path relative = std::filesystem::relative(
-                    std::filesystem::u8path(TLRENDER_SAMPLE_DATA),
+                    ftk::toFileSystem(TLRENDER_SAMPLE_DATA),
                     std::filesystem::current_path());
                 if (!relative.empty())
                 {
                     ftk::Path path(
-                        relative.u8string(),
+                        ftk::fromFileSystem(relative),
                         "Seq/BART_2021-02-07.0001.jpg");
                     path.setFrames(ftk::RangeI64(1, 3));
                     FTK_CHECK(path.isSeq());
@@ -868,7 +869,7 @@ namespace tl
                     {
                         _print(ftk::Format("Media path: {0}").arg(mediaPath.get()));
                         FTK_CHECK(std::filesystem::exists(
-                            std::filesystem::u8path(mediaPath.getFileName(true))));
+                            ftk::toFileSystem(mediaPath.getFileName(true))));
                     }
                 }
             }
@@ -1179,7 +1180,7 @@ namespace tl
             {
                 auto writeSystem = _context->getSystem<WriteSystem>();
                 const ftk::Path path(
-                    (_getTempDir() / "TimelineGap.0001.png").u8string());
+                    ftk::fromFileSystem(_getTempDir() / "TimelineGap.0001.png"));
                 if (auto writePlugin = writeSystem->getPlugin(path))
                 {
                     IOInfo writeInfo;
@@ -1260,7 +1261,7 @@ namespace tl
                     // wrong mapping look right.
                     {
                         const ftk::Path sparsePath(
-                            (_getTempDir() / "TimelineSparse.0001.png").u8string());
+                            ftk::fromFileSystem(_getTempDir() / "TimelineSparse.0001.png"));
                         auto sparseWrite = writeSystem->write(
                             sparsePath, writeInfo);
                         for (int64_t frame : { 1, 2, 5, 6 })

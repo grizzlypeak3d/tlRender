@@ -12,6 +12,7 @@
 #include <ftk/Core/Context.h>
 #include <ftk/Core/FileIO.h>
 #include <ftk/Core/Format.h>
+#include <ftk/Core/Path.h>
 
 #include <algorithm>
 #include <array>
@@ -86,7 +87,7 @@ namespace tl
             auto readSystem = _context->getSystem<ReadSystem>();
             auto writeSystem = _context->getSystem<WriteSystem>();
             const ftk::Path path(
-                (_getTempDir() / "FFmpegCommandLineTest.mov").u8string());
+                ftk::fromFileSystem(_getTempDir() / "FFmpegCommandLineTest.mov"));
             auto readPlugin = readSystem->getPlugin(path);
             auto writePlugin = writeSystem->getPlugin(path);
             if (!readPlugin || !writePlugin)
@@ -347,7 +348,7 @@ namespace tl
                                         ss << fileName << ' ' << size << ' ' <<
                                             pixelType << ' ' << codec << extension;
                                         _print(ss.str());
-                                        path = ftk::Path((_getTempDir() / ss.str()).u8string());
+                                        path = ftk::Path(ftk::fromFileSystem(_getTempDir() / ss.str()));
                                     }
                                     auto image = ftk::Image::create(imageInfo);
                                     image->zero();
@@ -459,7 +460,7 @@ namespace tl
                 return out;
             };
 
-            const ftk::Path path((_getTempDir() / "FFmpegConvertTest.mov").u8string());
+            const ftk::Path path(ftk::fromFileSystem(_getTempDir() / "FFmpegConvertTest.mov"));
             try
             {
                 IOInfo info;
@@ -633,7 +634,7 @@ namespace tl
             {
                 _print("_audio: PCM round trip");
                 const ftk::Path path(
-                    (_getTempDir() / "FFmpegAudioPCM.mov").u8string());
+                    ftk::fromFileSystem(_getTempDir() / "FFmpegAudioPCM.mov"));
                 IOOptions options;
                 options["FFmpeg/Codec"] = "mjpeg";
                 options["FFmpeg/AudioCodec"] = "pcm_s16le";
@@ -799,7 +800,7 @@ namespace tl
                 {
                     _print("_audio: default codec round trip");
                     const ftk::Path path(
-                        (_getTempDir() / "FFmpegAudioDefault.mov").u8string());
+                        ftk::fromFileSystem(_getTempDir() / "FFmpegAudioDefault.mov"));
                     IOOptions options;
                     options["FFmpeg/Codec"] = "mjpeg";
                     writeMovie(path, options);
@@ -898,7 +899,7 @@ namespace tl
             {
                 _print("_audio: bad codec error handling");
                 const ftk::Path path(
-                    (_getTempDir() / "FFmpegAudioBadCodec.mov").u8string());
+                    ftk::fromFileSystem(_getTempDir() / "FFmpegAudioBadCodec.mov"));
                 IOOptions options;
                 options["FFmpeg/Codec"] = "mjpeg";
                 options["FFmpeg/AudioCodec"] = "not_a_codec";
@@ -936,7 +937,7 @@ namespace tl
             {
                 _print("_audio: container without audio support");
                 const ftk::Path path(
-                    (_getTempDir() / "FFmpegAudioSkip.mjpeg").u8string());
+                    ftk::fromFileSystem(_getTempDir() / "FFmpegAudioSkip.mjpeg"));
                 IOOptions options;
                 options["FFmpeg/Codec"] = "mjpeg";
                 writeMovie(path, options);
@@ -1012,7 +1013,7 @@ namespace tl
             {
                 _print("_split: video and audio");
                 const ftk::Path path(
-                    (_getTempDir() / "FFmpegSplit.mov").u8string());
+                    ftk::fromFileSystem(_getTempDir() / "FFmpegSplit.mov"));
                 {
                     IOInfo info;
                     info.video.push_back(imageInfo);
@@ -1077,7 +1078,7 @@ namespace tl
             {
                 _print("_split: silent movie");
                 const ftk::Path path(
-                    (_getTempDir() / "FFmpegSplitSilent.mov").u8string());
+                    ftk::fromFileSystem(_getTempDir() / "FFmpegSplitSilent.mov"));
                 write(
                     writePlugin,
                     image,

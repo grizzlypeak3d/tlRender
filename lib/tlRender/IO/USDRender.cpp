@@ -100,7 +100,7 @@ namespace tl
             {
                 ~DiskCacheItem()
                 {
-                    std::filesystem::remove(std::filesystem::u8path(fileName));
+                    std::filesystem::remove(ftk::toFileSystem(fileName));
                 }
                 
                 std::string fileName;
@@ -891,7 +891,7 @@ namespace tl
                             {
                                 auto diskCacheItem = std::make_shared<Private::DiskCacheItem>();
                                 diskCacheItem->fileName = ftk::Format("{0}/{1}.img").
-                                    arg(p.thread.tmpDir->getPath().u8string()).
+                                    arg(ftk::fromFileSystem(p.thread.tmpDir->getPath())).
                                     arg(diskCacheItem);
                                 auto tempFile = ftk::FileIO::create(diskCacheItem->fileName, ftk::FileMode::Write);
                                 tempFile->writeU16(image->getWidth());

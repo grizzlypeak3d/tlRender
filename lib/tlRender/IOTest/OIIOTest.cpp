@@ -8,6 +8,7 @@
 
 #include <ftk/Core/Assert.h>
 #include <ftk/Core/Context.h>
+#include <ftk/Core/Path.h>
 
 #include <sstream>
 
@@ -171,7 +172,7 @@ namespace tl
                                             std::stringstream ss;
                                             ss << fileName << ' ' << count << ' ' << size << ' ' << pixelType << ".0" << extension;
                                             _print(ss.str());
-                                            path = ftk::Path((_getTempDir() / ss.str()).u8string());
+                                            path = ftk::Path(ftk::fromFileSystem(_getTempDir() / ss.str()));
                                         }
                                         const auto image = ftk::Image::create(imageInfo);
                                         image->zero();

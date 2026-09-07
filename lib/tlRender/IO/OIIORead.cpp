@@ -8,6 +8,7 @@
 #include <filesystem>
 #include <ftk/Core/Memory.h>
 #include <ftk/Core/String.h>
+#include <ftk/Core/Path.h>
 
 #include <OpenImageIO/filesystem.h>
 #include <OpenImageIO/imagebufalgo.h>
@@ -126,7 +127,7 @@ namespace tl
                 // does not say why it could not open a file, which leaves a
                 // file that is missing looking like one that cannot be read.
                 if (!oiioMemReader &&
-                    !std::filesystem::exists(std::filesystem::u8path(fileName)))
+                    !std::filesystem::exists(ftk::toFileSystem(fileName)))
                 {
                     oiioTakeError();
                     throw std::runtime_error(ftk::Format(
@@ -194,7 +195,7 @@ namespace tl
                 // does not say why it could not open a file, which leaves a
                 // file that is missing looking like one that cannot be read.
                 if (!oiioMemReader &&
-                    !std::filesystem::exists(std::filesystem::u8path(fileName)))
+                    !std::filesystem::exists(ftk::toFileSystem(fileName)))
                 {
                     oiioTakeError();
                     throw std::runtime_error(ftk::Format(
