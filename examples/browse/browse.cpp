@@ -31,6 +31,7 @@
 #include <chrono>
 #include <filesystem>
 #include <iostream>
+#include <thread>
 
 using namespace ftk;
 
@@ -45,13 +46,21 @@ int main(int argc, char* argv[])
             "Path",
             "Directory to browse.",
             true);
+        auto fillOption = CmdLineOption<float>::create(
+            { "-fill" },
+            "Seconds to let each player fill its cache before the next "
+            "open. The wait is what makes the teardown cost visible: a "
+            "player torn down at once has queued nothing yet.",
+            "Benchmark",
+            0.F);
         auto app = App::create(
             context,
             argc,
             argv,
             "browse",
             "Example that previews the file browser selection.",
-            { pathArg });
+            { pathArg },
+            { fillOption });
         if (app->hasCmdLineHelp())
             return 0;
 
@@ -124,7 +133,15 @@ int main(int argc, char* argv[])
             const auto t0 = std::chrono::steady_clock::now();
             try
             {
+                // Timed apart from the create: this is where a switch
+                // waits on the file being left, and it only shows once
+                // the old player has had time to queue cache reads. The
+                // viewport's reference goes first or the destructor runs
+                // inside setPlayer and the number lands in the wrong
+                // phase.
+                viewport->setPlayer(nullptr);
                 player.reset();
+                const auto t0b = std::chrono::steady_clock::now();
                 auto timeline = tl::Timeline::create(context, path);
                 const auto t1 = std::chrono::steady_clock::now();
                 player = tl::Player::create(context, timeline);
@@ -137,10 +154,11 @@ int main(int argc, char* argv[])
                         std::chrono::milliseconds>(b - a).count();
                 };
                 const std::string text = Format(
-                    "{0}: {1}ms (timeline {2}ms, player {3}ms, setPlayer {4}ms)").
+                    "{0}: {1}ms (teardown {2}ms, timeline {3}ms, player {4}ms, setPlayer {5}ms)").
                     arg(path.getFileName()).
                     arg(ms(t0, t2)).
-                    arg(ms(t0, t1)).
+                    arg(ms(t0, t0b)).
+                    arg(ms(t0b, t1)).
                     arg(ms(t1, t1b)).
                     arg(ms(t1b, t2));
                 statusLabel->setText(text);
@@ -168,6 +186,13 @@ int main(int argc, char* argv[])
             for (int i = 0; i < 5; ++i)
             {
                 open({ Path(pathArg->getValue()) });
+                if (fillOption->getValue() > 0.F)
+                {
+                    // The player's own threads fill the cache; no event
+                    // loop is needed for the reads to queue up.
+                    std::this_thread::sleep_for(std::chrono::milliseconds(
+                        static_cast<int>(fillOption->getValue() * 1000)));
+                }
             }
             return 0;
         }
