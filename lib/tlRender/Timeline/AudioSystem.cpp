@@ -78,6 +78,10 @@ namespace tl
             std::mutex stopMutex;
         };
         Thread thread;
+
+#if defined(FTK_SDL3)
+        SDL_AudioStream* keepalive = nullptr;
+#endif // FTK_SDL3
     };
 
     AudioSystem::AudioSystem(const std::shared_ptr<ftk::Context>& context) :
@@ -118,6 +122,23 @@ namespace tl
             }
         }
 #endif // FTK_SDL2
+
+#if defined(FTK_SDL3)
+        if (p.init)
+        {
+            // Held for the life of the system: SDL stops the physical
+            // device when the last logical device closes, so without this
+            // a single player pays the physical start on open and stop on
+            // close (~130ms each way on macOS) -- the logical devices are
+            // only free while one of them stays open. Never resumed; an
+            // open paused stream is enough to keep the count above zero.
+            p.keepalive = SDL_OpenAudioDeviceStream(
+                SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK,
+                nullptr,
+                nullptr,
+                nullptr);
+        }
+#endif // FTK_SDL3
 
         const std::vector<AudioDeviceInfo> devices = _getDevices();
         const AudioDeviceInfo defaultDevice = _getDefaultDevice();
@@ -173,6 +194,13 @@ namespace tl
         {
             p.thread.thread.join();
         }
+#if defined(FTK_SDL3)
+        if (p.keepalive)
+        {
+            SDL_DestroyAudioStream(p.keepalive);
+            p.keepalive = nullptr;
+        }
+#endif // FTK_SDL3
     }
 
     std::shared_ptr<AudioSystem> AudioSystem::create(const std::shared_ptr<ftk::Context>& context)
@@ -352,6 +380,23 @@ namespace tl
     {
         FTK_P();
 #if defined(FTK_SDL2) || defined(FTK_SDL3)
+
+#if defined(FTK_SDL3)
+        if (p.init)
+        {
+            // Held for the life of the system: SDL stops the physical
+            // device when the last logical device closes, so without this
+            // a single player pays the physical start on open and stop on
+            // close (~130ms each way on macOS) -- the logical devices are
+            // only free while one of them stays open. Never resumed; an
+            // open paused stream is enough to keep the count above zero.
+            p.keepalive = SDL_OpenAudioDeviceStream(
+                SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK,
+                nullptr,
+                nullptr,
+                nullptr);
+        }
+#endif // FTK_SDL3
 
         const std::vector<AudioDeviceInfo> devices = _getDevices();
         const AudioDeviceInfo defaultDevice = _getDefaultDevice();
