@@ -30,7 +30,12 @@
 #include <pxr/imaging/hdx/tokens.h>
 #include <pxr/imaging/hdx/types.h>
 
+#if defined(FTK_SDL2)
 #include <SDL2/SDL.h>
+#endif // FTK_SDL2
+#if defined(FTK_SDL3)
+#include <SDL3/SDL.h>
+#endif // FTK_SDL3
 
 #include <filesystem>
 
@@ -141,8 +146,10 @@ namespace tl
                 SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, glProfile);
                 p.sdlWindow = SDL_CreateWindow(
                     "USD",
+#if defined(FTK_SDL2)
                     SDL_WINDOWPOS_UNDEFINED,
                     SDL_WINDOWPOS_UNDEFINED,
+#endif // FTK_SDL2
                     100,
                     100,
                     SDL_WINDOW_OPENGL |
@@ -239,7 +246,11 @@ namespace tl
             }
             if (p.sdlGLContext)
             {
+#if defined(FTK_SDL2)
                 SDL_GL_DeleteContext(p.sdlGLContext);
+#elif defined(FTK_SDL3)
+                SDL_GL_DestroyContext(p.sdlGLContext);
+#endif // FTK_SDL2
             }
             if (p.sdlWindow)
             {
