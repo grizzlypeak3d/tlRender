@@ -28,7 +28,7 @@ namespace tl
             Count,
             First = Points
         };
-        TL_ENUM(DrawMode);
+        FTK_ENUM(TL_IO_API, DrawMode);
 
         //! USD options.
         struct TL_IO_API_TYPE Options

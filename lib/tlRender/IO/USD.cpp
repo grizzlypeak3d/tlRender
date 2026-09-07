@@ -10,7 +10,7 @@ namespace tl
 {
     namespace usd
     {
-        TL_ENUM_IMPL(
+        FTK_ENUM_IMPL(
             DrawMode,
             "Points",
             "Wireframe",
