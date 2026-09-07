@@ -45,6 +45,13 @@ range reads.
 A CMake super build script is provided to build all of the dependencies from
 source.
 
+Build options go in `etc/Config/local.cmake`, which is not tracked. For
+example, to enable USD (building USD also requires Python 3):
+
+```cmake
+set(TLRENDER_USD ON CACHE BOOL "")
+```
+
 Required dependencies:
 * [feather-tk](https://github.com/grizzlypeak3d/feather-tk)
 * [Imath](https://github.com/AcademySoftwareFoundation/Imath)
