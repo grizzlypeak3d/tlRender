@@ -1090,6 +1090,24 @@ namespace tl
                     {
                         _tick();
                     }
+                    // Cancel what the readers still hold before the
+                    // epilogue: it completes every pending promise, and
+                    // each one waits on its reader future -- without the
+                    // cancel that is a dead player's cache fill being
+                    // decoded to the end. A cancelled request completes
+                    // with default values, so the epilogue's waits
+                    // return at once; only a frame already in the
+                    // decoder finishes. After the loop nothing
+                    // dispatches, so no request can slip in behind the
+                    // cancel.
+                    for (const auto& read : p.videoReadCache.getValues())
+                    {
+                        read->cancelRequests();
+                    }
+                    for (const auto& read : p.audioReadCache.getValues())
+                    {
+                        read->cancelRequests();
+                    }
                     _finishRequests();
                 });
         }
