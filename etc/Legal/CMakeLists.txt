@@ -1,5 +1,6 @@
 set(LEGAL
     LICENSE_aom.txt
+    LICENSE_boost.txt
     LICENSE_CMake.txt
     LICENSE_coi-serviceworker.txt
     LICENSE_expat.txt
@@ -10,6 +11,7 @@ set(LEGAL
     LICENSE_libjpeg.txt
     LICENSE_libpng.txt
     LICENSE_libtiff.txt
+    LICENSE_MaterialX.txt
     LICENSE_minizip-ng.txt
     LICENSE_mp4box.txt
     LICENSE_nlohmann_json.txt
@@ -19,7 +21,10 @@ set(LEGAL
     LICENSE_OpenEXR.txt
     LICENSE_OpenImageIO.md
     LICENSE_OpenJPH.txt
+    LICENSE_OpenSubdiv.txt
     LICENSE_OpenTimelineIO.txt
+    LICENSE_OpenUSD.txt
+    LICENSE_oneTBB.txt
     LICENSE_pystring.txt
     LICENSE_subprocess.txt
     LICENSE_svt-av1.txt

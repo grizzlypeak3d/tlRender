@@ -20,6 +20,9 @@
 
 #include <tlRender/IO/SVG.h>
 #endif // TLRENDER_SVG
+#if defined(TLRENDER_USD)
+#include <tlRender/IO/USD.h>
+#endif // TLRENDER_USD
 
 #include <ftk/Core/Context.h>
 #include <ftk/Core/String.h>
@@ -64,6 +67,9 @@ namespace tl
 #if defined(__EMSCRIPTEN__)
             _plugins.push_back(webcodecs::ReadPlugin::create(logSystem));
 #endif // __EMSCRIPTEN__
+#if defined(TLRENDER_USD)
+            _plugins.push_back(usd::ReadPlugin::create(logSystem));
+#endif // TLRENDER_USD
         }
 
         for (const auto& plugin : _plugins)
