@@ -39,6 +39,22 @@ set(OTIO_ARGS
     -DPython_ROOT_DIR=${Python3_ROOT_DIR}
     -DOTIO_PYTHON_INSTALL=${TLRENDER_PYTHON})
 
+# On Linux the loader looks for a library's dependencies with that library's
+# own rpath, not with the rpaths of whatever loaded it. The Python module
+# finds libopentimelineio beside itself by "$ORIGIN", and libopentimelineio
+# then has nowhere to look for minizip-ng and Imath:
+#
+#     ImportError: libminizip-ng.so.4: cannot open shared object file
+#
+# A program linking the library has loaded those itself already, which is why
+# only the import fails. The second entry reaches the prefix's lib from the
+# Python package; the first is the library alone in lib. Relative, so the
+# install stays relocatable. macOS resolves with the loading module's rpaths
+# and is handled in OTIOInstallNames.cmake.
+if(UNIX AND NOT APPLE)
+    list(APPEND OTIO_ARGS "-DCMAKE_INSTALL_RPATH=$ORIGIN|$ORIGIN/../../lib")
+endif()
+
 # OTIO is patched, with two changes; see the notes in the patch itself.
 #
 # The first has it link whichever minizip-ng target is present rather than
