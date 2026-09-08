@@ -106,6 +106,15 @@ set(TLRENDER_EXTERNAL_ARGS
     -DCMAKE_OSX_ARCHITECTURES=${CMAKE_OSX_ARCHITECTURES}
     -DBUILD_SHARED_LIBS=${BUILD_SHARED_LIBS}
     -DCMAKE_POSITION_INDEPENDENT_CODE=${CMAKE_POSITION_INDEPENDENT_CODE})
+# On Linux the loader looks for a library's dependencies with that library's
+# own rpath, not with the rpaths of whatever loaded it, and a dependency
+# built here had none: OpenColorIO could not find libyaml-cpp beside it unless
+# LD_LIBRARY_PATH said where to look. Every dependency gets the directory it
+# is installed in. macOS resolves with the rpaths of the loading chain and
+# needs nothing.
+if(UNIX AND NOT APPLE)
+    list(APPEND TLRENDER_EXTERNAL_ARGS -DCMAKE_INSTALL_RPATH=$ORIGIN)
+endif()
 string(REPLACE ";" " " TLRENDER_EXTERNAL_ARGS_TMP "${TLRENDER_EXTERNAL_ARGS}")
 message("TLRENDER_EXTERNAL_ARGS: " ${TLRENDER_EXTERNAL_ARGS_TMP})
 

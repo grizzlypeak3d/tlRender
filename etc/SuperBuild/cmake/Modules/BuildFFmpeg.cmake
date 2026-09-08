@@ -53,6 +53,14 @@ elseif(APPLE)
 else()
     list(APPEND FFmpeg_LDFLAGS "--extra-ldflags=-L${CMAKE_INSTALL_PREFIX}/lib")
     list(APPEND FFmpeg_LDFLAGS "--extra-ldflags=-L${CMAKE_INSTALL_PREFIX}/lib64")
+    # The libraries find each other and the codecs beside them; see the
+    # rpath note in the super build's CMakeLists. Spelled for everything
+    # between here and the linker: configure evaluates the value once, which
+    # takes the backslashes; make expands it twice on the way to the
+    # link, each turning "$$" into "$"; and the quotes keep the shell from
+    # expanding what is left. Checked by reading the rpath out of the built
+    # library -- fewer dollars give "RIGIN".
+    list(APPEND FFmpeg_LDFLAGS "--extra-ldflags=-Wl,-rpath,'\\$\\$\\$\\$ORIGIN'")
 endif()
 if(APPLE AND CMAKE_OSX_DEPLOYMENT_TARGET)
     list(APPEND FFmpeg_CFLAGS "--extra-cflags=-mmacosx-version-min=${CMAKE_OSX_DEPLOYMENT_TARGET}")
