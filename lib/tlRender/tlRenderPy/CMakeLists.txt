@@ -5,6 +5,12 @@ target_include_directories(tlRenderPy
         $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/lib>
         $<INSTALL_INTERFACE:include>)
 
+# The binding objects go into the module directly rather than through
+# their archives. nanobind's own static library is first on the link line,
+# and GNU ld takes from an archive only what is wanted at the moment it is
+# scanned: a binding archive scanned after it finds the enum and datetime
+# helpers already passed over, and a Release build fails to link.
+target_sources(tlRenderPy PRIVATE $<TARGET_OBJECTS:tlUIPy> $<TARGET_OBJECTS:tlTimelinePy> $<TARGET_OBJECTS:tlIOPy> $<TARGET_OBJECTS:tlCorePy>)
 target_link_libraries(tlRenderPy PRIVATE tlUIPy tlTimelinePy tlIOPy tlCorePy)
 
 set_target_properties(tlRenderPy PROPERTIES FOLDER lib)
