@@ -30,9 +30,7 @@ namespace tl
     {
         void transition(nb::module_& m)
         {
-            nb::enum_<Transition>(m, "Transition")
-                .value("_None", Transition::None)
-                .value("Dissolve", Transition::Dissolve);
+            FTK_ENUM_PY(m, Transition);
             FTK_ENUM_BIND(m, Transition);
             
             m.def("toTransition", &toTransition);

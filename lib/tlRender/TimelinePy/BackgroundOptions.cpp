@@ -29,10 +29,7 @@ namespace tl
     {
         void backgroundOptions(nb::module_& m)
         {
-            nb::enum_<Background>(m, "Background")
-                .value("Solid", Background::Solid)
-                .value("Checkers", Background::Checkers)
-                .value("Gradient", Background::Gradient);
+            FTK_ENUM_PY(m, Background);
             FTK_ENUM_BIND(m, Background);
 
             nb::class_<Outline>(m, "Outline")

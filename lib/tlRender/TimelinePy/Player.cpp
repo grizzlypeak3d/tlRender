@@ -40,31 +40,13 @@ namespace tl
                 .def(nanobind::self == nanobind::self)
                 .def(nanobind::self != nanobind::self);
 
-            nb::enum_<Playback>(m, "Playback")
-                .value("Stop", Playback::Stop)
-                .value("Forward", Playback::Forward)
-                .value("Reverse", Playback::Reverse);
+            FTK_ENUM_PY(m, Playback);
             FTK_ENUM_BIND(m, Playback);
 
-            nb::enum_<Loop>(m, "Loop")
-                .value("Loop", Loop::Loop)
-                .value("Once", Loop::Once)
-                .value("PingPong", Loop::PingPong);
+            FTK_ENUM_PY(m, Loop);
             FTK_ENUM_BIND(m, Loop);
 
-            nb::enum_<TimeAction>(m, "TimeAction")
-                .value("Start", TimeAction::Start)
-                .value("End", TimeAction::End)
-                .value("FramePrev", TimeAction::FramePrev)
-                .value("FramePrevX10", TimeAction::FramePrevX10)
-                .value("FramePrevX100", TimeAction::FramePrevX100)
-                .value("FrameNext", TimeAction::FrameNext)
-                .value("FrameNextX10", TimeAction::FrameNextX10)
-                .value("FrameNextX100", TimeAction::FrameNextX100)
-                .value("JumpBack1s", TimeAction::JumpBack1s)
-                .value("JumpBack10s", TimeAction::JumpBack10s)
-                .value("JumpForward1s", TimeAction::JumpForward1s)
-                .value("JumpForward10s", TimeAction::JumpForward10s);
+            FTK_ENUM_PY(m, TimeAction);
             FTK_ENUM_BIND(m, TimeAction);
 
             ftk::python::observable<Playback>(m, "Playback");

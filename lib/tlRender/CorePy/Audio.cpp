@@ -29,13 +29,7 @@ namespace tl
     {
         void audio(nb::module_& m)
         {
-            nb::enum_<AudioType>(m, "AudioType")
-                .value("_None", AudioType::None)
-                .value("S8", AudioType::S8)
-                .value("S16", AudioType::S16)
-                .value("S32", AudioType::S32)
-                .value("F32", AudioType::F32)
-                .value("F64", AudioType::F64);
+            FTK_ENUM_PY(m, AudioType);
             FTK_ENUM_BIND(m, AudioType);
             
             m.def("getByteCount", &getByteCount);

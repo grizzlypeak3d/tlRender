@@ -34,19 +34,13 @@ namespace tl
         {
             using namespace ui;
             
-            nb::enum_<InOutDisplay>(m, "InOutDisplay")
-                .value("InsideRange", InOutDisplay::InsideRange)
-                .value("OutsideRange", InOutDisplay::OutsideRange);
+            FTK_ENUM_PY(m, InOutDisplay);
             FTK_ENUM_BIND(m, InOutDisplay);
 
-            nb::enum_<CacheDisplay>(m, "CacheDisplay")
-                .value("VideoAndAudio", CacheDisplay::VideoAndAudio)
-                .value("VideoOnly", CacheDisplay::VideoOnly);
+            FTK_ENUM_PY(m, CacheDisplay);
             FTK_ENUM_BIND(m, CacheDisplay);
 
-            nb::enum_<WaveformPrim>(m, "WaveformPrim")
-                .value("Mesh", WaveformPrim::Mesh)
-                .value("Image", WaveformPrim::Image);
+            FTK_ENUM_PY(m, WaveformPrim);
             FTK_ENUM_BIND(m, WaveformPrim);
 
             nb::class_<ItemData>(m, "ItemData")

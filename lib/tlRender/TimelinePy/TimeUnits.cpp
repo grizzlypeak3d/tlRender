@@ -31,10 +31,7 @@ namespace tl
     {
         void timeUnits(nb::module_& m)
         {
-            nb::enum_<TimeUnits>(m, "TimeUnits")
-                .value("Frames", TimeUnits::Frames)
-                .value("Seconds", TimeUnits::Seconds)
-                .value("Timecode", TimeUnits::Timecode);
+            FTK_ENUM_PY(m, TimeUnits);
             FTK_ENUM_BIND(m, TimeUnits);
             ftk::python::observable<TimeUnits>(m, "TimeUnits");
 

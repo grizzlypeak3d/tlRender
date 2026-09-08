@@ -29,21 +29,10 @@ namespace tl
     {
         void compareOptions(nb::module_& m)
         {
-            nb::enum_<Compare>(m, "Compare")
-                .value("_None", Compare::None)
-                .value("B", Compare::B)
-                .value("Wipe", Compare::Wipe)
-                .value("Butterfly", Compare::Butterfly)
-                .value("Overlay", Compare::Overlay)
-                .value("Difference", Compare::Difference)
-                .value("Horizontal", Compare::Horizontal)
-                .value("Vertical", Compare::Vertical)
-                .value("Tile", Compare::Tile);
+            FTK_ENUM_PY(m, Compare);
             FTK_ENUM_BIND(m, Compare);
 
-            nb::enum_<CompareTime>(m, "CompareTime")
-                .value("Relative", CompareTime::Relative)
-                .value("Absolute", CompareTime::Absolute);
+            FTK_ENUM_PY(m, CompareTime);
             FTK_ENUM_BIND(m, CompareTime);
 
             nb::class_<CompareOptions>(m, "CompareOptions")

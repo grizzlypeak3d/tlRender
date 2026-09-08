@@ -29,17 +29,10 @@ namespace tl
     {
         void hdr(nb::module_& m)
         {
-            nb::enum_<HDR_EOTF>(m, "HDR_EOTF")
-                .value("SDR", HDR_EOTF::SDR)
-                .value("HDR", HDR_EOTF::HDR)
-                .value("ST2084", HDR_EOTF::ST2084);
+            FTK_ENUM_PY(m, HDR_EOTF);
             FTK_ENUM_BIND(m, HDR_EOTF);
 
-            nb::enum_<HDRPrimaries>(m, "HDRPrimaries")
-                .value("Red", HDRPrimaries::Red)
-                .value("Green", HDRPrimaries::Green)
-                .value("Blue", HDRPrimaries::Blue)
-                .value("White", HDRPrimaries::White);
+            FTK_ENUM_PY(m, HDRPrimaries);
             FTK_ENUM_BIND(m, HDRPrimaries);
 
             nb::class_<HDRData>(m, "HDRData")

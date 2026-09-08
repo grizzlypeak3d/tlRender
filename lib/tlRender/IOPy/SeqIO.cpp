@@ -29,12 +29,7 @@ namespace tl
     {
         void seqIO(nb::module_& m)
         {
-            nb::enum_<MissingFrames>(m, "MissingFrames")
-                .value("Error", MissingFrames::Error)
-                .value("Hold", MissingFrames::Hold)
-                .value("Black", MissingFrames::Black)
-                .value("Skip", MissingFrames::Skip)
-                .value("Gaps", MissingFrames::Gaps);
+            FTK_ENUM_PY(m, MissingFrames);
             FTK_ENUM_BIND(m, MissingFrames);
 
             m.def("isStructural", &isStructural, nb::arg("missingFrames"));

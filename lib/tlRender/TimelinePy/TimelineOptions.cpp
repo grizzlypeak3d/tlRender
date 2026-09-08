@@ -29,10 +29,7 @@ namespace tl
     {
         void timelineOptions(nb::module_& m)
         {
-            nb::enum_<ImageSeqAudio>(m, "ImageSeqAudio")
-                .value("_None", ImageSeqAudio::None)
-                .value("Ext", ImageSeqAudio::Ext)
-                .value("FileName", ImageSeqAudio::FileName);
+            FTK_ENUM_PY(m, ImageSeqAudio);
             FTK_ENUM_BIND(m, ImageSeqAudio);
 
             nb::class_<Options>(m, "Options")

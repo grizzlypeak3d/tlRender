@@ -88,9 +88,7 @@ namespace tl
                     return getLabel(value);
                 });
 
-            nb::enum_<AspectRatioType>(m, "AspectRatioType")
-                .value("Pixel", AspectRatioType::Pixel)
-                .value("Display", AspectRatioType::Display);
+            FTK_ENUM_PY(m, AspectRatioType);
             FTK_ENUM_BIND(m, AspectRatioType);
 
             nb::class_<AspectRatioOptions>(m, "AspectRatioOptions")

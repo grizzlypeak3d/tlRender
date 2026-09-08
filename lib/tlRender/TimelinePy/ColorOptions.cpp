@@ -29,10 +29,7 @@ namespace tl
     {
         void colorOptions(nb::module_& m)
         {
-            nb::enum_<OCIOConfig>(m, "OCIOConfig")
-                .value("BuiltIn", OCIOConfig::BuiltIn)
-                .value("EnvVar", OCIOConfig::EnvVar)
-                .value("File", OCIOConfig::File);
+            FTK_ENUM_PY(m, OCIOConfig);
             FTK_ENUM_BIND(m, OCIOConfig);
 
             nb::class_<OCIOOptions>(m, "OCIOOptions")
@@ -47,14 +44,10 @@ namespace tl
                 .def(nanobind::self == nanobind::self)
                 .def(nanobind::self != nanobind::self);
 
-            nb::enum_<LUTDirection>(m, "LUTDirection")
-                .value("Forward", LUTDirection::Forward)
-                .value("Inverse", LUTDirection::Inverse);
+            FTK_ENUM_PY(m, LUTDirection);
             FTK_ENUM_BIND(m, LUTDirection);
 
-            nb::enum_<LUTOrder>(m, "LUTOrder")
-                .value("PostConfig", LUTOrder::PostConfig)
-                .value("PreConfig", LUTOrder::PreConfig);
+            FTK_ENUM_PY(m, LUTOrder);
             FTK_ENUM_BIND(m, LUTOrder);
 
             nb::class_<LUTOptions>(m, "LUTOptions")

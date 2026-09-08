@@ -29,9 +29,7 @@ namespace tl
     {
         void foregroundOptions(nb::module_& m)
         {
-            nb::enum_<GridCellMode>(m, "GridCellMode")
-                .value("CellSize", GridCellMode::CellSize)
-                .value("CellCount", GridCellMode::CellCount);
+            FTK_ENUM_PY(m, GridCellMode);
             FTK_ENUM_BIND(m, GridCellMode);
 
             nb::class_<Grid>(m, "Grid")
