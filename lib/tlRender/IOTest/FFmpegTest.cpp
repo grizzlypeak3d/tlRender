@@ -156,6 +156,69 @@ namespace tl
                 FTK_CHECK(std::dynamic_pointer_cast<ffmpeg_cmd::AudioRead>(
                     audioReader));
             }
+
+            // Memory with a disk address -- media stored in a bundle --
+            // reaches the command line through the subfile protocol. The
+            // fixture is the movie inside a padded container file, the way
+            // an OTIOZ bundle holds it, and the proof is the command line
+            // reading the same information out of the byte range as it
+            // reads from the file itself.
+            {
+                const ftk::Path bundlePath(
+                    ftk::fromFileSystem(_getTempDir() / "FFmpegSubfileTest.bin"));
+                const size_t offset = 128;
+                std::vector<uint8_t> bundleData;
+                {
+                    auto io = ftk::FileIO::create(
+                        ftk::toFileSystem(path.get()), ftk::FileMode::Read);
+                    bundleData.resize(offset + io->getSize());
+                    io->read(bundleData.data() + offset, io->getSize());
+                }
+                {
+                    auto io = ftk::FileIO::create(
+                        ftk::toFileSystem(bundlePath.get()), ftk::FileMode::Write);
+                    io->write(bundleData.data(), bundleData.size());
+                }
+                ftk::MemFile memFile(
+                    nullptr,
+                    bundleData.data() + offset,
+                    bundleData.size() - offset);
+                memFile.path = bundlePath.get();
+                memFile.offset = offset;
+
+                IOOptions options;
+                options["FFmpeg/CommandLine"] = "Always";
+                auto reader = readPlugin->videoRead(path, { memFile }, options);
+                FTK_CHECK(std::dynamic_pointer_cast<ffmpeg_cmd::VideoRead>(
+                    reader));
+                const IOInfo subfileInfo = reader->getInfo().get();
+                FTK_CHECK(subfileInfo.videoTime.has_value());
+                FTK_CHECK(subfileInfo.videoTime == command.videoTime);
+                FTK_CHECK(!subfileInfo.video.empty());
+                FTK_CHECK(subfileInfo.video[0].size == command.video[0].size);
+
+                // And a frame decodes: the information came from ffprobe,
+                // the pixels come from ffmpeg, and both have to read the
+                // range.
+                const VideoData videoData = reader->readVideo(
+                    OTIO_NS::RationalTime(0.0, 24.0)).get();
+                FTK_CHECK(videoData.image);
+                if (videoData.image)
+                {
+                    FTK_CHECK(videoData.image->getSize() ==
+                        command.video[0].size);
+                }
+
+                // Memory with no disk address stays with the library.
+                ftk::MemFile plainMemFile(
+                    nullptr,
+                    bundleData.data() + offset,
+                    bundleData.size() - offset);
+                auto plainReader = readPlugin->videoRead(
+                    path, { plainMemFile }, options);
+                FTK_CHECK(!std::dynamic_pointer_cast<ffmpeg_cmd::VideoRead>(
+                    plainReader));
+            }
         }
 
         void FFmpegTest::write(

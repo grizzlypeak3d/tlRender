@@ -385,18 +385,56 @@ namespace tl
             return VideoRead::create(path, options, logSystem);
         }
 
+        namespace
+        {
+            //! A subfile URL for memory that is a window into a file on
+            //! disk, or empty. FFmpeg's subfile protocol reads the byte
+            //! range in place, which is how the command line reads media
+            //! out of an OTIOZ bundle: a sub-process cannot be handed
+            //! RAM, but it can be handed the bundle and an offset --
+            //! the bytes are in the bundle uncompressed, so the range is
+            //! the file. Only single-file media: a bundled image
+            //! sequence decodes with the image readers, which are always
+            //! built in.
+            std::string getSubfileName(const std::vector<ftk::MemFile>& memory)
+            {
+                std::string out;
+                if (1 == memory.size() && !memory[0].path.empty())
+                {
+                    out = ftk::Format("subfile,,start,{0},end,{1},,:{2}").
+                        arg(memory[0].offset).
+                        arg(memory[0].offset + memory[0].size).
+                        arg(memory[0].path);
+                }
+                return out;
+            }
+        }
+
         std::shared_ptr<IVideoRead> ReadPlugin::videoRead(
             const ftk::Path& path,
             const std::vector<ftk::MemFile>& memory,
             const IOOptions& options)
         {
-            // In-memory media cannot be handed to a sub-process, so the
-            // command line fallback applies only to files on disk.
             if (memory.empty())
             {
                 return videoRead(path, options);
             }
-            return VideoRead::create(path, memory, options, _logSystem.lock());
+            auto logSystem = _logSystem.lock();
+            const std::string subfile = getSubfileName(memory);
+            if (!subfile.empty() &&
+                useCommandLine(ftk::Path(subfile), options, AVMEDIA_TYPE_VIDEO))
+            {
+                if (logSystem)
+                {
+                    logSystem->print(
+                        "tl::ffmpeg::ReadPlugin",
+                        ftk::Format("Reading video with the command line: \"{0}\"").
+                        arg(subfile));
+                }
+                return ffmpeg_cmd::VideoRead::create(
+                    ftk::Path(subfile), options, logSystem);
+            }
+            return VideoRead::create(path, memory, options, logSystem);
         }
 
         std::shared_ptr<IAudioRead> ReadPlugin::audioRead(
@@ -427,7 +465,22 @@ namespace tl
             {
                 return audioRead(path, options);
             }
-            return AudioRead::create(path, memory, options, _logSystem.lock());
+            auto logSystem = _logSystem.lock();
+            const std::string subfile = getSubfileName(memory);
+            if (!subfile.empty() &&
+                useCommandLine(ftk::Path(subfile), options, AVMEDIA_TYPE_AUDIO))
+            {
+                if (logSystem)
+                {
+                    logSystem->print(
+                        "tl::ffmpeg::ReadPlugin",
+                        ftk::Format("Reading audio with the command line: \"{0}\"").
+                        arg(subfile));
+                }
+                return ffmpeg_cmd::AudioRead::create(
+                    ftk::Path(subfile), options, logSystem);
+            }
+            return AudioRead::create(path, memory, options, logSystem);
         }
 
         std::string ReadPlugin::getPluginInfo(const IOOptions& ioOptions) const

@@ -1306,10 +1306,16 @@ namespace tl
                 }
                 continue;
             }
-            (*out)[mediaFileName.first] = ftk::MemFile(
+            ftk::MemFile memFile(
                 fileIO,
                 fileIO->getMemStart() + entry->offset,
                 entry->size);
+            // The disk address too: the bytes are STORED, so a reader
+            // that cannot take memory -- the FFmpeg command line -- can
+            // reach the same range through the bundle file.
+            memFile.path = ftk::fromFileSystem(fileIO->getPath());
+            memFile.offset = entry->offset;
+            (*out)[mediaFileName.first] = memFile;
             ++found;
         }
         if (0 == found)

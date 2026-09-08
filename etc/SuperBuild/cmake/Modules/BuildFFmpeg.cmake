@@ -308,7 +308,11 @@ if(TLRENDER_FFMPEG_MINIMAL)
         --enable-parser=mpegvideo
         --enable-parser=vp9
         --disable-protocols
-        --enable-protocol=file)
+        --enable-protocol=file
+        # For reading a byte range of a file in place -- media stored in
+        # an OTIOZ bundle. A protocol, not a codec, so it carries no
+        # licensing weight.
+        --enable-protocol=subfile)
 endif()
 if(TLRENDER_AOM)
     list(APPEND FFmpeg_CONFIGURE_ARGS
