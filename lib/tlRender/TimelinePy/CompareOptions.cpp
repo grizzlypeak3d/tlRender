@@ -33,6 +33,7 @@ namespace tl
                 .value("_None", Compare::None)
                 .value("B", Compare::B)
                 .value("Wipe", Compare::Wipe)
+                .value("Butterfly", Compare::Butterfly)
                 .value("Overlay", Compare::Overlay)
                 .value("Difference", Compare::Difference)
                 .value("Horizontal", Compare::Horizontal)
