@@ -46,10 +46,6 @@ namespace tl
                 .def(py::init())
                 .def_readwrite("enabled", &Exposure::enabled)
                 .def_readwrite("exposure", &Exposure::exposure)
-                .def_readwrite("defog", &Exposure::defog)
-                .def_readwrite("kneeLow", &Exposure::kneeLow)
-                .def_readwrite("kneeHigh", &Exposure::kneeHigh)
-                .def_readwrite("gamma", &Exposure::gamma)
                 .def(pybind11::self == pybind11::self)
                 .def(pybind11::self != pybind11::self);
 

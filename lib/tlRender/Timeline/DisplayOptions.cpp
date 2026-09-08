@@ -57,11 +57,7 @@ namespace tl
     {
         return
             enabled == other.enabled &&
-            exposure == other.exposure &&
-            defog == other.defog &&
-            kneeLow == other.kneeLow &&
-            kneeHigh == other.kneeHigh &&
-            gamma == other.gamma;
+            exposure == other.exposure;
     }
 
     bool Exposure::operator != (const Exposure& other) const
@@ -299,10 +295,6 @@ namespace tl
     {
         json["Enabled"] = in.enabled;
         json["Exposure"] = in.exposure;
-        json["Defog"] = in.defog;
-        json["KneeLow"] = in.kneeLow;
-        json["KneeHigh"] = in.kneeHigh;
-        json["Gamma"] = in.gamma;
     }
 
     void to_json(nlohmann::json& json, const SoftClip& in)
@@ -359,10 +351,6 @@ namespace tl
     {
         json.at("Enabled").get_to(out.enabled);
         json.at("Exposure").get_to(out.exposure);
-        json.at("Defog").get_to(out.defog);
-        json.at("KneeLow").get_to(out.kneeLow);
-        json.at("KneeHigh").get_to(out.kneeHigh);
-        json.at("Gamma").get_to(out.gamma);
     }
 
     void from_json(const nlohmann::json& json, SoftClip& out)

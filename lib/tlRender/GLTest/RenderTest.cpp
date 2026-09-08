@@ -12,6 +12,7 @@
 #include <tlRender/Timeline/ForegroundOptions.h>
 #include <tlRender/Timeline/Transition.h>
 
+#include <ftk/GL/GL.h>
 #include <ftk/GL/OffscreenBuffer.h>
 #include <ftk/GL/Texture.h>
 #include <ftk/GL/Window.h>
@@ -157,13 +158,9 @@ namespace tl
                 options.push_back(o);
             }
             {
-                // The knee, which nothing else reaches.
                 DisplayOptions o;
                 o.exposure.enabled = true;
                 o.exposure.exposure = 1.F;
-                o.exposure.defog = .1F;
-                o.exposure.kneeLow = .5F;
-                o.exposure.kneeHigh = 2.F;
                 options.push_back(o);
             }
             {
@@ -191,6 +188,44 @@ namespace tl
                 render->drawVideo(frames, boxes, {}, { o });
                 render->end();
             }
+
+            // Exposure is a plain stop adjustment now: zero must leave the
+            // pixels exactly alone, and one stop must double them. The old
+            // exrdisplay formula failed the first of these, which is why it
+            // went.
+            const auto center = [&]
+            {
+                float rgba[4] = { 0.F, 0.F, 0.F, 0.F };
+                glReadPixels(
+                    imageSize.w / 2,
+                    imageSize.h / 2,
+                    1,
+                    1,
+                    GL_RGBA,
+                    GL_FLOAT,
+                    rgba);
+                return rgba[0];
+            };
+            const auto renderWith = [&](const DisplayOptions& o)
+            {
+                render->begin(imageSize);
+                render->drawVideo(frames, boxes, {}, { o });
+                render->end();
+                return center();
+            };
+            const float off = renderWith(DisplayOptions());
+            DisplayOptions o;
+            o.exposure.enabled = true;
+            o.exposure.exposure = 0.F;
+            const float zero = renderWith(o);
+            o.exposure.exposure = 1.F;
+            const float one = renderWith(o);
+            _print(ftk::Format("Exposure off: {0}, zero: {1}, one stop: {2}").
+                arg(off).
+                arg(zero).
+                arg(one));
+            FTK_CHECK(zero == off);
+            FTK_CHECK(std::abs(one - off * 2.F) < .01F);
         }
 
         //! The drawing the renderer passes through to the one underneath it.

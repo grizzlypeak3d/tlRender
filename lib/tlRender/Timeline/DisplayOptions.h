@@ -44,16 +44,14 @@ namespace tl
         TL_TIMELINE_API bool operator != (const Levels&) const;
     };
 
-    //! These values match the controls in exrdisplay for comparison and
-    //! testing.
+    //! A plain stop adjustment: the value scales the image by 2^stops,
+    //! so zero is neutral. The old exrdisplay-style defog, knee, and
+    //! gamma are gone -- SoftClip and Levels cover them, and the
+    //! exrdisplay formula was never neutral at its defaults.
     struct TL_TIMELINE_API_TYPE Exposure
     {
         bool  enabled  = false;
         float exposure = 0.F;
-        float defog    = 0.F;
-        float kneeLow  = 0.F;
-        float kneeHigh = 5.F;
-        float gamma    = 1.F;
 
         TL_TIMELINE_API bool operator == (const Exposure&) const;
         TL_TIMELINE_API bool operator != (const Exposure&) const;

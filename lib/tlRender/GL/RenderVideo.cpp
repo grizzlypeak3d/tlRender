@@ -679,37 +679,6 @@ namespace tl
             }
         }
         
-        namespace
-        {
-            float knee(float x, float f)
-            {
-                return logf(x * f + 1.F) / f;
-            }
-
-            float knee2(float x, float y)
-            {
-                float f0 = 0.F;
-                float f1 = 1.F;
-                while (knee(x, f1) > y)
-                {
-                    f0 = f1;
-                    f1 = f1 * 2.F;
-                }
-                for (size_t i = 0; i < 30; ++i)
-                {
-                    const float f2 = (f0 + f1) / 2.F;
-                    if (knee(x, f2) < y)
-                    {
-                        f1 = f2;
-                    }
-                    else
-                    {
-                        f0 = f2;
-                    }
-                }
-                return (f0 + f1) / 2.F;
-            }
-        }
 
         void Render::_drawVideo(
             const VideoFrame& videoFrame,
@@ -1215,21 +1184,9 @@ namespace tl
                 displayShader->setUniform("exposureEnabled", displayOptions.exposure.enabled);
                 if (displayOptions.exposure.enabled)
                 {
-                    const float v = powf(2.F, displayOptions.exposure.exposure + 2.47393F);
-                    const float d = displayOptions.exposure.defog;
-                    const float k = powf(2.F, displayOptions.exposure.kneeLow);
-                    const float f = knee2(
-                        powf(2.F, displayOptions.exposure.kneeHigh) - k,
-                        powf(2.F, 3.5F) - k);
-                    displayShader->setUniform("exposure.v", v);
-                    displayShader->setUniform("exposure.d", d);
-                    displayShader->setUniform("exposure.k", k);
-                    displayShader->setUniform("exposure.f", f);
-                    const float gamma =
-                        displayOptions.exposure.gamma > 0.F ?
-                        (1.F / displayOptions.exposure.gamma) :
-                        1000000.F;
-                    displayShader->setUniform("exposure.g", gamma);
+                    displayShader->setUniform(
+                        "exposure",
+                        powf(2.F, displayOptions.exposure.exposure));
                 }
                 displayShader->setUniform(
                     "softClip",
