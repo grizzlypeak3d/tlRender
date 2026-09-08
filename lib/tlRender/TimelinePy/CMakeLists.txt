@@ -1,5 +1,6 @@
 set(HEADERS
-    Bindings.h)
+    Bindings.h
+    OTIOCasters.h)
 set(HEADERS_PRIVATE)
 set(SOURCE
     Audio.cpp
@@ -30,6 +31,10 @@ target_include_directories(tlTimelinePy
     PUBLIC
         $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/lib>
         $<INSTALL_INTERFACE:include>)
+target_include_directories(tlTimelinePy
+    PRIVATE
+        ${NB_DIR}/include
+        ${NB_DIR}/ext/robin_map/include)
 
 target_link_libraries(tlTimelinePy tlTimeline Python3::Python)
 

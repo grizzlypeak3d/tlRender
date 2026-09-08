@@ -7,41 +7,52 @@
 
 #include <ftk/CorePy/Bindings.h>
 
-#include <pybind11/operators.h>
-#include <pybind11/stl.h>
+#include <nanobind/operators.h>
+#include <nanobind/stl/string.h>
+#include <nanobind/stl/vector.h>
+#include <nanobind/stl/list.h>
+#include <nanobind/stl/map.h>
+#include <nanobind/stl/pair.h>
+#include <nanobind/stl/optional.h>
+#include <tlRender/TimelinePy/OTIOCasters.h>
 
-namespace py = pybind11;
+#include <nanobind/stl/array.h>
+#include <nanobind/stl/set.h>
+#include <nanobind/stl/shared_ptr.h>
+#include <nanobind/stl/filesystem.h>
+
+namespace nb = nanobind;
 
 namespace tl
 {
     namespace python
     {
-        void backgroundOptions(py::module_& m)
+        void backgroundOptions(nb::module_& m)
         {
-            py::enum_<Background>(m, "Background")
+            nb::enum_<Background>(m, "Background")
                 .value("Solid", Background::Solid)
                 .value("Checkers", Background::Checkers)
                 .value("Gradient", Background::Gradient);
             FTK_ENUM_BIND(m, Background);
 
-            py::class_<Outline>(m, "Outline")
-                .def(py::init())
-                .def_readwrite("enabled", &Outline::enabled)
-                .def_readwrite("width", &Outline::width)
-                .def_readwrite("color", &Outline::color)
-                .def(pybind11::self == pybind11::self)
-                .def(pybind11::self != pybind11::self);
+            nb::class_<Outline>(m, "Outline")
+                .def(nb::init())
+                .def_rw("enabled", &Outline::enabled)
+                .def_rw("width", &Outline::width)
+                .def_rw("color", &Outline::color)
+                .def(nanobind::self == nanobind::self)
+                .def(nanobind::self != nanobind::self);
 
-            py::class_<BackgroundOptions>(m, "BackgroundOptions")
-                .def(py::init())
-                .def_readwrite("type", &BackgroundOptions::type)
-                .def_readwrite("solidColor", &BackgroundOptions::solidColor)
-                .def_readwrite("checkersColor", &BackgroundOptions::checkersColor)
-                .def_readwrite("checkersSize", &BackgroundOptions::checkersSize)
-                .def_readwrite("gradientColor", &BackgroundOptions::gradientColor)
-                .def_readwrite("outline", &BackgroundOptions::outline)
-                .def(pybind11::self == pybind11::self)
-                .def(pybind11::self != pybind11::self);
+            nb::class_<BackgroundOptions>(m, "BackgroundOptions")
+                .def(nb::init())
+                .def_rw("type", &BackgroundOptions::type)
+                .def_rw("solidColor", &BackgroundOptions::solidColor)
+                .def_rw("checkersColor", &BackgroundOptions::checkersColor)
+                .def_rw("checkersSize", &BackgroundOptions::checkersSize)
+                .def_rw("gradientColor", &BackgroundOptions::gradientColor)
+                .def_rw("outline", &BackgroundOptions::outline)
+                .def(nanobind::self == nanobind::self)
+                .def(nanobind::self != nanobind::self);
 
             m.def("to_json",
                 [](const Background& value)

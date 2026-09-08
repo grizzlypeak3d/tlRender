@@ -7,108 +7,119 @@
 
 #include <ftk/CorePy/Bindings.h>
 
-#include <pybind11/operators.h>
-#include <pybind11/stl.h>
+#include <nanobind/operators.h>
+#include <nanobind/stl/string.h>
+#include <nanobind/stl/vector.h>
+#include <nanobind/stl/list.h>
+#include <nanobind/stl/map.h>
+#include <nanobind/stl/pair.h>
+#include <nanobind/stl/optional.h>
+#include <tlRender/TimelinePy/OTIOCasters.h>
 
-namespace py = pybind11;
+#include <nanobind/stl/array.h>
+#include <nanobind/stl/set.h>
+#include <nanobind/stl/shared_ptr.h>
+#include <nanobind/stl/filesystem.h>
+
+namespace nb = nanobind;
 
 namespace tl
 {
     namespace python
     {
-        void displayOptions(py::module_& m)
+        void displayOptions(nb::module_& m)
         {
-            py::class_<Color>(m, "Color")
-                .def(py::init())
-                .def_readwrite("enabled", &Color::enabled)
-                .def_readwrite("add", &Color::add)
-                .def_readwrite("brightness", &Color::brightness)
-                .def_readwrite("contrast", &Color::contrast)
-                .def_readwrite("saturation", &Color::saturation)
-                .def_readwrite("hue", &Color::hue)
-                .def(pybind11::self == pybind11::self)
-                .def(pybind11::self != pybind11::self);
+            nb::class_<Color>(m, "Color")
+                .def(nb::init())
+                .def_rw("enabled", &Color::enabled)
+                .def_rw("add", &Color::add)
+                .def_rw("brightness", &Color::brightness)
+                .def_rw("contrast", &Color::contrast)
+                .def_rw("saturation", &Color::saturation)
+                .def_rw("hue", &Color::hue)
+                .def(nanobind::self == nanobind::self)
+                .def(nanobind::self != nanobind::self);
             
             m.def("color", &color);
 
-            py::class_<Levels>(m, "Levels")
-                .def(py::init())
-                .def_readwrite("enabled", &Levels::enabled)
-                .def_readwrite("inLow", &Levels::inLow)
-                .def_readwrite("inHigh", &Levels::inHigh)
-                .def_readwrite("gamma", &Levels::gamma)
-                .def_readwrite("outLow", &Levels::outLow)
-                .def_readwrite("outHigh", &Levels::outHigh)
-                .def(pybind11::self == pybind11::self)
-                .def(pybind11::self != pybind11::self);
+            nb::class_<Levels>(m, "Levels")
+                .def(nb::init())
+                .def_rw("enabled", &Levels::enabled)
+                .def_rw("inLow", &Levels::inLow)
+                .def_rw("inHigh", &Levels::inHigh)
+                .def_rw("gamma", &Levels::gamma)
+                .def_rw("outLow", &Levels::outLow)
+                .def_rw("outHigh", &Levels::outHigh)
+                .def(nanobind::self == nanobind::self)
+                .def(nanobind::self != nanobind::self);
 
-            py::class_<Exposure>(m, "Exposure")
-                .def(py::init())
-                .def_readwrite("enabled", &Exposure::enabled)
-                .def_readwrite("exposure", &Exposure::exposure)
-                .def(pybind11::self == pybind11::self)
-                .def(pybind11::self != pybind11::self);
+            nb::class_<Exposure>(m, "Exposure")
+                .def(nb::init())
+                .def_rw("enabled", &Exposure::enabled)
+                .def_rw("exposure", &Exposure::exposure)
+                .def(nanobind::self == nanobind::self)
+                .def(nanobind::self != nanobind::self);
 
-            py::class_<SoftClip>(m, "SoftClip")
-                .def(py::init())
-                .def_readwrite("enabled", &SoftClip::enabled)
-                .def_readwrite("value", &SoftClip::value)
-                .def(pybind11::self == pybind11::self)
-                .def(pybind11::self != pybind11::self);
+            nb::class_<SoftClip>(m, "SoftClip")
+                .def(nb::init())
+                .def_rw("enabled", &SoftClip::enabled)
+                .def_rw("value", &SoftClip::value)
+                .def(nanobind::self == nanobind::self)
+                .def(nanobind::self != nanobind::self);
 
-            py::class_<AspectRatio>(m, "AspectRatio")
-                .def(py::init())
+            nb::class_<AspectRatio>(m, "AspectRatio")
+                .def(nb::init())
                 .def(
-                    py::init<float, float>(),
-                    py::arg("num"),
-                    py::arg("den") = 1.F)
-                .def_readwrite("num", &AspectRatio::num)
-                .def_readwrite("den", &AspectRatio::den)
+                    nb::init<float, float>(),
+                    nb::arg("num"),
+                    nb::arg("den") = 1.F)
+                .def_rw("num", &AspectRatio::num)
+                .def_rw("den", &AspectRatio::den)
                 .def("isValid", &AspectRatio::isValid)
                 .def("__float__", [](const AspectRatio& value)
                     {
                         return static_cast<float>(value);
                     })
-                .def(pybind11::self == pybind11::self)
-                .def(pybind11::self != pybind11::self);
+                .def(nanobind::self == nanobind::self)
+                .def(nanobind::self != nanobind::self);
 
             m.def("getLabel", [](const AspectRatio& value)
                 {
                     return getLabel(value);
                 });
 
-            py::enum_<AspectRatioType>(m, "AspectRatioType")
+            nb::enum_<AspectRatioType>(m, "AspectRatioType")
                 .value("Pixel", AspectRatioType::Pixel)
                 .value("Display", AspectRatioType::Display);
             FTK_ENUM_BIND(m, AspectRatioType);
 
-            py::class_<AspectRatioOptions>(m, "AspectRatioOptions")
-                .def(py::init())
+            nb::class_<AspectRatioOptions>(m, "AspectRatioOptions")
+                .def(nb::init())
                 .def(
-                    py::init<const AspectRatio&, AspectRatioType>(),
-                    py::arg("value"),
-                    py::arg("type"))
-                .def_readwrite("value", &AspectRatioOptions::value)
-                .def_readwrite("type", &AspectRatioOptions::type)
-                .def(pybind11::self == pybind11::self)
-                .def(pybind11::self != pybind11::self);
+                    nb::init<const AspectRatio&, AspectRatioType>(),
+                    nb::arg("value"),
+                    nb::arg("type"))
+                .def_rw("value", &AspectRatioOptions::value)
+                .def_rw("type", &AspectRatioOptions::type)
+                .def(nanobind::self == nanobind::self)
+                .def(nanobind::self != nanobind::self);
 
             m.def("getLabel", [](const AspectRatioOptions& value)
                 {
                     return getLabel(value);
                 });
 
-            py::class_<DisplayOptions>(m, "DisplayOptions")
-                .def(py::init())
-                .def_readwrite("channels", &DisplayOptions::channels)
-                .def_readwrite("negative", &DisplayOptions::negative)
-                .def_readwrite("mirror", &DisplayOptions::mirror)
-                .def_readwrite("color", &DisplayOptions::color)
-                .def_readwrite("levels", &DisplayOptions::levels)
-                .def_readwrite("exposure", &DisplayOptions::exposure)
-                .def_readwrite("softClip", &DisplayOptions::softClip)
-                .def(pybind11::self == pybind11::self)
-                .def(pybind11::self != pybind11::self);
+            nb::class_<DisplayOptions>(m, "DisplayOptions")
+                .def(nb::init())
+                .def_rw("channels", &DisplayOptions::channels)
+                .def_rw("negative", &DisplayOptions::negative)
+                .def_rw("mirror", &DisplayOptions::mirror)
+                .def_rw("color", &DisplayOptions::color)
+                .def_rw("levels", &DisplayOptions::levels)
+                .def_rw("exposure", &DisplayOptions::exposure)
+                .def_rw("softClip", &DisplayOptions::softClip)
+                .def(nanobind::self == nanobind::self)
+                .def(nanobind::self != nanobind::self);
 
             m.def("to_json",
                 [](const Color& value)

@@ -5,32 +5,46 @@
 
 #include <tlRender/IO/IO.h>
 
-#include <pybind11/operators.h>
-#include <pybind11/stl.h>
+#include <nanobind/operators.h>
+#include <nanobind/stl/string.h>
+#include <nanobind/stl/vector.h>
+#include <nanobind/stl/list.h>
+#include <nanobind/stl/map.h>
+#include <nanobind/stl/pair.h>
+#include <nanobind/stl/optional.h>
+#include <tlRender/TimelinePy/OTIOCasters.h>
 
-namespace py = pybind11;
+#include <nanobind/stl/array.h>
+#include <nanobind/stl/set.h>
+#include <nanobind/stl/shared_ptr.h>
+#include <nanobind/stl/filesystem.h>
+
+namespace nb = nanobind;
 
 namespace tl
 {
     namespace python
     {
-        void io(py::module_& m)
+        void io(nb::module_& m)
         {
-            py::enum_<FileType>(m, "FileType")
+            nb::enum_<FileType>(
+                m, "FileType",
+                // A bitmask: the Python code builds int flag combinations.
+                nb::is_arithmetic(), nb::is_flag())
                 .value("Unknown", FileType::Unknown)
                 .value("Media", FileType::Media)
                 .value("Seq", FileType::Seq)
                 .value("Audio", FileType::Audio);
             
-            py::class_<IOInfo>(m, "IOInfo")
-                .def(py::init())
-                .def_readwrite("video", &IOInfo::video)
-                .def_readwrite("videoTime", &IOInfo::videoTime)
-                .def_readwrite("audio", &IOInfo::audio)
-                .def_readwrite("audioTime", &IOInfo::audioTime)
-                .def_readwrite("tags", &IOInfo::tags)
-                .def(pybind11::self == pybind11::self)
-                .def(pybind11::self != pybind11::self);
+            nb::class_<IOInfo>(m, "IOInfo")
+                .def(nb::init())
+                .def_rw("video", &IOInfo::video)
+                .def_rw("videoTime", &IOInfo::videoTime)
+                .def_rw("audio", &IOInfo::audio)
+                .def_rw("audioTime", &IOInfo::audioTime)
+                .def_rw("tags", &IOInfo::tags)
+                .def(nanobind::self == nanobind::self)
+                .def(nanobind::self != nanobind::self);
         }
     }
 }

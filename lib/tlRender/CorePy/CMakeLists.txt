@@ -18,6 +18,10 @@ target_include_directories(tlCorePy
     PUBLIC
         $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/lib>
         $<INSTALL_INTERFACE:include>)
+target_include_directories(tlCorePy
+    PRIVATE
+        ${NB_DIR}/include
+        ${NB_DIR}/ext/robin_map/include)
 
 target_link_libraries(tlCorePy tlCore Python3::Python)
 

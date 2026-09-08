@@ -7,29 +7,40 @@
 
 #include <ftk/Core/Context.h>
 
-#include <pybind11/operators.h>
-#include <pybind11/stl.h>
+#include <nanobind/operators.h>
+#include <nanobind/stl/string.h>
+#include <nanobind/stl/vector.h>
+#include <nanobind/stl/list.h>
+#include <nanobind/stl/map.h>
+#include <nanobind/stl/pair.h>
+#include <nanobind/stl/optional.h>
+#include <tlRender/TimelinePy/OTIOCasters.h>
 
-namespace py = pybind11;
+#include <nanobind/stl/array.h>
+#include <nanobind/stl/set.h>
+#include <nanobind/stl/shared_ptr.h>
+#include <nanobind/stl/filesystem.h>
+
+namespace nb = nanobind;
 
 namespace tl
 {
     namespace python
     {
-        void timelineAudio(py::module_& m)
+        void timelineAudio(nb::module_& m)
         {
-            py::class_<AudioLayer>(m, "AudioLayer")
-                .def(py::init())
-                .def_readwrite("audio", &AudioLayer::audio)
-                .def(pybind11::self == pybind11::self)
-                .def(pybind11::self != pybind11::self);
+            nb::class_<AudioLayer>(m, "AudioLayer")
+                .def(nb::init())
+                .def_rw("audio", &AudioLayer::audio)
+                .def(nanobind::self == nanobind::self)
+                .def(nanobind::self != nanobind::self);
 
-            py::class_<AudioFrame>(m, "AudioFrame")
-                .def(py::init())
-                .def_readwrite("seconds", &AudioFrame::seconds)
-                .def_readwrite("layers", &AudioFrame::layers)
-                .def(pybind11::self == pybind11::self)
-                .def(pybind11::self != pybind11::self);
+            nb::class_<AudioFrame>(m, "AudioFrame")
+                .def(nb::init())
+                .def_rw("seconds", &AudioFrame::seconds)
+                .def_rw("layers", &AudioFrame::layers)
+                .def(nanobind::self == nanobind::self)
+                .def(nanobind::self != nanobind::self);
 
             m.def(
                 "isTimeEqual",

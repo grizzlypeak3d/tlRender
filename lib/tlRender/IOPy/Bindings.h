@@ -4,19 +4,19 @@
 #pragma once
 
 
-#include <pybind11/pybind11.h>
+#include <nanobind/nanobind.h>
 
 namespace tl
 {
     namespace python
     {
-        void io(pybind11::module_&);
-        void plugin(pybind11::module_&);
-        void seqIO(pybind11::module_&);
-        void read(pybind11::module_&);
-        void ioSystem(pybind11::module_&);
-        void write(pybind11::module_&);
+        void io(nanobind::module_&);
+        void plugin(nanobind::module_&);
+        void seqIO(nanobind::module_&);
+        void read(nanobind::module_&);
+        void ioSystem(nanobind::module_&);
+        void write(nanobind::module_&);
 
-        void ioBind(pybind11::module_&);
+        void ioBind(nanobind::module_&);
     }
 }

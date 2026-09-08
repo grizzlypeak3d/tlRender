@@ -7,36 +7,47 @@
 
 #include <ftk/CorePy/Bindings.h>
 
-#include <pybind11/operators.h>
-#include <pybind11/stl.h>
+#include <nanobind/operators.h>
+#include <nanobind/stl/string.h>
+#include <nanobind/stl/vector.h>
+#include <nanobind/stl/list.h>
+#include <nanobind/stl/map.h>
+#include <nanobind/stl/pair.h>
+#include <nanobind/stl/optional.h>
+#include <tlRender/TimelinePy/OTIOCasters.h>
 
-namespace py = pybind11;
+#include <nanobind/stl/array.h>
+#include <nanobind/stl/set.h>
+#include <nanobind/stl/shared_ptr.h>
+#include <nanobind/stl/filesystem.h>
+
+namespace nb = nanobind;
 
 namespace tl
 {
     namespace python
     {
-        void timelineOptions(py::module_& m)
+        void timelineOptions(nb::module_& m)
         {
-            py::enum_<ImageSeqAudio>(m, "ImageSeqAudio")
+            nb::enum_<ImageSeqAudio>(m, "ImageSeqAudio")
                 .value("_None", ImageSeqAudio::None)
                 .value("Ext", ImageSeqAudio::Ext)
                 .value("FileName", ImageSeqAudio::FileName);
             FTK_ENUM_BIND(m, ImageSeqAudio);
 
-            py::class_<Options>(m, "Options")
-                .def(py::init())
-                .def_readwrite("imageSeqAudio", &Options::imageSeqAudio)
-                .def_readwrite("imageSeqAudioExts", &Options::imageSeqAudioExts)
-                .def_readwrite("imageSeqAudioFileName", &Options::imageSeqAudioFileName)
-                .def_readwrite("compat", &Options::compat)
-                .def_readwrite("threaded", &Options::threaded)
-                .def_readwrite("readThreadCount", &Options::readThreadCount)
-                .def_readwrite("audioRequestMax", &Options::audioRequestMax)
-                .def_readwrite("ioOptions", &Options::ioOptions)
-                .def_readwrite("pathOptions", &Options::pathOptions)
-                .def(pybind11::self == pybind11::self)
-                .def(pybind11::self != pybind11::self);
+            nb::class_<Options>(m, "Options")
+                .def(nb::init())
+                .def_rw("imageSeqAudio", &Options::imageSeqAudio)
+                .def_rw("imageSeqAudioExts", &Options::imageSeqAudioExts)
+                .def_rw("imageSeqAudioFileName", &Options::imageSeqAudioFileName)
+                .def_rw("compat", &Options::compat)
+                .def_rw("threaded", &Options::threaded)
+                .def_rw("readThreadCount", &Options::readThreadCount)
+                .def_rw("audioRequestMax", &Options::audioRequestMax)
+                .def_rw("ioOptions", &Options::ioOptions)
+                .def_rw("pathOptions", &Options::pathOptions)
+                .def(nanobind::self == nanobind::self)
+                .def(nanobind::self != nanobind::self);
         }
     }
 }

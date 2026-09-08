@@ -4,16 +4,16 @@
 #pragma once
 
 
-#include <pybind11/pybind11.h>
+#include <nanobind/nanobind.h>
 
 namespace tl
 {
     namespace python
     {
-        void frameToolBar(pybind11::module_&);
-        void playbackToolBar(pybind11::module_&);
+        void frameToolBar(nanobind::module_&);
+        void playbackToolBar(nanobind::module_&);
 
-        void uiBind(pybind11::module_&);
+        void uiBind(nanobind::module_&);
     }
 }
 

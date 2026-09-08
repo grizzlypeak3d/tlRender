@@ -4,12 +4,12 @@
 #pragma once
 
 
-#include <pybind11/pybind11.h>
+#include <nanobind/nanobind.h>
 
 namespace tl
 {
     namespace python
     {
-        void viewport(pybind11::module_&);
+        void viewport(nanobind::module_&);
     }
 }

@@ -5,26 +5,37 @@
 
 #include <tlRender/IO/Plugin.h>
 
-#include <pybind11/stl.h>
+#include <nanobind/stl/string.h>
+#include <nanobind/stl/vector.h>
+#include <nanobind/stl/list.h>
+#include <nanobind/stl/map.h>
+#include <nanobind/stl/pair.h>
+#include <nanobind/stl/optional.h>
+#include <tlRender/TimelinePy/OTIOCasters.h>
 
-namespace py = pybind11;
+#include <nanobind/stl/array.h>
+#include <nanobind/stl/set.h>
+#include <nanobind/stl/shared_ptr.h>
+#include <nanobind/stl/filesystem.h>
+
+namespace nb = nanobind;
 
 namespace tl
 {
     namespace python
     {
-        void plugin(py::module_& m)
+        void plugin(nb::module_& m)
         {
-            py::class_<IIO, std::shared_ptr<IIO> >(m, "IIO")
-                .def_property_readonly("path", &IIO::getPath, py::return_value_policy::copy)
+            nb::class_<IIO>(m, "IIO")
+                .def_prop_ro("path", &IIO::getPath, nb::rv_policy::copy)
                 .def_static("getObjectCount", &IIO::getObjectCount);
 
-            py::class_<IIOPlugin, std::shared_ptr<IIOPlugin> >(m, "IIOPlugin")
-                .def_property_readonly("pluginName", &IIOPlugin::getPluginName)
+            nb::class_<IIOPlugin>(m, "IIOPlugin")
+                .def_prop_ro("pluginName", &IIOPlugin::getPluginName)
                 .def("getPluginInfo", &IIOPlugin::getPluginInfo,
-                    py::arg("options") = IOOptions())
+                    nb::arg("options") = IOOptions())
                 .def("getExts", &IIOPlugin::getExts,
-                    py::arg("types") =
+                    nb::arg("types") =
                         static_cast<int>(FileType::Media) |
                         static_cast<int>(FileType::Seq) |
                         static_cast<int>(FileType::Audio));

@@ -8,16 +8,27 @@
 #include <ftk/CorePy/Bindings.h>
 #include <ftk/Core/Context.h>
 
-#include <pybind11/functional.h>
-#include <pybind11/stl.h>
+#include <nanobind/stl/function.h>
+#include <nanobind/stl/string.h>
+#include <nanobind/stl/vector.h>
+#include <nanobind/stl/list.h>
+#include <nanobind/stl/map.h>
+#include <nanobind/stl/pair.h>
+#include <nanobind/stl/optional.h>
+#include <tlRender/TimelinePy/OTIOCasters.h>
 
-namespace py = pybind11;
+#include <nanobind/stl/array.h>
+#include <nanobind/stl/set.h>
+#include <nanobind/stl/shared_ptr.h>
+#include <nanobind/stl/filesystem.h>
+
+namespace nb = nanobind;
 
 namespace tl
 {
     namespace python
     {
-        void viewport(py::module_& m)
+        void viewport(nb::module_& m)
         {
             using namespace ui;
 
@@ -25,169 +36,171 @@ namespace tl
             ftk::python::observable<std::optional<ftk::V2I> >(m, "OptionalV2I");
             ftk::python::observable<std::optional<ftk::Color4F> >(m, "OptionalColor4F");
             
-            py::class_<Viewport, ftk::IWidget, std::shared_ptr<Viewport> >(m, "Viewport")
+            nb::class_<Viewport, ftk::IWidget>(m, "Viewport")
                 .def(
-                    py::init(py::overload_cast<
+                    nb::new_(nb::overload_cast<
                         const std::shared_ptr<ftk::Context>&,
                         const std::shared_ptr<ftk::IWidget>&>(&Viewport::create)),
-                    py::arg("context"),
-                    py::arg("parent") = nullptr)
-                .def_property("compareOptions",
+                    nb::arg("context"),
+                    nb::arg("parent") = nullptr)
+                .def_prop_rw("compareOptions",
                     &Viewport::getCompareOptions,
                     &Viewport::setCompareOptions,
-                    py::return_value_policy::copy)
-                .def_property_readonly(
+                    nb::rv_policy::copy)
+                .def_prop_ro(
                     "observeCompareOptions",
                     &Viewport::observeCompareOptions)
-                .def_property(
+                .def_prop_rw(
                     "ocioOptions",
                     &Viewport::getOCIOOptions,
                     &Viewport::setOCIOOptions,
-                    py::return_value_policy::copy)
-                .def_property_readonly(
+                    nb::rv_policy::copy)
+                .def_prop_ro(
                     "observeOCIOOptions",
                     &Viewport::observeOCIOOptions)
-                .def_property(
+                .def_prop_rw(
                     "LUTOptions",
                     &Viewport::getLUTOptions,
                     &Viewport::setLUTOptions,
-                    py::return_value_policy::copy)
-                .def_property_readonly(
+                    nb::rv_policy::copy)
+                .def_prop_ro(
                     "observeLUTOptions",
                     &Viewport::observeLUTOptions)
-                .def_property(
+                .def_prop_rw(
                     "imageOptions",
                     &Viewport::getImageOptions,
                     &Viewport::setImageOptions,
-                    py::return_value_policy::copy)
-                .def_property_readonly(
+                    nb::rv_policy::copy)
+                .def_prop_ro(
                     "observeImageOptions",
                     &Viewport::observeImageOptions)
-                .def_property(
+                .def_prop_rw(
                     "displayOptions",
                     &Viewport::getDisplayOptions,
                     &Viewport::setDisplayOptions,
-                    py::return_value_policy::copy)
-                .def_property_readonly(
+                    nb::rv_policy::copy)
+                .def_prop_ro(
                     "observeDisplayOptions",
                     &Viewport::observeDisplayOptions)
-                .def_property(
+                .def_prop_rw(
                     "backgroundOptions",
                     &Viewport::getBackgroundOptions,
                     &Viewport::setBackgroundOptions,
-                    py::return_value_policy::copy)
-                .def_property_readonly(
+                    nb::rv_policy::copy)
+                .def_prop_ro(
                     "observeBackgroundOptions",
                     &Viewport::observeBackgroundOptions)
-                .def_property(
+                .def_prop_rw(
                     "foregroundOptions",
                     &Viewport::getForegroundOptions,
                     &Viewport::setForegroundOptions,
-                    py::return_value_policy::copy)
-                .def_property_readonly(
+                    nb::rv_policy::copy)
+                .def_prop_ro(
                     "observeForegroundOptions",
                     &Viewport::observeForegroundOptions)
-                .def_property(
+                .def_prop_rw(
                     "colorBuffer",
                     &Viewport::getColorBuffer,
                     &Viewport::setColorBuffer)
-                .def_property_readonly(
+                .def_prop_ro(
                     "observeColorBuffer",
                     &Viewport::observeColorBuffer)
-                .def_property(
+                .def_prop_rw(
                     "player",
                     &Viewport::getPlayer,
-                    &Viewport::setPlayer)
-                .def_property_readonly(
+                    &Viewport::setPlayer,
+                    // "No player" is a null player.
+                    nb::for_setter(nb::arg("value").none()))
+                .def_prop_ro(
                     "viewPos",
                     &Viewport::getViewPos,
-                    py::return_value_policy::copy)
-                .def_property_readonly(
+                    nb::rv_policy::copy)
+                .def_prop_ro(
                     "observeViewPos",
                     &Viewport::observeViewPos)
-                .def_property_readonly(
+                .def_prop_ro(
                     "zoom",
                     &Viewport::getZoom)
-                .def_property_readonly(
+                .def_prop_ro(
                     "observeZoom",
                     &Viewport::observeZoom)
-                .def_property_readonly(
+                .def_prop_ro(
                     "viewPosAndZoom",
                     &Viewport::getViewPosAndZoom)
                 .def(
                     "setViewPosAndZoom",
                     &Viewport::setViewPosAndZoom,
-                    py::arg("pos"),
-                    py::arg("zoom"))
-                .def_property_readonly(
+                    nb::arg("pos"),
+                    nb::arg("zoom"))
+                .def_prop_ro(
                     "observeViewPosAndZoom",
                     &Viewport::observeViewPosAndZoom)
                 .def(
                     "setZoom",
                     &Viewport::setZoom,
-                    py::arg("zoom"),
-                    py::arg("focus") = ftk::V2I())
-                .def_property(
+                    nb::arg("zoom"),
+                    nb::arg("focus") = ftk::V2I())
+                .def_prop_rw(
                     "zoomRange",
                     &Viewport::getZoomRange,
                     &Viewport::setZoomRange,
-                    py::return_value_policy::copy)
-                .def_property(
+                    nb::rv_policy::copy)
+                .def_prop_rw(
                     "frameView",
                     &Viewport::hasFrameView,
                     &Viewport::setFrameView)
-                .def_property_readonly(
+                .def_prop_ro(
                     "observeFrameView",
                     &Viewport::observeFrameView)
-                .def_property_readonly(
+                .def_prop_ro(
                     "observeFramed",
                     &Viewport::observeFramed)
                 .def("resetZoom", &Viewport::resetZoom)
                 .def("zoomIn", &Viewport::zoomIn)
                 .def("zoomOut", &Viewport::zoomOut)
                 .def("center", &Viewport::center)
-                .def_property_readonly(
+                .def_prop_ro(
                     "FPS",
                     &Viewport::getFPS)
-                .def_property_readonly(
+                .def_prop_ro(
                     "observeFPS",
                     &Viewport::observeFPS)
-                .def_property_readonly(
+                .def_prop_ro(
                     "droppedFrames",
                     &Viewport::getDroppedFrames)
-                .def_property_readonly(
+                .def_prop_ro(
                     "observeDroppedFrames",
                     &Viewport::observeDroppedFrames)
                 .def("getColorSample", &Viewport::getColorSample)
-                .def_property_readonly(
+                .def_prop_ro(
                     "observeSamplePos",
                     &Viewport::observeSamplePos)
-                .def_property_readonly(
+                .def_prop_ro(
                     "observePick",
                     &Viewport::observePick)
-                .def_property_readonly(
+                .def_prop_ro(
                     "observeColorSample",
                     &Viewport::observeColorSample)
-                .def("pick", &Viewport::pick, py::arg("imagePos"))
-                .def_property(
+                .def("pick", &Viewport::pick, nb::arg("imagePos"))
+                .def_prop_rw(
                     "inputEnabled",
                     &Viewport::isInputEnabled,
                     &Viewport::setInputEnabled)
                 .def(
                     "setPanBinding",
                     &Viewport::setPanBinding,
-                    py::arg("button"),
-                    py::arg("modifier"))
+                    nb::arg("button"),
+                    nb::arg("modifier"))
                 .def(
                     "setWipeBinding",
                     &Viewport::setWipeBinding,
-                    py::arg("button"),
-                    py::arg("modifier"))
+                    nb::arg("button"),
+                    nb::arg("modifier"))
                 .def(
                     "setPickBinding",
                     &Viewport::setPickBinding,
-                    py::arg("button"),
-                    py::arg("modifier"))
+                    nb::arg("button"),
+                    nb::arg("modifier"))
                 .def(
                     "setMouseWheelScale",
                     &Viewport::setMouseWheelScale);

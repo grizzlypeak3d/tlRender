@@ -9,74 +9,85 @@
 
 #include <ftk/Core/Context.h>
 
-#include <pybind11/functional.h>
-#include <pybind11/operators.h>
-#include <pybind11/stl.h>
+#include <nanobind/stl/function.h>
+#include <nanobind/operators.h>
+#include <nanobind/stl/string.h>
+#include <nanobind/stl/vector.h>
+#include <nanobind/stl/list.h>
+#include <nanobind/stl/map.h>
+#include <nanobind/stl/pair.h>
+#include <nanobind/stl/optional.h>
+#include <tlRender/TimelinePy/OTIOCasters.h>
 
-namespace py = pybind11;
+#include <nanobind/stl/array.h>
+#include <nanobind/stl/set.h>
+#include <nanobind/stl/shared_ptr.h>
+#include <nanobind/stl/filesystem.h>
+
+namespace nb = nanobind;
 
 namespace tl
 {
     namespace python
     {
-        void itemOptions(py::module_& m)
+        void itemOptions(nb::module_& m)
         {
             using namespace ui;
             
-            py::enum_<InOutDisplay>(m, "InOutDisplay")
+            nb::enum_<InOutDisplay>(m, "InOutDisplay")
                 .value("InsideRange", InOutDisplay::InsideRange)
                 .value("OutsideRange", InOutDisplay::OutsideRange);
             FTK_ENUM_BIND(m, InOutDisplay);
 
-            py::enum_<CacheDisplay>(m, "CacheDisplay")
+            nb::enum_<CacheDisplay>(m, "CacheDisplay")
                 .value("VideoAndAudio", CacheDisplay::VideoAndAudio)
                 .value("VideoOnly", CacheDisplay::VideoOnly);
             FTK_ENUM_BIND(m, CacheDisplay);
 
-            py::enum_<WaveformPrim>(m, "WaveformPrim")
+            nb::enum_<WaveformPrim>(m, "WaveformPrim")
                 .value("Mesh", WaveformPrim::Mesh)
                 .value("Image", WaveformPrim::Image);
             FTK_ENUM_BIND(m, WaveformPrim);
 
-            py::class_<ItemData, std::shared_ptr<ItemData> >(m, "ItemData")
-                .def(py::init())
-                .def_readwrite("speed", &ItemData::speed)
-                .def_readwrite("dir", &ItemData::dir)
-                .def_readwrite("options", &ItemData::options)
-                .def_readwrite("timeUnitsModel", &ItemData::timeUnitsModel)
-                .def_readwrite("toMediaTime", &ItemData::toMediaTime);
+            nb::class_<ItemData>(m, "ItemData")
+                .def(nb::init())
+                .def_rw("speed", &ItemData::speed)
+                .def_rw("dir", &ItemData::dir)
+                .def_rw("options", &ItemData::options)
+                .def_rw("timeUnitsModel", &ItemData::timeUnitsModel)
+                .def_rw("toMediaTime", &ItemData::toMediaTime);
 
-            py::class_<ItemOptions>(m, "ItemOptions")
-                .def(py::init())
-                .def_readwrite("inputEnabled", &ItemOptions::inputEnabled)
-                .def(pybind11::self == pybind11::self)
-                .def(pybind11::self != pybind11::self);
+            nb::class_<ItemOptions>(m, "ItemOptions")
+                .def(nb::init())
+                .def_rw("inputEnabled", &ItemOptions::inputEnabled)
+                .def(nanobind::self == nanobind::self)
+                .def(nanobind::self != nanobind::self);
 
-            py::class_<Marker>(m, "Marker")
-                .def(py::init())
-                .def_readwrite("name", &Marker::name)
-                .def_readwrite("color", &Marker::color)
-                .def_readwrite("range", &Marker::range)
-                .def(pybind11::self == pybind11::self)
-                .def(pybind11::self != pybind11::self);
+            nb::class_<Marker>(m, "Marker")
+                .def(nb::init())
+                .def_rw("name", &Marker::name)
+                .def_rw("color", &Marker::color)
+                .def_rw("range", &Marker::range)
+                .def(nanobind::self == nanobind::self)
+                .def(nanobind::self != nanobind::self);
 
-            py::class_<DisplayOptions>(m, "DisplayOptions")
-                .def(py::init())
-                .def_readwrite("inOutDisplay", &DisplayOptions::inOutDisplay)
-                .def_readwrite("cacheDisplay", &DisplayOptions::cacheDisplay)
-                .def_readwrite("minimize", &DisplayOptions::minimize)
-                .def_readwrite("clipColors", &DisplayOptions::clipColors)
-                .def_readwrite("thumbnails", &DisplayOptions::thumbnails)
-                .def_readwrite("thumbnailHeight", &DisplayOptions::thumbnailHeight)
-                .def_readwrite("waveforms", &DisplayOptions::waveforms)
-                .def_readwrite("waveformWidth", &DisplayOptions::waveformWidth)
-                .def_readwrite("waveformHeight", &DisplayOptions::waveformHeight)
-                .def_readwrite("waveformPrim", &DisplayOptions::waveformPrim)
-                .def_readwrite("clipRectScale", &DisplayOptions::clipRectScale)
-                .def_readwrite("ocio", &DisplayOptions::ocio)
-                .def_readwrite("lut", &DisplayOptions::lut)
-                .def(pybind11::self == pybind11::self)
-                .def(pybind11::self != pybind11::self);
+            nb::class_<DisplayOptions>(m, "DisplayOptions")
+                .def(nb::init())
+                .def_rw("inOutDisplay", &DisplayOptions::inOutDisplay)
+                .def_rw("cacheDisplay", &DisplayOptions::cacheDisplay)
+                .def_rw("minimize", &DisplayOptions::minimize)
+                .def_rw("clipColors", &DisplayOptions::clipColors)
+                .def_rw("thumbnails", &DisplayOptions::thumbnails)
+                .def_rw("thumbnailHeight", &DisplayOptions::thumbnailHeight)
+                .def_rw("waveforms", &DisplayOptions::waveforms)
+                .def_rw("waveformWidth", &DisplayOptions::waveformWidth)
+                .def_rw("waveformHeight", &DisplayOptions::waveformHeight)
+                .def_rw("waveformPrim", &DisplayOptions::waveformPrim)
+                .def_rw("clipRectScale", &DisplayOptions::clipRectScale)
+                .def_rw("ocio", &DisplayOptions::ocio)
+                .def_rw("lut", &DisplayOptions::lut)
+                .def(nanobind::self == nanobind::self)
+                .def(nanobind::self != nanobind::self);
             
         }
     }

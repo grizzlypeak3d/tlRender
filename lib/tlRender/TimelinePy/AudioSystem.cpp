@@ -8,43 +8,54 @@
 #include <ftk/CorePy/Bindings.h>
 #include <ftk/Core/Context.h>
 
-#include <pybind11/operators.h>
-#include <pybind11/stl.h>
+#include <nanobind/operators.h>
+#include <nanobind/stl/string.h>
+#include <nanobind/stl/vector.h>
+#include <nanobind/stl/list.h>
+#include <nanobind/stl/map.h>
+#include <nanobind/stl/pair.h>
+#include <nanobind/stl/optional.h>
+#include <tlRender/TimelinePy/OTIOCasters.h>
 
-namespace py = pybind11;
+#include <nanobind/stl/array.h>
+#include <nanobind/stl/set.h>
+#include <nanobind/stl/shared_ptr.h>
+#include <nanobind/stl/filesystem.h>
+
+namespace nb = nanobind;
 
 namespace tl
 {
     namespace python
     {
-        void audioSystem(py::module_& m)
+        void audioSystem(nb::module_& m)
         {
-            py::class_<AudioDeviceID>(m, "AudioDeviceID")
-                .def(py::init())
-                .def_readwrite("number", &AudioDeviceID::number)
-                .def_readwrite("name", &AudioDeviceID::name)
-                .def(pybind11::self == pybind11::self)
-                .def(pybind11::self != pybind11::self);
+            nb::class_<AudioDeviceID>(m, "AudioDeviceID")
+                .def(nb::init())
+                .def_rw("number", &AudioDeviceID::number)
+                .def_rw("name", &AudioDeviceID::name)
+                .def(nanobind::self == nanobind::self)
+                .def(nanobind::self != nanobind::self);
 
-            py::class_<AudioDeviceInfo>(m, "AudioDeviceInfo")
-                .def(py::init())
-                .def_readwrite("id", &AudioDeviceInfo::id)
-                .def_readwrite("info", &AudioDeviceInfo::info)
-                .def(pybind11::self == pybind11::self)
-                .def(pybind11::self != pybind11::self);
+            nb::class_<AudioDeviceInfo>(m, "AudioDeviceInfo")
+                .def(nb::init())
+                .def_rw("id", &AudioDeviceInfo::id)
+                .def_rw("info", &AudioDeviceInfo::info)
+                .def(nanobind::self == nanobind::self)
+                .def(nanobind::self != nanobind::self);
 
             ftk::python::observable<AudioDeviceInfo>(m, "AudioDeviceInfo");
             ftk::python::observableList<AudioDeviceInfo>(m, "AudioDeviceInfo");
 
-            py::class_<AudioSystem, ftk::ISystem, std::shared_ptr<AudioSystem> >(m, "AudioSystem")
-                .def(py::init(&AudioSystem::create),
-                    py::arg("context"))
-                .def_property_readonly("drivers", &AudioSystem::getDrivers)
-                .def_property_readonly("currentDriver", &AudioSystem::getCurrentDriver)
-                .def_property_readonly("devices", &AudioSystem::getDevices)
-                .def_property_readonly("observeDevices", &AudioSystem::observeDevices)
-                .def_property_readonly("defaultDevice", &AudioSystem::getDefaultDevice)
-                .def_property_readonly("observeDefaultDevice", &AudioSystem::observeDefaultDevice);
+            nb::class_<AudioSystem, ftk::ISystem>(m, "AudioSystem")
+                .def(nb::new_(&AudioSystem::create),
+                    nb::arg("context"))
+                .def_prop_ro("drivers", &AudioSystem::getDrivers)
+                .def_prop_ro("currentDriver", &AudioSystem::getCurrentDriver)
+                .def_prop_ro("devices", &AudioSystem::getDevices)
+                .def_prop_ro("observeDevices", &AudioSystem::observeDevices)
+                .def_prop_ro("defaultDevice", &AudioSystem::getDefaultDevice)
+                .def_prop_ro("observeDefaultDevice", &AudioSystem::observeDefaultDevice);
         }
     }
 }

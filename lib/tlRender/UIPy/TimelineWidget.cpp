@@ -7,85 +7,98 @@
 
 #include <ftk/Core/Context.h>
 
-#include <pybind11/stl.h>
+#include <nanobind/stl/string.h>
+#include <nanobind/stl/vector.h>
+#include <nanobind/stl/list.h>
+#include <nanobind/stl/map.h>
+#include <nanobind/stl/pair.h>
+#include <nanobind/stl/optional.h>
+#include <tlRender/TimelinePy/OTIOCasters.h>
 
-namespace py = pybind11;
+#include <nanobind/stl/array.h>
+#include <nanobind/stl/set.h>
+#include <nanobind/stl/shared_ptr.h>
+#include <nanobind/stl/filesystem.h>
+
+namespace nb = nanobind;
 
 namespace tl
 {
     namespace python
     {
-        void timelineWidget(py::module_& m)
+        void timelineWidget(nb::module_& m)
         {
             using namespace ui;
 
-            py::class_<TimelineWidget, ftk::IWidget, std::shared_ptr<TimelineWidget> >(m, "TimelineWidget")
+            nb::class_<TimelineWidget, ftk::IWidget>(m, "TimelineWidget")
                 .def(
-                    py::init(py::overload_cast<
+                    nb::new_(nb::overload_cast<
                         const std::shared_ptr<ftk::Context>&,
                         const std::shared_ptr<ftk::IWidget>&>(&TimelineWidget::create)),
-                    py::arg("context"),
-                    py::arg("parent") = nullptr)
+                    nb::arg("context"),
+                    nb::arg("parent") = nullptr)
                 .def(
-                    py::init(py::overload_cast<
+                    nb::new_(nb::overload_cast<
                         const std::shared_ptr<ftk::Context>&,
                         const std::shared_ptr<ITimeUnitsModel>&,
                         const std::shared_ptr<ftk::IWidget>&>(&TimelineWidget::create)),
-                    py::arg("context"),
-                    py::arg("timeUnitsModel"),
-                    py::arg("parent") = nullptr)
-                .def_property_readonly(
+                    nb::arg("context"),
+                    nb::arg("timeUnitsModel"),
+                    nb::arg("parent") = nullptr)
+                .def_prop_ro(
                     "timeUnitsModel",
                     &TimelineWidget::getTimeUnitsModel)
-                .def_property(
+                .def_prop_rw(
                     "player",
                     &TimelineWidget::getPlayer,
-                    &TimelineWidget::setPlayer)
-                .def_property(
+                    &TimelineWidget::setPlayer,
+                    // "No player" is a null player.
+                    nb::for_setter(nb::arg("value").none()))
+                .def_prop_rw(
                     "displayOptions",
                     &TimelineWidget::getDisplayOptions,
                     &TimelineWidget::setDisplayOptions,
-                    py::return_value_policy::copy)
-                .def_property_readonly(
+                    nb::rv_policy::copy)
+                .def_prop_ro(
                     "observeDisplayOptions",
                     &TimelineWidget::observeDisplayOptions)
                 .def("setTimelines", &TimelineWidget::setTimelines)
-                .def_property(
+                .def_prop_rw(
                     "frameMarkers",
                     &TimelineWidget::getFrameMarkers,
                     &TimelineWidget::setFrameMarkers,
-                    py::return_value_policy::copy)
-                .def_property(
+                    nb::rv_policy::copy)
+                .def_prop_rw(
                     "markers",
                     &TimelineWidget::getMarkers,
                     &TimelineWidget::setMarkers,
-                    py::return_value_policy::copy)
-                .def_property(
+                    nb::rv_policy::copy)
+                .def_prop_rw(
                     "frameView",
                     &TimelineWidget::hasFrameView,
                     &TimelineWidget::setFrameView)
-                .def_property_readonly(
+                .def_prop_ro(
                     "observeFrameView",
                     &TimelineWidget::observeFrameView)
-                .def_property(
+                .def_prop_rw(
                     "scrollBarsVisible",
                     &TimelineWidget::areScrollBarsVisible,
                     &TimelineWidget::setScrollBarsVisible)
-                .def_property_readonly(
+                .def_prop_ro(
                     "observeScrollBarsVisible",
                     &TimelineWidget::observeScrollBarsVisible)
-                .def_property(
+                .def_prop_rw(
                     "autoScroll",
                     &TimelineWidget::hasAutoScroll,
                     &TimelineWidget::setAutoScroll)
-                .def_property_readonly(
+                .def_prop_ro(
                     "observeAutoScroll",
                     &TimelineWidget::observeAutoScroll)
-                .def_property(
+                .def_prop_rw(
                     "stopOnScrub",
                     &TimelineWidget::hasStopOnScrub,
                     &TimelineWidget::setStopOnScrub)
-                .def_property_readonly(
+                .def_prop_ro(
                     "observeStopOnScrub",
                     &TimelineWidget::observeStopOnScrub);
         }

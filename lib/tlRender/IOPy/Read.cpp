@@ -5,36 +5,47 @@
 
 #include <tlRender/IO/Read.h>
 
-#include <pybind11/stl.h>
+#include <nanobind/stl/string.h>
+#include <nanobind/stl/vector.h>
+#include <nanobind/stl/list.h>
+#include <nanobind/stl/map.h>
+#include <nanobind/stl/pair.h>
+#include <nanobind/stl/optional.h>
+#include <tlRender/TimelinePy/OTIOCasters.h>
 
-namespace py = pybind11;
+#include <nanobind/stl/array.h>
+#include <nanobind/stl/set.h>
+#include <nanobind/stl/shared_ptr.h>
+#include <nanobind/stl/filesystem.h>
+
+namespace nb = nanobind;
 
 namespace tl
 {
     namespace python
     {
-        void read(py::module_& m)
+        void read(nb::module_& m)
         {
-            py::class_<IRead, IIO, std::shared_ptr<IRead> >(m, "IRead")
+            nb::class_<IRead, IIO>(m, "IRead")
                 .def("cancelRequests", &IRead::cancelRequests)
-                .def_property_readonly("error", &IRead::getError)
-                .def_property_readonly("errorCount", &IRead::getErrorCount);
+                .def_prop_ro("error", &IRead::getError)
+                .def_prop_ro("errorCount", &IRead::getErrorCount);
 
-            py::class_<IVideoRead, IRead, std::shared_ptr<IVideoRead> >(m, "IVideoRead");
+            nb::class_<IVideoRead, IRead>(m, "IVideoRead");
 
-            py::class_<IAudioRead, IRead, std::shared_ptr<IAudioRead> >(m, "IAudioRead");
+            nb::class_<IAudioRead, IRead>(m, "IAudioRead");
 
-            py::class_<IReadPlugin, IIOPlugin, std::shared_ptr<IReadPlugin> >(m, "IReadPlugin")
-                .def("videoRead", py::overload_cast<
+            nb::class_<IReadPlugin, IIOPlugin>(m, "IReadPlugin")
+                .def("videoRead", nb::overload_cast<
                         const ftk::Path&,
                         const IOOptions&>(&IReadPlugin::videoRead),
-                    py::arg("path"),
-                    py::arg("options") = IOOptions())
-                .def("audioRead", py::overload_cast<
+                    nb::arg("path"),
+                    nb::arg("options") = IOOptions())
+                .def("audioRead", nb::overload_cast<
                         const ftk::Path&,
                         const IOOptions&>(&IReadPlugin::audioRead),
-                    py::arg("path"),
-                    py::arg("options") = IOOptions());
+                    nb::arg("path"),
+                    nb::arg("options") = IOOptions());
         }
     }
 }

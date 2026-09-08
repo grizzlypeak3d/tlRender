@@ -7,18 +7,29 @@
 
 #include <ftk/CorePy/Bindings.h>
 
-#include <pybind11/operators.h>
-#include <pybind11/stl.h>
+#include <nanobind/operators.h>
+#include <nanobind/stl/string.h>
+#include <nanobind/stl/vector.h>
+#include <nanobind/stl/list.h>
+#include <nanobind/stl/map.h>
+#include <nanobind/stl/pair.h>
+#include <nanobind/stl/optional.h>
+#include <tlRender/TimelinePy/OTIOCasters.h>
 
-namespace py = pybind11;
+#include <nanobind/stl/array.h>
+#include <nanobind/stl/set.h>
+#include <nanobind/stl/shared_ptr.h>
+#include <nanobind/stl/filesystem.h>
+
+namespace nb = nanobind;
 
 namespace tl
 {
     namespace python
     {
-        void compareOptions(py::module_& m)
+        void compareOptions(nb::module_& m)
         {
-            py::enum_<Compare>(m, "Compare")
+            nb::enum_<Compare>(m, "Compare")
                 .value("_None", Compare::None)
                 .value("B", Compare::B)
                 .value("Wipe", Compare::Wipe)
@@ -29,21 +40,21 @@ namespace tl
                 .value("Tile", Compare::Tile);
             FTK_ENUM_BIND(m, Compare);
 
-            py::enum_<CompareTime>(m, "CompareTime")
+            nb::enum_<CompareTime>(m, "CompareTime")
                 .value("Relative", CompareTime::Relative)
                 .value("Absolute", CompareTime::Absolute);
             FTK_ENUM_BIND(m, CompareTime);
 
-            py::class_<CompareOptions>(m, "CompareOptions")
-                .def(py::init())
-                .def_readwrite("compare", &CompareOptions::compare)
-                .def_readwrite("wipeCenter", &CompareOptions::wipeCenter)
-                .def_readwrite("wipeRotation", &CompareOptions::wipeRotation)
-                .def_readwrite("overlay", &CompareOptions::overlay)
-                .def_readwrite("differenceGain", &CompareOptions::differenceGain)
-                .def_readwrite("sameSize", &CompareOptions::sameSize)
-                .def(pybind11::self == pybind11::self)
-                .def(pybind11::self != pybind11::self);
+            nb::class_<CompareOptions>(m, "CompareOptions")
+                .def(nb::init())
+                .def_rw("compare", &CompareOptions::compare)
+                .def_rw("wipeCenter", &CompareOptions::wipeCenter)
+                .def_rw("wipeRotation", &CompareOptions::wipeRotation)
+                .def_rw("overlay", &CompareOptions::overlay)
+                .def_rw("differenceGain", &CompareOptions::differenceGain)
+                .def_rw("sameSize", &CompareOptions::sameSize)
+                .def(nanobind::self == nanobind::self)
+                .def(nanobind::self != nanobind::self);
 
             m.def("to_json",
                 [](const CompareOptions& value)

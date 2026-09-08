@@ -1,4 +1,4 @@
-pybind11_add_module(tlRenderPy Bindings.cpp)
+nanobind_add_module(tlRenderPy NB_STATIC Bindings.cpp)
 
 target_include_directories(tlRenderPy
     PUBLIC

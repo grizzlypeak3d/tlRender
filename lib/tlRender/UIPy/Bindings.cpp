@@ -3,6 +3,11 @@
 
 #include <tlRender/UIPy/Bindings.h>
 
+#include <tlRender/TimelinePy/OTIOCasters.h>
+
+#include <nanobind/stl/shared_ptr.h>
+#include <nanobind/stl/string.h>
+
 #include <tlRender/UIPy/ItemOptions.h>
 #include <tlRender/UIPy/PlaybackLoopWidget.h>
 #include <tlRender/UIPy/ThumbnailSystem.h>
@@ -17,20 +22,20 @@
 
 #include <ftk/Core/Context.h>
 
-namespace py = pybind11;
+namespace nb = nanobind;
 
 namespace tl
 {
     namespace python
     {
-        void uiBind(py::module_& m)
+        void uiBind(nb::module_& m)
         {
             auto mUI = m.def_submodule("ui", "User interface");
             
             mUI.def(
                 "init",
                 &ui::init,
-                py::arg("context"),
+                nb::arg("context"),
                 "Initialize the library.");
 
             itemOptions(mUI);

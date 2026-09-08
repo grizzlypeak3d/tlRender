@@ -7,18 +7,29 @@
 
 #include <ftk/CorePy/Bindings.h>
 
-#include <pybind11/operators.h>
-#include <pybind11/stl.h>
+#include <nanobind/operators.h>
+#include <nanobind/stl/string.h>
+#include <nanobind/stl/vector.h>
+#include <nanobind/stl/list.h>
+#include <nanobind/stl/map.h>
+#include <nanobind/stl/pair.h>
+#include <nanobind/stl/optional.h>
+#include <tlRender/TimelinePy/OTIOCasters.h>
 
-namespace py = pybind11;
+#include <nanobind/stl/array.h>
+#include <nanobind/stl/set.h>
+#include <nanobind/stl/shared_ptr.h>
+#include <nanobind/stl/filesystem.h>
+
+namespace nb = nanobind;
 
 namespace tl
 {
     namespace python
     {
-        void seqIO(py::module_& m)
+        void seqIO(nb::module_& m)
         {
-            py::enum_<MissingFrames>(m, "MissingFrames")
+            nb::enum_<MissingFrames>(m, "MissingFrames")
                 .value("Error", MissingFrames::Error)
                 .value("Hold", MissingFrames::Hold)
                 .value("Black", MissingFrames::Black)
@@ -26,14 +37,14 @@ namespace tl
                 .value("Gaps", MissingFrames::Gaps);
             FTK_ENUM_BIND(m, MissingFrames);
 
-            m.def("isStructural", &isStructural, py::arg("missingFrames"));
+            m.def("isStructural", &isStructural, nb::arg("missingFrames"));
 
-            py::class_<SeqOptions>(m, "SeqOptions")
-                .def(py::init())
-                .def_readwrite("defaultSpeed", &SeqOptions::defaultSpeed)
-                .def_readwrite("missingFrames", &SeqOptions::missingFrames)
-                .def(pybind11::self == pybind11::self)
-                .def(pybind11::self != pybind11::self);
+            nb::class_<SeqOptions>(m, "SeqOptions")
+                .def(nb::init())
+                .def_rw("defaultSpeed", &SeqOptions::defaultSpeed)
+                .def_rw("missingFrames", &SeqOptions::missingFrames)
+                .def(nanobind::self == nanobind::self)
+                .def(nanobind::self != nanobind::self);
         }
     }
 }

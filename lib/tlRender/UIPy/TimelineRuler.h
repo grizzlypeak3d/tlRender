@@ -4,13 +4,13 @@
 #pragma once
 
 
-#include <pybind11/pybind11.h>
+#include <nanobind/nanobind.h>
 
 namespace tl
 {
     namespace python
     {
-        void timelineRuler(pybind11::module_&);
+        void timelineRuler(nanobind::module_&);
     }
 }
 

@@ -3,23 +3,28 @@
 
 #include <tlRender/CorePy/Bindings.h>
 
+#include <tlRender/TimelinePy/OTIOCasters.h>
+
+#include <nanobind/stl/shared_ptr.h>
+#include <nanobind/stl/string.h>
+
 #include <tlRender/Core/AudioResample.h>
 
-namespace py = pybind11;
+namespace nb = nanobind;
 
 namespace tl
 {
     namespace python
     {
-        void audioResample(py::module_& m)
+        void audioResample(nb::module_& m)
         {
-            py::class_<AudioResample, std::shared_ptr<AudioResample> >(m, "AudioResample")
-                .def(py::init(&AudioResample::create),
-                    py::arg("input"),
-                    py::arg("output"))
-                .def_property_readonly("inputInfo", &AudioResample::getInputInfo, py::return_value_policy::copy)
-                .def_property_readonly("outputInfo", &AudioResample::getOutputInfo, py::return_value_policy::copy)
-                .def("process", &AudioResample::process, py::arg("audio"))
+            nb::class_<AudioResample>(m, "AudioResample")
+                .def(nb::new_(&AudioResample::create),
+                    nb::arg("input"),
+                    nb::arg("output"))
+                .def_prop_ro("inputInfo", &AudioResample::getInputInfo, nb::rv_policy::copy)
+                .def_prop_ro("outputInfo", &AudioResample::getOutputInfo, nb::rv_policy::copy)
+                .def("process", &AudioResample::process, nb::arg("audio"))
                 .def("flush", &AudioResample::flush);
         }
     }

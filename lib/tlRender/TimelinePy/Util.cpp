@@ -7,22 +7,33 @@
 
 #include <ftk/Core/Context.h>
 
-#include <pybind11/operators.h>
-#include <pybind11/stl.h>
+#include <nanobind/operators.h>
+#include <nanobind/stl/string.h>
+#include <nanobind/stl/vector.h>
+#include <nanobind/stl/list.h>
+#include <nanobind/stl/map.h>
+#include <nanobind/stl/pair.h>
+#include <nanobind/stl/optional.h>
+#include <tlRender/TimelinePy/OTIOCasters.h>
 
-namespace py = pybind11;
+#include <nanobind/stl/array.h>
+#include <nanobind/stl/set.h>
+#include <nanobind/stl/shared_ptr.h>
+#include <nanobind/stl/filesystem.h>
+
+namespace nb = nanobind;
 
 namespace tl
 {
     namespace python
     {
-        void util(py::module_& m)
+        void util(nb::module_& m)
         {
             m.def(
                 "getExts",
                 &getExts,
-                py::arg("context"),
-                py::arg("types") =
+                nb::arg("context"),
+                nb::arg("types") =
                     static_cast<int>(FileType::Media) |
                     static_cast<int>(FileType::Seq) |
                     static_cast<int>(FileType::Audio));
@@ -30,9 +41,9 @@ namespace tl
             m.def(
                 "getPaths",
                 &getPaths,
-                py::arg("context"),
-                py::arg("path"),
-                py::arg("options") = ftk::DirListOptions(),
+                nb::arg("context"),
+                nb::arg("path"),
+                nb::arg("options") = ftk::DirListOptions(),
                 "Get a list of paths to open from the given path.");
         }
     }

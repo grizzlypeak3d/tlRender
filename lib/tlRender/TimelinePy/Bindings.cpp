@@ -3,22 +3,27 @@
 
 #include <tlRender/TimelinePy/Bindings.h>
 
+#include <tlRender/TimelinePy/OTIOCasters.h>
+
+#include <nanobind/stl/shared_ptr.h>
+#include <nanobind/stl/string.h>
+
 #include <tlRender/Timeline/Init.h>
 
 #include <ftk/Core/Context.h>
 
-namespace py = pybind11;
+namespace nb = nanobind;
 
 namespace tl
 {
     namespace python
     {
-        void timelineBind(py::module_& m)
+        void timelineBind(nb::module_& m)
         {
             m.def(
                 "init",
                 &init,
-                py::arg("context"),
+                nb::arg("context"),
                 "Initialize the library.");
 
             timelineAudio(m);

@@ -9,29 +9,40 @@
 
 #include <ftk/Core/Context.h>
 
-#include <pybind11/stl.h>
-#include <pybind11/operators.h>
+#include <nanobind/stl/string.h>
+#include <nanobind/stl/vector.h>
+#include <nanobind/stl/list.h>
+#include <nanobind/stl/map.h>
+#include <nanobind/stl/pair.h>
+#include <nanobind/stl/optional.h>
+#include <tlRender/TimelinePy/OTIOCasters.h>
 
-namespace py = pybind11;
+#include <nanobind/stl/array.h>
+#include <nanobind/stl/set.h>
+#include <nanobind/stl/shared_ptr.h>
+#include <nanobind/stl/filesystem.h>
+#include <nanobind/operators.h>
+
+namespace nb = nanobind;
 
 namespace tl
 {
     namespace python
     {
-        void timeLabel(py::module_& m)
+        void timeLabel(nb::module_& m)
         {
             using namespace ui;
 
-            py::class_<TimeLabel, ftk::IWidget, std::shared_ptr<TimeLabel> >(m, "TimeLabel")
+            nb::class_<TimeLabel, ftk::IWidget>(m, "TimeLabel")
                 .def(
-                    py::init(py::overload_cast<
+                    nb::new_(nb::overload_cast<
                         const std::shared_ptr<ftk::Context>&,
                         const std::shared_ptr<TimeUnitsModel>&,
                         const std::shared_ptr<ftk::IWidget>&>(&TimeLabel::create)),
-                    py::arg("context"),
-                    py::arg("timeUnitsModel"),
-                    py::arg("parent") = nullptr)
-                .def_property("value", &TimeLabel::getValue, &TimeLabel::setValue)
+                    nb::arg("context"),
+                    nb::arg("timeUnitsModel"),
+                    nb::arg("parent") = nullptr)
+                .def_prop_rw("value", &TimeLabel::getValue, &TimeLabel::setValue)
                 .def("setMarginRole", &TimeLabel::setMarginRole);
         }
     }

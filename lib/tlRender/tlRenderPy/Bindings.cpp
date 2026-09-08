@@ -8,18 +8,22 @@
 
 #include <opentimelineio/version.h>
 
-#include <pybind11/pybind11.h>
+#include <tlRender/TimelinePy/OTIOCasters.h>
+
+#include <nanobind/nanobind.h>
+#include <nanobind/stl/shared_ptr.h>
+#include <nanobind/stl/string.h>
 
 #include <iostream>
 
-namespace py = pybind11;
+namespace nb = nanobind;
 
-PYBIND11_MODULE(tlRenderPy, m)
+NB_MODULE(tlRenderPy, m)
 {
     m.doc() = "tlRender is an open source library for building playback and review applications for visual effects, film, and animation.";
 
-    py::module_::import("opentimelineio");
-    py::module_::import("ftkPy");
+    nb::module_::import_("opentimelineio");
+    nb::module_::import_("ftkPy");
 
     tl::python::coreBind(m);
     tl::python::ioBind(m);

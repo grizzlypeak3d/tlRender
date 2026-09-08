@@ -4,13 +4,13 @@
 #pragma once
 
 
-#include <pybind11/pybind11.h>
+#include <nanobind/nanobind.h>
 
 namespace tl
 {
     namespace python
     {
-        void timeEdit(pybind11::module_&);
+        void timeEdit(nanobind::module_&);
     }
 }
 

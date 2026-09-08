@@ -8,19 +8,30 @@
 #include <ftk/CorePy/Bindings.h>
 #include <ftk/Core/Context.h>
 
-#include <pybind11/operators.h>
-#include <pybind11/stl.h>
-#include <pybind11/functional.h>
+#include <nanobind/operators.h>
+#include <nanobind/stl/string.h>
+#include <nanobind/stl/vector.h>
+#include <nanobind/stl/list.h>
+#include <nanobind/stl/map.h>
+#include <nanobind/stl/pair.h>
+#include <nanobind/stl/optional.h>
+#include <tlRender/TimelinePy/OTIOCasters.h>
 
-namespace py = pybind11;
+#include <nanobind/stl/array.h>
+#include <nanobind/stl/set.h>
+#include <nanobind/stl/shared_ptr.h>
+#include <nanobind/stl/filesystem.h>
+#include <nanobind/stl/function.h>
+
+namespace nb = nanobind;
 
 namespace tl
 {
     namespace python
     {
-        void timeUnits(py::module_& m)
+        void timeUnits(nb::module_& m)
         {
-            py::enum_<TimeUnits>(m, "TimeUnits")
+            nb::enum_<TimeUnits>(m, "TimeUnits")
                 .value("Frames", TimeUnits::Frames)
                 .value("Seconds", TimeUnits::Seconds)
                 .value("Timecode", TimeUnits::Timecode);
@@ -30,16 +41,16 @@ namespace tl
             m.def(
                 "timeToText",
                 &timeToText,
-                py::arg("time"),
-                py::arg("units"));
+                nb::arg("time"),
+                nb::arg("units"));
 
-            py::class_<ITimeUnitsModel, std::shared_ptr<ITimeUnitsModel> >(m, "ITimeUnitsModel")
-                .def("getLabel", &ITimeUnitsModel::getLabel, py::arg("time"));
+            nb::class_<ITimeUnitsModel>(m, "ITimeUnitsModel")
+                .def("getLabel", &ITimeUnitsModel::getLabel, nb::arg("time"));
 
-            py::class_<TimeUnitsModel, ITimeUnitsModel, std::shared_ptr<TimeUnitsModel> >(m, "TimeUnitsModel")
-                .def(py::init(&TimeUnitsModel::create), py::arg("context"))
-                .def_property("timeUnits", &TimeUnitsModel::getTimeUnits, &TimeUnitsModel::setTimeUnits)
-                .def_property_readonly("observeTimeUnits", &TimeUnitsModel::observeTimeUnits);
+            nb::class_<TimeUnitsModel, ITimeUnitsModel>(m, "TimeUnitsModel")
+                .def(nb::new_(&TimeUnitsModel::create), nb::arg("context"))
+                .def_prop_rw("timeUnits", &TimeUnitsModel::getTimeUnits, &TimeUnitsModel::setTimeUnits)
+                .def_prop_ro("observeTimeUnits", &TimeUnitsModel::observeTimeUnits);
         }
     }
 }

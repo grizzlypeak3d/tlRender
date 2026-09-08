@@ -7,67 +7,78 @@
 
 #include <ftk/Core/Context.h>
 
-#include <pybind11/stl.h>
+#include <nanobind/stl/string.h>
+#include <nanobind/stl/vector.h>
+#include <nanobind/stl/list.h>
+#include <nanobind/stl/map.h>
+#include <nanobind/stl/pair.h>
+#include <nanobind/stl/optional.h>
+#include <tlRender/TimelinePy/OTIOCasters.h>
 
-namespace py = pybind11;
+#include <nanobind/stl/array.h>
+#include <nanobind/stl/set.h>
+#include <nanobind/stl/shared_ptr.h>
+#include <nanobind/stl/filesystem.h>
+
+namespace nb = nanobind;
 
 namespace tl
 {
     namespace python
     {
-        void ioSystem(py::module_& m)
+        void ioSystem(nb::module_& m)
         {
-            py::class_<ReadSystem, ftk::ISystem, std::shared_ptr<ReadSystem> >(m, "ReadSystem")
-                .def(py::init(&ReadSystem::create),
-                    py::arg("context"))
-                .def_property_readonly("plugins", &ReadSystem::getPlugins)
+            nb::class_<ReadSystem, ftk::ISystem>(m, "ReadSystem")
+                .def(nb::new_(&ReadSystem::create),
+                    nb::arg("context"))
+                .def_prop_ro("plugins", &ReadSystem::getPlugins)
                 .def("addPlugin", &ReadSystem::addPlugin,
-                    py::arg("plugin"))
+                    nb::arg("plugin"))
                 .def("removePlugin", &ReadSystem::removePlugin,
-                    py::arg("plugin"))
+                    nb::arg("plugin"))
                 .def("getPlugin", static_cast<std::shared_ptr<IReadPlugin>
                         (ReadSystem::*)(const ftk::Path&) const>(&ReadSystem::getPlugin),
-                    py::arg("path"))
-                .def_property_readonly("names", &ReadSystem::getNames)
+                    nb::arg("path"))
+                .def_prop_ro("names", &ReadSystem::getNames)
                 .def("getExts", &ReadSystem::getExts,
-                    py::arg("types") =
+                    nb::arg("types") =
                         static_cast<int>(FileType::Media) |
                         static_cast<int>(FileType::Seq))
                 .def("getFileType", &ReadSystem::getFileType,
-                    py::arg("extension"))
-                .def("videoRead", py::overload_cast<
+                    nb::arg("extension"))
+                .def("videoRead", nb::overload_cast<
                         const ftk::Path&,
                         const IOOptions&>(&ReadSystem::videoRead),
-                    py::arg("path"),
-                    py::arg("options") = IOOptions())
-                .def("audioRead", py::overload_cast<
+                    nb::arg("path"),
+                    nb::arg("options") = IOOptions())
+                .def("audioRead", nb::overload_cast<
                         const ftk::Path&,
                         const IOOptions&>(&ReadSystem::audioRead),
-                    py::arg("path"),
-                    py::arg("options") = IOOptions());
+                    nb::arg("path"),
+                    nb::arg("options") = IOOptions());
 
-            py::class_<WriteSystem, ftk::ISystem, std::shared_ptr<WriteSystem> >(m, "WriteSystem")
-                .def(py::init(&WriteSystem::create),
-                    py::arg("context"))
-                .def_property_readonly("plugins", &WriteSystem::getPlugins)
+            nb::class_<WriteSystem, ftk::ISystem>(m, "WriteSystem")
+                .def(nb::new_(&WriteSystem::create),
+                    nb::arg("context"))
+                .def_prop_ro("plugins", &WriteSystem::getPlugins)
                 .def("addPlugin", &WriteSystem::addPlugin,
-                    py::arg("plugin"))
+                    nb::arg("plugin"))
                 .def("removePlugin", &WriteSystem::removePlugin,
-                    py::arg("plugin"))
+                    nb::arg("plugin"))
                 .def("getPlugin", static_cast<std::shared_ptr<IWritePlugin>
                         (WriteSystem::*)(const ftk::Path&) const>(&WriteSystem::getPlugin),
-                    py::arg("path"))
-                .def_property_readonly("names", &WriteSystem::getNames)
+                    nb::arg("path"))
+                .def_prop_ro("names", &WriteSystem::getNames)
                 .def("getExts", &WriteSystem::getExts,
-                    py::arg("types") =
+                    nb::arg("types") =
                         static_cast<int>(FileType::Media) |
                         static_cast<int>(FileType::Seq))
                 .def("getFileType", &WriteSystem::getFileType,
-                    py::arg("extension"))
+                    nb::arg("extension"))
                 .def("write", &WriteSystem::write,
-                    py::arg("path"),
-                    py::arg("info"),
-                    py::arg("options") = IOOptions());
+                    nb::arg("path"),
+                    nb::arg("info"),
+                    nb::arg("options") = IOOptions());
         }
     }
 }

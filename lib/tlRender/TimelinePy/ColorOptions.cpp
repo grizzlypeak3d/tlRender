@@ -7,53 +7,64 @@
 
 #include <ftk/CorePy/Bindings.h>
 
-#include <pybind11/operators.h>
-#include <pybind11/stl.h>
+#include <nanobind/operators.h>
+#include <nanobind/stl/string.h>
+#include <nanobind/stl/vector.h>
+#include <nanobind/stl/list.h>
+#include <nanobind/stl/map.h>
+#include <nanobind/stl/pair.h>
+#include <nanobind/stl/optional.h>
+#include <tlRender/TimelinePy/OTIOCasters.h>
 
-namespace py = pybind11;
+#include <nanobind/stl/array.h>
+#include <nanobind/stl/set.h>
+#include <nanobind/stl/shared_ptr.h>
+#include <nanobind/stl/filesystem.h>
+
+namespace nb = nanobind;
 
 namespace tl
 {
     namespace python
     {
-        void colorOptions(py::module_& m)
+        void colorOptions(nb::module_& m)
         {
-            py::enum_<OCIOConfig>(m, "OCIOConfig")
+            nb::enum_<OCIOConfig>(m, "OCIOConfig")
                 .value("BuiltIn", OCIOConfig::BuiltIn)
                 .value("EnvVar", OCIOConfig::EnvVar)
                 .value("File", OCIOConfig::File);
             FTK_ENUM_BIND(m, OCIOConfig);
 
-            py::class_<OCIOOptions>(m, "OCIOOptions")
-                .def(py::init())
-                .def_readwrite("enabled", &OCIOOptions::enabled)
-                .def_readwrite("config", &OCIOOptions::config)
-                .def_readwrite("fileName", &OCIOOptions::fileName)
-                .def_readwrite("input", &OCIOOptions::input)
-                .def_readwrite("display", &OCIOOptions::display)
-                .def_readwrite("view", &OCIOOptions::view)
-                .def_readwrite("look", &OCIOOptions::look)
-                .def(pybind11::self == pybind11::self)
-                .def(pybind11::self != pybind11::self);
+            nb::class_<OCIOOptions>(m, "OCIOOptions")
+                .def(nb::init())
+                .def_rw("enabled", &OCIOOptions::enabled)
+                .def_rw("config", &OCIOOptions::config)
+                .def_rw("fileName", &OCIOOptions::fileName)
+                .def_rw("input", &OCIOOptions::input)
+                .def_rw("display", &OCIOOptions::display)
+                .def_rw("view", &OCIOOptions::view)
+                .def_rw("look", &OCIOOptions::look)
+                .def(nanobind::self == nanobind::self)
+                .def(nanobind::self != nanobind::self);
 
-            py::enum_<LUTDirection>(m, "LUTDirection")
+            nb::enum_<LUTDirection>(m, "LUTDirection")
                 .value("Forward", LUTDirection::Forward)
                 .value("Inverse", LUTDirection::Inverse);
             FTK_ENUM_BIND(m, LUTDirection);
 
-            py::enum_<LUTOrder>(m, "LUTOrder")
+            nb::enum_<LUTOrder>(m, "LUTOrder")
                 .value("PostConfig", LUTOrder::PostConfig)
                 .value("PreConfig", LUTOrder::PreConfig);
             FTK_ENUM_BIND(m, LUTOrder);
 
-            py::class_<LUTOptions>(m, "LUTOptions")
-                .def(py::init())
-                .def_readwrite("enabled", &LUTOptions::enabled)
-                .def_readwrite("fileName", &LUTOptions::fileName)
-                .def_readwrite("direction", &LUTOptions::direction)
-                .def_readwrite("order", &LUTOptions::order)
-                .def(pybind11::self == pybind11::self)
-                .def(pybind11::self != pybind11::self);
+            nb::class_<LUTOptions>(m, "LUTOptions")
+                .def(nb::init())
+                .def_rw("enabled", &LUTOptions::enabled)
+                .def_rw("fileName", &LUTOptions::fileName)
+                .def_rw("direction", &LUTOptions::direction)
+                .def_rw("order", &LUTOptions::order)
+                .def(nanobind::self == nanobind::self)
+                .def(nanobind::self != nanobind::self);
 
             m.def("getLUTFormatNames", &getLUTFormatNames);
             m.def("getLUTFormatExts", &getLUTFormatExts);

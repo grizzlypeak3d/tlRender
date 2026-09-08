@@ -5,35 +5,46 @@
 
 #include <tlRender/IO/Write.h>
 
-#include <pybind11/stl.h>
+#include <nanobind/stl/string.h>
+#include <nanobind/stl/vector.h>
+#include <nanobind/stl/list.h>
+#include <nanobind/stl/map.h>
+#include <nanobind/stl/pair.h>
+#include <nanobind/stl/optional.h>
+#include <tlRender/TimelinePy/OTIOCasters.h>
 
-namespace py = pybind11;
+#include <nanobind/stl/array.h>
+#include <nanobind/stl/set.h>
+#include <nanobind/stl/shared_ptr.h>
+#include <nanobind/stl/filesystem.h>
+
+namespace nb = nanobind;
 
 namespace tl
 {
     namespace python
     {
-        void write(py::module_& m)
+        void write(nb::module_& m)
         {
-            py::class_<IWrite, IIO, std::shared_ptr<IWrite> >(m, "IWrite")
+            nb::class_<IWrite, IIO>(m, "IWrite")
                 .def("writeVideo", &IWrite::writeVideo,
-                    py::arg("time"),
-                    py::arg("image"),
-                    py::arg("options") = IOOptions())
+                    nb::arg("time"),
+                    nb::arg("image"),
+                    nb::arg("options") = IOOptions())
                 .def("writeAudio", &IWrite::writeAudio,
-                    py::arg("timeRange"),
-                    py::arg("audio"),
-                    py::arg("options") = IOOptions())
+                    nb::arg("timeRange"),
+                    nb::arg("audio"),
+                    nb::arg("options") = IOOptions())
                 .def("finish", &IWrite::finish);
 
-            py::class_<IWritePlugin, IIOPlugin, std::shared_ptr<IWritePlugin> >(m, "IWritePlugin")
+            nb::class_<IWritePlugin, IIOPlugin>(m, "IWritePlugin")
                 .def("getInfo", &IWritePlugin::getInfo,
-                    py::arg("info"),
-                    py::arg("options") = IOOptions())
+                    nb::arg("info"),
+                    nb::arg("options") = IOOptions())
                 .def("write", &IWritePlugin::write,
-                    py::arg("path"),
-                    py::arg("info"),
-                    py::arg("options") = IOOptions());
+                    nb::arg("path"),
+                    nb::arg("info"),
+                    nb::arg("options") = IOOptions());
         }
     }
 }
