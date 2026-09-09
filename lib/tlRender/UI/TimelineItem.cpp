@@ -4,6 +4,7 @@
 #include <tlRender/UI/TimelineItemPrivate.h>
 
 #include <tlRender/Timeline/IRender.h>
+#include <tlRender/Timeline/OTIOVersion.h>
 #include <tlRender/Timeline/Util.h>
 
 #include <ftk/UI/DrawUtil.h>
@@ -1109,10 +1110,12 @@ namespace tl
                     }
                     item.availableRange = otioItem->available_range();
                     item.trimmedRange = otioItem->trimmed_range();
+#if TLRENDER_OTIO_ITEM_COLOR
                     if (const auto color = otioItem->color())
                     {
                         item.otioColor = toColor(color.value());
                     }
+#endif // TLRENDER_OTIO_ITEM_COLOR
                     item.enabled = otioTrack->enabled();
                     track.items.push_back(std::move(item));
                 }

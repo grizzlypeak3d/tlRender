@@ -5,6 +5,7 @@
 
 #include <tlRender/UI/Export.h>
 #include <tlRender/Timeline/ColorOptions.h>
+#include <tlRender/Timeline/OTIOVersion.h>
 #include <tlRender/Timeline/TimeUnits.h>
 #include <tlRender/Timeline/Timeline.h>
 
@@ -130,15 +131,22 @@ namespace tl
         //! Get the markers from an item.
         TL_UI_API std::vector<Marker> getMarkers(const OTIO_NS::Item*);
 
+#if TLRENDER_OTIO_ITEM_COLOR
         //! Convert an OTIO color.
         //!
         //! The components are sRGB encoded and range from zero to one, which
         //! is what the user interface works in, so they are used as they are.
         TL_UI_API ftk::Color4F toColor(const OTIO_NS::Color&);
+#endif // TLRENDER_OTIO_ITEM_COLOR
 
+#if TLRENDER_OTIO_MARKER_COLOR
         //! Convert a marker color, which is optional; markers without one are
         //! given the color OTIO uses by default.
         TL_UI_API ftk::Color4F getMarkerColor(const std::optional<OTIO_NS::Color>&);
+#else // TLRENDER_OTIO_MARKER_COLOR
+        //! Convert a marker color, which older OpenTimelineIO gives by name.
+        TL_UI_API ftk::Color4F getMarkerColor(const std::string&);
+#endif // TLRENDER_OTIO_MARKER_COLOR
 
         //! Get the color for an item, which is the color the OTIO item carries
         //! where it has one, and the given default otherwise.

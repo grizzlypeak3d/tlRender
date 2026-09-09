@@ -56,6 +56,7 @@ namespace tl
             return out;
         }
 
+#if TLRENDER_OTIO_ITEM_COLOR
         ftk::Color4F toColor(const OTIO_NS::Color& value)
         {
             return ftk::Color4F(
@@ -64,7 +65,9 @@ namespace tl
                 static_cast<float>(value.b()),
                 static_cast<float>(value.a()));
         }
+#endif // TLRENDER_OTIO_ITEM_COLOR
 
+#if TLRENDER_OTIO_MARKER_COLOR
         ftk::Color4F getMarkerColor(const std::optional<OTIO_NS::Color>& value)
         {
             // OTIO gives markers green by default, so markers that do not
@@ -73,6 +76,29 @@ namespace tl
                 toColor(value.value()) :
                 ftk::Color4F(0.F, 1.F, 0.F);
         }
+#else // TLRENDER_OTIO_MARKER_COLOR
+        ftk::Color4F getMarkerColor(const std::string& value)
+        {
+            // The named colors of older OTIO markers, green being the
+            // default there too.
+            static const std::map<std::string, ftk::Color4F> colors =
+            {
+                { "PINK",    ftk::Color4F(1.F, .75F, .8F) },
+                { "RED",     ftk::Color4F(1.F, 0.F, 0.F) },
+                { "ORANGE",  ftk::Color4F(1.F, .65F, 0.F) },
+                { "YELLOW",  ftk::Color4F(1.F, 1.F, 0.F) },
+                { "GREEN",   ftk::Color4F(0.F, 1.F, 0.F) },
+                { "CYAN",    ftk::Color4F(0.F, 1.F, 1.F) },
+                { "BLUE",    ftk::Color4F(0.F, 0.F, 1.F) },
+                { "PURPLE",  ftk::Color4F(.5F, 0.F, .5F) },
+                { "MAGENTA", ftk::Color4F(1.F, 0.F, 1.F) },
+                { "BLACK",   ftk::Color4F(0.F, 0.F, 0.F) },
+                { "WHITE",   ftk::Color4F(1.F, 1.F, 1.F) }
+            };
+            const auto i = colors.find(value);
+            return i != colors.end() ? i->second : ftk::Color4F(0.F, 1.F, 0.F);
+        }
+#endif // TLRENDER_OTIO_MARKER_COLOR
 
         ftk::Color4F getItemColor(
             const OTIO_NS::Item* otioItem,
@@ -80,6 +106,7 @@ namespace tl
             const DisplayOptions& displayOptions)
         {
             ftk::Color4F out = defaultColor;
+#if TLRENDER_OTIO_ITEM_COLOR
             if (displayOptions.clipColors && otioItem)
             {
                 if (const auto color = otioItem->color())
@@ -87,6 +114,7 @@ namespace tl
                     out = toColor(color.value());
                 }
             }
+#endif // TLRENDER_OTIO_ITEM_COLOR
             return out;
         }
 

@@ -3,6 +3,7 @@
 
 #include <tlRender/TimelineTest/TimelineTest.h>
 
+#include <tlRender/Timeline/OTIOVersion.h>
 #include <tlRender/Timeline/Timeline.h>
 #include <tlRender/Timeline/Util.h>
 
@@ -1432,6 +1433,7 @@ namespace tl
             // Clips may carry a color, which the timeline widget uses to color
             // the clip. This checks that the color survives being read, since
             // the color is optional and clips without one keep the default.
+#if TLRENDER_OTIO_ITEM_COLOR
             try
             {
                 const ftk::Path path(TLRENDER_SAMPLE_DATA, "ClipColors.otio");
@@ -1454,6 +1456,9 @@ namespace tl
             {
                 _error(e.what());
             }
+#else // TLRENDER_OTIO_ITEM_COLOR
+            _print("Skipped: this OpenTimelineIO has no item colors");
+#endif // TLRENDER_OTIO_ITEM_COLOR
 
             // Media frame numbers are only a coordinate on the timeline when
             // the timeline is one media played through. These are the two ways

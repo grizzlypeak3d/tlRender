@@ -16,6 +16,7 @@ set(HEADERS
     Timeline.h
     TimelineOptions.h
     Transition.h
+    OTIOVersion.h
     Util.h
     UtilInline.h
     Video.h)
