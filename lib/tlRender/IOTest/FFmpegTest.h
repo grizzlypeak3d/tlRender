@@ -54,6 +54,7 @@ namespace tl
             void _convert();
             void _io();
             void _audio();
+            void _audioMerge();
             void _split();
         };
     }

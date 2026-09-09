@@ -45,6 +45,7 @@ namespace tl
             bool yuvToRGBConversion = false;
             bool hwAccel = false;
             AudioInfo audioConvertInfo;
+            bool audioMerge = Options().audioMerge;
             size_t threadCount = Options().threadCount;
             size_t videoBufferSize = 4;
             OTIO_NS::RationalTime audioBufferSize = OTIO_NS::RationalTime(2.0, 1.0);
@@ -172,6 +173,7 @@ namespace tl
 
         private:
             int _decode(const OTIO_NS::RationalTime& currentTime);
+            void _queueFrame(size_t streamIndex, const OTIO_NS::RationalTime& currentTime);
             void _setError(int);
             void _close();
 
@@ -186,11 +188,21 @@ namespace tl
             AVIOBufferData _avIOBufferData;
             uint8_t* _avIOContextBuffer = nullptr;
             AVIOContext* _avIOContext = nullptr;
+            //! The stream read, and with it every mono stream merged into
+            //! the output as a channel (see Options::audioMerge). The first
+            //! is the one seeks and times go by.
             int _avStream = -1;
+            std::vector<int> _avStreams;
             std::map<int, AVCodecParameters*> _avCodecParameters;
             std::map<int, AVCodecContext*> _avCodecContext;
             AVFrame* _avFrame = nullptr;
             SwrContext* _swrContext = nullptr;
+            //! Decoded samples waiting for the resampler, one queue per
+            //! input plane: a plane per merged stream, per channel of a
+            //! planar stream, or one holding a packed stream.
+            std::vector<std::vector<uint8_t> > _planes;
+            size_t _planeByteCount = 0;
+            bool _flushed = false;
             std::list<std::shared_ptr<Audio> > _buffer;
             bool _eof = false;
             size_t _errorCount = 0;

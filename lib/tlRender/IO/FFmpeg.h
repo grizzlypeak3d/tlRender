@@ -21,6 +21,12 @@ namespace tl
             bool   hwAccel     = false;
             size_t threadCount = 0;
 
+            //! Read a run of mono audio streams as the channels of one
+            //! track. Broadcast files (XDCAM MXF, and QuickTime from some
+            //! cameras) carry each channel as its own stream; read as a
+            //! single stream they play one channel.
+            bool   audioMerge  = true;
+
             bool operator == (const Options&) const = default;
         };
 

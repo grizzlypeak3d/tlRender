@@ -41,6 +41,7 @@ namespace tl
             _convert();
             _io();
             _audio();
+            _audioMerge();
             _split();
             _commandLine();
             _subfileSeek();
@@ -1182,6 +1183,159 @@ namespace tl
             catch (const std::exception& e)
             {
                 _error(e.what());
+            }
+        }
+
+        void FFmpegTest::_audioMerge()
+        {
+            // A file that carries each audio channel as its own mono stream
+            // reads as one track with a channel per stream, and as its
+            // first stream alone when merging is off. The writer makes one
+            // stream, so the fixture is written with the library itself:
+            // two streams of PCM, each holding a constant that names it.
+            auto readSystem = _context->getSystem<ReadSystem>();
+            auto readPlugin = readSystem->getPlugin<ffmpeg::ReadPlugin>();
+            const ftk::Path path(
+                ftk::fromFileSystem(_getTempDir() / "FFmpegAudioMerge.mov"));
+            const int sampleRate = 48000;
+            const int sampleCount = sampleRate;
+            const int16_t values[2] = { 1000, -2000 };
+            {
+                AVFormatContext* avFormatContext = nullptr;
+                int r = avformat_alloc_output_context2(
+                    &avFormatContext, nullptr, nullptr, path.get().c_str());
+                FTK_CHECK(r >= 0 && avFormatContext);
+                if (r < 0 || !avFormatContext)
+                {
+                    return;
+                }
+                for (int s = 0; s < 2; ++s)
+                {
+                    AVStream* avStream = avformat_new_stream(avFormatContext, nullptr);
+                    avStream->codecpar->codec_type = AVMEDIA_TYPE_AUDIO;
+                    avStream->codecpar->codec_id = AV_CODEC_ID_PCM_S16LE;
+                    avStream->codecpar->format = AV_SAMPLE_FMT_S16;
+                    avStream->codecpar->sample_rate = sampleRate;
+                    av_channel_layout_default(&avStream->codecpar->ch_layout, 1);
+                    avStream->time_base = AVRational({ 1, sampleRate });
+                }
+                r = avio_open(&avFormatContext->pb, path.get().c_str(), AVIO_FLAG_WRITE);
+                FTK_CHECK(r >= 0);
+                r = avformat_write_header(avFormatContext, nullptr);
+                FTK_CHECK(r >= 0);
+                AVPacket* avPacket = av_packet_alloc();
+                const int packetSampleCount = 1024;
+                for (int offset = 0; offset < sampleCount; offset += packetSampleCount)
+                {
+                    const int count = std::min(packetSampleCount, sampleCount - offset);
+                    for (int s = 0; s < 2; ++s)
+                    {
+                        av_new_packet(avPacket, count * sizeof(int16_t));
+                        int16_t* data = reinterpret_cast<int16_t*>(avPacket->data);
+                        std::fill(data, data + count, values[s]);
+                        avPacket->stream_index = s;
+                        const AVRational tb = avFormatContext->streams[s]->time_base;
+                        avPacket->pts = av_rescale_q(offset, AVRational({ 1, sampleRate }), tb);
+                        avPacket->dts = avPacket->pts;
+                        avPacket->duration = av_rescale_q(count, AVRational({ 1, sampleRate }), tb);
+                        r = av_interleaved_write_frame(avFormatContext, avPacket);
+                        FTK_CHECK(r >= 0);
+                    }
+                }
+                av_packet_free(&avPacket);
+                av_write_trailer(avFormatContext);
+                avio_closep(&avFormatContext->pb);
+                avformat_free_context(avFormatContext);
+            }
+
+            const auto readSamples = [&](
+                const std::shared_ptr<IAudioRead>& read,
+                const IOInfo& info,
+                size_t count) -> std::vector<int16_t>
+            {
+                std::vector<int16_t> out;
+                const auto data = read->readAudio(
+                    OTIO_NS::TimeRange(
+                        info.audioTime->start_time(),
+                        OTIO_NS::RationalTime(static_cast<double>(count), sampleRate))).get();
+                if (data.audio && data.audio->getType() == AudioType::S16)
+                {
+                    const int16_t* p = reinterpret_cast<const int16_t*>(data.audio->getData());
+                    out.assign(p, p + data.audio->getSampleCount() * data.audio->getChannelCount());
+                }
+                return out;
+            };
+            const size_t count = 4800;
+
+            // Merged: two channels, the constants interleaved.
+            {
+                auto read = readPlugin->audioRead(path);
+                const IOInfo info = read->getInfo().get();
+                FTK_CHECK(info.audio.channelCount == 2);
+                FTK_CHECK(info.audio.type == AudioType::S16);
+                FTK_CHECK(info.audioTime.has_value());
+                if (info.audioTime.has_value() && 2 == info.audio.channelCount)
+                {
+                    const auto samples = readSamples(read, info, count);
+                    FTK_CHECK(samples.size() == count * 2);
+                    size_t mismatches = 0;
+                    for (size_t i = 0; i + 1 < samples.size(); i += 2)
+                    {
+                        if (samples[i] != values[0] || samples[i + 1] != values[1])
+                        {
+                            ++mismatches;
+                        }
+                    }
+                    FTK_CHECK(0 == mismatches);
+                }
+            }
+
+            // Not merged: the first stream, mono.
+            {
+                IOOptions options;
+                options["FFmpeg/AudioMerge"] = "0";
+                auto read = readPlugin->audioRead(path, {}, options);
+                const IOInfo info = read->getInfo().get();
+                FTK_CHECK(info.audio.channelCount == 1);
+                if (info.audioTime.has_value() && 1 == info.audio.channelCount)
+                {
+                    const auto samples = readSamples(read, info, count);
+                    FTK_CHECK(samples.size() == count);
+                    FTK_CHECK(std::all_of(
+                        samples.begin(),
+                        samples.end(),
+                        [&](int16_t v) { return v == values[0]; }));
+                }
+            }
+
+            // The command line merges the same way, through ffmpeg's
+            // amerge filter.
+            if (!ffmpeg_cmd::getVersion(IOOptions(), nullptr).empty())
+            {
+                IOOptions options;
+                options["FFmpeg/CommandLine"] = "Always";
+                auto read = readPlugin->audioRead(path, {}, options);
+                FTK_CHECK(std::dynamic_pointer_cast<ffmpeg_cmd::AudioRead>(read));
+                const IOInfo info = read->getInfo().get();
+                FTK_CHECK(info.audio.channelCount == 2);
+                if (info.audioTime.has_value() && 2 == info.audio.channelCount)
+                {
+                    const auto samples = readSamples(read, info, count);
+                    FTK_CHECK(samples.size() == count * 2);
+                    size_t mismatches = 0;
+                    for (size_t i = 0; i + 1 < samples.size(); i += 2)
+                    {
+                        if (samples[i] != values[0] || samples[i + 1] != values[1])
+                        {
+                            ++mismatches;
+                        }
+                    }
+                    FTK_CHECK(0 == mismatches);
+                }
+            }
+            else
+            {
+                _print("Skipped: no FFmpeg command line for the merge");
             }
         }
 

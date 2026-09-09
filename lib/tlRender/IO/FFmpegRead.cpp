@@ -110,6 +110,12 @@ namespace tl
                 std::stringstream ss(i->second);
                 ss >> out.audioConvertInfo.sampleRate;
             }
+            if (auto i = options.find("FFmpeg/AudioMerge");
+                i != options.end())
+            {
+                std::stringstream ss(i->second);
+                ss >> out.audioMerge;
+            }
             if (auto i = options.find("FFmpeg/ThreadCount");
                 i != options.end())
             {

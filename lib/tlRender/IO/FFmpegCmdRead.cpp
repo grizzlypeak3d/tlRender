@@ -2,6 +2,7 @@
 // Copyright Contributors to the tlRender project.
 
 #include <tlRender/IO/FFmpegCmdPrivate.h>
+#include <tlRender/IO/FFmpeg.h>
 
 #include <ftk/Core/Format.h>
 #include <ftk/Core/LogSystem.h>
@@ -56,6 +57,7 @@ namespace tl
         struct AudioRead::Private
         {
             IOInfo info;
+            std::vector<int> audioStreams;
             //! See VideoRead::Private::infoValid.
             std::atomic<bool> infoValid{ false };
 
@@ -223,7 +225,7 @@ namespace tl
                 [this, path, options]
                 {
                     FTK_P();
-                    p.info = getIOInfo(path, options, _logSystem.lock());
+                    p.info = getIOInfo(path, options, _logSystem.lock(), &p.audioStreams);
                     p.infoValid = true;
                     _run();
                 });
@@ -333,14 +335,22 @@ namespace tl
         IOInfo getIOInfo(
             const ftk::Path& path,
             const IOOptions& ioOptions,
-            const std::shared_ptr<ftk::LogSystem>& logSystem)
+            const std::shared_ptr<ftk::LogSystem>& logSystem,
+            std::vector<int>* audioStreams)
         {
             IOInfo out;
             try
             {
                 // Get audio conversion information.
                 AudioInfo audioConvertInfo;
+                bool audioMerge = ffmpeg::Options().audioMerge;
                 {
+                    if (auto i = ioOptions.find("FFmpeg/AudioMerge");
+                        i != ioOptions.end())
+                    {
+                        std::stringstream ss(i->second);
+                        ss >> audioMerge;
+                    }
                     if (auto i = ioOptions.find("FFmpeg/AudioChannelCount");
                         i != ioOptions.end())
                     {
@@ -598,6 +608,39 @@ namespace tl
                                 fileSampleRate = atoi(k->get<std::string>().c_str());
                             }
 
+                            // A mono stream is taken with every other mono
+                            // stream that matches it, as the channels of one
+                            // track; see ffmpeg::ReadAudio.
+                            std::vector<int> streams;
+                            if (auto index = j.find("index"); index != j.end())
+                            {
+                                streams.push_back(*index);
+                            }
+                            if (audioMerge && 1 == fileChannelCount && !streams.empty())
+                            {
+                                for (const auto& other : i.value())
+                                {
+                                    auto index = other.find("index");
+                                    auto type = other.find("codec_type");
+                                    auto channels = other.find("channels");
+                                    if (index != other.end() &&
+                                        *index != streams.front() &&
+                                        type != other.end() && "audio" == *type &&
+                                        channels != other.end() && 1 == channels->get<int>() &&
+                                        other.value("codec_name", "") == j.value("codec_name", "") &&
+                                        other.value("sample_rate", "") == j.value("sample_rate", "") &&
+                                        other.value("sample_fmt", "") == j.value("sample_fmt", ""))
+                                    {
+                                        streams.push_back(*index);
+                                    }
+                                }
+                                fileChannelCount = streams.size();
+                            }
+                            if (audioStreams)
+                            {
+                                *audioStreams = streams;
+                            }
+
                             size_t channelCount = fileChannelCount;
                             AudioType audioType = fileAudioType;
                             size_t sampleRate = fileSampleRate;
@@ -845,6 +888,27 @@ namespace tl
                         cmd.push_back(ftk::Format("{0}").arg(s));
                         cmd.push_back("-i");
                         cmd.push_back(_path.get());
+                        if (p.audioStreams.size() > 1)
+                        {
+                            // Merged mono streams are interleaved by ffmpeg.
+                            std::string filter;
+                            for (int stream : p.audioStreams)
+                            {
+                                filter += ftk::Format("[0:{0}]").arg(stream);
+                            }
+                            filter += ftk::Format("amerge=inputs={0}").arg(p.audioStreams.size());
+                            cmd.push_back("-filter_complex");
+                            cmd.push_back(filter);
+                            cmd.push_back("-vn");
+                            cmd.push_back("-sn");
+                            cmd.push_back("-dn");
+                        }
+                        // The pipe has to carry what the information
+                        // promised, whatever the file holds.
+                        cmd.push_back("-ac");
+                        cmd.push_back(ftk::Format("{0}").arg(p.info.audio.channelCount));
+                        cmd.push_back("-ar");
+                        cmd.push_back(ftk::Format("{0}").arg(p.info.audio.sampleRate));
                         cmd.push_back("-f");
                         cmd.push_back(fromAudioType(p.info.audio.type));
                         cmd.push_back("pipe:1");

@@ -41,10 +41,15 @@ namespace tl
         //! Get the information for a file with ffprobe. Both halves of the
         //! information come from one dump, so each reader keeps the half it
         //! serves and the tags, which are not separable.
+        //!
+        //! The audio streams are the ffprobe indices of the streams the
+        //! audio is read from: one, or a run of mono streams merged as
+        //! the channels of one track (see ffmpeg::Options::audioMerge).
         IOInfo getIOInfo(
             const ftk::Path&,
             const IOOptions&,
-            const std::shared_ptr<ftk::LogSystem>&);
+            const std::shared_ptr<ftk::LogSystem>&,
+            std::vector<int>* audioStreams = nullptr);
 
         typedef std::pair<int, int> Rational;
 

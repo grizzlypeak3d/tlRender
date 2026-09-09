@@ -48,6 +48,7 @@ namespace tl
             out["FFmpeg/YUVToRGB"] = ftk::Format("{0}").arg(value.yuvToRgb);
             out["FFmpeg/HWAccel"] = ftk::Format("{0}").arg(value.hwAccel);
             out["FFmpeg/ThreadCount"] = ftk::Format("{0}").arg(value.threadCount);
+            out["FFmpeg/AudioMerge"] = ftk::Format("{0}").arg(value.audioMerge);
             return out;
         }
 
@@ -699,6 +700,7 @@ namespace tl
             json["YUVToRGB"] = value.yuvToRgb;
             json["HWAccel"] = value.hwAccel;
             json["ThreadCount"] = value.threadCount;
+            json["AudioMerge"] = value.audioMerge;
         }
 
         void from_json(const nlohmann::json& json, Options& value)
@@ -709,6 +711,10 @@ namespace tl
                 json.at("HWAccel").get_to(value.hwAccel);
             }
             json.at("ThreadCount").get_to(value.threadCount);
+            if (json.contains("AudioMerge"))
+            {
+                json.at("AudioMerge").get_to(value.audioMerge);
+            }
         }
     }
 }
