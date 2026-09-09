@@ -25,18 +25,6 @@ namespace tl
 {
     namespace ffmpeg
     {
-        bool Options::operator == (const Options& other) const
-        {
-            return
-                yuvToRgb == other.yuvToRgb &&
-                hwAccel == other.hwAccel &&
-                threadCount == other.threadCount;
-        }
-
-        bool Options::operator != (const Options& other) const
-        {
-            return !(*this == other);
-        }
 
         bool hasHWDecode()
         {

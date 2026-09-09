@@ -29,30 +29,6 @@ namespace tl
         const std::chrono::seconds timeout(3);
     }
 
-    bool AudioDeviceID::operator == (const AudioDeviceID& other) const
-    {
-        return
-            number == other.number &&
-            name == other.name;
-    }
-
-    bool AudioDeviceID::operator != (const AudioDeviceID& other) const
-    {
-        return !(*this == other);
-    }
-
-    bool AudioDeviceInfo::operator == (const AudioDeviceInfo& other) const
-    {
-        return
-            id == other.id &&
-            info == other.info;
-    }
-
-    bool AudioDeviceInfo::operator != (const AudioDeviceInfo& other) const
-    {
-        return !(*this == other);
-    }
-
     struct AudioSystem::Private
     {
         bool init = false;

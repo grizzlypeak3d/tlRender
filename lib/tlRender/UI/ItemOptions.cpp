@@ -30,41 +30,6 @@ namespace tl
             "Mesh",
             "Image");
 
-        bool ItemOptions::operator == (const ItemOptions& other) const
-        {
-            return
-                inputEnabled == other.inputEnabled;
-        }
-
-        bool ItemOptions::operator != (const ItemOptions& other) const
-        {
-            return !(*this == other);
-        }
-
-        bool DisplayOptions::operator == (const DisplayOptions& other) const
-        {
-            return
-                inOutDisplay == other.inOutDisplay &&
-                cacheDisplay == other.cacheDisplay &&
-                minimize == other.minimize &&
-                background == other.background &&
-                clipColors == other.clipColors &&
-                thumbnails == other.thumbnails &&
-                thumbnailHeight == other.thumbnailHeight &&
-                waveforms == other.waveforms &&
-                waveformWidth == other.waveformWidth &&
-                waveformHeight == other.waveformHeight &&
-                waveformPrim == other.waveformPrim &&
-                clipRectScale == other.clipRectScale &&
-                ocio == other.ocio &&
-                lut == other.lut;
-        }
-
-        bool DisplayOptions::operator != (const DisplayOptions& other) const
-        {
-            return !(*this == other);
-        }
-
         bool Marker::operator == (const Marker& other) const
         {
             return

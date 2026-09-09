@@ -119,7 +119,6 @@ namespace tl
         //! Path options.
         ftk::PathOptions pathOptions;
 
-        TL_TIMELINE_API bool operator == (const Options&) const;
-        TL_TIMELINE_API bool operator != (const Options&) const;
+        bool operator == (const Options&) const = default;
     };
 }

@@ -5,27 +5,6 @@
 
 namespace tl
 {
-    bool AudioLayer::operator == (const AudioLayer& other) const
-    {
-        return audio == other.audio;
-    }
-
-    bool AudioLayer::operator != (const AudioLayer& other) const
-    {
-        return !(*this == other);
-    }
-
-    bool AudioFrame::operator == (const AudioFrame& other) const
-    {
-        return
-            seconds == other.seconds &&
-            layers == other.layers;
-    }
-
-    bool AudioFrame::operator != (const AudioFrame& other) const
-    {
-        return !(*this == other);
-    }
 
     bool isTimeEqual(const AudioFrame& a, const AudioFrame& b)
     {

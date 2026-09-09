@@ -64,8 +64,7 @@ namespace tl
             //! Audio cache size in megabytes.
             float waveformMB = 16.F;
 
-            TL_UI_API bool operator == (const ThumbnailCacheOptions&) const;
-            TL_UI_API bool operator != (const ThumbnailCacheOptions&) const;
+            bool operator == (const ThumbnailCacheOptions&) const = default;
         };
 
         //! Thumbnail system.

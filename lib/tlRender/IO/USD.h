@@ -41,8 +41,7 @@ namespace tl
             size_t        stageCacheCount = 10;
             size_t        diskCacheGB     = 0;
 
-            TL_IO_API bool operator == (const Options&) const;
-            TL_IO_API bool operator != (const Options&) const;
+            bool operator == (const Options&) const = default;
         };
 
         //! Get USD options.

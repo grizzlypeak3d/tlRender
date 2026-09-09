@@ -14,19 +14,6 @@
 
 namespace tl
 {
-    bool PlayerCacheInfo::operator == (const PlayerCacheInfo& other) const
-    {
-        return
-            videoPercentage == other.videoPercentage &&
-            audioPercentage == other.audioPercentage &&
-            video == other.video &&
-            audio == other.audio;
-    }
-
-    bool PlayerCacheInfo::operator != (const PlayerCacheInfo& other) const
-    {
-        return !(*this == other);
-    }
 
     FTK_ENUM_IMPL(
         Playback,

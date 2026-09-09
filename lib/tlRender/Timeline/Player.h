@@ -29,8 +29,7 @@ namespace tl
         //! Cached audio.
         std::vector<OTIO_NS::TimeRange> audio;
 
-        TL_TIMELINE_API bool operator == (const PlayerCacheInfo&) const;
-        TL_TIMELINE_API bool operator != (const PlayerCacheInfo&) const;
+        bool operator == (const PlayerCacheInfo&) const = default;
     };
 
     //! Playback modes.

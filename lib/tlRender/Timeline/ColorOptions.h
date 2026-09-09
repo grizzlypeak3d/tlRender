@@ -40,8 +40,7 @@ namespace tl
         std::string view;
         std::string look;
 
-        TL_TIMELINE_API bool operator == (const OCIOOptions&) const;
-        TL_TIMELINE_API bool operator != (const OCIOOptions&) const;
+        bool operator == (const OCIOOptions&) const = default;
     };
 
     //! Get the color description tags for pixels rendered through the
@@ -90,8 +89,7 @@ namespace tl
         LUTDirection direction = LUTDirection::First;
         LUTOrder     order     = LUTOrder::First;
 
-        TL_TIMELINE_API bool operator == (const LUTOptions&) const;
-        TL_TIMELINE_API bool operator != (const LUTOptions&) const;
+        bool operator == (const LUTOptions&) const = default;
     };
 
     //! Get the list of LUT format names.

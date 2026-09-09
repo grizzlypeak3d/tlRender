@@ -31,8 +31,7 @@ namespace tl
         int          width   = 2;
         ftk::Color4F color   = ftk::Color4F(1.F, 0.F, 0.F);
 
-        TL_TIMELINE_API bool operator == (const Outline&) const;
-        TL_TIMELINE_API bool operator != (const Outline&) const;
+        bool operator == (const Outline&) const = default;
     };
 
     //! Background options.
@@ -57,8 +56,7 @@ namespace tl
 
         Outline outline;
 
-        TL_TIMELINE_API bool operator == (const BackgroundOptions&) const;
-        TL_TIMELINE_API bool operator != (const BackgroundOptions&) const;
+        bool operator == (const BackgroundOptions&) const = default;
     };
 
     //! \name Serialize

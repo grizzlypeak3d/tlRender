@@ -58,8 +58,7 @@ namespace tl
         float maxCLL = 1000.F;
         float maxFALL = 400.F;
 
-        TL_CORE_API bool operator == (const HDRData&) const;
-        TL_CORE_API bool operator != (const HDRData&) const;
+        bool operator == (const HDRData&) const = default;
     };
 
     //! \name Serialize

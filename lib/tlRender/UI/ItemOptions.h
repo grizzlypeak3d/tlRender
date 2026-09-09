@@ -75,8 +75,7 @@ namespace tl
         {
             bool inputEnabled = true;
 
-            TL_UI_API bool operator == (const ItemOptions&) const;
-            TL_UI_API bool operator != (const ItemOptions&) const;
+            bool operator == (const ItemOptions&) const = default;
         };
 
         //! Colors for timeline items, keyed by track and then by where the
@@ -114,8 +113,7 @@ namespace tl
             OCIOOptions ocio;
             LUTOptions lut;
 
-            TL_UI_API bool operator == (const DisplayOptions&) const;
-            TL_UI_API bool operator != (const DisplayOptions&) const;
+            bool operator == (const DisplayOptions&) const = default;
         };
 
         //! Marker.

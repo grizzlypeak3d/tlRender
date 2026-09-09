@@ -60,13 +60,15 @@ namespace tl
         //! Whether the image stands in for a frame the media does not have,
         //! rather than being the frame that was asked for. Carried per layer
         //! so that a comparison can say which of its sources it is about.
+        // Equality includes this: a layer that has become a stand-in, or
+        // stopped being one, is a different thing to draw even when the
+        // image is the same.
         bool                        missing         = false;
 
         //! The frame repeated in place of it, when there was one to repeat.
         std::optional<int64_t>      heldFrom;
 
-        TL_TIMELINE_API bool operator == (const VideoLayer&) const;
-        TL_TIMELINE_API bool operator != (const VideoLayer&) const;
+        bool operator == (const VideoLayer&) const = default;
     };
 
     //! Video frame.

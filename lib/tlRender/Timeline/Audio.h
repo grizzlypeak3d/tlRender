@@ -13,8 +13,7 @@ namespace tl
     {
         std::shared_ptr<Audio> audio;
 
-        TL_TIMELINE_API bool operator == (const AudioLayer&) const;
-        TL_TIMELINE_API bool operator != (const AudioLayer&) const;
+        bool operator == (const AudioLayer&) const = default;
     };
 
     //! Audio frame.
@@ -23,8 +22,7 @@ namespace tl
         double                  seconds = -1.0;
         std::vector<AudioLayer> layers;
 
-        TL_TIMELINE_API bool operator == (const AudioFrame&) const;
-        TL_TIMELINE_API bool operator != (const AudioFrame&) const;
+        bool operator == (const AudioFrame&) const = default;
     };
 
     //! Compare the time values of audio frames.

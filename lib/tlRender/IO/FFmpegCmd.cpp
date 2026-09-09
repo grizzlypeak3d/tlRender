@@ -43,18 +43,6 @@ namespace tl
             return out;
         }
 
-        bool Options::operator == (const Options& other) const
-        {
-            return
-                ffmpegPath == other.ffmpegPath &&
-                ffprobePath == other.ffprobePath;
-        }
-
-        bool Options::operator != (const Options& other) const
-        {
-            return !(*this == other);
-        }
-
         Rational toRational(const std::string& value)
         {
             Rational out;
@@ -413,7 +401,6 @@ namespace tl
             }
             return out;
         }
-
 
         void to_json(nlohmann::json& json, const Options& value)
         {

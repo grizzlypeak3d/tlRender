@@ -49,8 +49,7 @@ namespace tl
         double        defaultSpeed  = 24.0;
         MissingFrames missingFrames = MissingFrames::Error;
 
-        TL_IO_API bool operator == (const SeqOptions&) const;
-        TL_IO_API bool operator != (const SeqOptions&) const;
+        bool operator == (const SeqOptions&) const = default;
     };
 
     //! Get sequence I/O options.

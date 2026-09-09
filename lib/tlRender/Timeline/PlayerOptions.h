@@ -23,8 +23,7 @@ namespace tl
         //! Number of seconds to read behind the current frame.
         float readBehind = .5F;
 
-        TL_TIMELINE_API bool operator == (const PlayerCacheOptions&) const;
-        TL_TIMELINE_API bool operator != (const PlayerCacheOptions&) const;
+        bool operator == (const PlayerCacheOptions&) const = default;
     };
 
     //! Timeline player options.
@@ -63,8 +62,7 @@ namespace tl
         //! Current time to start at. Unset starts at the beginning.
         std::optional<OTIO_NS::RationalTime> currentTime;
 
-        TL_TIMELINE_API bool operator == (const PlayerOptions&) const;
-        TL_TIMELINE_API bool operator != (const PlayerOptions&) const;
+        bool operator == (const PlayerOptions&) const = default;
     };
 
     //! \name Serialize

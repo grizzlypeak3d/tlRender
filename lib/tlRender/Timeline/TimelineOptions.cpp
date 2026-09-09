@@ -29,25 +29,4 @@ namespace tl
         return std::max(1u, std::thread::hardware_concurrency());
     }
 
-    bool Options::operator == (const Options& other) const
-    {
-        return
-            imageSeqAudio == other.imageSeqAudio &&
-            spatial == other.spatial &&
-            imageSeqAudioExts == other.imageSeqAudioExts &&
-            imageSeqAudioFileName == other.imageSeqAudioFileName &&
-            compat == other.compat &&
-            threaded == other.threaded &&
-            readThreadCount == other.readThreadCount &&
-            audioRequestMax == other.audioRequestMax &&
-            readCacheMax == other.readCacheMax &&
-            seqCacheMax == other.seqCacheMax &&
-            ioOptions == other.ioOptions &&
-            pathOptions == other.pathOptions;
-    }
-
-    bool Options::operator != (const Options& other) const
-    {
-        return !(*this == other);
-    }
 }

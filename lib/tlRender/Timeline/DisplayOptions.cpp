@@ -12,21 +12,6 @@
 
 namespace tl
 {
-    bool Color::operator == (const Color& other) const
-    {
-        return
-            enabled == other.enabled &&
-            add == other.add &&
-            brightness == other.brightness &&
-            contrast == other.contrast &&
-            saturation == other.saturation &&
-            hue == other.hue;
-    }
-
-    bool Color::operator != (const Color& other) const
-    {
-        return !(*this == other);
-    }
 
     ftk::M44F color(const Color& in)
     {
@@ -35,59 +20,6 @@ namespace tl
             ftk::contrast(in.contrast) *
             ftk::saturation(in.saturation) *
             ftk::hue(in.hue);
-    }
-
-    bool Levels::operator == (const Levels& other) const
-    {
-        return
-            enabled == other.enabled &&
-            inLow == other.inLow &&
-            inHigh == other.inHigh &&
-            gamma == other.gamma &&
-            outLow == other.outLow &&
-            outHigh == other.outHigh;
-    }
-
-    bool Levels::operator != (const Levels& other) const
-    {
-        return !(*this == other);
-    }
-
-    bool Exposure::operator == (const Exposure& other) const
-    {
-        return
-            enabled == other.enabled &&
-            exposure == other.exposure;
-    }
-
-    bool Exposure::operator != (const Exposure& other) const
-    {
-        return !(*this == other);
-    }
-
-    bool SoftClip::operator == (const SoftClip& other) const
-    {
-        return
-            enabled == other.enabled &&
-            value == other.value;
-    }
-
-    bool SoftClip::operator != (const SoftClip& other) const
-    {
-        return !(*this == other);
-    }
-
-    bool ClipWarning::operator == (const ClipWarning& other) const
-    {
-        return
-            enabled == other.enabled &&
-            low == other.low &&
-            high == other.high;
-    }
-
-    bool ClipWarning::operator != (const ClipWarning& other) const
-    {
-        return !(*this == other);
     }
 
     AspectRatio::AspectRatio(float num, float den) :
@@ -103,18 +35,6 @@ namespace tl
     AspectRatio::operator float() const
     {
         return den > 0.F ? (num / den) : 0.F;
-    }
-
-    bool AspectRatio::operator == (const AspectRatio& other) const
-    {
-        return
-            num == other.num &&
-            den == other.den;
-    }
-
-    bool AspectRatio::operator != (const AspectRatio& other) const
-    {
-        return !(*this == other);
     }
 
     FTK_ENUM_IMPL(
@@ -133,38 +53,6 @@ namespace tl
         value(value),
         type(type)
     {}
-
-    bool AspectRatioOptions::operator == (const AspectRatioOptions& other) const
-    {
-        return
-            value == other.value &&
-            type == other.type;
-    }
-
-    bool AspectRatioOptions::operator != (const AspectRatioOptions& other) const
-    {
-        return !(*this == other);
-    }
-
-    bool DisplayOptions::operator == (const DisplayOptions& other) const
-    {
-        return
-            channels == other.channels &&
-            negative == other.negative &&
-            mirror == other.mirror &&
-            aspectRatio == other.aspectRatio &&
-            color == other.color &&
-            levels == other.levels &&
-            exposure == other.exposure &&
-            softClip == other.softClip &&
-            clipWarning == other.clipWarning &&
-            ocioInput == other.ocioInput;
-    }
-
-    bool DisplayOptions::operator != (const DisplayOptions& other) const
-    {
-        return !(*this == other);
-    }
 
     float getAspectRatio(
         const ftk::ImageInfo& info,

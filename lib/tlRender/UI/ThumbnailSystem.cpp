@@ -30,17 +30,6 @@ namespace tl
 {
     namespace ui
     {
-        bool ThumbnailCacheOptions::operator == (const ThumbnailCacheOptions& other) const
-        {
-            return
-                thumbnailMB == other.thumbnailMB &&
-                waveformMB == other.waveformMB;
-        }
-
-        bool ThumbnailCacheOptions::operator != (const ThumbnailCacheOptions& other) const
-        {
-            return !(*this == other);
-        }
 
         namespace
         {
@@ -73,7 +62,6 @@ namespace tl
                 }
                 return ss.str();
             }
-
 
             // The I/O options are part of the key. The timeline is created
             // with them, so one opened knowing where ffprobe lives is not the

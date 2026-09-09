@@ -16,35 +16,6 @@ namespace tl
         "Checkers",
         "Gradient");
 
-    bool Outline::operator == (const Outline& other) const
-    {
-        return
-            enabled == other.enabled &&
-            width == other.width &&
-            color == other.color;
-    }
-
-    bool Outline::operator != (const Outline& other) const
-    {
-        return !(*this == other);
-    }
-
-    bool BackgroundOptions::operator == (const BackgroundOptions& other) const
-    {
-        return
-            type == other.type &&
-            solidColor == other.solidColor &&
-            checkersColor == other.checkersColor &&
-            checkersSize == other.checkersSize &&
-            gradientColor == other.gradientColor &&
-            outline == other.outline;
-    }
-
-    bool BackgroundOptions::operator != (const BackgroundOptions& other) const
-    {
-        return !(*this == other);
-    }
-
     void to_json(nlohmann::json& json, const Outline& in)
     {
         json["Enabled"] = in.enabled;

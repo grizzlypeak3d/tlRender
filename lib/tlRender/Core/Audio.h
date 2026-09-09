@@ -67,8 +67,7 @@ namespace tl
         //! Get the byte count.
         size_t getByteCount() const;
 
-        TL_CORE_API bool operator == (const AudioInfo&) const;
-        TL_CORE_API bool operator != (const AudioInfo&) const;
+        bool operator == (const AudioInfo&) const = default;
     };
 
     //! Get an audio information label.

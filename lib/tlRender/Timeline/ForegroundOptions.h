@@ -52,8 +52,7 @@ namespace tl
         ftk::FontInfo fontInfo     = ftk::FontInfo(ftk::getDefaultFont(ftk::FontType::Mono), 12);
         int           textMargin   = 2;
 
-        TL_TIMELINE_API bool operator == (const Grid&) const;
-        TL_TIMELINE_API bool operator != (const Grid&) const;
+        bool operator == (const Grid&) const = default;
     };
 
     //! Center marker.
@@ -64,8 +63,7 @@ namespace tl
         int          width   = 3;
         ftk::Color4F color   = ftk::Color4F(1.F, 1.F, 1.F);
 
-        TL_TIMELINE_API bool operator == (const CenterMarker&) const;
-        TL_TIMELINE_API bool operator != (const CenterMarker&) const;
+        bool operator == (const CenterMarker&) const = default;
     };
 
     //! Missing frame indicator.
@@ -87,8 +85,7 @@ namespace tl
         int          width   = 6;
         ftk::Color4F color   = ftk::Color4F(1.F, 0.F, 0.F);
 
-        TL_TIMELINE_API bool operator == (const MissingIndicator&) const;
-        TL_TIMELINE_API bool operator != (const MissingIndicator&) const;
+        bool operator == (const MissingIndicator&) const = default;
     };
 
     //! Foreground options.
@@ -98,8 +95,7 @@ namespace tl
         CenterMarker     centerMarker;
         MissingIndicator missingIndicator;
 
-        TL_TIMELINE_API bool operator == (const ForegroundOptions&) const;
-        TL_TIMELINE_API bool operator != (const ForegroundOptions&) const;
+        bool operator == (const ForegroundOptions&) const = default;
     };
 
     //! \name Serialize

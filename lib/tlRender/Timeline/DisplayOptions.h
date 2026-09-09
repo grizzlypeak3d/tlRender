@@ -23,8 +23,7 @@ namespace tl
         ftk::V3F saturation = ftk::V3F(1.F, 1.F, 1.F);
         float    hue        = 0.F;
 
-        TL_TIMELINE_API bool operator == (const Color&) const;
-        TL_TIMELINE_API bool operator != (const Color&) const;
+        bool operator == (const Color&) const = default;
     };
 
     //! Get a color matrix.
@@ -40,8 +39,7 @@ namespace tl
         float outLow  = 0.F;
         float outHigh = 1.F;
 
-        TL_TIMELINE_API bool operator == (const Levels&) const;
-        TL_TIMELINE_API bool operator != (const Levels&) const;
+        bool operator == (const Levels&) const = default;
     };
 
     //! A plain stop adjustment: the value scales the image by 2^stops,
@@ -53,8 +51,7 @@ namespace tl
         bool  enabled  = false;
         float exposure = 0.F;
 
-        TL_TIMELINE_API bool operator == (const Exposure&) const;
-        TL_TIMELINE_API bool operator != (const Exposure&) const;
+        bool operator == (const Exposure&) const = default;
     };
 
     //! Soft clip.
@@ -63,8 +60,7 @@ namespace tl
         bool  enabled = false;
         float value   = 0.F;
 
-        TL_TIMELINE_API bool operator == (const SoftClip&) const;
-        TL_TIMELINE_API bool operator != (const SoftClip&) const;
+        bool operator == (const SoftClip&) const = default;
     };
 
     //! Clip warning: a pixel with a channel outside the range is shown
@@ -77,8 +73,7 @@ namespace tl
         float low     = 0.F;
         float high    = 1.F;
 
-        TL_TIMELINE_API bool operator == (const ClipWarning&) const;
-        TL_TIMELINE_API bool operator != (const ClipWarning&) const;
+        bool operator == (const ClipWarning&) const = default;
     };
 
     //! Aspect ratio.
@@ -94,8 +89,7 @@ namespace tl
 
         TL_TIMELINE_API operator float () const;
 
-        TL_TIMELINE_API bool operator == (const AspectRatio&) const;
-        TL_TIMELINE_API bool operator != (const AspectRatio&) const;
+        bool operator == (const AspectRatio&) const = default;
     };
 
     //! Get a label.
@@ -121,8 +115,7 @@ namespace tl
         AspectRatio     value = AspectRatio(0.F, 0.F);
         AspectRatioType type  = AspectRatioType::Pixel;
 
-        TL_TIMELINE_API bool operator == (const AspectRatioOptions&) const;
-        TL_TIMELINE_API bool operator != (const AspectRatioOptions&) const;
+        bool operator == (const AspectRatioOptions&) const = default;
     };
 
     //! Get the aspect ratio.
@@ -180,8 +173,7 @@ namespace tl
         //! than a setting, so it is not serialized.
         std::string         ocioInput;
 
-        TL_TIMELINE_API bool operator == (const DisplayOptions&) const;
-        TL_TIMELINE_API bool operator != (const DisplayOptions&) const;
+        bool operator == (const DisplayOptions&) const = default;
     };
 
     //! \name Serialize

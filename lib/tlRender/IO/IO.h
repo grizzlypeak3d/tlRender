@@ -35,8 +35,7 @@ namespace tl
         std::string codec;
         std::string pixelFormat;
 
-        TL_IO_API bool operator == (const VideoSourceInfo&) const;
-        TL_IO_API bool operator != (const VideoSourceInfo&) const;
+        bool operator == (const VideoSourceInfo&) const = default;
     };
 
     //! The audio format of the file itself, which is not always the format it
@@ -48,8 +47,7 @@ namespace tl
         size_t channelCount = 0;
         size_t sampleRate = 0;
 
-        TL_IO_API bool operator == (const AudioSourceInfo&) const;
-        TL_IO_API bool operator != (const AudioSourceInfo&) const;
+        bool operator == (const AudioSourceInfo&) const = default;
     };
 
     //! I/O information.

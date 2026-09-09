@@ -20,20 +20,6 @@ namespace tl
         return static_cast<size_t>(channelCount) * tl::getByteCount(type);
     }
 
-    inline bool AudioInfo::operator == (const AudioInfo& other) const
-    {
-        return
-            name == other.name &&
-            channelCount == other.channelCount &&
-            type == other.type &&
-            sampleRate == other.sampleRate;
-    }
-
-    inline bool AudioInfo::operator != (const AudioInfo& other) const
-    {
-        return !(*this == other);
-    }
-
     inline const AudioInfo& Audio::getInfo() const
     {
         return _info;

@@ -21,8 +21,7 @@ namespace tl
             bool   hwAccel     = false;
             size_t threadCount = 0;
 
-            TL_IO_API bool operator == (const Options&) const;
-            TL_IO_API bool operator != (const Options&) const;
+            bool operator == (const Options&) const = default;
         };
 
         //! Get FFmpeg options.

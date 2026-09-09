@@ -18,8 +18,7 @@ namespace tl
         int         number = -1;
         std::string name;
 
-        TL_TIMELINE_API bool operator == (const AudioDeviceID&) const;
-        TL_TIMELINE_API bool operator != (const AudioDeviceID&) const;
+        bool operator == (const AudioDeviceID&) const = default;
     };
 
     //! Audio device information.
@@ -28,8 +27,7 @@ namespace tl
         AudioDeviceID id;
         AudioInfo     info;
 
-        TL_TIMELINE_API bool operator == (const AudioDeviceInfo&) const;
-        TL_TIMELINE_API bool operator != (const AudioDeviceInfo&) const;
+        bool operator == (const AudioDeviceInfo&) const = default;
     };
 
     //! Audio system.

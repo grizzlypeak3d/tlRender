@@ -75,22 +75,6 @@ namespace tl
         }
     }
 
-    bool CompareOptions::operator == (const CompareOptions& other) const
-    {
-        return
-            compare == other.compare &&
-            wipeCenter == other.wipeCenter &&
-            wipeRotation == other.wipeRotation &&
-            overlay == other.overlay &&
-            differenceGain == other.differenceGain &&
-            sameSize == other.sameSize;
-    }
-
-    bool CompareOptions::operator != (const CompareOptions& other) const
-    {
-        return !(*this == other);
-    }
-
     std::vector<ftk::Box2I> getBounds(
         const CompareOptions& options,
         const AspectRatioOptions& aspectRatioOptions,

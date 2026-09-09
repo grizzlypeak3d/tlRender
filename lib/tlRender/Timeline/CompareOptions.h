@@ -65,8 +65,7 @@ namespace tl
 
         bool     sameSize     = true;
 
-        TL_TIMELINE_API bool operator == (const CompareOptions&) const;
-        TL_TIMELINE_API bool operator != (const CompareOptions&) const;
+        bool operator == (const CompareOptions&) const = default;
     };
 
     //! Get the bounds for the given compare mode.

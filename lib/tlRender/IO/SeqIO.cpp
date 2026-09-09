@@ -27,18 +27,6 @@ namespace tl
     SeqOptions::SeqOptions()
     {}
 
-    bool SeqOptions::operator == (const SeqOptions& other) const
-    {
-        return
-            defaultSpeed == other.defaultSpeed &&
-            missingFrames == other.missingFrames;
-    }
-
-    bool SeqOptions::operator != (const SeqOptions& other) const
-    {
-        return !(*this == other);
-    }
-
     IOOptions getOptions(const SeqOptions& value)
     {
         IOOptions out;

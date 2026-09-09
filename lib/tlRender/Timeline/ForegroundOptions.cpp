@@ -60,67 +60,6 @@ namespace tl
         return ss.str();
     }
 
-    bool Grid::operator == (const Grid& other) const
-    {
-        return
-            enabled == other.enabled &&
-            cellMode == other.cellMode &&
-            cellSize == other.cellSize &&
-            cellCount == other.cellCount &&
-            lineWidth == other.lineWidth &&
-            color == other.color &&
-            labels == other.labels &&
-            textColor == other.textColor &&
-            overlayColor == other.overlayColor &&
-            fontInfo == other.fontInfo &&
-            textMargin == other.textMargin;
-    }
-
-    bool Grid::operator != (const Grid& other) const
-    {
-        return !(*this == other);
-    }
-
-    bool CenterMarker::operator == (const CenterMarker& other) const
-    {
-        return
-            enabled == other.enabled &&
-            size == other.size &&
-            width == other.width &&
-            color == other.color;
-    }
-
-    bool CenterMarker::operator != (const CenterMarker& other) const
-    {
-        return !(*this == other);
-    }
-
-    bool MissingIndicator::operator == (const MissingIndicator& other) const
-    {
-        return
-            enabled == other.enabled &&
-            width == other.width &&
-            color == other.color;
-    }
-
-    bool MissingIndicator::operator != (const MissingIndicator& other) const
-    {
-        return !(*this == other);
-    }
-
-    bool ForegroundOptions::operator == (const ForegroundOptions& other) const
-    {
-        return
-            grid == other.grid &&
-            centerMarker == other.centerMarker &&
-            missingIndicator == other.missingIndicator;
-    }
-
-    bool ForegroundOptions::operator != (const ForegroundOptions& other) const
-    {
-        return !(*this == other);
-    }
-
     void to_json(nlohmann::json& json, const Grid& in)
     {
         json["Enabled"] = in.enabled;

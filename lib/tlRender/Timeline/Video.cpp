@@ -5,32 +5,6 @@
 
 namespace tl
 {
-    bool VideoLayer::operator == (const VideoLayer& other) const
-    {
-        return
-            path == other.path &&
-            pathB == other.pathB &&
-            ocioInput == other.ocioInput &&
-            ocioInputB == other.ocioInputB &&
-            image == other.image &&
-            imageOptions == other.imageOptions &&
-            imageB == other.imageB &&
-            imageOptionsB == other.imageOptionsB &&
-            bounds == other.bounds &&
-            boundsB == other.boundsB &&
-            transition == other.transition &&
-            transitionValue == other.transitionValue &&
-            // A layer that has become a stand-in, or stopped being one, is a
-            // different thing to draw even when the image is the same.
-            missing == other.missing &&
-            heldFrom == other.heldFrom;
-    }
-
-    bool VideoLayer::operator != (const VideoLayer& other) const
-    {
-        return !(*this == other);
-    }
-
     bool VideoFrame::operator == (const VideoFrame& other) const
     {
         return

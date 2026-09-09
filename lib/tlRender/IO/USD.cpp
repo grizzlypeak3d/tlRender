@@ -21,23 +21,6 @@ namespace tl
             "GeomFlat",
             "GeomSmooth");
 
-        bool Options::operator == (const Options& other) const
-        {
-            return
-                renderWidth == other.renderWidth &&
-                complexity == other.complexity &&
-                drawMode == other.drawMode &&
-                enableLighting == other.enableLighting &&
-                sRGB == other.sRGB &&
-                stageCacheCount == other.stageCacheCount &&
-                diskCacheGB == other.diskCacheGB;
-        }
-
-        bool Options::operator != (const Options& other) const
-        {
-            return !(*this == other);
-        }
-
         IOOptions getOptions(const Options& value)
         {
             IOOptions out;

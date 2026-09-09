@@ -26,8 +26,7 @@ namespace tl
 
             TL_IO_API IOOptions getIOOptions() const;
 
-            TL_IO_API bool operator == (const Options&) const;
-            TL_IO_API bool operator != (const Options&) const;
+            bool operator == (const Options&) const = default;
         };
 
         //! FFmpeg command line video reader.

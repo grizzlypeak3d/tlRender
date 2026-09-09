@@ -26,23 +26,6 @@ namespace tl
         "Environment Variable",
         "File");
 
-    bool OCIOOptions::operator == (const OCIOOptions& other) const
-    {
-        return
-            enabled == other.enabled &&
-            config == other.config &&
-            fileName == other.fileName &&
-            input == other.input &&
-            display == other.display &&
-            view == other.view &&
-            look == other.look;
-    }
-
-    bool OCIOOptions::operator != (const OCIOOptions& other) const
-    {
-        return !(*this == other);
-    }
-
     ftk::ImageTags getDisplayColorTags(
         const OCIOOptions& options,
         bool sequence)
@@ -108,20 +91,6 @@ namespace tl
         LUTOrder,
         "Post-Config",
         "Pre-Config");
-
-    bool LUTOptions::operator == (const LUTOptions& other) const
-    {
-        return
-            enabled == other.enabled &&
-            fileName == other.fileName &&
-            direction == other.direction &&
-            order == other.order;
-    }
-
-    bool LUTOptions::operator != (const LUTOptions& other) const
-    {
-        return !(*this == other);
-    }
 
     std::vector<std::string> getLUTFormatNames()
     {
