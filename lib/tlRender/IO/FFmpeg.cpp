@@ -2,6 +2,7 @@
 // Copyright Contributors to the tlRender project.
 
 #include <tlRender/IO/FFmpegPrivate.h>
+#include <tlRender/IO/FFmpegReadPrivate.h>
 
 #include <tlRender/IO/FFmpegCmd.h>
 
@@ -308,6 +309,7 @@ namespace tl
             //! of their files need which.
             bool useCommandLine(
                 const ftk::Path& path,
+                const std::vector<ftk::MemFile>& memory,
                 const IOOptions& options,
                 AVMediaType type)
             {
@@ -324,8 +326,44 @@ namespace tl
                 const std::string fileName =
                     path.hasProtocol() ? path.get() : path.getFileName(true);
                 AVFormatContext* avFormatContext = nullptr;
+                AVIOBufferData avIOBufferData;
+                AVIOContext* avIOContext = nullptr;
+                if (!memory.empty())
+                {
+                    // Bundled media is probed from memory, the way the
+                    // library reads it, not through the subfile URL the
+                    // command line gets. FFmpeg's subfile protocol clips a
+                    // seek to thirty-two bits (subfile_seek uses av_clip, in
+                    // 8.1 and 9.0 alike), so a bundled movie whose moov atom
+                    // sits past 2 GB does not open through it -- and probed
+                    // that way, a file the library reads fine was handed to
+                    // the command line, which cannot read it either.
+                    avFormatContext = avformat_alloc_context();
+                    if (!avFormatContext)
+                    {
+                        return false;
+                    }
+                    avIOBufferData = AVIOBufferData(memory[0].p, memory[0].size);
+                    avIOContext = avio_alloc_context(
+                        static_cast<uint8_t*>(av_malloc(avIOContextBufferSize)),
+                        avIOContextBufferSize,
+                        0,
+                        &avIOBufferData,
+                        &avIOBufferRead,
+                        nullptr,
+                        &avIOBufferSeek);
+                    if (!avIOContext)
+                    {
+                        avformat_free_context(avFormatContext);
+                        return false;
+                    }
+                    avFormatContext->pb = avIOContext;
+                }
                 if (avformat_open_input(
-                    &avFormatContext, fileName.c_str(), nullptr, nullptr) == 0)
+                    &avFormatContext,
+                    memory.empty() ? fileName.c_str() : nullptr,
+                    nullptr,
+                    nullptr) == 0)
                 {
                     if (avformat_find_stream_info(avFormatContext, nullptr) >= 0)
                     {
@@ -347,6 +385,11 @@ namespace tl
                     // line is the only one left to try.
                     out = true;
                 }
+                if (avIOContext)
+                {
+                    av_freep(&avIOContext->buffer);
+                    avio_context_free(&avIOContext);
+                }
                 return out;
             }
         }
@@ -356,7 +399,7 @@ namespace tl
             const IOOptions& options)
         {
             auto logSystem = _logSystem.lock();
-            if (useCommandLine(path, options, AVMEDIA_TYPE_VIDEO))
+            if (useCommandLine(path, {}, options, AVMEDIA_TYPE_VIDEO))
             {
                 // Said out loud: which of the two read a file is the first
                 // thing wanted when it is read wrongly, and it is otherwise
@@ -410,7 +453,7 @@ namespace tl
             auto logSystem = _logSystem.lock();
             const std::string subfile = getSubfileName(memory);
             if (!subfile.empty() &&
-                useCommandLine(ftk::Path(subfile), options, AVMEDIA_TYPE_VIDEO))
+                useCommandLine(path, memory, options, AVMEDIA_TYPE_VIDEO))
             {
                 if (logSystem)
                 {
@@ -430,7 +473,7 @@ namespace tl
             const IOOptions& options)
         {
             auto logSystem = _logSystem.lock();
-            if (useCommandLine(path, options, AVMEDIA_TYPE_AUDIO))
+            if (useCommandLine(path, {}, options, AVMEDIA_TYPE_AUDIO))
             {
                 if (logSystem)
                 {
@@ -456,7 +499,7 @@ namespace tl
             auto logSystem = _logSystem.lock();
             const std::string subfile = getSubfileName(memory);
             if (!subfile.empty() &&
-                useCommandLine(ftk::Path(subfile), options, AVMEDIA_TYPE_AUDIO))
+                useCommandLine(path, memory, options, AVMEDIA_TYPE_AUDIO))
             {
                 if (logSystem)
                 {
