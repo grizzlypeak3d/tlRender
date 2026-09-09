@@ -67,6 +67,14 @@ namespace tl
                 .def(nanobind::self == nanobind::self)
                 .def(nanobind::self != nanobind::self);
 
+            nb::class_<ClipWarning>(m, "ClipWarning")
+                .def(nb::init())
+                .def_rw("enabled", &ClipWarning::enabled)
+                .def_rw("low", &ClipWarning::low)
+                .def_rw("high", &ClipWarning::high)
+                .def(nanobind::self == nanobind::self)
+                .def(nanobind::self != nanobind::self);
+
             nb::class_<AspectRatio>(m, "AspectRatio")
                 .def(nb::init())
                 .def(
@@ -116,6 +124,7 @@ namespace tl
                 .def_rw("levels", &DisplayOptions::levels)
                 .def_rw("exposure", &DisplayOptions::exposure)
                 .def_rw("softClip", &DisplayOptions::softClip)
+                .def_rw("clipWarning", &DisplayOptions::clipWarning)
                 .def(nanobind::self == nanobind::self)
                 .def(nanobind::self != nanobind::self);
 
@@ -148,6 +157,13 @@ namespace tl
                     return json.dump();
                 });
             m.def("to_json",
+                [](const ClipWarning& value)
+                {
+                    nlohmann::json json;
+                    to_json(json, value);
+                    return json.dump();
+                });
+            m.def("to_json",
                 [](const DisplayOptions& value)
                 {
                     nlohmann::json json;
@@ -172,6 +188,11 @@ namespace tl
                 });
             m.def("from_json",
                 [](const std::string& value, SoftClip& out)
+                {
+                    from_json(nlohmann::json().parse(value), out);
+                });
+            m.def("from_json",
+                [](const std::string& value, ClipWarning& out)
                 {
                     from_json(nlohmann::json().parse(value), out);
                 });

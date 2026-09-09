@@ -77,6 +77,19 @@ namespace tl
         return !(*this == other);
     }
 
+    bool ClipWarning::operator == (const ClipWarning& other) const
+    {
+        return
+            enabled == other.enabled &&
+            low == other.low &&
+            high == other.high;
+    }
+
+    bool ClipWarning::operator != (const ClipWarning& other) const
+    {
+        return !(*this == other);
+    }
+
     AspectRatio::AspectRatio(float num, float den) :
         num(num),
         den(den)
@@ -144,6 +157,7 @@ namespace tl
             levels == other.levels &&
             exposure == other.exposure &&
             softClip == other.softClip &&
+            clipWarning == other.clipWarning &&
             ocioInput == other.ocioInput;
     }
 
@@ -303,6 +317,13 @@ namespace tl
         json["Value"] = in.value;
     }
 
+    void to_json(nlohmann::json& json, const ClipWarning& in)
+    {
+        json["Enabled"] = in.enabled;
+        json["Low"] = in.low;
+        json["High"] = in.high;
+    }
+
     void to_json(nlohmann::json& json, const AspectRatio& in)
     {
         json["Num"] = in.num;
@@ -325,6 +346,7 @@ namespace tl
         json["Levels"] = in.levels;
         json["Exposure"] = in.exposure;
         json["SoftClip"] = in.softClip;
+        json["ClipWarning"] = in.clipWarning;
     }
 
     void from_json(const nlohmann::json& json, Color& out)
@@ -359,6 +381,13 @@ namespace tl
         json.at("Value").get_to(out.value);
     }
 
+    void from_json(const nlohmann::json& json, ClipWarning& out)
+    {
+        json.at("Enabled").get_to(out.enabled);
+        json.at("Low").get_to(out.low);
+        json.at("High").get_to(out.high);
+    }
+
     void from_json(const nlohmann::json& json, AspectRatio& out)
     {
         json.at("Num").get_to(out.num);
@@ -381,5 +410,10 @@ namespace tl
         json.at("Levels").get_to(out.levels);
         json.at("Exposure").get_to(out.exposure);
         json.at("SoftClip").get_to(out.softClip);
+        // Newer than the rest; a settings file written before it has none.
+        if (json.contains("ClipWarning"))
+        {
+            json.at("ClipWarning").get_to(out.clipWarning);
+        }
     }
 }

@@ -1191,6 +1191,9 @@ namespace tl
                 displayShader->setUniform(
                     "softClip",
                     displayOptions.softClip.enabled ? displayOptions.softClip.value : 0.F);
+                displayShader->setUniform("clipWarningEnabled", displayOptions.clipWarning.enabled);
+                displayShader->setUniform("clipWarningLow", displayOptions.clipWarning.low);
+                displayShader->setUniform("clipWarningHigh", displayOptions.clipWarning.high);
 
                 glActiveTexture(static_cast<GLenum>(GL_TEXTURE0));
                 glBindTexture(GL_TEXTURE_2D, videoID);

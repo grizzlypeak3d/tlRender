@@ -71,6 +71,14 @@ class DisplayOptionsTest(unittest.TestCase):
         levels.gamma = 2.2
         options.levels = levels
         self.assertEqual(levels, options.levels)
+        clipWarning = tl.ClipWarning()
+        self.assertEqual(0.0, clipWarning.low)
+        self.assertEqual(1.0, clipWarning.high)
+        clipWarning.enabled = True
+        clipWarning.high = 0.9
+        options.clipWarning = clipWarning
+        self.assertEqual(clipWarning, options.clipWarning)
+        self.assertNotEqual(clipWarning, tl.ClipWarning())
 
     def test_operators(self):
         a = tl.DisplayOptions()

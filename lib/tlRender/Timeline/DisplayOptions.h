@@ -67,6 +67,20 @@ namespace tl
         TL_TIMELINE_API bool operator != (const SoftClip&) const;
     };
 
+    //! Clip warning: a pixel with a channel outside the range is shown
+    //! in a warning color, red above and blue below. The range is in
+    //! displayed values, so the default marks what the display cannot
+    //! show; 16/255 to 235/255 marks the video legal range.
+    struct TL_TIMELINE_API_TYPE ClipWarning
+    {
+        bool  enabled = false;
+        float low     = 0.F;
+        float high    = 1.F;
+
+        TL_TIMELINE_API bool operator == (const ClipWarning&) const;
+        TL_TIMELINE_API bool operator != (const ClipWarning&) const;
+    };
+
     //! Aspect ratio.
     struct TL_TIMELINE_API_TYPE AspectRatio
     {
@@ -159,6 +173,7 @@ namespace tl
         Levels              levels;
         Exposure            exposure;
         SoftClip            softClip;
+        ClipWarning         clipWarning;
 
         //! Per item override of the OCIO input color space; empty uses
         //! OCIOOptions::input. Runtime state resolved per file rather
@@ -176,6 +191,7 @@ namespace tl
     TL_TIMELINE_API void to_json(nlohmann::json&, const Levels&);
     TL_TIMELINE_API void to_json(nlohmann::json&, const Exposure&);
     TL_TIMELINE_API void to_json(nlohmann::json&, const SoftClip&);
+    TL_TIMELINE_API void to_json(nlohmann::json&, const ClipWarning&);
     TL_TIMELINE_API void to_json(nlohmann::json&, const AspectRatio&);
     TL_TIMELINE_API void to_json(nlohmann::json&, const AspectRatioOptions&);
     TL_TIMELINE_API void to_json(nlohmann::json&, const DisplayOptions&);
@@ -184,6 +200,7 @@ namespace tl
     TL_TIMELINE_API void from_json(const nlohmann::json&, Levels&);
     TL_TIMELINE_API void from_json(const nlohmann::json&, Exposure&);
     TL_TIMELINE_API void from_json(const nlohmann::json&, SoftClip&);
+    TL_TIMELINE_API void from_json(const nlohmann::json&, ClipWarning&);
     TL_TIMELINE_API void from_json(const nlohmann::json&, AspectRatio&);
     TL_TIMELINE_API void from_json(const nlohmann::json&, AspectRatioOptions&);
     TL_TIMELINE_API void from_json(const nlohmann::json&, DisplayOptions&);
