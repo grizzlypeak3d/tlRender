@@ -90,11 +90,19 @@ namespace tl
         json["Color"] = in.color;
     }
 
+    void to_json(nlohmann::json& json, const ClippingWarning& in)
+    {
+        json["Enabled"] = in.enabled;
+        json["Low"] = in.low;
+        json["High"] = in.high;
+    }
+
     void to_json(nlohmann::json& json, const ForegroundOptions& in)
     {
         json["Grid"] = in.grid;
         json["CenterMarker"] = in.centerMarker;
         json["MissingIndicator"] = in.missingIndicator;
+        json["ClippingWarning"] = in.clippingWarning;
     }
 
     void from_json(const nlohmann::json& json, Grid& out)
@@ -127,6 +135,13 @@ namespace tl
         json.at("Color").get_to(out.color);
     }
 
+    void from_json(const nlohmann::json& json, ClippingWarning& out)
+    {
+        json.at("Enabled").get_to(out.enabled);
+        json.at("Low").get_to(out.low);
+        json.at("High").get_to(out.high);
+    }
+
     void from_json(const nlohmann::json& json, ForegroundOptions& out)
     {
         json.at("Grid").get_to(out.grid);
@@ -136,6 +151,10 @@ namespace tl
         if (json.contains("MissingIndicator"))
         {
             json.at("MissingIndicator").get_to(out.missingIndicator);
+        }
+        if (json.contains("ClippingWarning"))
+        {
+            json.at("ClippingWarning").get_to(out.clippingWarning);
         }
     }
 }

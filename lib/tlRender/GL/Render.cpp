@@ -358,6 +358,12 @@ namespace tl
                     vertexSource(),
                     dissolveFragmentSource());
             }
+            if (!p.shaders["clippingWarning"])
+            {
+                p.shaders["clippingWarning"] = ftk::gl::Shader::create(
+                    vertexSource(),
+                    clippingWarningFragmentSource());
+            }
             _displayShader();
 
             p.vbos["wipe"] = ftk::gl::VBO::create(1 * 3, ftk::gl::VBOType::Pos2_F32);

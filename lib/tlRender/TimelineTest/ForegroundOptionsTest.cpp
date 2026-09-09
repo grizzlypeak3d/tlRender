@@ -101,6 +101,9 @@ namespace tl
                 v = ForegroundOptions();
                 v.missingIndicator.enabled = true;
                 FTK_CHECK(v != ForegroundOptions());
+                v = ForegroundOptions();
+                v.clippingWarning.enabled = true;
+                FTK_CHECK(v != ForegroundOptions());
             }
             {
                 ForegroundOptions v;
@@ -112,6 +115,8 @@ namespace tl
                 v.centerMarker.size = 40;
                 v.missingIndicator.enabled = true;
                 v.missingIndicator.width = 8;
+                v.clippingWarning.enabled = true;
+                v.clippingWarning.high = .9F;
                 nlohmann::json json;
                 to_json(json, v);
                 ForegroundOptions v2;

@@ -71,14 +71,6 @@ class DisplayOptionsTest(unittest.TestCase):
         levels.gamma = 2.2
         options.levels = levels
         self.assertEqual(levels, options.levels)
-        clipWarning = tl.ClipWarning()
-        self.assertEqual(0.0, clipWarning.low)
-        self.assertEqual(1.0, clipWarning.high)
-        clipWarning.enabled = True
-        clipWarning.high = 0.9
-        options.clipWarning = clipWarning
-        self.assertEqual(clipWarning, options.clipWarning)
-        self.assertNotEqual(clipWarning, tl.ClipWarning())
 
     def test_operators(self):
         a = tl.DisplayOptions()
@@ -120,6 +112,14 @@ class ForegroundOptionsTest(unittest.TestCase):
         grid.cellSize = 50
         options.grid = grid
         self.assertEqual(grid, options.grid)
+        clippingWarning = tl.ClippingWarning()
+        self.assertEqual(0.0, clippingWarning.low)
+        self.assertEqual(1.0, clippingWarning.high)
+        clippingWarning.enabled = True
+        clippingWarning.high = 0.9
+        options.clippingWarning = clippingWarning
+        self.assertEqual(clippingWarning, options.clippingWarning)
+        self.assertNotEqual(clippingWarning, tl.ClippingWarning())
 
     def test_operators(self):
         a = tl.ForegroundOptions()

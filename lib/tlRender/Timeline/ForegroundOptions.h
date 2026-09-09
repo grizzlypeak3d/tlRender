@@ -88,12 +88,30 @@ namespace tl
         bool operator == (const MissingIndicator&) const = default;
     };
 
+    //! Clipping warning: a pixel with a channel outside the range is
+    //! covered with a warning color, red above and magenta below (the
+    //! false color convention of the camera makers). The range is in
+    //! displayed values, so the default marks what the display cannot
+    //! show; 16/255 to 235/255 marks the video legal range.
+    //!
+    //! An overlay rather than a display adjustment so the picked color
+    //! is the color under the warning, not the warning.
+    struct TL_TIMELINE_API_TYPE ClippingWarning
+    {
+        bool  enabled = false;
+        float low     = 0.F;
+        float high    = 1.F;
+
+        bool operator == (const ClippingWarning&) const = default;
+    };
+
     //! Foreground options.
     struct TL_TIMELINE_API_TYPE ForegroundOptions
     {
         Grid             grid;
         CenterMarker     centerMarker;
         MissingIndicator missingIndicator;
+        ClippingWarning  clippingWarning;
 
         bool operator == (const ForegroundOptions&) const = default;
     };
@@ -104,11 +122,13 @@ namespace tl
     TL_TIMELINE_API void to_json(nlohmann::json&, const Grid&);
     TL_TIMELINE_API void to_json(nlohmann::json&, const CenterMarker&);
     TL_TIMELINE_API void to_json(nlohmann::json&, const MissingIndicator&);
+    TL_TIMELINE_API void to_json(nlohmann::json&, const ClippingWarning&);
     TL_TIMELINE_API void to_json(nlohmann::json&, const ForegroundOptions&);
 
     TL_TIMELINE_API void from_json(const nlohmann::json&, Grid&);
     TL_TIMELINE_API void from_json(const nlohmann::json&, CenterMarker&);
     TL_TIMELINE_API void from_json(const nlohmann::json&, MissingIndicator&);
+    TL_TIMELINE_API void from_json(const nlohmann::json&, ClippingWarning&);
     TL_TIMELINE_API void from_json(const nlohmann::json&, ForegroundOptions&);
 
     ///@}

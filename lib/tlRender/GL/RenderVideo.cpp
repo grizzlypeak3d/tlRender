@@ -1191,9 +1191,6 @@ namespace tl
                 displayShader->setUniform(
                     "softClip",
                     displayOptions.softClip.enabled ? displayOptions.softClip.value : 0.F);
-                displayShader->setUniform("clipWarningEnabled", displayOptions.clipWarning.enabled);
-                displayShader->setUniform("clipWarningLow", displayOptions.clipWarning.low);
-                displayShader->setUniform("clipWarningHigh", displayOptions.clipWarning.high);
 
                 glActiveTexture(static_cast<GLenum>(GL_TEXTURE0));
                 glBindTexture(GL_TEXTURE_2D, videoID);
@@ -1548,6 +1545,80 @@ namespace tl
                         options.centerMarker.size * b,
                         options.centerMarker.width));
                     drawRects(centerMarker, options.centerMarker.color);
+                }
+            }
+        }
+
+        void Render::drawClippingWarning(
+            unsigned int id,
+            const ftk::Box2I& rect,
+            bool flipV,
+            const std::vector<ftk::Box2I>& boxes,
+            const ftk::M44F& vm,
+            const ClippingWarning& options)
+        {
+            FTK_P();
+            const ftk::Size2I size = rect.size();
+            if (!size.isValid())
+            {
+                return;
+            }
+            p.shaders["clippingWarning"]->bind();
+            p.shaders["clippingWarning"]->setUniform("transform.mvp", getTransform());
+            p.shaders["clippingWarning"]->setUniform("low", options.low);
+            p.shaders["clippingWarning"]->setUniform("high", options.high);
+            p.shaders["clippingWarning"]->setUniform("textureSampler", 0);
+
+            ftk::gl::setAlphaBlend(ftk::AlphaBlend::Straight);
+
+            glActiveTexture(static_cast<GLenum>(GL_TEXTURE0));
+            glBindTexture(GL_TEXTURE_2D, id);
+
+            for (const auto& box : boxes)
+            {
+                // The box in texture pixels, and the part of the texture
+                // under it.
+                const ftk::Box2I boxT = xform(box, vm);
+                const float x0 = rect.min.x + boxT.min.x;
+                const float y0 = rect.min.y + boxT.min.y;
+                const float x1 = rect.min.x + boxT.max.x + 1;
+                const float y1 = rect.min.y + boxT.max.y + 1;
+                const float u0 = boxT.min.x / static_cast<float>(size.w);
+                const float u1 = (boxT.max.x + 1) / static_cast<float>(size.w);
+                float v0 = boxT.min.y / static_cast<float>(size.h);
+                float v1 = (boxT.max.y + 1) / static_cast<float>(size.h);
+                if (flipV)
+                {
+                    v0 = 1.F - v0;
+                    v1 = 1.F - v1;
+                }
+                ftk::TriMesh2F mesh;
+                mesh.v = { ftk::V2F(x0, y0), ftk::V2F(x1, y0), ftk::V2F(x1, y1), ftk::V2F(x0, y1) };
+                mesh.t = { ftk::V2F(u0, v0), ftk::V2F(u1, v0), ftk::V2F(u1, v1), ftk::V2F(u0, v1) };
+                ftk::Triangle2 triangle;
+                triangle.v[0].v = 1;
+                triangle.v[1].v = 3;
+                triangle.v[2].v = 2;
+                triangle.v[0].t = 1;
+                triangle.v[1].t = 3;
+                triangle.v[2].t = 2;
+                mesh.triangles.push_back(triangle);
+                triangle.v[0].v = 3;
+                triangle.v[1].v = 1;
+                triangle.v[2].v = 4;
+                triangle.v[0].t = 3;
+                triangle.v[1].t = 1;
+                triangle.v[2].t = 4;
+                mesh.triangles.push_back(triangle);
+
+                if (p.vbos["video"])
+                {
+                    p.vbos["video"]->copy(convert(mesh, p.vbos["video"]->getType()));
+                }
+                if (p.vaos["video"])
+                {
+                    p.vaos["video"]->bind();
+                    p.vaos["video"]->draw(GL_TRIANGLES, 0, p.vbos["video"]->getSize());
                 }
             }
         }

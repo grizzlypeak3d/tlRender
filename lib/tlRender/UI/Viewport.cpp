@@ -1117,6 +1117,27 @@ namespace tl
                     true,
                     ftk::Color4F(1.F, 1.F, 1.F),
                     alphaBlend);
+                // Drawn over the buffer rather than into it, so the buffer
+                // keeps the true values for the color sample.
+                const auto& clippingWarning = p.fgOptions->get().clippingWarning;
+                if (clippingWarning.enabled)
+                {
+                    const auto& compareOptions = p.compareOptions->get();
+                    const auto& displayOptions = p.displayOptions->get();
+                    const ftk::V2I& viewPos = p.viewPos->get();
+                    const double zoom = p.zoom->get();
+                    render->drawClippingWarning(
+                        p.buffer->getColorID(),
+                        g,
+                        true,
+                        getBoxes(
+                            compareOptions,
+                            !displayOptions.empty() ? displayOptions.front().aspectRatio : AspectRatioOptions(),
+                            p.videoFrame),
+                        ftk::translate(ftk::V3F(viewPos.x, viewPos.y, 0.F)) *
+                        ftk::scale(ftk::V3F(zoom, zoom, 1.F)),
+                        clippingWarning);
+                }
             }
             if (p.fgBuffer)
             {

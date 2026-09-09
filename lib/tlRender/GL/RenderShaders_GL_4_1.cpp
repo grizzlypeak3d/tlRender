@@ -212,9 +212,6 @@ namespace tl
                 "uniform bool     exposureEnabled;\n"
                 "uniform float    exposure;\n"
                 "uniform float    softClip;\n"
-                "uniform bool     clipWarningEnabled;\n"
-                "uniform float    clipWarningLow;\n"
-                "uniform float    clipWarningHigh;\n"
                 "\n"
                 "vec4 colorFunc(vec4 value, vec3 add, mat4 m)\n"
                 "{\n"
@@ -334,23 +331,6 @@ namespace tl
                 "        outColor.g = outColor.a;\n"
                 "        outColor.b = outColor.a;\n"
                 "    }\n"
-                "\n"
-                "    // Clip warning, on the values as they are displayed.\n"
-                "    if (clipWarningEnabled)\n"
-                "    {\n"
-                "        if (outColor.r > clipWarningHigh ||\n"
-                "            outColor.g > clipWarningHigh ||\n"
-                "            outColor.b > clipWarningHigh)\n"
-                "        {\n"
-                "            outColor.rgb = vec3(1.0, 0.0, 0.0);\n"
-                "        }\n"
-                "        else if (outColor.r < clipWarningLow ||\n"
-                "                 outColor.g < clipWarningLow ||\n"
-                "                 outColor.b < clipWarningLow)\n"
-                "        {\n"
-                "            outColor.rgb = vec3(0.0, 0.0, 1.0);\n"
-                "        }\n"
-                "    }\n"
                 "}\n").
                 arg(args[0]).
                 arg(args[1]).
@@ -380,6 +360,36 @@ namespace tl
                 "    outColor.g = c.g * idissolve + c2.g * dissolve;\n"
                 "    outColor.b = c.b * idissolve + c2.b * dissolve;\n"
                 "    outColor.a = c.a * idissolve + c2.a * dissolve;\n"
+                "}\n";
+        }
+
+        std::string clippingWarningFragmentSource()
+        {
+            return
+                "#version 410\n"
+                "\n"
+                "in vec2 fTexture;\n"
+                "out vec4 outColor;\n"
+                "\n"
+                "uniform float     low;\n"
+                "uniform float     high;\n"
+                "uniform sampler2D textureSampler;\n"
+                "\n"
+                "void main()\n"
+                "{\n"
+                "    vec4 c = texture(textureSampler, fTexture);\n"
+                "    if (c.r > high || c.g > high || c.b > high)\n"
+                "    {\n"
+                "        outColor = vec4(1.0, 0.0, 0.0, 1.0);\n"
+                "    }\n"
+                "    else if (c.r < low || c.g < low || c.b < low)\n"
+                "    {\n"
+                "        outColor = vec4(1.0, 0.0, 1.0, 1.0);\n"
+                "    }\n"
+                "    else\n"
+                "    {\n"
+                "        outColor = vec4(0.0);\n"
+                "    }\n"
                 "}\n";
         }
 

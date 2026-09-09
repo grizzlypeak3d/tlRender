@@ -62,5 +62,16 @@ namespace tl
             const ftk::M44F& vm,
             const ForegroundOptions&,
             const CompareOptions&) = 0;
+
+        //! Draw the clipping warning over the rendered video, given as a
+        //! texture drawn in the rectangle. Only the video boxes are
+        //! covered; the empty part of the texture is not the video.
+        TL_TIMELINE_API virtual void drawClippingWarning(
+            unsigned int textureID,
+            const ftk::Box2I& rect,
+            bool flipV,
+            const std::vector<ftk::Box2I>& boxes,
+            const ftk::M44F& vm,
+            const ClippingWarning&) = 0;
     };
 }

@@ -33,7 +33,8 @@ namespace tl
                 .def("setOCIOOptions", &IRender::setOCIOOptions)
                 .def("setOCIOInputResolver", &IRender::setOCIOInputResolver)
                 .def("drawBackground", &IRender::drawBackground)
-                .def("drawForeground", &IRender::drawForeground);
+                .def("drawForeground", &IRender::drawForeground)
+                .def("drawClippingWarning", &IRender::drawClippingWarning);
         }
     }
 }

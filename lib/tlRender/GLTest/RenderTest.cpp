@@ -452,6 +452,28 @@ namespace tl
                 ForegroundOptions(),
                 CompareOptions());
             render->end();
+
+            // The clipping warning reads the rendered video from a texture;
+            // a second buffer stands in for it, since reading the bound one
+            // would be a feedback loop.
+            {
+                auto video = ftk::gl::OffscreenBuffer::create(
+                    imageSize,
+                    ftk::gl::offscreenColorDefault);
+                ClippingWarning options;
+                options.enabled = true;
+                options.low = .1F;
+                options.high = .9F;
+                render->begin(imageSize);
+                render->drawClippingWarning(
+                    video->getColorID(),
+                    ftk::Box2I(ftk::V2I(), imageSize),
+                    true,
+                    boxes,
+                    ftk::M44F(),
+                    options);
+                render->end();
+            }
         }
 
         //! The color configuration and the look-up table, which are the two

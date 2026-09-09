@@ -59,12 +59,6 @@ namespace tl
                 FTK_CHECK(softClip != SoftClip());
             }
             {
-                ClipWarning clipWarning;
-                clipWarning.enabled = true;
-                FTK_CHECK(clipWarning == clipWarning);
-                FTK_CHECK(clipWarning != ClipWarning());
-            }
-            {
                 DisplayOptions displayOptions;
                 displayOptions.channels = ftk::ChannelDisplay::Red;
                 FTK_CHECK(displayOptions == displayOptions);

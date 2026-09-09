@@ -60,11 +60,20 @@ namespace tl
                 .def(nanobind::self == nanobind::self)
                 .def(nanobind::self != nanobind::self);
 
+            nb::class_<ClippingWarning>(m, "ClippingWarning")
+                .def(nb::init())
+                .def_rw("enabled", &ClippingWarning::enabled)
+                .def_rw("low", &ClippingWarning::low)
+                .def_rw("high", &ClippingWarning::high)
+                .def(nanobind::self == nanobind::self)
+                .def(nanobind::self != nanobind::self);
+
             nb::class_<ForegroundOptions>(m, "ForegroundOptions")
                 .def(nb::init())
                 .def_rw("grid", &ForegroundOptions::grid)
                 .def_rw("centerMarker", &ForegroundOptions::centerMarker)
                 .def_rw("missingIndicator", &ForegroundOptions::missingIndicator)
+                .def_rw("clippingWarning", &ForegroundOptions::clippingWarning)
                 .def(nanobind::self == nanobind::self)
                 .def(nanobind::self != nanobind::self);
 

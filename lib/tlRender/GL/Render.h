@@ -62,6 +62,13 @@ namespace tl
                 const ftk::M44F& vm,
                 const ForegroundOptions&,
                 const CompareOptions&) override;
+            TL_GL_API void drawClippingWarning(
+                unsigned int,
+                const ftk::Box2I& rect,
+                bool flipV,
+                const std::vector<ftk::Box2I>& boxes,
+                const ftk::M44F& vm,
+                const ClippingWarning&) override;
 
             TL_GL_API void begin(
                 const ftk::Size2I&,
