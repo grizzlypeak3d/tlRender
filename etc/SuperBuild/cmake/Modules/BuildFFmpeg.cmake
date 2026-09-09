@@ -142,6 +142,7 @@ if(TLRENDER_FFMPEG_MINIMAL)
     list(APPEND FFmpeg_CONFIGURE_ARGS
         --disable-hwaccels
         --disable-decoders
+        --enable-decoder=ac3
         --enable-decoder=apv
         --enable-decoder=av1
         --enable-decoder=cfhd
