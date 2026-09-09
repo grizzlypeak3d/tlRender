@@ -144,6 +144,7 @@ if(TLRENDER_FFMPEG_MINIMAL)
         --disable-decoders
         --enable-decoder=apv
         --enable-decoder=av1
+        --enable-decoder=cfhd
         --enable-decoder=flac
         --enable-decoder=mjpeg
         --enable-decoder=mp3
@@ -193,6 +194,7 @@ if(TLRENDER_FFMPEG_MINIMAL)
         --enable-decoder=vp9
         --enable-decoder=yuv4
         --disable-encoders
+        --enable-encoder=cfhd
         --enable-encoder=flac
         --enable-encoder=mjpeg
         --enable-encoder=mpeg2video
