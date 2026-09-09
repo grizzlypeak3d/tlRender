@@ -441,11 +441,21 @@ else()
     endif()
 endif()
 
+# The subfile protocol clips a seek to thirty-two bits, so a bundled movie
+# with its moov atom past 2 GB does not open through it (FFmpeg-patch/
+# subfile.patch, sent upstream; drop it once a release carries the fix).
+find_package(Git REQUIRED)
+
 ExternalProject_Add(
     FFmpeg
     PREFIX ${CMAKE_CURRENT_BINARY_DIR}/FFmpeg
     DEPENDS ${FFmpeg_DEPS}
     URL ${FFmpeg_URL}
+    PATCH_COMMAND ${CMAKE_COMMAND}
+        -DGIT_EXECUTABLE=${GIT_EXECUTABLE}
+        -DPATCH_SOURCE_DIR=${CMAKE_CURRENT_BINARY_DIR}/FFmpeg/src/FFmpeg
+        -DPATCH_FILE=${CMAKE_CURRENT_SOURCE_DIR}/FFmpeg-patch/subfile.patch
+        -P ${CMAKE_CURRENT_LIST_DIR}/ApplyPatch.cmake
     CONFIGURE_COMMAND ${FFmpeg_CONFIGURE}
     BUILD_COMMAND ${FFmpeg_BUILD}
     INSTALL_COMMAND ${FFmpeg_INSTALL}

@@ -15,6 +15,8 @@
 #include <ftk/Core/Path.h>
 
 #include <algorithm>
+#include <cstdio>
+#include <filesystem>
 #include <array>
 #include <chrono>
 #include <cmath>
@@ -41,7 +43,147 @@ namespace tl
             _audio();
             _split();
             _commandLine();
+            _subfileSeek();
             _pixelAspectRatio();
+        }
+
+        void FFmpegTest::_subfileSeek()
+        {
+            // FFmpeg's subfile protocol clipped a seek to thirty-two bits, so
+            // a movie whose moov atom sits past 2 GB did not open through
+            // it. The superbuild patches that (FFmpeg-patch/subfile.patch);
+            // this checks the patch is in the library. The fixture is a
+            // small movie with a 3 GB hole for its mdat, which puts the moov
+            // atom past 2 GB and costs no disk: the moov is what opens the
+            // file, and opening is all that is asked.
+#if defined(_WINDOWS)
+            // A hole needs asking for on NTFS.
+            _print("Skipped: needs a sparse file");
+            return;
+#else
+            auto readSystem = _context->getSystem<ReadSystem>();
+            auto writeSystem = _context->getSystem<WriteSystem>();
+            const ftk::Path path(
+                ftk::fromFileSystem(_getTempDir() / "FFmpegSubfileSeekTest.mov"));
+            auto readPlugin = readSystem->getPlugin(path);
+            auto writePlugin = writeSystem->getPlugin(path);
+            if (!readPlugin || !writePlugin)
+            {
+                _print("Skipped: no plugin reads or writes the fixture");
+                return;
+            }
+            const ftk::ImageInfo imageInfo(16, 16, ftk::ImageType::RGB_U8);
+            IOInfo info;
+            info.video.push_back(imageInfo);
+            info.videoTime = OTIO_NS::TimeRange(
+                OTIO_NS::RationalTime(0.0, 24.0),
+                OTIO_NS::RationalTime(24.0, 24.0));
+            {
+                IOOptions writeOptions;
+                writeOptions["FFmpeg/Codec"] = "mjpeg";
+                auto write = writePlugin->write(path, info, writeOptions);
+                for (int i = 0; i < 24; ++i)
+                {
+                    write->writeVideo(
+                        OTIO_NS::RationalTime(i, 24.0),
+                        ftk::Image::create(imageInfo));
+                }
+                write->finish();
+            }
+
+            // Walk the top level atoms, and lay them out again around the hole.
+            std::vector<uint8_t> data;
+            {
+                auto io = ftk::FileIO::create(
+                    ftk::toFileSystem(path.get()), ftk::FileMode::Read);
+                data.resize(io->getSize());
+                io->read(data.data(), data.size());
+            }
+            std::vector<uint8_t> ftyp;
+            std::vector<uint8_t> moov;
+            for (size_t pos = 0; pos + 8 <= data.size();)
+            {
+                uint64_t size =
+                    (static_cast<uint64_t>(data[pos]) << 24) |
+                    (static_cast<uint64_t>(data[pos + 1]) << 16) |
+                    (static_cast<uint64_t>(data[pos + 2]) << 8) |
+                    static_cast<uint64_t>(data[pos + 3]);
+                const std::string type(data.begin() + pos + 4, data.begin() + pos + 8);
+                if (1 == size && pos + 16 <= data.size())
+                {
+                    size = 0;
+                    for (size_t i = 0; i < 8; ++i)
+                    {
+                        size = (size << 8) | data[pos + 8 + i];
+                    }
+                }
+                if (0 == size || pos + size > data.size())
+                {
+                    break;
+                }
+                if ("ftyp" == type)
+                {
+                    ftyp.assign(data.begin() + pos, data.begin() + pos + size);
+                }
+                else if ("moov" == type)
+                {
+                    moov.assign(data.begin() + pos, data.begin() + pos + size);
+                }
+                pos += size;
+            }
+            FTK_CHECK(!ftyp.empty());
+            FTK_CHECK(!moov.empty());
+            if (ftyp.empty() || moov.empty())
+            {
+                return;
+            }
+            const uint64_t mdatSize = 3000ULL * 1024 * 1024;
+            const std::filesystem::path bigPath =
+                _getTempDir() / "FFmpegSubfileSeekTest.big.mov";
+            {
+                FILE* f = fopen(bigPath.string().c_str(), "wb");
+                FTK_CHECK(f);
+                if (!f)
+                {
+                    return;
+                }
+                fwrite(ftyp.data(), 1, ftyp.size(), f);
+                const uint8_t mdat[16] =
+                {
+                    0, 0, 0, 1, 'm', 'd', 'a', 't',
+                    static_cast<uint8_t>(mdatSize >> 56),
+                    static_cast<uint8_t>(mdatSize >> 48),
+                    static_cast<uint8_t>(mdatSize >> 40),
+                    static_cast<uint8_t>(mdatSize >> 32),
+                    static_cast<uint8_t>(mdatSize >> 24),
+                    static_cast<uint8_t>(mdatSize >> 16),
+                    static_cast<uint8_t>(mdatSize >> 8),
+                    static_cast<uint8_t>(mdatSize)
+                };
+                fwrite(mdat, 1, sizeof(mdat), f);
+                fseeko(f, ftyp.size() + mdatSize, SEEK_SET);
+                fwrite(moov.data(), 1, moov.size(), f);
+                fclose(f);
+            }
+            const uint64_t bigSize = ftyp.size() + mdatSize + moov.size();
+
+            IOOptions options;
+            options["FFmpeg/CommandLine"] = "Never";
+            auto reader = readPlugin->videoRead(
+                ftk::Path(ftk::Format("subfile,,start,0,end,{0},,:{1}").
+                    arg(bigSize).
+                    arg(ftk::fromFileSystem(bigPath))),
+                {},
+                options);
+            FTK_CHECK(!std::dynamic_pointer_cast<ffmpeg_cmd::VideoRead>(reader));
+            const IOInfo bigInfo = reader->getInfo().get();
+            FTK_CHECK(!bigInfo.video.empty());
+            if (!bigInfo.video.empty())
+            {
+                FTK_CHECK(bigInfo.video[0].size == imageInfo.size);
+            }
+            std::filesystem::remove(bigPath);
+#endif
         }
 
         void FFmpegTest::_pixelAspectRatio()
