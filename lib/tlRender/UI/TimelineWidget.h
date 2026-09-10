@@ -126,6 +126,11 @@ namespace tl
             //! Observe time scrubbing.
             TL_UI_API std::shared_ptr<ftk::IObservable<std::optional<OTIO_NS::RationalTime> > > observeTimeScrub() const;
 
+            //! Observe the time under the cursor while nothing is pressed,
+            //! over the ruler or the player's timeline; unset when the
+            //! cursor leaves or a scrub starts.
+            TL_UI_API std::shared_ptr<ftk::IObservable<std::optional<OTIO_NS::RationalTime> > > observeTimeHover() const;
+
             ///@}
 
             //! \name Frame Markers

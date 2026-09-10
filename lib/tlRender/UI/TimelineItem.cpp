@@ -314,6 +314,7 @@ namespace tl
 
             p.scrub = ftk::Observable<bool>::create(false);
             p.timeScrub = ftk::Observable<std::optional<OTIO_NS::RationalTime> >::create();
+            p.timeHover = ftk::Observable<std::optional<OTIO_NS::RationalTime> >::create();
 
             _itemsInit(context);
             _itemsScaleUpdate();
@@ -414,6 +415,11 @@ namespace tl
         std::shared_ptr<ftk::IObservable<std::optional<OTIO_NS::RationalTime> > > TimelineItem::observeTimeScrub() const
         {
             return _p->timeScrub;
+        }
+
+        std::shared_ptr<ftk::IObservable<std::optional<OTIO_NS::RationalTime> > > TimelineItem::observeTimeHover() const
+        {
+            return _p->timeHover;
         }
 
         void TimelineItem::setFrameMarkers(const std::vector<int>& value)
@@ -848,7 +854,12 @@ namespace tl
             }
             // Scrubbing is only entered with a player, so there is none to
             // check for here.
-            default: break;
+            default:
+                if (p.player && _options.inputEnabled)
+                {
+                    p.timeHover->setIfChanged(posToTime(event.pos.x));
+                }
+                break;
             }
         }
 
@@ -863,6 +874,7 @@ namespace tl
                 0 == event.modifiers)
             {
                 p.mouseMode = Private::MouseMode::CurrentTime;
+                p.timeHover->setIfChanged(std::nullopt);
                 if (p.stopOnScrub)
                 {
                     p.player->stop();
@@ -880,6 +892,12 @@ namespace tl
             FTK_P();
             p.scrub->setIfChanged(false);
             p.mouseMode = Private::MouseMode::None;
+        }
+
+        void TimelineItem::mouseLeaveEvent()
+        {
+            IMouseWidget::mouseLeaveEvent();
+            _p->timeHover->setIfChanged(std::nullopt);
         }
 
         void TimelineItem::_timeUnitsUpdate()

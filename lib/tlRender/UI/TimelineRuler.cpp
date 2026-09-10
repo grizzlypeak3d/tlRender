@@ -56,6 +56,7 @@ namespace tl
             bool stopOnScrub = true;
             std::shared_ptr<ftk::Observable<bool> > scrub;
             std::shared_ptr<ftk::Observable<std::optional<OTIO_NS::RationalTime> > > timeScrub;
+            std::shared_ptr<ftk::Observable<std::optional<OTIO_NS::RationalTime> > > timeHover;
 
             enum class MouseMode
             {
@@ -97,6 +98,7 @@ namespace tl
             p.data = data;
             p.scrub = ftk::Observable<bool>::create(false);
             p.timeScrub = ftk::Observable<std::optional<OTIO_NS::RationalTime> >::create();
+            p.timeHover = ftk::Observable<std::optional<OTIO_NS::RationalTime> >::create();
 
             // The same binding the timelines take, so that the ruler is
             // dragged to scrub as the timelines under it are.
@@ -251,6 +253,11 @@ namespace tl
             return _p->timeScrub;
         }
 
+        std::shared_ptr<ftk::IObservable<std::optional<OTIO_NS::RationalTime> > > TimelineRuler::observeTimeHover() const
+        {
+            return _p->timeHover;
+        }
+
         void TimelineRuler::mouseMoveEvent(ftk::MouseMoveEvent& event)
         {
             IMouseWidget::mouseMoveEvent(event);
@@ -260,6 +267,10 @@ namespace tl
                 const OTIO_NS::RationalTime time = _posToTimeClamped(event.pos.x);
                 p.timeScrub->setIfChanged(time);
                 p.player->seek(time);
+            }
+            else if (p.player && p.options.inputEnabled)
+            {
+                p.timeHover->setIfChanged(_posToTimeClamped(event.pos.x));
             }
         }
 
@@ -274,6 +285,7 @@ namespace tl
                 0 == event.modifiers)
             {
                 p.mouseMode = Private::MouseMode::CurrentTime;
+                p.timeHover->setIfChanged(std::nullopt);
                 if (p.stopOnScrub)
                 {
                     p.player->stop();
@@ -291,6 +303,12 @@ namespace tl
             FTK_P();
             p.scrub->setIfChanged(false);
             p.mouseMode = Private::MouseMode::None;
+        }
+
+        void TimelineRuler::mouseLeaveEvent()
+        {
+            IMouseWidget::mouseLeaveEvent();
+            _p->timeHover->setIfChanged(std::nullopt);
         }
 
         OTIO_NS::RationalTime TimelineRuler::_posToTimeClamped(float value) const

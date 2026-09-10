@@ -45,6 +45,7 @@ namespace tl
             std::shared_ptr<ftk::Observable<bool> > stopOnScrub;
             std::shared_ptr<ftk::Observable<bool> > scrub;
             std::shared_ptr<ftk::Observable<std::optional<OTIO_NS::RationalTime> > > timeScrub;
+            std::shared_ptr<ftk::Observable<std::optional<OTIO_NS::RationalTime> > > timeHover;
             std::vector<int> frameMarkers;
             std::vector<Marker> markers;
             std::vector<ItemColors> itemColors;
@@ -95,8 +96,10 @@ namespace tl
             std::shared_ptr<ftk::ListObserver<std::shared_ptr<Timeline> > > compareObserver;
             std::shared_ptr<ftk::Observer<bool> > scrubObserver;
             std::shared_ptr<ftk::Observer<std::optional<OTIO_NS::RationalTime> > > timeScrubObserver;
+            std::shared_ptr<ftk::Observer<std::optional<OTIO_NS::RationalTime> > > timeHoverObserver;
             std::shared_ptr<ftk::Observer<bool> > rulerScrubObserver;
             std::shared_ptr<ftk::Observer<std::optional<OTIO_NS::RationalTime> > > rulerTimeScrubObserver;
+            std::shared_ptr<ftk::Observer<std::optional<OTIO_NS::RationalTime> > > rulerTimeHoverObserver;
         };
 
         void TimelineWidget::_init(
@@ -117,6 +120,7 @@ namespace tl
             p.stopOnScrub = ftk::Observable<bool>::create(true);
             p.scrub = ftk::Observable<bool>::create(false);
             p.timeScrub = ftk::Observable<std::optional<OTIO_NS::RationalTime> >::create();
+            p.timeHover = ftk::Observable<std::optional<OTIO_NS::RationalTime> >::create();
             p.itemOptions = ftk::Observable<ItemOptions>::create();
             p.displayOptions = ftk::Observable<DisplayOptions>::create();
 
@@ -152,6 +156,13 @@ namespace tl
                 [this](const std::optional<OTIO_NS::RationalTime>& value)
                 {
                     _p->timeScrub->setIfChanged(value);
+                });
+
+            p.rulerTimeHoverObserver = ftk::Observer<std::optional<OTIO_NS::RationalTime> >::create(
+                p.ruler->observeTimeHover(),
+                [this](const std::optional<OTIO_NS::RationalTime>& value)
+                {
+                    _p->timeHover->setIfChanged(value);
                 });
 
             p.layout = ftk::VerticalLayout::create(context);
@@ -435,6 +446,11 @@ namespace tl
         std::shared_ptr<ftk::IObservable<std::optional<OTIO_NS::RationalTime> > > TimelineWidget::observeTimeScrub() const
         {
             return _p->timeScrub;
+        }
+
+        std::shared_ptr<ftk::IObservable<std::optional<OTIO_NS::RationalTime> > > TimelineWidget::observeTimeHover() const
+        {
+            return _p->timeHover;
         }
 
         const std::vector<int>& TimelineWidget::getFrameMarkers() const
@@ -965,6 +981,8 @@ namespace tl
 
             p.scrubObserver.reset();
             p.timeScrubObserver.reset();
+            p.timeHoverObserver.reset();
+            p.timeHover->setIfChanged(std::nullopt);
             for (const auto& item : p.timelineItems)
             {
                 item->setParent(nullptr);
@@ -1045,6 +1063,13 @@ namespace tl
                         [this](const std::optional<OTIO_NS::RationalTime>& value)
                         {
                             _p->timeScrub->setIfChanged(value);
+                        });
+
+                    p.timeHoverObserver = ftk::Observer<std::optional<OTIO_NS::RationalTime> >::create(
+                        p.timelineItems.front()->observeTimeHover(),
+                        [this](const std::optional<OTIO_NS::RationalTime>& value)
+                        {
+                            _p->timeHover->setIfChanged(value);
                         });
                 }
             }

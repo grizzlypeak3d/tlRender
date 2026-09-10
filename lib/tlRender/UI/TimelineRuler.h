@@ -82,6 +82,10 @@ namespace tl
             //! Observe time scrubbing.
             TL_UI_API std::shared_ptr<ftk::IObservable<std::optional<OTIO_NS::RationalTime> > > observeTimeScrub() const;
 
+            //! Observe the time under the cursor while nothing is pressed,
+            //! for a preview; unset when the cursor leaves or a scrub starts.
+            TL_UI_API std::shared_ptr<ftk::IObservable<std::optional<OTIO_NS::RationalTime> > > observeTimeHover() const;
+
             //! Convert a time to a position.
             TL_UI_API int timeToPos(const OTIO_NS::RationalTime&) const;
 
@@ -91,6 +95,7 @@ namespace tl
             TL_UI_API void mouseMoveEvent(ftk::MouseMoveEvent&) override;
             TL_UI_API void mousePressEvent(ftk::MouseClickEvent&) override;
             TL_UI_API void mouseReleaseEvent(ftk::MouseClickEvent&) override;
+            TL_UI_API void mouseLeaveEvent() override;
 
         private:
             void _drawInOutPoints(const ftk::Box2I&, const ftk::DrawEvent&);
