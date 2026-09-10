@@ -418,15 +418,15 @@ namespace tl
 // The camera, lens and sensor attributes arrived in OpenEXR 3.2; a build
 // against an older library, as a distribution's package can be, has no
 // accessors for them and leaves them alone.
-#if OPENEXR_VERSION_HEX >= 0x03020000
+#if TLRENDER_OPENEXR_VERSION >= 30200
 #define TLRENDER_SERIALIZE_STD_ATTR_3_2(NAME, NAME_LOWER) \
     TLRENDER_SERIALIZE_STD_ATTR(NAME, NAME_LOWER)
 #define TLRENDER_DESERIALIZE_STD_ATTR_3_2(NAME, TYPE) \
     TLRENDER_DESERIALIZE_STD_ATTR(NAME, TYPE)
-#else // OPENEXR_VERSION_HEX
+#else // TLRENDER_OPENEXR_VERSION
 #define TLRENDER_SERIALIZE_STD_ATTR_3_2(NAME, NAME_LOWER)
 #define TLRENDER_DESERIALIZE_STD_ATTR_3_2(NAME, TYPE)
-#endif // OPENEXR_VERSION_HEX
+#endif // TLRENDER_OPENEXR_VERSION
 
 // Some OpenEXR standard attributes are deprecated but still commonly present
 // in real-world files (e.g. the ACES rendering/look transforms). We still

@@ -131,14 +131,14 @@ namespace tl
                     "B44A",
                     "DWAA",
                     "DWAB",
-#if OPENEXR_VERSION_HEX >= 0x03040000
+#if TLRENDER_OPENEXR_VERSION >= 30400
                     // Two of them: HTJ2K in blocks of 256 scan lines and in
                     // blocks of 32. Named as OpenEXR names them, and new in
                     // 3.4, so a build against an older library has no
                     // entries for them.
                     "HTJ2K256",
                     "HTJ2K32"
-#endif // OPENEXR_VERSION_HEX
+#endif // TLRENDER_OPENEXR_VERSION
                 };
                 return data[value];
             }

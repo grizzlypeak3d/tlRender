@@ -9,6 +9,14 @@
 
 #include <ImathBox.h>
 #include <ImfHeader.h>
+
+//! The OpenEXR version as one number, major * 10000 + minor * 100 + patch.
+//! OPENEXR_VERSION_HEX is not used: 3.1 defines it with a cast, which the
+//! preprocessor cannot evaluate in a condition.
+#define TLRENDER_OPENEXR_VERSION \
+    (OPENEXR_VERSION_MAJOR * 10000 + \
+     OPENEXR_VERSION_MINOR * 100 + \
+     OPENEXR_VERSION_PATCH)
 #include <ImfPixelType.h>
 
 namespace tl
