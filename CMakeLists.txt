@@ -252,6 +252,32 @@ if(TLRENDER_USD)
     find_package(pxr REQUIRED)
 endif()
 
+# A distribution's package can install a CMake configuration whose include
+# directories are not there: Ubuntu puts OpenColorIO's where its relative
+# prefix resolves to "/", so it asks for "/include", and OpenImageIO's names
+# the OpenCV headers it was built with, which its development package does
+# not bring. CMake refuses to generate with them, so the directories that do
+# not exist are dropped; the headers themselves are in /usr/include, which
+# the compiler searches anyway.
+function(tlrender_prune_include_directories TARGET)
+    if(TARGET ${TARGET})
+        get_target_property(DIRS ${TARGET} INTERFACE_INCLUDE_DIRECTORIES)
+        if(DIRS)
+            set(KEPT)
+            foreach(DIR ${DIRS})
+                if(DIR MATCHES "\\$<" OR EXISTS "${DIR}")
+                    list(APPEND KEPT "${DIR}")
+                else()
+                    message(STATUS "Dropping missing include directory ${DIR} from ${TARGET}")
+                endif()
+            endforeach()
+            set_property(TARGET ${TARGET} PROPERTY INTERFACE_INCLUDE_DIRECTORIES "${KEPT}")
+        endif()
+    endif()
+endfunction()
+tlrender_prune_include_directories(OpenColorIO::OpenColorIO)
+tlrender_prune_include_directories(OpenImageIO::OpenImageIO)
+
 # Python dependencies
 if(TLRENDER_PYTHON)
     find_package(Python3 REQUIRED Interpreter Development)
