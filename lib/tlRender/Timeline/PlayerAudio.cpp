@@ -247,8 +247,8 @@ namespace tl
 
             // These are OK to modify since the audio thread is stopped.
             audioMutex.reset = true;
-            audioMutex.start = currentTime->get();
-            audioMutex.frame = 0;
+            audioMutex.position = toAudioSamples(currentTime->get());
+            audioMutex.loops = 0;
             audioThread.info = audioInfo;
             audioThread.resample.reset();
 
@@ -307,11 +307,22 @@ namespace tl
 #endif // FTK_SDL2
     }
 
+    int64_t Player::Private::toAudioSamples(const OTIO_NS::RationalTime& time) const
+    {
+        return sourceAudioInfo.sampleRate > 0 ?
+            time.rescaled_to(sourceAudioInfo.sampleRate).floor().value() :
+            0;
+    }
+
     void Player::Private::audioReset(const OTIO_NS::RationalTime& time)
     {
+        // A reset moves the position and throws away what the callback had
+        // buffered ahead of it: it is for seeks and for the changes that
+        // invalidate the buffer, not for the loop point, which the callback
+        // now passes through without a gap.
         audioMutex.reset = true;
-        audioMutex.start = time;
-        audioMutex.frame = 0;
+        audioMutex.position = toAudioSamples(time);
+        audioMutex.loops = 0;
     }
 
 #if defined(FTK_SDL2) || defined(FTK_SDL3)
@@ -322,17 +333,13 @@ namespace tl
         // Get mutex protected values.
         AudioState state;
         bool reset = false;
-        OTIO_NS::RationalTime start;
+        int64_t position = 0;
         {
             std::unique_lock<std::mutex> lock(audioMutex.mutex);
             state = audioMutex.state;
             reset = audioMutex.reset;
             audioMutex.reset = false;
-            start = audioMutex.start;
-            if (reset)
-            {
-                audioMutex.frame = 0;
-            }
+            position = audioMutex.position;
         }
 
         // Zero output audio data.
@@ -346,8 +353,7 @@ namespace tl
             // Initialize on reset.
             if (reset)
             {
-                audioThread.inputFrame = 0;
-                audioThread.outputFrame = 0;
+                audioThread.position = position;
                 if (audioThread.resample)
                 {
                     audioThread.resample->flush();
@@ -362,23 +368,54 @@ namespace tl
                 audioThread.resample = AudioResample::create(inputInfo, outputInfo);
             }
 
-            // Fill the audio buffer.
-            int64_t copySize = 0;
-            const double speedMult = std::max(timeRange.duration().rate() > 0.0 ? (state.speed / timeRange.duration().rate()) : 1.0, 1.0);
-            if (getSampleCount(audioThread.buffer) < outputSamples * 2 * speedMult)
+            // The in/out range in source samples. Only Loop::Loop wraps
+            // here: the other loop modes stop or turn around at the
+            // boundary, which is the main thread's decision, and it needs
+            // to see the position run past the range to make it.
+            int64_t rangeStart = 0;
+            int64_t rangeEnd = 0;
+            if (Loop::Loop == state.loop)
             {
+                rangeStart = state.inOutRange.start_time().
+                    rescaled_to(inputInfo.sampleRate).floor().value();
+                rangeEnd = state.inOutRange.end_time_exclusive().
+                    rescaled_to(inputInfo.sampleRate).floor().value();
+            }
+            const int64_t rangeSize = rangeEnd - rangeStart;
+            const bool canWrap = rangeSize > 0;
+            int64_t loops = 0;
+
+            // Wrap the read position into the in/out range. Forward
+            // playback reads [start, end) and lands on the end; reverse
+            // reads (start, end] and lands on the start; a position
+            // anywhere else is a range that changed while playing.
+            const auto wrapPosition = [&]()
+            {
+                if (canWrap)
+                {
+                    const int64_t prev = audioThread.position;
+                    audioThread.position = Playback::Forward == state.playback ?
+                        rangeStart + (((prev - rangeStart) % rangeSize) + rangeSize) % rangeSize :
+                        rangeEnd - (((rangeEnd - prev) % rangeSize) + rangeSize) % rangeSize;
+                    if (audioThread.position != prev)
+                    {
+                        ++loops;
+                    }
+                }
+            };
+
+            // Fill the audio buffer.
+            const double speedMult = std::max(timeRange.duration().rate() > 0.0 ? (state.speed / timeRange.duration().rate()) : 1.0, 1.0);
+            const double bufferMax = outputSamples * 2 * speedMult;
+            bool copied = false;
+            while (getSampleCount(audioThread.buffer) < bufferMax)
+            {
+                const size_t bufferBefore = getSampleCount(audioThread.buffer);
+                wrapPosition();
+
                 // Get audio from the cache.
-                int64_t t =
-                    start.rescaled_to(inputInfo.sampleRate).value() -
+                const int64_t t = audioThread.position -
                     OTIO_NS::RationalTime(state.audioOffset, 1.0).rescaled_to(inputInfo.sampleRate).value();
-                if (Playback::Forward == state.playback)
-                {
-                    t += audioThread.inputFrame;
-                }
-                else
-                {
-                    t -= audioThread.inputFrame;
-                }
                 std::vector<AudioFrame> audioFrameList;
                 {
                     const int64_t seconds = std::floor(t / static_cast<double>(inputInfo.sampleRate));
@@ -398,10 +435,27 @@ namespace tl
                         }
                     }
                 }
-                copySize = OTIO_NS::RationalTime(
-                    outputSamples * 2 * speedMult - static_cast<double>(getSampleCount(audioThread.buffer)),
+                int64_t copySize = OTIO_NS::RationalTime(
+                    bufferMax - static_cast<double>(getSampleCount(audioThread.buffer)),
                     outputInfo.sampleRate).
                     rescaled_to(inputInfo.sampleRate).value();
+
+                // Stop the copy at the loop point. The wrap then lands on
+                // the sample instead of in the middle of a buffer, and what
+                // follows it is read on the next time around this loop.
+                bool cutAtBoundary = false;
+                if (canWrap)
+                {
+                    const int64_t boundary = Playback::Forward == state.playback ?
+                        rangeEnd - audioThread.position :
+                        audioThread.position - rangeStart;
+                    if (boundary < copySize)
+                    {
+                        copySize = boundary;
+                        cutAtBoundary = true;
+                    }
+                }
+
                 std::vector<std::shared_ptr<Audio> > audioLayers;
                 if (copySize > 0)
                 {
@@ -437,18 +491,39 @@ namespace tl
                     // Resample the audio and add it to the buffer.
                     audioThread.buffer.push_back(audioThread.resample->process(audio));
 
-                    // Update the frame counters.
-                    audioThread.inputFrame += audioLayers[0]->getSampleCount();
-                    audioThread.outputFrame += audio->getSampleCount();
+                    // Advance the read position.
+                    const int64_t frames = audioLayers[0]->getSampleCount();
+                    audioThread.position += Playback::Forward == state.playback ? frames : -frames;
+                    copied = true;
                 }
                 else
                 {
-                    const int64_t frames = OTIO_NS::RationalTime(outputSamples, outputInfo.sampleRate).
-                        rescaled_to(inputInfo.sampleRate).value();
-                    audioThread.inputFrame += frames;
-                    audioThread.outputFrame += frames;
+                    // Nothing to read at this position, either because the
+                    // buffer is already as full as a whole sample can make
+                    // it or because the cache has not filled yet. Move the
+                    // clock through a cache miss so playback carries on
+                    // rather than stopping on a frame -- but only if this
+                    // buffer got nothing at all, since skipping past audio
+                    // that has just been read is a hole in the sound.
+                    if (!copied && copySize > 0)
+                    {
+                        const int64_t frames = OTIO_NS::RationalTime(outputSamples, outputInfo.sampleRate).
+                            rescaled_to(inputInfo.sampleRate).value();
+                        audioThread.position += Playback::Forward == state.playback ? frames : -frames;
+                    }
+                    break;
+                }
+
+                // Fill again only to carry on past the loop point, and only
+                // while the buffer is growing: playing at a speed the audio
+                // has to be stretched to can turn a handful of samples into
+                // none, and asking for the same handful again never ends.
+                if (!cutAtBoundary || getSampleCount(audioThread.buffer) <= bufferBefore)
+                {
+                    break;
                 }
             }
+            wrapPosition();
 
             // Send the audio data to the device.
             const size_t bufferSampleCount = getSampleCount(audioThread.buffer);
@@ -457,13 +532,11 @@ namespace tl
                 moveAudio(audioThread.buffer, outputBuffer, outputSamples);
             }
 
-            // Update the frame counter.
+            // Publish the playback clock.
             {
-                const double speedMult = timeRange.duration().rate() > 0.0 ?
-                    (state.speed / timeRange.duration().rate()) :
-                    0.0;
                 std::unique_lock<std::mutex> lock(audioMutex.mutex);
-                audioMutex.frame = audioThread.outputFrame * speedMult;
+                audioMutex.position = audioThread.position;
+                audioMutex.loops += loops;
             }
         }
     }

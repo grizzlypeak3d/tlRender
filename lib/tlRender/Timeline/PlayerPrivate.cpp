@@ -23,10 +23,33 @@ namespace tl
         {
         case Loop::Loop:
         {
-            out = tl::loop(out, range, &looped);
-            if (looped)
+            if (hasAudio())
             {
-                resetPlaybackTime(out);
+                // The audio callback wraps its own read position, so the
+                // clock arrives already inside the range and nothing here
+                // moves it; the callback's wrap count is what a loop looks
+                // like from this side. Resetting the clock instead, which is
+                // what this did, cut the last few milliseconds before the
+                // out point and skipped the first few after the in point --
+                // the clock runs ahead of the device by whatever the
+                // callback has buffered, so the wrap was always noticed
+                // late.
+                out = tl::loop(out, range);
+                std::unique_lock<std::mutex> lock(audioMutex.mutex);
+                looped = audioMutex.loops != audioLoopCount;
+                audioLoopCount = audioMutex.loops;
+                if (looped)
+                {
+                    droppedFramesReset = true;
+                }
+            }
+            else
+            {
+                out = tl::loop(out, range, &looped);
+                if (looped)
+                {
+                    resetPlaybackTime(out);
+                }
             }
             break;
         }

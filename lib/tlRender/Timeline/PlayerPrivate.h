@@ -47,6 +47,7 @@ namespace tl
             Playback,
             double timelineSpeed);
         void audioInit(const std::shared_ptr<ftk::Context>&);
+        int64_t toAudioSamples(const OTIO_NS::RationalTime&) const;
         void audioReset(const OTIO_NS::RationalTime&);
 #if defined(FTK_SDL2) || defined(FTK_SDL3)
         void sdlCallback(uint8_t* stream, int len);
@@ -118,6 +119,10 @@ namespace tl
         int64_t droppedPeak = 0;
         size_t droppedBase = 0;
         std::atomic<bool> droppedFramesReset{ true };
+
+        // The wrap count the main thread last saw from the audio callback;
+        // a change in it is what a loop looks like from here.
+        int64_t audioLoopCount = 0;
 
         bool audioDevices = false;
         AudioInfo audioInfo;
@@ -212,6 +217,8 @@ namespace tl
             std::vector<bool> channelMute;
             std::chrono::steady_clock::time_point muteTimeout;
             double audioOffset = 0.0;
+            Loop loop = Loop::Loop;
+            OTIO_NS::TimeRange inOutRange;
         };
 
         // Shared by three threads, all guarded by mutex: the main thread, the
@@ -225,8 +232,13 @@ namespace tl
             AudioState state;
             std::map<int64_t, AudioFrame> cache;
             bool reset = false;
-            OTIO_NS::RationalTime start;
-            int64_t frame = 0;
+
+            // The playback clock: the callback's read position in source
+            // samples, and how many times it has wrapped. While looping the
+            // callback keeps the position inside the in/out range, so the
+            // main thread reads a position instead of correcting one.
+            int64_t position = 0;
+            int64_t loops = 0;
             std::mutex mutex;
         };
         AudioMutex audioMutex;
@@ -236,8 +248,7 @@ namespace tl
         struct AudioThread
         {
             AudioInfo info;
-            int64_t inputFrame = 0;
-            int64_t outputFrame = 0;
+            int64_t position = 0;
             std::shared_ptr<AudioResample> resample;
             std::list<std::shared_ptr<Audio> > buffer;
             std::shared_ptr<Audio> silence;

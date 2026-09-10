@@ -158,6 +158,8 @@ namespace tl
         p.mutex.state.audioOffset = p.audioOffset->get();
         p.mutex.state.cacheOptions = p.cacheOptions->get();
         p.audioMutex.state.speed = p.speed->get() * p.speedMult->get();
+        p.audioMutex.state.loop = p.loop->get();
+        p.audioMutex.state.inOutRange = p.inOutRange->get();
         p.log();
         p.running = true;
         p.thread.thread = std::thread(
@@ -496,7 +498,12 @@ namespace tl
 
     void Player::setLoop(Loop value)
     {
-        _p->loop->setIfChanged(value);
+        FTK_P();
+        if (p.loop->setIfChanged(value))
+        {
+            std::unique_lock<std::mutex> lock(p.audioMutex.mutex);
+            p.audioMutex.state.loop = value;
+        }
     }
 
     const OTIO_NS::RationalTime& Player::getCurrentTime() const
@@ -634,9 +641,15 @@ namespace tl
         tmp = p.timeRange.clamped(tmp);
         if (p.inOutRange->setIfChanged(tmp))
         {
-            std::unique_lock<std::mutex> lock(p.mutex.mutex);
-            p.mutex.state.inOutRange = tmp;
-            p.mutex.clearRequests = true;
+            {
+                std::unique_lock<std::mutex> lock(p.mutex.mutex);
+                p.mutex.state.inOutRange = tmp;
+                p.mutex.clearRequests = true;
+            }
+            {
+                std::unique_lock<std::mutex> lock(p.audioMutex.mutex);
+                p.audioMutex.state.inOutRange = tmp;
+            }
         }
     }
 
@@ -910,9 +923,13 @@ namespace tl
             double t = 0.0;
             if (p.hasAudio())
             {
+                // The audio callback keeps the read position, so the clock
+                // is read rather than composed from an anchor and a count.
                 std::unique_lock<std::mutex> lock(p.audioMutex.mutex);
-                start = p.audioMutex.start;
-                t = OTIO_NS::RationalTime(p.audioMutex.frame, p.sourceAudioInfo.sampleRate).rescaled_to(1.0).value();
+                start = OTIO_NS::RationalTime(
+                    p.audioMutex.position,
+                    p.sourceAudioInfo.sampleRate).
+                    rescaled_to(timelineSpeed).floor();
             }
             else
             {
@@ -926,7 +943,7 @@ namespace tl
                 const std::chrono::duration<double> diff = now - playbackTimer;
                 t = diff.count() * (p.speed->get() * p.speedMult->get()) / timelineSpeed;
             }
-            if (Playback::Reverse == playback)
+            if (Playback::Reverse == playback && !p.hasAudio())
             {
                 t = -t;
             }
