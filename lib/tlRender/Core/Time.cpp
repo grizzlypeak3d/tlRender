@@ -181,7 +181,7 @@ namespace tl
 
 namespace opentime
 {
-    namespace OPENTIME_VERSION_NS
+    namespace TLRENDER_OPENTIME_NS
     {
         std::string to_string(const RationalTime& value)
         {

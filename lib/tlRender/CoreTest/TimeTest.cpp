@@ -329,14 +329,14 @@ namespace tl
         {
             {
                 const auto t = OTIO_NS::RationalTime(1.0, 24.0);
-                const std::string s = opentime::OPENTIME_VERSION_NS::to_string(t);
+                const std::string s = opentime::TLRENDER_OPENTIME_NS::to_string(t);
                 OTIO_NS::RationalTime t2;
                 from_string(s, t2);
                 FTK_CHECK(t == t2);
             }
             {
                 const auto t = OTIO_NS::TimeRange(OTIO_NS::RationalTime(0.0, 24.0), OTIO_NS::RationalTime(1.0, 24.0));
-                const std::string s = opentime::OPENTIME_VERSION_NS::to_string(t);
+                const std::string s = opentime::TLRENDER_OPENTIME_NS::to_string(t);
                 OTIO_NS::TimeRange t2;
                 from_string(s, t2);
                 FTK_CHECK(t == t2);

@@ -91,9 +91,18 @@ namespace tl
     ///@}
 }
 
+//! The inline namespace the OpenTime types live in, which changed name
+//! after 0.18.1: OPENTIME_VERSION_NS is the current macro, and releases
+//! before it have only OPENTIME_VERSION, which was the namespace then.
+#if defined(OPENTIME_VERSION_NS)
+#define TLRENDER_OPENTIME_NS OPENTIME_VERSION_NS
+#else // OPENTIME_VERSION_NS
+#define TLRENDER_OPENTIME_NS OPENTIME_VERSION
+#endif // OPENTIME_VERSION_NS
+
 namespace opentime
 {
-    namespace OPENTIME_VERSION_NS
+    namespace TLRENDER_OPENTIME_NS
     {
         TL_CORE_API std::string to_string(const RationalTime&);
         TL_CORE_API std::string to_string(const TimeRange&);
