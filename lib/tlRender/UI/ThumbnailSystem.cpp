@@ -1034,9 +1034,12 @@ namespace tl
                                 max = std::numeric_limits<float>::lowest();
                                 for (int i = x0; i <= x1 && i < static_cast<int>(sampleCount); ++i)
                                 {
-                                    const float v = *(data + i * info.channelCount);
-                                    min = std::min(min, v);
-                                    max = std::max(max, v);
+                                    for (int c = 0; c < info.channelCount; ++c)
+                                    {
+                                        const float v = *(data + i * info.channelCount + c);
+                                        min = std::min(min, v);
+                                        max = std::max(max, v);
+                                    }
                                 }
                             }
                             // Full scale stops short of the edge. Drawn to
@@ -1139,9 +1142,19 @@ namespace tl
                                 const auto audioData = audioRequest.get();
                                 if (audioData.audio && p.waveformThread.running)
                                 {
+                                    // Converted, not mixed down: a downmix
+                                    // to mono is constant power, so a stereo
+                                    // file whose channels are alike came out
+                                    // a factor of root two louder and drew
+                                    // past the top and bottom of the band
+                                    // (DJV #669). The mesh takes the widest
+                                    // excursion of the channels instead.
                                     auto resample = AudioResample::create(
                                         audioData.audio->getInfo(),
-                                        AudioInfo(1, AudioType::F32, audioData.audio->getSampleRate()));
+                                        AudioInfo(
+                                            audioData.audio->getInfo().channelCount,
+                                            AudioType::F32,
+                                            audioData.audio->getSampleRate()));
                                     if (auto resampledAudio = resample->process(audioData.audio))
                                     {
                                         mesh = audioMesh(resampledAudio, request->size);
