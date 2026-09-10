@@ -645,6 +645,37 @@ namespace tl
                 audioTrack->append_child(audioClip);
             }
 
+            // A still image has no duration of its own: paired with audio
+            // it lasts as long as the audio, rather than making a timeline
+            // one frame long that plays a twenty-fourth of a second of it
+            // over and over. The image is read at every frame of the range,
+            // which is what a still reference in an OTIO file already does.
+            if (videoTrack && audioTrack &&
+                1 == videoTrack->children().size() &&
+                FileType::Seq == ioSystem->getFileType(ftk::toLower(path.getExt())) &&
+                !path.isSeq())
+            {
+                if (auto clip = dynamic_cast<OTIO_NS::Clip*>(
+                    videoTrack->children().front().value))
+                {
+                    const double rate = info.videoTime->duration().rate();
+                    const OTIO_NS::RationalTime duration =
+                        audioTrack->duration().rescaled_to(rate).ceil();
+                    if (duration > clip->source_range()->duration())
+                    {
+                        const OTIO_NS::TimeRange range(
+                            info.videoTime->start_time(),
+                            duration);
+                        clip->set_source_range(range);
+                        if (auto reference = dynamic_cast<OTIO_NS::ExternalReference*>(
+                            clip->media_reference()))
+                        {
+                            reference->set_available_range(range);
+                        }
+                    }
+                }
+            }
+
             // Create the stack.
             auto otioStack = new OTIO_NS::Stack;
             if (videoTrack)
