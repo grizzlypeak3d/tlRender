@@ -109,15 +109,21 @@ namespace tl
 
     int64_t loop(
         int64_t value,
-        const OTIO_NS::TimeRange& range,
+        const ftk::Range<int64_t>& bounds,
         bool* looped)
     {
-        return loop(
-            OTIO_NS::RationalTime(value, 1.0),
-            OTIO_NS::TimeRange(
-                range.start_time().rescaled_to(1.0),
-                range.duration().rescaled_to(1.0)),
-            looped).value();
+        int64_t out = value;
+        const int64_t bs = bounds.min();
+        const int64_t bd = bounds.max() - bs + 1;
+        if (bd > 0)
+        {
+            out = bs + (((value - bs) % bd) + bd) % bd;
+            if (looped && out != value)
+            {
+                *looped = true;
+            }
+        }
+        return out;
     }
 
     std::vector<OTIO_NS::TimeRange> loop(

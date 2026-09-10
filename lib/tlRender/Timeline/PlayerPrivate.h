@@ -33,6 +33,7 @@ namespace tl
         size_t getVideoCacheMax() const;
         size_t getAudioCacheMax() const;
         OTIO_NS::TimeRange getVideoCacheRange(size_t max) const;
+        ftk::Range<int64_t> getAudioSecondsRange() const;
         ftk::Range<int64_t> getAudioCacheRange(size_t max) const;
         void cacheUpdate();
         void cacheEvictAndFill();

@@ -34,7 +34,7 @@ namespace tl
     //! Loop seconds.
     TL_TIMELINE_API int64_t loop(
         int64_t,
-        const OTIO_NS::TimeRange&,
+        const ftk::Range<int64_t>&,
         bool* looped = nullptr);
 
     //! Loop a range.

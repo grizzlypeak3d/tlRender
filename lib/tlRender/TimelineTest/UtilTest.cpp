@@ -209,6 +209,21 @@ namespace tl
                 FTK_CHECK(looped);
             }
             {
+                const ftk::Range<int64_t> bounds(4, 5);
+                bool looped = false;
+                FTK_CHECK(4 == loop(static_cast<int64_t>(4), bounds, &looped));
+                FTK_CHECK(!looped);
+                FTK_CHECK(5 == loop(static_cast<int64_t>(5), bounds, &looped));
+                FTK_CHECK(!looped);
+                FTK_CHECK(4 == loop(static_cast<int64_t>(6), bounds, &looped));
+                FTK_CHECK(looped);
+                looped = false;
+                FTK_CHECK(5 == loop(static_cast<int64_t>(3), bounds, &looped));
+                FTK_CHECK(looped);
+                FTK_CHECK(5 == loop(static_cast<int64_t>(-1), bounds));
+                FTK_CHECK(4 == loop(static_cast<int64_t>(10), bounds));
+            }
+            {
                 const OTIO_NS::TimeRange range(
                     OTIO_NS::RationalTime(0.0, 24.0),
                     OTIO_NS::RationalTime(24.0, 24.0));

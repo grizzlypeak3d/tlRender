@@ -239,6 +239,26 @@ namespace tl
         return out;
     }
 
+    ftk::Range<int64_t> Player::Private::getAudioSecondsRange() const
+    {
+        // The audio cache is keyed by whole seconds of the source, and an
+        // in/out range hardly ever lands on a second boundary: the range
+        // needs the second holding the in point through the second
+        // holding the last sample before the out point. Looping a key
+        // means looping it in these bounds. Looped in the in/out range
+        // itself, the fill asked for seconds outside the range, which the
+        // eviction then threw away, and never asked for the one at the in
+        // point at all -- the first part of the range had no audio.
+        const double start =
+            thread.state.inOutRange.start_time().rescaled_to(1.0).value();
+        const double end =
+            thread.state.inOutRange.end_time_exclusive().rescaled_to(1.0).value();
+        const int64_t min = static_cast<int64_t>(std::floor(start));
+        return ftk::Range<int64_t>(
+            min,
+            std::max(static_cast<int64_t>(std::ceil(end)) - 1, min));
+    }
+
     ftk::Range<int64_t> Player::Private::getAudioCacheRange(size_t max) const
     {
         ftk::Range<int64_t> out;
@@ -251,9 +271,10 @@ namespace tl
             static_cast<int64_t>(
                 OTIO_NS::RationalTime(thread.state.cacheOptions.readBehind, 1.0).value()),
             max > 0 ? static_cast<int64_t>(max - 1) : 0);
+        const ftk::Range<int64_t> seconds = getAudioSecondsRange();
         const int64_t readAhead = std::min(
             std::max(static_cast<int64_t>(max) - readBehind - 1, static_cast<int64_t>(0)),
-            static_cast<int64_t>(thread.state.inOutRange.duration().rescaled_to(1.0).value()));
+            seconds.max() - seconds.min());
 
         switch (thread.cacheDir)
         {
@@ -331,9 +352,7 @@ namespace tl
         {
             const auto looped = tl::loop(
                 audioCacheRange,
-                ftk::Range<int64_t>(
-                    thread.state.inOutRange.start_time().rescaled_to(1.0).value(),
-                    thread.state.inOutRange.end_time_inclusive().rescaled_to(1.0).value()));
+                getAudioSecondsRange());
             std::unique_lock<std::mutex> lock(audioMutex.mutex);
             auto i = audioMutex.cache.begin();
             while (i != audioMutex.cache.end())
@@ -424,12 +443,15 @@ namespace tl
         // Fill the audio cache.
         if (sourceAudioInfo.isValid())
         {
+            const ftk::Range<int64_t> audioSecondsRange = getAudioSecondsRange();
             for (int64_t seconds = audioCacheRange.min();
                 seconds <= audioCacheRange.max() &&
                 thread.audioRequests.size() < playerOptions.audioRequestMax;
                 ++seconds)
             {
-                const int64_t secondsLooped = tl::loop(seconds + thread.state.audioOffset, thread.state.inOutRange);
+                const int64_t secondsLooped = tl::loop(
+                    seconds + thread.state.audioOffset,
+                    audioSecondsRange);
                 bool found = false;
                 {
                     std::unique_lock<std::mutex> lock(audioMutex.mutex);
