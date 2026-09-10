@@ -240,6 +240,12 @@ if(TLRENDER_FFMPEG)
         add_library(FFmpeg::avutil ALIAS PkgConfig::avutil)
     endif()
 endif()
+if(TLRENDER_FFMPEG_PLUGIN)
+    # The command line reader's subprocess.h is a single header with no
+    # CMake configuration: the super build copies it into the install
+    # prefix, a system build into a prefix on the search path.
+    find_path(subprocess_INCLUDE_DIR subprocess.h REQUIRED)
+endif()
 if(TLRENDER_OIIO)
     find_package(OpenImageIO)
 endif()
