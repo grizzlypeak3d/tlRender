@@ -36,6 +36,9 @@ namespace tl
             std::shared_ptr<ftk::Observable<bool> > scrub;
             std::shared_ptr<ftk::Observable<std::optional<OTIO_NS::RationalTime> > > timeScrub;
             std::shared_ptr<ftk::Observable<std::optional<OTIO_NS::RationalTime> > > timeHover;
+            //! See TimelineRuler: the hover stays unset at the time a click
+            //! landed on until the cursor reaches another.
+            std::optional<OTIO_NS::RationalTime> hoverSuppress;
             std::vector<int> frameMarkers;
             ItemColors itemColors;
 

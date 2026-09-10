@@ -857,7 +857,17 @@ namespace tl
             default:
                 if (p.player && _options.inputEnabled)
                 {
-                    p.timeHover->setIfChanged(posToTime(event.pos.x));
+                    const OTIO_NS::RationalTime time = posToTime(event.pos.x);
+                    if (p.hoverSuppress.has_value() &&
+                    time.round() == p.hoverSuppress->round())
+                    {
+                        p.timeHover->setIfChanged(std::nullopt);
+                    }
+                    else
+                    {
+                        p.hoverSuppress.reset();
+                        p.timeHover->setIfChanged(time);
+                    }
                 }
                 break;
             }
@@ -890,6 +900,10 @@ namespace tl
         {
             IMouseWidget::mouseReleaseEvent(event);
             FTK_P();
+            if (Private::MouseMode::CurrentTime == p.mouseMode)
+            {
+                p.hoverSuppress = p.timeScrub->get();
+            }
             p.scrub->setIfChanged(false);
             p.mouseMode = Private::MouseMode::None;
         }
@@ -897,7 +911,9 @@ namespace tl
         void TimelineItem::mouseLeaveEvent()
         {
             IMouseWidget::mouseLeaveEvent();
-            _p->timeHover->setIfChanged(std::nullopt);
+            FTK_P();
+            p.hoverSuppress.reset();
+            p.timeHover->setIfChanged(std::nullopt);
         }
 
         void TimelineItem::_timeUnitsUpdate()

@@ -57,6 +57,10 @@ namespace tl
             std::shared_ptr<ftk::Observable<bool> > scrub;
             std::shared_ptr<ftk::Observable<std::optional<OTIO_NS::RationalTime> > > timeScrub;
             std::shared_ptr<ftk::Observable<std::optional<OTIO_NS::RationalTime> > > timeHover;
+            //! The time a click landed on: the hover stays unset there,
+            //! since the view is showing that frame now, and comes back
+            //! when the cursor reaches another one.
+            std::optional<OTIO_NS::RationalTime> hoverSuppress;
 
             enum class MouseMode
             {
@@ -270,7 +274,17 @@ namespace tl
             }
             else if (p.player && p.options.inputEnabled)
             {
-                p.timeHover->setIfChanged(_posToTimeClamped(event.pos.x));
+                const OTIO_NS::RationalTime time = _posToTimeClamped(event.pos.x);
+                if (p.hoverSuppress.has_value() &&
+                    time.round() == p.hoverSuppress->round())
+                {
+                    p.timeHover->setIfChanged(std::nullopt);
+                }
+                else
+                {
+                    p.hoverSuppress.reset();
+                    p.timeHover->setIfChanged(time);
+                }
             }
         }
 
@@ -301,6 +315,10 @@ namespace tl
         {
             IMouseWidget::mouseReleaseEvent(event);
             FTK_P();
+            if (Private::MouseMode::CurrentTime == p.mouseMode)
+            {
+                p.hoverSuppress = p.timeScrub->get();
+            }
             p.scrub->setIfChanged(false);
             p.mouseMode = Private::MouseMode::None;
         }
@@ -308,7 +326,9 @@ namespace tl
         void TimelineRuler::mouseLeaveEvent()
         {
             IMouseWidget::mouseLeaveEvent();
-            _p->timeHover->setIfChanged(std::nullopt);
+            FTK_P();
+            p.hoverSuppress.reset();
+            p.timeHover->setIfChanged(std::nullopt);
         }
 
         OTIO_NS::RationalTime TimelineRuler::_posToTimeClamped(float value) const
