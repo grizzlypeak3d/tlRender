@@ -6,7 +6,7 @@
 #include <ftk/Core/Format.h>
 #include <ftk/Core/LogSystem.h>
 
-#include <lunasvg/lunasvg.h>
+#include <lunasvg.h>
 
 namespace tl
 {

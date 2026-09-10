@@ -415,6 +415,19 @@ namespace tl
         } \
     }
 
+// The camera, lens and sensor attributes arrived in OpenEXR 3.2; a build
+// against an older library, as a distribution's package can be, has no
+// accessors for them and leaves them alone.
+#if OPENEXR_VERSION_HEX >= 0x03020000
+#define TLRENDER_SERIALIZE_STD_ATTR_3_2(NAME, NAME_LOWER) \
+    TLRENDER_SERIALIZE_STD_ATTR(NAME, NAME_LOWER)
+#define TLRENDER_DESERIALIZE_STD_ATTR_3_2(NAME, TYPE) \
+    TLRENDER_DESERIALIZE_STD_ATTR(NAME, TYPE)
+#else // OPENEXR_VERSION_HEX
+#define TLRENDER_SERIALIZE_STD_ATTR_3_2(NAME, NAME_LOWER)
+#define TLRENDER_DESERIALIZE_STD_ATTR_3_2(NAME, TYPE)
+#endif // OPENEXR_VERSION_HEX
+
 // Some OpenEXR standard attributes are deprecated but still commonly present
 // in real-world files (e.g. the ACES rendering/look transforms). We still
 // want to read and write them, so locally silence the deprecation warnings
@@ -512,54 +525,54 @@ namespace tl
             TLRENDER_SERIALIZE_STD_ATTR(AdoptedNeutral, adoptedNeutral);
             TLRENDER_SERIALIZE_STD_ATTR(Altitude, altitude);
             TLRENDER_SERIALIZE_STD_ATTR(Aperture, aperture);
-            TLRENDER_SERIALIZE_STD_ATTR(AscFramingDecisionList, ascFramingDecisionList);
-            TLRENDER_SERIALIZE_STD_ATTR(CameraCCTSetting, cameraCCTSetting);
-            TLRENDER_SERIALIZE_STD_ATTR(CameraColorBalance, cameraColorBalance);
-            TLRENDER_SERIALIZE_STD_ATTR(CameraFirmwareVersion, cameraFirmwareVersion);
-            TLRENDER_SERIALIZE_STD_ATTR(CameraLabel, cameraLabel);
-            TLRENDER_SERIALIZE_STD_ATTR(CameraMake, cameraMake);
-            TLRENDER_SERIALIZE_STD_ATTR(CameraModel, cameraModel);
-            TLRENDER_SERIALIZE_STD_ATTR(CameraSerialNumber, cameraSerialNumber);
-            TLRENDER_SERIALIZE_STD_ATTR(CameraTintSetting, cameraTintSetting);
-            TLRENDER_SERIALIZE_STD_ATTR(CameraUuid, cameraUuid);
+            TLRENDER_SERIALIZE_STD_ATTR_3_2(AscFramingDecisionList, ascFramingDecisionList);
+            TLRENDER_SERIALIZE_STD_ATTR_3_2(CameraCCTSetting, cameraCCTSetting);
+            TLRENDER_SERIALIZE_STD_ATTR_3_2(CameraColorBalance, cameraColorBalance);
+            TLRENDER_SERIALIZE_STD_ATTR_3_2(CameraFirmwareVersion, cameraFirmwareVersion);
+            TLRENDER_SERIALIZE_STD_ATTR_3_2(CameraLabel, cameraLabel);
+            TLRENDER_SERIALIZE_STD_ATTR_3_2(CameraMake, cameraMake);
+            TLRENDER_SERIALIZE_STD_ATTR_3_2(CameraModel, cameraModel);
+            TLRENDER_SERIALIZE_STD_ATTR_3_2(CameraSerialNumber, cameraSerialNumber);
+            TLRENDER_SERIALIZE_STD_ATTR_3_2(CameraTintSetting, cameraTintSetting);
+            TLRENDER_SERIALIZE_STD_ATTR_3_2(CameraUuid, cameraUuid);
             TLRENDER_SERIALIZE_STD_ATTR(CapDate, capDate);
-            TLRENDER_SERIALIZE_STD_ATTR(CaptureRate, captureRate);
+            TLRENDER_SERIALIZE_STD_ATTR_3_2(CaptureRate, captureRate);
             TLRENDER_SERIALIZE_STD_ATTR(Chromaticities, chromaticities);
             TLRENDER_SERIALIZE_STD_ATTR(Comments, comments);
             TLRENDER_SERIALIZE_STD_ATTR(DeepImageState, deepImageState);
-            TLRENDER_SERIALIZE_STD_ATTR(EffectiveFocalLength, effectiveFocalLength);
+            TLRENDER_SERIALIZE_STD_ATTR_3_2(EffectiveFocalLength, effectiveFocalLength);
             TLRENDER_SERIALIZE_STD_ATTR(Envmap, envmap);
-            TLRENDER_SERIALIZE_STD_ATTR(EntrancePupilOffset, entrancePupilOffset);
+            TLRENDER_SERIALIZE_STD_ATTR_3_2(EntrancePupilOffset, entrancePupilOffset);
             TLRENDER_SERIALIZE_STD_ATTR(ExpTime, expTime);
             TLRENDER_SERIALIZE_STD_ATTR(Focus, focus);
             TLRENDER_SERIALIZE_STD_ATTR(FramesPerSecond, framesPerSecond);
-            TLRENDER_SERIALIZE_STD_ATTR(ImageCounter, imageCounter);
+            TLRENDER_SERIALIZE_STD_ATTR_3_2(ImageCounter, imageCounter);
             TLRENDER_SERIALIZE_STD_ATTR(IsoSpeed, isoSpeed);
             TLRENDER_SERIALIZE_STD_ATTR(KeyCode, keyCode);
             TLRENDER_SERIALIZE_STD_ATTR(Latitude, latitude);
-            TLRENDER_SERIALIZE_STD_ATTR(LensFirmwareVersion, lensFirmwareVersion);
-            TLRENDER_SERIALIZE_STD_ATTR(LensMake, lensMake);
-            TLRENDER_SERIALIZE_STD_ATTR(LensModel, lensModel);
-            TLRENDER_SERIALIZE_STD_ATTR(LensSerialNumber, lensSerialNumber);
+            TLRENDER_SERIALIZE_STD_ATTR_3_2(LensFirmwareVersion, lensFirmwareVersion);
+            TLRENDER_SERIALIZE_STD_ATTR_3_2(LensMake, lensMake);
+            TLRENDER_SERIALIZE_STD_ATTR_3_2(LensModel, lensModel);
+            TLRENDER_SERIALIZE_STD_ATTR_3_2(LensSerialNumber, lensSerialNumber);
             TLRENDER_SERIALIZE_STD_ATTR(Longitude, longitude);
             TLRENDER_PUSH_IGNORE_DEPRECATED
             TLRENDER_SERIALIZE_STD_ATTR(LookModTransform, lookModTransform);
             TLRENDER_POP_IGNORE_DEPRECATED
             TLRENDER_SERIALIZE_STD_ATTR(MultiView, multiView);
-            TLRENDER_SERIALIZE_STD_ATTR(NominalFocalLength, nominalFocalLength);
+            TLRENDER_SERIALIZE_STD_ATTR_3_2(NominalFocalLength, nominalFocalLength);
             TLRENDER_SERIALIZE_STD_ATTR(OriginalDataWindow, originalDataWindow);
             TLRENDER_SERIALIZE_STD_ATTR(Owner, owner);
-            TLRENDER_SERIALIZE_STD_ATTR(PinholeFocalLength, pinholeFocalLength);
-            TLRENDER_SERIALIZE_STD_ATTR(ReelName, reelName);
+            TLRENDER_SERIALIZE_STD_ATTR_3_2(PinholeFocalLength, pinholeFocalLength);
+            TLRENDER_SERIALIZE_STD_ATTR_3_2(ReelName, reelName);
             TLRENDER_PUSH_IGNORE_DEPRECATED
             TLRENDER_SERIALIZE_STD_ATTR(RenderingTransform, renderingTransform);
             TLRENDER_POP_IGNORE_DEPRECATED
-            TLRENDER_SERIALIZE_STD_ATTR(SensorAcquisitionRectangle, sensorAcquisitionRectangle);
-            TLRENDER_SERIALIZE_STD_ATTR(SensorCenterOffset, sensorCenterOffset);
-            TLRENDER_SERIALIZE_STD_ATTR(SensorOverallDimensions, sensorOverallDimensions);
-            TLRENDER_SERIALIZE_STD_ATTR(SensorPhotositePitch, sensorPhotositePitch);
-            TLRENDER_SERIALIZE_STD_ATTR(ShutterAngle, shutterAngle);
-            TLRENDER_SERIALIZE_STD_ATTR(TStop, tStop);
+            TLRENDER_SERIALIZE_STD_ATTR_3_2(SensorAcquisitionRectangle, sensorAcquisitionRectangle);
+            TLRENDER_SERIALIZE_STD_ATTR_3_2(SensorCenterOffset, sensorCenterOffset);
+            TLRENDER_SERIALIZE_STD_ATTR_3_2(SensorOverallDimensions, sensorOverallDimensions);
+            TLRENDER_SERIALIZE_STD_ATTR_3_2(SensorPhotositePitch, sensorPhotositePitch);
+            TLRENDER_SERIALIZE_STD_ATTR_3_2(ShutterAngle, shutterAngle);
+            TLRENDER_SERIALIZE_STD_ATTR_3_2(TStop, tStop);
             TLRENDER_SERIALIZE_STD_ATTR(TimeCode, timeCode);
             TLRENDER_SERIALIZE_STD_ATTR(UtcOffset, utcOffset);
             TLRENDER_SERIALIZE_STD_ATTR(WhiteLuminance, whiteLuminance);
@@ -660,54 +673,54 @@ namespace tl
             TLRENDER_DESERIALIZE_STD_ATTR(AdoptedNeutral, Imath::V2f);
             TLRENDER_DESERIALIZE_STD_ATTR(Altitude, float);
             TLRENDER_DESERIALIZE_STD_ATTR(Aperture, float);
-            TLRENDER_DESERIALIZE_STD_ATTR(AscFramingDecisionList, std::string);
-            TLRENDER_DESERIALIZE_STD_ATTR(CameraCCTSetting, float);
-            TLRENDER_DESERIALIZE_STD_ATTR(CameraColorBalance, Imath::V2f);
-            TLRENDER_DESERIALIZE_STD_ATTR(CameraFirmwareVersion, std::string);
-            TLRENDER_DESERIALIZE_STD_ATTR(CameraLabel, std::string);
-            TLRENDER_DESERIALIZE_STD_ATTR(CameraMake, std::string);
-            TLRENDER_DESERIALIZE_STD_ATTR(CameraModel, std::string);
-            TLRENDER_DESERIALIZE_STD_ATTR(CameraSerialNumber, std::string);
-            TLRENDER_DESERIALIZE_STD_ATTR(CameraTintSetting, float);
-            TLRENDER_DESERIALIZE_STD_ATTR(CameraUuid, std::string);
+            TLRENDER_DESERIALIZE_STD_ATTR_3_2(AscFramingDecisionList, std::string);
+            TLRENDER_DESERIALIZE_STD_ATTR_3_2(CameraCCTSetting, float);
+            TLRENDER_DESERIALIZE_STD_ATTR_3_2(CameraColorBalance, Imath::V2f);
+            TLRENDER_DESERIALIZE_STD_ATTR_3_2(CameraFirmwareVersion, std::string);
+            TLRENDER_DESERIALIZE_STD_ATTR_3_2(CameraLabel, std::string);
+            TLRENDER_DESERIALIZE_STD_ATTR_3_2(CameraMake, std::string);
+            TLRENDER_DESERIALIZE_STD_ATTR_3_2(CameraModel, std::string);
+            TLRENDER_DESERIALIZE_STD_ATTR_3_2(CameraSerialNumber, std::string);
+            TLRENDER_DESERIALIZE_STD_ATTR_3_2(CameraTintSetting, float);
+            TLRENDER_DESERIALIZE_STD_ATTR_3_2(CameraUuid, std::string);
             TLRENDER_DESERIALIZE_STD_ATTR(CapDate, std::string);
-            TLRENDER_DESERIALIZE_STD_ATTR(CaptureRate, Imf::Rational);
+            TLRENDER_DESERIALIZE_STD_ATTR_3_2(CaptureRate, Imf::Rational);
             TLRENDER_DESERIALIZE_STD_ATTR(Chromaticities, Imf::Chromaticities);
             TLRENDER_DESERIALIZE_STD_ATTR(Comments, std::string);
             TLRENDER_DESERIALIZE_STD_ATTR(DeepImageState, Imf::DeepImageState);
-            TLRENDER_DESERIALIZE_STD_ATTR(EffectiveFocalLength, float);
-            TLRENDER_DESERIALIZE_STD_ATTR(EntrancePupilOffset, float);
+            TLRENDER_DESERIALIZE_STD_ATTR_3_2(EffectiveFocalLength, float);
+            TLRENDER_DESERIALIZE_STD_ATTR_3_2(EntrancePupilOffset, float);
             TLRENDER_DESERIALIZE_STD_ATTR(Envmap, Imf::Envmap);
             TLRENDER_DESERIALIZE_STD_ATTR(ExpTime, float);
             TLRENDER_DESERIALIZE_STD_ATTR(Focus, float);
             TLRENDER_DESERIALIZE_STD_ATTR(FramesPerSecond, Imf::Rational);
-            TLRENDER_DESERIALIZE_STD_ATTR(ImageCounter, int);
+            TLRENDER_DESERIALIZE_STD_ATTR_3_2(ImageCounter, int);
             TLRENDER_DESERIALIZE_STD_ATTR(IsoSpeed, float);
             TLRENDER_DESERIALIZE_STD_ATTR(KeyCode, Imf::KeyCode);
             TLRENDER_DESERIALIZE_STD_ATTR(Latitude, float);
-            TLRENDER_DESERIALIZE_STD_ATTR(LensFirmwareVersion, std::string);
-            TLRENDER_DESERIALIZE_STD_ATTR(LensMake, std::string);
-            TLRENDER_DESERIALIZE_STD_ATTR(LensModel, std::string);
-            TLRENDER_DESERIALIZE_STD_ATTR(LensSerialNumber, std::string);
+            TLRENDER_DESERIALIZE_STD_ATTR_3_2(LensFirmwareVersion, std::string);
+            TLRENDER_DESERIALIZE_STD_ATTR_3_2(LensMake, std::string);
+            TLRENDER_DESERIALIZE_STD_ATTR_3_2(LensModel, std::string);
+            TLRENDER_DESERIALIZE_STD_ATTR_3_2(LensSerialNumber, std::string);
             TLRENDER_DESERIALIZE_STD_ATTR(Longitude, float);
             TLRENDER_PUSH_IGNORE_DEPRECATED
             TLRENDER_DESERIALIZE_STD_ATTR(LookModTransform, std::string);
             TLRENDER_POP_IGNORE_DEPRECATED
             TLRENDER_DESERIALIZE_STD_ATTR(MultiView, Imf::StringVector);
-            TLRENDER_DESERIALIZE_STD_ATTR(NominalFocalLength, float);
+            TLRENDER_DESERIALIZE_STD_ATTR_3_2(NominalFocalLength, float);
             TLRENDER_DESERIALIZE_STD_ATTR(OriginalDataWindow, Imath::Box2i);
             TLRENDER_DESERIALIZE_STD_ATTR(Owner, std::string);
-            TLRENDER_DESERIALIZE_STD_ATTR(PinholeFocalLength, float);
-            TLRENDER_DESERIALIZE_STD_ATTR(ReelName, std::string);
+            TLRENDER_DESERIALIZE_STD_ATTR_3_2(PinholeFocalLength, float);
+            TLRENDER_DESERIALIZE_STD_ATTR_3_2(ReelName, std::string);
             TLRENDER_PUSH_IGNORE_DEPRECATED
             TLRENDER_DESERIALIZE_STD_ATTR(RenderingTransform, std::string);
             TLRENDER_POP_IGNORE_DEPRECATED
-            TLRENDER_DESERIALIZE_STD_ATTR(SensorAcquisitionRectangle, Imath::Box2i);
-            TLRENDER_DESERIALIZE_STD_ATTR(SensorCenterOffset, Imath::V2f);
-            TLRENDER_DESERIALIZE_STD_ATTR(SensorOverallDimensions, Imath::V2f);
-            TLRENDER_DESERIALIZE_STD_ATTR(SensorPhotositePitch, float);
-            TLRENDER_DESERIALIZE_STD_ATTR(ShutterAngle, float);
-            TLRENDER_DESERIALIZE_STD_ATTR(TStop, float);
+            TLRENDER_DESERIALIZE_STD_ATTR_3_2(SensorAcquisitionRectangle, Imath::Box2i);
+            TLRENDER_DESERIALIZE_STD_ATTR_3_2(SensorCenterOffset, Imath::V2f);
+            TLRENDER_DESERIALIZE_STD_ATTR_3_2(SensorOverallDimensions, Imath::V2f);
+            TLRENDER_DESERIALIZE_STD_ATTR_3_2(SensorPhotositePitch, float);
+            TLRENDER_DESERIALIZE_STD_ATTR_3_2(ShutterAngle, float);
+            TLRENDER_DESERIALIZE_STD_ATTR_3_2(TStop, float);
             TLRENDER_DESERIALIZE_STD_ATTR(TimeCode, Imf::TimeCode);
             TLRENDER_DESERIALIZE_STD_ATTR(UtcOffset, float);
             TLRENDER_DESERIALIZE_STD_ATTR(WhiteLuminance, float);
