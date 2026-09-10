@@ -1399,13 +1399,21 @@ namespace tl
             {
                 // macOS turns a Shift+wheel sideways itself, delivering the
                 // delta on x with y zero -- so an action bound to Shift
-                // takes whichever axis carries it.
+                // takes that axis. Without Shift a sideways delta is a
+                // tilt wheel, which is left alone: taken as the wheel it
+                // zoomed the view.
+                const bool shift = event.modifiers &
+                    static_cast<int>(ftk::KeyModifier::Shift);
                 const float delta =
-                    event.value.y != 0.F ? event.value.y : event.value.x;
+                    event.value.y != 0.F ? event.value.y :
+                    shift ? event.value.x : 0.F;
 
                 // Zoom is checked first, so it wins when both actions are
                 // bound to the same modifier.
-                if (ftk::checkKeyModifier(p.wheelZoomBinding, event.modifiers))
+                if (0.F == delta)
+                {
+                }
+                else if (ftk::checkKeyModifier(p.wheelZoomBinding, event.modifiers))
                 {
                     event.accept = true;
 
