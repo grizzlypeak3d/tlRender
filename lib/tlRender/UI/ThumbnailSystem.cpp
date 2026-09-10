@@ -1039,14 +1039,22 @@ namespace tl
                                     max = std::max(max, v);
                                 }
                             }
+                            // Full scale stops short of the edge. Drawn to
+                            // the whole height a loud track is a solid block
+                            // against the top and bottom, which reads as
+                            // clipping when nothing is clipped (DJV #669);
+                            // the margin also leaves somewhere for samples
+                            // over full scale to go, so a track that really
+                            // does clip is the one that reaches the edge.
+                            const float headroom = .9F;
                             const int h2 = size.h / 2;
                             const ftk::Box2I box(
                                 ftk::V2I(
                                     x,
-                                    h2 - h2 * max),
+                                    h2 - h2 * max * headroom),
                                 ftk::V2I(
                                     x + 1,
-                                    h2 - h2 * min));
+                                    h2 - h2 * min * headroom));
                             if (box.isValid())
                             {
                                 const size_t j = 1 + out->v.size();
