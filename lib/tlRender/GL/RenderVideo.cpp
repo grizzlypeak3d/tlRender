@@ -1576,9 +1576,19 @@ namespace tl
 
             for (const auto& box : boxes)
             {
-                // The box in texture pixels, and the part of the texture
-                // under it.
-                const ftk::Box2I boxT = xform(box, vm);
+                // The box in texture pixels, clipped to the texture, and the
+                // part of the texture under it. Unclipped, a box bigger than
+                // the viewport -- zoomed in -- drew over the rest of the
+                // window, and its texture coordinates ran outside zero to one,
+                // where the vertex buffer's unsigned 16-bit coordinates clamp
+                // and stretched the warning away from the image.
+                const ftk::Box2I boxT = ftk::intersect(
+                    xform(box, vm),
+                    ftk::Box2I(0, 0, size.w, size.h));
+                if (boxT.w() <= 0 || boxT.h() <= 0)
+                {
+                    continue;
+                }
                 const float x0 = rect.min.x + boxT.min.x;
                 const float y0 = rect.min.y + boxT.min.y;
                 const float x1 = rect.min.x + boxT.max.x + 1;
