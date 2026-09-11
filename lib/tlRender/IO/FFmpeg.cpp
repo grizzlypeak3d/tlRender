@@ -119,50 +119,52 @@ namespace tl
             return out;
         }
 
-        std::string getTimecodeFromDataStream(AVFormatContext* avFormatContext)
+        std::string getTimecode(AVFormatContext* avFormatContext)
         {
-            int dataStream = -1;
-            for (unsigned int i = 0; i < avFormatContext->nb_streams; ++i)
+            // Where a movie keeps its start timecode depends on what wrote
+            // it: on the video stream, on a timecode track (a data stream,
+            // QuickTime's "tmcd"), or on the container. Every data stream is
+            // looked at rather than only the first: a subtitle or chapter
+            // track can come before the timecode track, and reading only
+            // that one found nothing and started the movie at zero (DJV
+            // #856).
+            const auto find = [](AVDictionary* metadata)
             {
-                if (AVMEDIA_TYPE_DATA == avFormatContext->streams[i]->codecpar->codec_type &&
-                    AV_DISPOSITION_DEFAULT == avFormatContext->streams[i]->disposition)
-                {
-                    dataStream = i;
-                    break;
-                }
-            }
-            if (-1 == dataStream)
-            {
-                for (unsigned int i = 0; i < avFormatContext->nb_streams; ++i)
-                {
-                    if (AVMEDIA_TYPE_DATA == avFormatContext->streams[i]->codecpar->codec_type)
-                    {
-                        dataStream = i;
-                        break;
-                    }
-                }
-            }
-            std::string timecode;
-            if (dataStream != -1)
-            {
+                std::string out;
                 AVDictionaryEntry* tag = nullptr;
-                while ((tag = av_dict_get(
-                    avFormatContext->streams[dataStream]->metadata,
-                    "",
-                    tag,
-                    AV_DICT_IGNORE_SUFFIX)))
+                while ((tag = av_dict_get(metadata, "", tag, AV_DICT_IGNORE_SUFFIX)))
                 {
                     if (ftk::compare(
                         tag->key,
                         "timecode",
                         ftk::CaseCompare::Insensitive))
                     {
-                        timecode = tag->value;
+                        out = tag->value;
                         break;
                     }
                 }
+                return out;
+            };
+            std::string out;
+            for (unsigned int i = 0; out.empty() && i < avFormatContext->nb_streams; ++i)
+            {
+                if (AVMEDIA_TYPE_VIDEO == avFormatContext->streams[i]->codecpar->codec_type)
+                {
+                    out = find(avFormatContext->streams[i]->metadata);
+                }
             }
-            return timecode;
+            for (unsigned int i = 0; out.empty() && i < avFormatContext->nb_streams; ++i)
+            {
+                if (AVMEDIA_TYPE_DATA == avFormatContext->streams[i]->codecpar->codec_type)
+                {
+                    out = find(avFormatContext->streams[i]->metadata);
+                }
+            }
+            if (out.empty())
+            {
+                out = find(avFormatContext->metadata);
+            }
+            return out;
         }
 
         Packet::Packet()

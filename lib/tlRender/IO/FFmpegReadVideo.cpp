@@ -108,7 +108,7 @@ namespace tl
                 //for (unsigned int i = 0; i < _avFormatContext->nb_streams; ++i)
                 //    av_dump_format(_avFormatContext, i, fileName.c_str(), 0);
                 _avStream = findStream(_avFormatContext, AVMEDIA_TYPE_VIDEO);
-                std::string timecode = getTimecodeFromDataStream(_avFormatContext);
+                const std::string timecode = getTimecode(_avFormatContext);
                 if (_avStream != -1)
                 {
                     //av_dump_format(_avFormatContext, _avStream, fileName.c_str(), 0);
@@ -410,13 +410,6 @@ namespace tl
                         const std::string key(tag->key);
                         const std::string value(tag->value);
                         tags[key] = value;
-                        if (ftk::compare(
-                            key,
-                            "timecode",
-                            ftk::CaseCompare::Insensitive))
-                        {
-                            timecode = value;
-                        }
                     }
 
                     OTIO_NS::RationalTime startTime(0.0, speed);

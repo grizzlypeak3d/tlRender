@@ -32,8 +32,9 @@ namespace tl
         //! Convert to FFmpeg.
         AVSampleFormat fromAudioType(AudioType);
 
-        //! Get the timecode from a data stream if it exists.
-        std::string getTimecodeFromDataStream(AVFormatContext*);
+        //! Get the start timecode: from the video stream, a data stream
+        //! (a timecode track), or the container, in that order.
+        std::string getTimecode(AVFormatContext*);
 
         //! RAII class for FFmpeg packets.
         class Packet

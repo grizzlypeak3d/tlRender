@@ -114,7 +114,7 @@ namespace tl
                         nullptr));
                 }
 
-                std::string timecode = getTimecodeFromDataStream(_avFormatContext);
+                const std::string timecode = getTimecode(_avFormatContext);
                 if (_avStream != -1)
                 {
                     //av_dump_format(_avFormatContext, _avStream, fileName.c_str(), 0);
@@ -212,13 +212,6 @@ namespace tl
                         const std::string value(tag->value);
                         tags[key] = value;
                         if (ftk::compare(
-                            key,
-                            "timecode",
-                            ftk::CaseCompare::Insensitive))
-                        {
-                            timecode = value;
-                        }
-                        else if (ftk::compare(
                             key,
                             "time_reference",
                             ftk::CaseCompare::Insensitive))

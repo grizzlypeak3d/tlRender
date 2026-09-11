@@ -428,29 +428,46 @@ namespace tl
                 // Parse stream information.
                 if (auto i = json.find("streams"); i != json.end())
                 {
-                    // Find the first data stream.
-                    for (const auto& j : i.value())
+                    // The start timecode, looked for where getTimecode() in
+                    // FFmpeg.cpp looks: the video stream, then any data
+                    // stream (a timecode track), then the container's tag
+                    // read above. Not only the first data stream: a subtitle
+                    // or chapter track can come before the timecode track.
+                    const auto findTimecode = [](const nlohmann::json& stream)
                     {
-                        auto k = j.find("codec_type");
-                        if (k != j.end() && "data" == *k)
+                        std::string out;
+                        auto k = stream.find("tags");
+                        if (k != stream.end())
                         {
-                            k = j.find("tags");
-                            if (k != j.end())
+                            for (const auto& l : k.value().items())
                             {
-                                for (const auto& l : k.value().items())
+                                if (ftk::compare(
+                                    l.key(),
+                                    "timecode",
+                                    ftk::CaseCompare::Insensitive))
                                 {
-                                    if (ftk::compare(
-                                        l.key(),
-                                        "timecode",
-                                        ftk::CaseCompare::Insensitive))
-                                    {
-                                        timecode = l.value();
-                                        break;
-                                    }
+                                    out = l.value().get<std::string>();
+                                    break;
                                 }
                             }
-                            break;
                         }
+                        return out;
+                    };
+                    std::string streamTimecode;
+                    for (const std::string type : { "video", "data" })
+                    {
+                        for (const auto& j : i.value())
+                        {
+                            auto k = j.find("codec_type");
+                            if (streamTimecode.empty() && k != j.end() && *k == type)
+                            {
+                                streamTimecode = findTimecode(j);
+                            }
+                        }
+                    }
+                    if (!streamTimecode.empty())
+                    {
+                        timecode = streamTimecode;
                     }
 
                     // Find the first video stream.
