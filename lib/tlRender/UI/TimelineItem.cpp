@@ -1857,10 +1857,13 @@ namespace tl
                         event.render->setClipRect(textRect);
                     }
 
-                    const ftk::Color4F color = event.style->getColorRole(
-                        (enabled && item.enabled) ?
-                        ftk::ColorRole::Text :
-                        ftk::ColorRole::TextDisabled);
+                    // Black or white from the clip's own color rather than
+                    // the style's text color: the clip colors are the same
+                    // in every style, dark by default and often light when
+                    // they come from the file.
+                    const ftk::Color4F color = (enabled && item.enabled) ?
+                        ftk::contrastColor(Private::getColor(item, _displayOptions, true)) :
+                        event.style->getColorRole(ftk::ColorRole::TextDisabled);
                     if (drawLabel)
                     {
                         if (!item.label.empty() && item.labelGlyphs.empty())
