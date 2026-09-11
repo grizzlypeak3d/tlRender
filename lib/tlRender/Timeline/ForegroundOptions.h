@@ -88,9 +88,22 @@ namespace tl
         bool operator == (const MissingIndicator&) const = default;
     };
 
-    //! Clipping warning: a pixel with a channel outside the range is
-    //! covered with a warning color, red above and magenta below (the
-    //! false color convention of the camera makers). The range is in
+    //! What the clipping warning compares with its range.
+    enum class TL_TIMELINE_API_TYPE ClippingWarningMode
+    {
+        AnyChannel,
+        AllChannels,
+        Luminance,
+
+        Count,
+        First = AnyChannel
+    };
+    FTK_ENUM(TL_TIMELINE_API, ClippingWarningMode);
+
+    //! Clipping warning: a pixel outside the range is covered with a
+    //! warning color, red above and magenta below (the false color
+    //! convention of the camera makers). The mode says what is outside:
+    //! any channel, all three, or the luminance. The range is in
     //! displayed values, so the default marks what the display cannot
     //! show; 16/255 to 235/255 marks the video legal range.
     //!
@@ -98,9 +111,10 @@ namespace tl
     //! is the color under the warning, not the warning.
     struct TL_TIMELINE_API_TYPE ClippingWarning
     {
-        bool  enabled = false;
-        float low     = 0.F;
-        float high    = 1.F;
+        bool                enabled = false;
+        ClippingWarningMode mode    = ClippingWarningMode::AnyChannel;
+        float               low     = 0.F;
+        float               high    = 1.F;
 
         bool operator == (const ClippingWarning&) const = default;
     };

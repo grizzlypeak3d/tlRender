@@ -21,6 +21,12 @@ namespace tl
         "Pixels",
         "Alphanumeric");
 
+    FTK_ENUM_IMPL(
+        ClippingWarningMode,
+        "Any Channel",
+        "All Channels",
+        "Luminance");
+
     namespace
     {
         std::string alpha(int value)
@@ -93,6 +99,7 @@ namespace tl
     void to_json(nlohmann::json& json, const ClippingWarning& in)
     {
         json["Enabled"] = in.enabled;
+        json["Mode"] = to_string(in.mode);
         json["Low"] = in.low;
         json["High"] = in.high;
     }
@@ -138,6 +145,12 @@ namespace tl
     void from_json(const nlohmann::json& json, ClippingWarning& out)
     {
         json.at("Enabled").get_to(out.enabled);
+        // Added later: a file written before the mode existed keeps the
+        // any channel comparison it was written with.
+        if (json.contains("Mode"))
+        {
+            from_string(json.at("Mode").get<std::string>(), out.mode);
+        }
         json.at("Low").get_to(out.low);
         json.at("High").get_to(out.high);
     }

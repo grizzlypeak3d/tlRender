@@ -60,9 +60,13 @@ namespace tl
                 .def(nanobind::self == nanobind::self)
                 .def(nanobind::self != nanobind::self);
 
+            FTK_ENUM_PY(m, ClippingWarningMode);
+            FTK_ENUM_BIND(m, ClippingWarningMode);
+
             nb::class_<ClippingWarning>(m, "ClippingWarning")
                 .def(nb::init())
                 .def_rw("enabled", &ClippingWarning::enabled)
+                .def_rw("mode", &ClippingWarning::mode)
                 .def_rw("low", &ClippingWarning::low)
                 .def_rw("high", &ClippingWarning::high)
                 .def(nanobind::self == nanobind::self)

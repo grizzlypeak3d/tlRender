@@ -1565,6 +1565,7 @@ namespace tl
             }
             p.shaders["clippingWarning"]->bind();
             p.shaders["clippingWarning"]->setUniform("transform.mvp", getTransform());
+            p.shaders["clippingWarning"]->setUniform("mode", static_cast<int>(options.mode));
             p.shaders["clippingWarning"]->setUniform("low", options.low);
             p.shaders["clippingWarning"]->setUniform("high", options.high);
             p.shaders["clippingWarning"]->setUniform("textureSampler", 0);
