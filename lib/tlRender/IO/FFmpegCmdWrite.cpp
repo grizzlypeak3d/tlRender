@@ -143,10 +143,41 @@ namespace tl
                 cmd.push_back("-color_trc");
                 cmd.push_back(i->second);
             }
+            // Converted with the matrix a reader takes for the file -- the
+            // one the tags name, or else the one it guesses from the size,
+            // as the library reader does -- and stamped with it. Left to
+            // itself the command line converts with BT.601 and says nothing,
+            // which a reader takes for BT.709 above standard definition.
+            std::string matrix;
             if (auto i = info.tags.find("Color Matrix"); i != info.tags.end())
             {
-                cmd.push_back("-colorspace");
-                cmd.push_back(i->second);
+                matrix = i->second;
+            }
+            else
+            {
+                matrix = imageInfo.size.w >= 1280 || imageInfo.size.h > 576 ?
+                    "bt709" :
+                    "smpte170m";
+            }
+            cmd.push_back("-colorspace");
+            cmd.push_back(matrix);
+            std::string scaleMatrix;
+            if ("bt709" == matrix)
+            {
+                scaleMatrix = "bt709";
+            }
+            else if ("bt470bg" == matrix || "smpte170m" == matrix)
+            {
+                scaleMatrix = "bt601";
+            }
+            else if ("bt2020nc" == matrix || "bt2020c" == matrix)
+            {
+                scaleMatrix = "bt2020";
+            }
+            if (!scaleMatrix.empty())
+            {
+                cmd.push_back("-vf");
+                cmd.push_back("scale=out_color_matrix=" + scaleMatrix + ":out_range=tv");
             }
             if (auto i = options.find("FFmpeg/WriteArgs"); i != options.end())
             {

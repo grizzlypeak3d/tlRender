@@ -580,18 +580,14 @@ namespace tl
 
         void FFmpegTest::_convert()
         {
-            // Round-trip a known color image through the writer and back through
-            // the reader with YUV->RGB conversion forced ON, then check pixels.
-            //
-            // The pre-existing _io() test writes a *zeroed* (black) image and
-            // only asserts size and tags -- black survives every color bug, so
-            // it cannot catch a broken conversion. This test paints vertical
-            // color stripes (invariant under the reader's y-mirror) and verifies
-            // each stripe's center survives the round-trip. The tolerance is
-            // deliberately loose: it sits far above codec + colorspace rounding
-            // on a flat stripe interior, but far below a gross failure such as
-            // black output or a saturated channel. It is a regression guard for
-            // the conversion path, not a colorimetric assertion.
+            // Round-trip known colors through the writer and back through the
+            // reader, then check the pixels. Stripes, invariant under the
+            // reader's y-mirror, rather than a zeroed image: black survives
+            // every color bug. The configurations cover the matrix taken for a
+            // file's size (BT.601 for standard definition, BT.709 above), the
+            // full range JPEG pixel formats, and the pixel formats the presets
+            // choose. The tolerance sits above codec rounding on a flat stripe
+            // and below a wrong matrix, which moves a primary by a tenth.
             auto readSystem = _context->getSystem<ReadSystem>();
             auto readPlugin = readSystem->getPlugin<ffmpeg::ReadPlugin>();
             auto writeSystem = _context->getSystem<WriteSystem>();
@@ -609,31 +605,6 @@ namespace tl
                 {{  4000,  4000,  4000 }},  // near black
                 {{ 61000, 61000, 61000 }}   // near white
             }};
-
-            const ftk::Size2I size(360, 240);
-            const int stripeW = size.w / static_cast<int>(stripes.size());
-
-            const auto imageInfo = ftk::ImageInfo(size, ftk::ImageType::RGB_U16);
-            if (!writePlugin->getInfo(imageInfo).isValid())
-            {
-                _print("_convert: writer does not support RGB_U16; skipping");
-                return;
-            }
-            auto image = ftk::Image::create(imageInfo);
-            {
-                uint16_t* p = reinterpret_cast<uint16_t*>(image->getData());
-                for (int y = 0; y < size.h; ++y)
-                {
-                    for (int x = 0; x < size.w; ++x)
-                    {
-                        const size_t s = std::min<size_t>(
-                            x / stripeW, stripes.size() - 1);
-                        *p++ = stripes[s][0];
-                        *p++ = stripes[s][1];
-                        *p++ = stripes[s][2];
-                    }
-                }
-            }
 
             // Sample a pixel as normalized [0,1] RGB, tolerating whatever bit
             // depth the conversion produced (8- or 16-bit RGB).
@@ -666,71 +637,173 @@ namespace tl
                 return out;
             };
 
-            const ftk::Path path(ftk::fromFileSystem(_getTempDir() / "FFmpegConvertTest.mov"));
-            try
+            auto createImage = [&stripes](const ftk::Size2I& size)
             {
-                IOInfo info;
-                info.video.push_back(imageInfo);
-                info.videoTime = OTIO_NS::TimeRange(
-                    OTIO_NS::RationalTime(0.0, 24.0),
-                    OTIO_NS::RationalTime(1.0, 24.0));
+                auto image = ftk::Image::create(ftk::ImageInfo(size, ftk::ImageType::RGB_U16));
+                const int stripeW = size.w / static_cast<int>(stripes.size());
+                uint16_t* p = reinterpret_cast<uint16_t*>(image->getData());
+                for (int y = 0; y < size.h; ++y)
                 {
-                    // The writer has no default video codec, so one must
-                    // be given or the write throws and this test silently
-                    // skips its pixel checks.
-                    IOOptions writeOptions;
-                    writeOptions["FFmpeg/Codec"] = "mjpeg";
-                    auto write = writePlugin->write(path, info, writeOptions);
-                    write->writeVideo(OTIO_NS::RationalTime(0.0, 24.0), image);
-                    write->finish();
-                }
-
-                IOOptions readOptions;
-                readOptions["FFmpeg/YUVToRGB"] = "1";
-                auto read = readPlugin->videoRead(path, readOptions);
-                const auto ioInfo = read->getInfo().get();
-                FTK_CHECK(!ioInfo.video.empty());
-                const auto videoData =
-                    read->readVideo(OTIO_NS::RationalTime(0.0, 24.0)).get();
-                FTK_CHECK(videoData.image);
-
-                const ftk::ImageType type = videoData.image->getInfo().type;
-                if (type != ftk::ImageType::RGB_U16 &&
-                    type != ftk::ImageType::RGB_U8)
-                {
-                    _print("_convert: unexpected output type; skipping pixel check");
-                    return;
-                }
-
-                const int yMid = videoData.image->getSize().h / 2;
-                const float tolerance = 0.12f; // ~8000/65535
-                for (size_t i = 0; i < stripes.size(); ++i)
-                {
-                    const int xMid =
-                        static_cast<int>(i) * stripeW + stripeW / 2;
-                    const auto got = sample(videoData.image, xMid, yMid);
-                    const std::array<float, 3> want =
-                    {{
-                        stripes[i][0] / 65535.f,
-                        stripes[i][1] / 65535.f,
-                        stripes[i][2] / 65535.f
-                    }};
-                    for (int c = 0; c < 3; ++c)
+                    for (int x = 0; x < size.w; ++x)
                     {
-                        if (std::fabs(got[c] - want[c]) > tolerance)
+                        const size_t s = std::min<size_t>(
+                            x / stripeW, stripes.size() - 1);
+                        *p++ = stripes[s][0];
+                        *p++ = stripes[s][1];
+                        *p++ = stripes[s][2];
+                    }
+                }
+                return image;
+            };
+
+            if (!writePlugin->getInfo(ftk::ImageInfo(ftk::Size2I(360, 240), ftk::ImageType::RGB_U16)).isValid())
+            {
+                _print("_convert: writer does not support RGB_U16; skipping");
+                return;
+            }
+
+            struct Config
+            {
+                std::string codec;
+                std::string pixelFormat;
+                ftk::Size2I size;
+                bool yuv = true;
+                ftk::YUVCoefficients yuvCoefficients = ftk::YUVCoefficients::REC709;
+                ftk::VideoLevels videoLevels = ftk::VideoLevels::LegalRange;
+                float tolerance = .03F;
+            };
+            const std::vector<Config> configs =
+            {
+                { "mjpeg", "", ftk::Size2I(360, 240), true,
+                    ftk::YUVCoefficients::BT601, ftk::VideoLevels::FullRange, .03F },
+                // JPEG is BT.601 whatever the size.
+                { "mjpeg", "", ftk::Size2I(1280, 720), true,
+                    ftk::YUVCoefficients::BT601, ftk::VideoLevels::FullRange, .03F },
+                { "ffv1", "best", ftk::Size2I(360, 240), false,
+                    ftk::YUVCoefficients::REC709, ftk::VideoLevels::FullRange, .002F },
+                { "prores_ks", "yuv422p10le", ftk::Size2I(1280, 720), true,
+                    ftk::YUVCoefficients::REC709, ftk::VideoLevels::LegalRange, .03F },
+                { "prores_ks", "yuv444p10le", ftk::Size2I(360, 240), true,
+                    ftk::YUVCoefficients::BT601, ftk::VideoLevels::LegalRange, .03F }
+            };
+            const ftk::Path path(ftk::fromFileSystem(_getTempDir() / "FFmpegConvertTest.mov"));
+            for (const auto& config : configs)
+            {
+                const std::string name = ftk::Format("{0} {1} {2}x{3}").
+                    arg(config.codec).
+                    arg(config.pixelFormat).
+                    arg(config.size.w).
+                    arg(config.size.h);
+                if (!avcodec_find_encoder_by_name(config.codec.c_str()))
+                {
+                    _print(ftk::Format("_convert: no {0} encoder; skipping").arg(config.codec));
+                    continue;
+                }
+                try
+                {
+                    const auto image = createImage(config.size);
+                    IOInfo info;
+                    info.video.push_back(image->getInfo());
+                    info.videoTime = OTIO_NS::TimeRange(
+                        OTIO_NS::RationalTime(0.0, 24.0),
+                        OTIO_NS::RationalTime(1.0, 24.0));
+                    {
+                        IOOptions writeOptions;
+                        writeOptions["FFmpeg/Codec"] = config.codec;
+                        if (!config.pixelFormat.empty())
                         {
-                            std::stringstream ss;
-                            ss << "Color conversion mismatch, stripe " << i <<
-                                " channel " << c << ": expected " << want[c] <<
-                                " got " << got[c];
-                            _fail(ss.str());
+                            writeOptions["FFmpeg/PixelFormat"] = config.pixelFormat;
+                        }
+                        auto write = writePlugin->write(path, info, writeOptions);
+                        write->writeVideo(OTIO_NS::RationalTime(0.0, 24.0), image);
+                        write->finish();
+                    }
+
+                    // What the display is told about the pixels, when they
+                    // are handed to it as YUV.
+                    if (config.yuv)
+                    {
+                        auto read = readPlugin->videoRead(path, IOOptions());
+                        const auto ioInfo = read->getInfo().get();
+                        FTK_CHECK(!ioInfo.video.empty());
+                        if (ioInfo.video[0].yuvCoefficients != config.yuvCoefficients)
+                        {
+                            _fail(ftk::Format("{0}: YUV coefficients {1}, expected {2}").
+                                arg(name).
+                                arg(ioInfo.video[0].yuvCoefficients).
+                                arg(config.yuvCoefficients));
+                        }
+                        if (ioInfo.video[0].videoLevels != config.videoLevels)
+                        {
+                            _fail(ftk::Format("{0}: video levels {1}, expected {2}").
+                                arg(name).
+                                arg(ioInfo.video[0].videoLevels).
+                                arg(config.videoLevels));
+                        }
+                    }
+
+                    // The pixels, converted to RGB by the reader.
+                    IOOptions readOptions;
+                    readOptions["FFmpeg/YUVToRGB"] = "1";
+                    auto read = readPlugin->videoRead(path, readOptions);
+                    const auto videoData =
+                        read->readVideo(OTIO_NS::RationalTime(0.0, 24.0)).get();
+                    FTK_CHECK(videoData.image);
+                    const ftk::ImageType type = videoData.image->getInfo().type;
+                    if (type != ftk::ImageType::RGB_U16 &&
+                        type != ftk::ImageType::RGB_U8)
+                    {
+                        _fail(ftk::Format("{0}: unexpected output type {1}").arg(name).arg(type));
+                        continue;
+                    }
+                    const int stripeW = config.size.w / static_cast<int>(stripes.size());
+                    const int yMid = videoData.image->getSize().h / 2;
+                    for (size_t i = 0; i < stripes.size(); ++i)
+                    {
+                        const int xMid = static_cast<int>(i) * stripeW + stripeW / 2;
+                        const auto got = sample(videoData.image, xMid, yMid);
+                        for (int c = 0; c < 3; ++c)
+                        {
+                            const float want = stripes[i][c] / 65535.f;
+                            if (std::fabs(got[c] - want) > config.tolerance)
+                            {
+                                std::stringstream ss;
+                                ss << name << ": stripe " << i << " channel " << c <<
+                                    ": expected " << want << " got " << got[c];
+                                _fail(ss.str());
+                            }
                         }
                     }
                 }
+                catch (const std::exception& e)
+                {
+                    _error(name + ": " + e.what());
+                }
             }
-            catch (const std::exception& e)
+
+            // A size the pixel format's chroma does not divide is refused
+            // before anything is written, with the size in the message.
+            if (avcodec_find_encoder_by_name("mjpeg"))
             {
-                _error(e.what());
+                const auto image = createImage(ftk::Size2I(361, 240));
+                IOInfo info;
+                info.video.push_back(image->getInfo());
+                info.videoTime = OTIO_NS::TimeRange(
+                    OTIO_NS::RationalTime(0.0, 24.0),
+                    OTIO_NS::RationalTime(1.0, 24.0));
+                IOOptions writeOptions;
+                writeOptions["FFmpeg/Codec"] = "mjpeg";
+                std::string message;
+                try
+                {
+                    writePlugin->write(path, info, writeOptions);
+                }
+                catch (const std::exception& e)
+                {
+                    message = e.what();
+                }
+                _print(ftk::Format("_convert: odd size: {0}").arg(message));
+                FTK_CHECK(message.find("361x240") != std::string::npos);
             }
         }
 

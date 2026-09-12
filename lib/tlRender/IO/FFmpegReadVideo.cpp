@@ -313,6 +313,32 @@ namespace tl
                             _info.type = ftk::ImageType::YUV_444P_U16;
                         }
                         break;
+                    case AV_PIX_FMT_GBRP:
+                    case AV_PIX_FMT_BGR24:
+                    case AV_PIX_FMT_BGR0:
+                    case AV_PIX_FMT_RGB0:
+                        // RGB in another layout, as FFV1 stores it: converted
+                        // to RGB rather than falling to the default below,
+                        // which takes it for YUV and loses what a lossless
+                        // file kept.
+                        _avOutputPixelFormat = AV_PIX_FMT_RGB24;
+                        _info.type = ftk::ImageType::RGB_U8;
+                        break;
+                    case AV_PIX_FMT_GBRP9BE:
+                    case AV_PIX_FMT_GBRP9LE:
+                    case AV_PIX_FMT_GBRP10BE:
+                    case AV_PIX_FMT_GBRP10LE:
+                    case AV_PIX_FMT_GBRP12BE:
+                    case AV_PIX_FMT_GBRP12LE:
+                    case AV_PIX_FMT_GBRP14BE:
+                    case AV_PIX_FMT_GBRP14LE:
+                    case AV_PIX_FMT_GBRP16BE:
+                    case AV_PIX_FMT_GBRP16LE:
+                    case AV_PIX_FMT_RGB48BE:
+                    case AV_PIX_FMT_RGB48LE:
+                        _avOutputPixelFormat = AV_PIX_FMT_RGB48;
+                        _info.type = ftk::ImageType::RGB_U16;
+                        break;
                     case AV_PIX_FMT_YUVA420P:
                     case AV_PIX_FMT_YUVA422P:
                     case AV_PIX_FMT_YUVA444P:
@@ -358,7 +384,9 @@ namespace tl
                         _avOutputPixelFormat = gt8 ? AV_PIX_FMT_P010LE : AV_PIX_FMT_NV12;
                         _info.type = gt8 ? ftk::ImageType::YUV_420SP_U16 : ftk::ImageType::YUV_420SP_U8;
                     }
-                    if (_avCodecContext[_avStream]->color_range != AVCOL_RANGE_JPEG)
+                    if (!isFullRange(
+                        _avCodecContext[_avStream]->color_range,
+                        _avInputPixelFormat))
                     {
                         _info.videoLevels = ftk::VideoLevels::LegalRange;
                     }
@@ -372,13 +400,10 @@ namespace tl
                     {
                         _info.videoLevels = ftk::VideoLevels::FullRange;
                     }
-                    switch (_avCodecParameters[_avStream]->color_space)
-                    {
-                    case AVCOL_SPC_BT2020_NCL:
-                        _info.yuvCoefficients = ftk::YUVCoefficients::BT2020;
-                        break;
-                    default: break;
-                    }
+                    _info.yuvCoefficients = toYUVCoefficients(
+                        _avCodecParameters[_avStream]->color_space,
+                        _avInputPixelFormat,
+                        _info.size);
 
                     _avSpeed = av_guess_frame_rate(_avFormatContext, avVideoStream, nullptr);
                     const double speed = av_q2d(_avSpeed);
@@ -791,6 +816,30 @@ namespace tl
             {
                 throw std::runtime_error(ftk::Format("Cannot initialize sws context: \"{0}\"").arg(_fileName));
             }
+            // The matrix and range to convert with, which the scaler does not
+            // take from the frames: left to its defaults it converts with
+            // BT.601 whatever the stream says, and moves full range JPEG
+            // pixels to video range, which the image is then not described
+            // as. A YUV output keeps the source's range; RGB is full.
+            const AVPixFmtDescriptor* srcDesc = av_pix_fmt_desc_get(srcFormat);
+            const AVPixFmtDescriptor* dstDesc = av_pix_fmt_desc_get(_avOutputPixelFormat);
+            const bool srcFull =
+                (srcDesc && (srcDesc->flags & AV_PIX_FMT_FLAG_RGB)) ||
+                isFullRange(_avCodecContext[_avStream]->color_range, srcFormat);
+            const bool dstFull =
+                (dstDesc && (dstDesc->flags & AV_PIX_FMT_FLAG_RGB)) ||
+                srcFull;
+            const int* coefficients = sws_getCoefficients(
+                toSwsColorspace(_info.yuvCoefficients));
+            sws_setColorspaceDetails(
+                _swsContext,
+                coefficients,
+                srcFull ? 1 : 0,
+                coefficients,
+                dstFull ? 1 : 0,
+                0,
+                1 << 16,
+                1 << 16);
             // Recorded once there is a scaler it describes.
             _swsInputPixelFormat = srcFormat;
         }
@@ -1230,14 +1279,27 @@ namespace tl
                     w,
                     h,
                     1);
-                frame->color_range =
-                    (AVCOL_RANGE_JPEG == _avCodecContext[_avStream]->color_range)
-                    ? AVCOL_RANGE_JPEG
-                    : AVCOL_RANGE_MPEG;
-                frame->colorspace =
-                    (AVCOL_SPC_BT2020_NCL == _avCodecParameters[_avStream]->color_space)
-                    ? AVCOL_SPC_BT2020_NCL
-                    : AVCOL_SPC_BT709;
+                // The matrix and range the image is described with. A YUV
+                // output keeps both, so the scaler changes the layout and
+                // nothing else: left to its defaults it converted full range
+                // pixels to video range that were then drawn as full range,
+                // and blacks and whites came out gray.
+                frame->color_range = isFullRange(
+                    _avCodecContext[_avStream]->color_range,
+                    frameFormat) ?
+                    AVCOL_RANGE_JPEG :
+                    AVCOL_RANGE_MPEG;
+                frame->colorspace = fromYUVCoefficients(_info.yuvCoefficients);
+                const AVPixFmtDescriptor* outputDesc =
+                    av_pix_fmt_desc_get(_avOutputPixelFormat);
+                const bool outputRGB =
+                    outputDesc && (outputDesc->flags & AV_PIX_FMT_FLAG_RGB);
+                _avFrame2->color_range = outputRGB ?
+                    AVCOL_RANGE_JPEG :
+                    frame->color_range;
+                _avFrame2->colorspace = outputRGB ?
+                    AVCOL_SPC_RGB :
+                    frame->colorspace;
                 sws_scale_frame(_swsContext, _avFrame2, frame);
             }
         }

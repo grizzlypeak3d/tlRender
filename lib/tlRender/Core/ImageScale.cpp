@@ -202,17 +202,22 @@ namespace tl
                 nullptr);
             if (p.swsContext)
             {
+                const auto swsColorspace = [](ftk::YUVCoefficients value)
+                {
+                    int out = SWS_CS_ITU709;
+                    switch (value)
+                    {
+                    case ftk::YUVCoefficients::BT601: out = SWS_CS_ITU601; break;
+                    case ftk::YUVCoefficients::BT2020: out = SWS_CS_BT2020; break;
+                    default: break;
+                    }
+                    return out;
+                };
                 sws_setColorspaceDetails(
                     p.swsContext,
-                    sws_getCoefficients(
-                        ftk::YUVCoefficients::BT2020 == p.inputInfo.yuvCoefficients ?
-                        SWS_CS_BT2020 :
-                        SWS_CS_ITU709),
+                    sws_getCoefficients(swsColorspace(p.inputInfo.yuvCoefficients)),
                     ftk::VideoLevels::FullRange == p.inputInfo.videoLevels ? 1 : 0,
-                    sws_getCoefficients(
-                        ftk::YUVCoefficients::BT2020 == p.outputInfo.yuvCoefficients ?
-                        SWS_CS_BT2020 :
-                        SWS_CS_ITU709),
+                    sws_getCoefficients(swsColorspace(p.outputInfo.yuvCoefficients)),
                     ftk::VideoLevels::FullRange == p.outputInfo.videoLevels ? 1 : 0,
                     0,
                     1 << 16,

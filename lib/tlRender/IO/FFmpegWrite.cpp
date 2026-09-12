@@ -49,6 +49,26 @@ namespace tl
             bool finished = false;
         };
 
+        namespace
+        {
+            //! The FFmpeg pixel format of the images the plugin accepts.
+            AVPixelFormat toAVPixelFormat(ftk::ImageType value)
+            {
+                AVPixelFormat out = AV_PIX_FMT_NONE;
+                switch (value)
+                {
+                case ftk::ImageType::L_U8:     out = AV_PIX_FMT_GRAY8;  break;
+                case ftk::ImageType::RGB_U8:   out = AV_PIX_FMT_RGB24;  break;
+                case ftk::ImageType::RGBA_U8:  out = AV_PIX_FMT_RGBA;   break;
+                case ftk::ImageType::L_U16:    out = AV_PIX_FMT_GRAY16; break;
+                case ftk::ImageType::RGB_U16:  out = AV_PIX_FMT_RGB48;  break;
+                case ftk::ImageType::RGBA_U16: out = AV_PIX_FMT_RGBA64; break;
+                default: break;
+                }
+                return out;
+            }
+        }
+
         const std::vector<WritePreset>& getWritePresets()
         {
             static const std::vector<WritePreset> presets =
@@ -58,14 +78,17 @@ namespace tl
                     false },
                 { "ProRes 422",
                     { { "FFmpeg/Codec", "prores_ks" },
-                      { "FFmpeg/CodecOptions", "profile=hq" } },
+                      { "FFmpeg/CodecOptions", "profile=hq" },
+                      { "FFmpeg/PixelFormat", "yuv422p10le" } },
                     false },
                 { "ProRes 4444",
                     { { "FFmpeg/Codec", "prores_ks" },
-                      { "FFmpeg/CodecOptions", "profile=4444" } },
+                      { "FFmpeg/CodecOptions", "profile=4444" },
+                      { "FFmpeg/PixelFormat", "yuv444p10le" } },
                     false },
                 { "FFV1 (lossless)",
-                    { { "FFmpeg/Codec", "ffv1" } },
+                    { { "FFmpeg/Codec", "ffv1" },
+                      { "FFmpeg/PixelFormat", "best" } },
                     false },
                 { "CineForm",
                     { { "FFmpeg/Codec", "cfhd" } },
@@ -146,6 +169,66 @@ namespace tl
             p.avCodecContext->height = videoInfo.size.h;
             p.avCodecContext->sample_aspect_ratio = AVRational({ 1, 1 });
             p.avCodecContext->pix_fmt = avCodec->pix_fmts[0];
+            // A pixel format for the preset to choose, rather than whichever
+            // the encoder lists first: FFV1 lists 4:2:0 first, which is not
+            // lossless, and ProRes lists 4:2:2 first whatever the profile.
+            // "best" asks FFmpeg for the one of the encoder's formats that
+            // loses the least of the image being written.
+            if (auto i = options.find("FFmpeg/PixelFormat"); i != options.end())
+            {
+                AVPixelFormat avPixelFormat = AV_PIX_FMT_NONE;
+                if ("best" == i->second)
+                {
+                    int loss = 0;
+                    avPixelFormat = avcodec_find_best_pix_fmt_of_list(
+                        avCodec->pix_fmts,
+                        toAVPixelFormat(videoInfo.type),
+                        0,
+                        &loss);
+                }
+                else
+                {
+                    avPixelFormat = av_get_pix_fmt(i->second.c_str());
+                }
+                bool supported = false;
+                for (const AVPixelFormat* j = avCodec->pix_fmts; *j != AV_PIX_FMT_NONE; ++j)
+                {
+                    if (*j == avPixelFormat)
+                    {
+                        supported = true;
+                        break;
+                    }
+                }
+                if (!supported)
+                {
+                    throw std::runtime_error(ftk::Format("Unsupported pixel format \"{0}\": \"{1}\"").
+                        arg(i->second).
+                        arg(p.fileName));
+                }
+                p.avCodecContext->pix_fmt = avPixelFormat;
+            }
+            // Subsampled chroma covers the pixels in pairs (or fours), so the
+            // size has to divide evenly: an odd width or height leaves the
+            // last column or row without it, which some encoders reject and
+            // others fill with black. Refused here, with the size to change.
+            if (const AVPixFmtDescriptor* avPixFmtDesc =
+                av_pix_fmt_desc_get(p.avCodecContext->pix_fmt))
+            {
+                const int w = 1 << avPixFmtDesc->log2_chroma_w;
+                const int h = 1 << avPixFmtDesc->log2_chroma_h;
+                if (videoInfo.size.w % w || videoInfo.size.h % h)
+                {
+                    throw std::runtime_error(ftk::Format(
+                        "The video size {0}x{1} must be divisible by {2}x{3} "
+                        "for the pixel format \"{4}\": \"{5}\"").
+                        arg(videoInfo.size.w).
+                        arg(videoInfo.size.h).
+                        arg(w).
+                        arg(h).
+                        arg(avPixFmtDesc->name).
+                        arg(p.fileName));
+                }
+            }
             const auto rational = toRational(info.videoTime->duration().rate());
             p.avCodecContext->time_base = { rational.second, rational.first };
             p.avCodecContext->framerate = { rational.first, rational.second };
@@ -188,23 +271,34 @@ namespace tl
                     p.avCodecContext->colorspace = static_cast<AVColorSpace>(v);
                 }
             }
-            // The QuickTime muxer only writes a color description that is
-            // complete -- primaries, transfer, and matrix together -- so a
-            // caller that said what the pixels are but not the matrix would
-            // get nothing written at all. The conversion below runs the
-            // software scaler with its default BT.601 coefficients, so that
-            // is the matrix the file truthfully gets.
-            if (p.avCodecContext->color_primaries != AVCOL_PRI_UNSPECIFIED &&
-                p.avCodecContext->color_trc != AVCOL_TRC_UNSPECIFIED &&
-                AVCOL_SPC_UNSPECIFIED == p.avCodecContext->colorspace)
+            // The matrix the pixels are converted with: the one the caller
+            // names, or else the one a reader takes for a file that names
+            // none (see toYUVCoefficients()). QuickTime keeps a description
+            // only when primaries, transfer, and matrix are all given, and
+            // FFV1 and MJPEG have nowhere of their own to keep one, so the
+            // tag may not reach the file; converting with the reader's guess
+            // means the file reads back the way it was written either way.
+            const ftk::YUVCoefficients yuvCoefficients = toYUVCoefficients(
+                p.avCodecContext->colorspace,
+                p.avCodecContext->pix_fmt,
+                videoInfo.size);
+            const AVPixFmtDescriptor* outputDesc =
+                av_pix_fmt_desc_get(p.avCodecContext->pix_fmt);
+            const bool yuvOutput =
+                outputDesc &&
+                !(outputDesc->flags & AV_PIX_FMT_FLAG_RGB) &&
+                outputDesc->nb_components >= 3;
+            if (yuvOutput)
             {
-                const AVPixFmtDescriptor* avPixFmtDesc =
-                    av_pix_fmt_desc_get(p.avCodecContext->pix_fmt);
-                if (avPixFmtDesc &&
-                    !(avPixFmtDesc->flags & AV_PIX_FMT_FLAG_RGB))
+                if (AVCOL_SPC_UNSPECIFIED == p.avCodecContext->colorspace)
                 {
-                    p.avCodecContext->colorspace = AVCOL_SPC_BT470BG;
+                    p.avCodecContext->colorspace = fromYUVCoefficients(yuvCoefficients);
                 }
+                p.avCodecContext->color_range = isFullRange(
+                    AVCOL_RANGE_UNSPECIFIED,
+                    p.avCodecContext->pix_fmt) ?
+                    AVCOL_RANGE_JPEG :
+                    AVCOL_RANGE_MPEG;
             }
 
             // Codec-private options, e.g. "profile=hq" for ProRes: what the
@@ -494,17 +588,10 @@ namespace tl
             {
                 throw std::runtime_error(ftk::Format("Cannot allocate frame: \"{0}\"").arg(p.fileName));
             }
-            switch (videoInfo.type)
+            p.avPixelFormatIn = toAVPixelFormat(videoInfo.type);
+            if (AV_PIX_FMT_NONE == p.avPixelFormatIn)
             {
-            case ftk::ImageType::L_U8:     p.avPixelFormatIn = AV_PIX_FMT_GRAY8;  break;
-            case ftk::ImageType::RGB_U8:   p.avPixelFormatIn = AV_PIX_FMT_RGB24;  break;
-            case ftk::ImageType::RGBA_U8:  p.avPixelFormatIn = AV_PIX_FMT_RGBA;   break;
-            case ftk::ImageType::L_U16:    p.avPixelFormatIn = AV_PIX_FMT_GRAY16; break;
-            case ftk::ImageType::RGB_U16:  p.avPixelFormatIn = AV_PIX_FMT_RGB48;  break;
-            case ftk::ImageType::RGBA_U16: p.avPixelFormatIn = AV_PIX_FMT_RGBA64; break;
-            default:
                 throw std::runtime_error(ftk::Format("Incompatible pixel type: \"{0}\"").arg(p.fileName));
-                break;
             }
             p.swsContext = sws_alloc_context();
             if (!p.swsContext)
@@ -524,6 +611,20 @@ namespace tl
             if (r < 0)
             {
                 throw std::runtime_error(ftk::Format("Cannot initialize sws context: \"{0}\"").arg(p.fileName));
+            }
+            if (yuvOutput)
+            {
+                // RGB in, so the source table goes unused; out, the matrix
+                // and range chosen above rather than the scaler's BT.601.
+                sws_setColorspaceDetails(
+                    p.swsContext,
+                    sws_getCoefficients(SWS_CS_DEFAULT),
+                    1,
+                    sws_getCoefficients(toSwsColorspace(yuvCoefficients)),
+                    AVCOL_RANGE_JPEG == p.avCodecContext->color_range ? 1 : 0,
+                    0,
+                    1 << 16,
+                    1 << 16);
             }
 
             p.opened = true;

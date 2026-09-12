@@ -177,6 +177,71 @@ namespace tl
             av_packet_free(&p);
         }
 
+        bool isFullRange(AVColorRange range, AVPixelFormat format)
+        {
+            switch (format)
+            {
+            case AV_PIX_FMT_YUVJ411P:
+            case AV_PIX_FMT_YUVJ420P:
+            case AV_PIX_FMT_YUVJ422P:
+            case AV_PIX_FMT_YUVJ440P:
+            case AV_PIX_FMT_YUVJ444P:
+                return true;
+            default: break;
+            }
+            return AVCOL_RANGE_JPEG == range;
+        }
+
+        ftk::YUVCoefficients toYUVCoefficients(
+            AVColorSpace value,
+            AVPixelFormat format,
+            const ftk::Size2I& size)
+        {
+            switch (value)
+            {
+            case AVCOL_SPC_BT709:
+                return ftk::YUVCoefficients::REC709;
+            case AVCOL_SPC_BT470BG:
+            case AVCOL_SPC_SMPTE170M:
+                return ftk::YUVCoefficients::BT601;
+            case AVCOL_SPC_BT2020_NCL:
+            case AVCOL_SPC_BT2020_CL:
+                return ftk::YUVCoefficients::BT2020;
+            default: break;
+            }
+            if (isFullRange(AVCOL_RANGE_UNSPECIFIED, format))
+            {
+                return ftk::YUVCoefficients::BT601;
+            }
+            return size.w >= 1280 || size.h > 576 ?
+                ftk::YUVCoefficients::REC709 :
+                ftk::YUVCoefficients::BT601;
+        }
+
+        AVColorSpace fromYUVCoefficients(ftk::YUVCoefficients value)
+        {
+            AVColorSpace out = AVCOL_SPC_BT709;
+            switch (value)
+            {
+            case ftk::YUVCoefficients::BT601: out = AVCOL_SPC_SMPTE170M; break;
+            case ftk::YUVCoefficients::BT2020: out = AVCOL_SPC_BT2020_NCL; break;
+            default: break;
+            }
+            return out;
+        }
+
+        int toSwsColorspace(ftk::YUVCoefficients value)
+        {
+            int out = SWS_CS_ITU709;
+            switch (value)
+            {
+            case ftk::YUVCoefficients::BT601: out = SWS_CS_ITU601; break;
+            case ftk::YUVCoefficients::BT2020: out = SWS_CS_BT2020; break;
+            default: break;
+            }
+            return out;
+        }
+
         std::string getErrorLabel(int r)
         {
             char buf[ftk::cStringSize];
