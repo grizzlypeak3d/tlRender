@@ -40,6 +40,7 @@ namespace tl
         {
             _gapSeq();
             _seqFrame();
+            _separateAudio();
             auto thumbnailSystem = _context->getSystem<ui::ThumbnailSystem>();
             const std::vector<ftk::Path> paths =
             {
@@ -141,6 +142,56 @@ namespace tl
                     timeline->getPath().getDir(),
                     ftk::PathOptions());
             }
+        }
+
+        void ThumbnailSystemTest::_separateAudio()
+        {
+#if defined(TLRENDER_FFMPEG_PLUGIN)
+            // A movie opened with an audio file chosen alongside it. Nothing
+            // in the movie records the audio, so a request that does not name
+            // it is about a timeline with no audio, and gets no waveform.
+            const ftk::Path videoPath(TLRENDER_SAMPLE_DATA, "BART_2021-02-07.m4v");
+            const ftk::Path audioPath(TLRENDER_SAMPLE_DATA, "AudioToneStereo.wav");
+            ftk::Path audioMediaPath;
+            try
+            {
+                auto timeline = Timeline::create(_context, videoPath, audioPath);
+                for (const auto& clip : timeline->getOTIOTimeline()->find_clips())
+                {
+                    const auto mediaPath = getPath(
+                        clip->media_reference(),
+                        timeline->getPath().getDir(),
+                        ftk::PathOptions());
+                    if (mediaPath.getFileName() == audioPath.getFileName())
+                    {
+                        audioMediaPath = mediaPath;
+                    }
+                }
+            }
+            catch (const std::exception& e)
+            {
+                _error(e.what());
+                return;
+            }
+            FTK_CHECK(!audioMediaPath.isEmpty());
+
+            auto thumbnailSystem = _context->getSystem<ui::ThumbnailSystem>();
+            auto info = thumbnailSystem->getInfo(
+                videoPath,
+                audioMediaPath,
+                IOOptions(),
+                audioPath).future.get();
+            FTK_CHECK(info.audio.channelCount > 0);
+
+            auto waveform = thumbnailSystem->getWaveform(
+                videoPath,
+                audioMediaPath,
+                ftk::Size2I(200, 100),
+                std::nullopt,
+                IOOptions(),
+                audioPath).future.get();
+            FTK_CHECK(waveform != nullptr);
+#endif // TLRENDER_FFMPEG_PLUGIN
         }
 
         void ThumbnailSystemTest::_seqFrame()

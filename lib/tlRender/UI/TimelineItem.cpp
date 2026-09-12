@@ -1111,6 +1111,7 @@ namespace tl
                             _data->dir,
                             _data->options.pathOptions);
                         item.timelinePath = timeline->getPath();
+                        item.timelineAudioPath = timeline->getAudioPath();
                         item.label = !clip->name().empty() ?
                             clip->name() :
                             item.path.getFileName();
@@ -1293,7 +1294,8 @@ namespace tl
                             item.infoRequest = p.thumbnailSystem->getInfo(
                                 item.timelinePath,
                                 item.path,
-                                item.ioOptions);
+                                item.ioOptions,
+                                item.timelineAudioPath);
                         }
                         continue;
                     }
@@ -1438,7 +1440,9 @@ namespace tl
                         item.path,
                         displayOptions.thumbnailHeight,
                         mediaTime,
-                        item.ioOptions);
+                        item.ioOptions,
+                        ThumbnailType::Timeline,
+                        item.timelineAudioPath);
                 }
                 wanted.insert(mediaTime);
 
@@ -1581,7 +1585,8 @@ namespace tl
                         item.path,
                         ftk::Size2I(width, displayOptions.waveformHeight),
                         mediaRange,
-                        data.options.ioOptions);
+                        data.options.ioOptions,
+                        item.timelineAudioPath);
                 }
                 item.media.push_back(std::move(media));
             }

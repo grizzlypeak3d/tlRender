@@ -83,9 +83,15 @@ namespace tl
                 const std::shared_ptr<ftk::Context>&);
 
             //! Get information.
+            //!
+            //! The audio path is the audio file chosen alongside the
+            //! timeline's own file, when there is one. Nothing in the video
+            //! file records it, so a request that leaves it out is about a
+            //! timeline with no audio.
             TL_UI_API InfoRequest getInfo(
                 const ftk::Path&,
-                const IOOptions& = IOOptions());
+                const IOOptions& = IOOptions(),
+                const ftk::Path& audioPath = ftk::Path());
 
             //! Get information about media inside a timeline.
             //!
@@ -94,7 +100,8 @@ namespace tl
             TL_UI_API InfoRequest getInfo(
                 const ftk::Path& timelinePath,
                 const ftk::Path& mediaPath,
-                const IOOptions& = IOOptions());
+                const IOOptions& = IOOptions(),
+                const ftk::Path& audioPath = ftk::Path());
 
             //! Get a video thumbnail.
             TL_UI_API ThumbnailRequest getThumbnail(
@@ -102,7 +109,8 @@ namespace tl
                 int height,
                 const std::optional<OTIO_NS::RationalTime>& = std::nullopt,
                 const IOOptions& = IOOptions(),
-                ThumbnailType = ThumbnailType::Timeline);
+                ThumbnailType = ThumbnailType::Timeline,
+                const ftk::Path& audioPath = ftk::Path());
 
             //! Get a video thumbnail of media inside a timeline.
             TL_UI_API ThumbnailRequest getThumbnail(
@@ -111,14 +119,16 @@ namespace tl
                 int height,
                 const std::optional<OTIO_NS::RationalTime>& = std::nullopt,
                 const IOOptions& = IOOptions(),
-                ThumbnailType = ThumbnailType::Timeline);
+                ThumbnailType = ThumbnailType::Timeline,
+                const ftk::Path& audioPath = ftk::Path());
 
             //! Get an audio waveform.
             TL_UI_API WaveformRequest getWaveform(
                 const ftk::Path&,
                 const ftk::Size2I&,
                 const std::optional<OTIO_NS::TimeRange>& = std::nullopt,
-                const IOOptions& = IOOptions());
+                const IOOptions& = IOOptions(),
+                const ftk::Path& audioPath = ftk::Path());
 
             //! Get an audio waveform of media inside a timeline.
             TL_UI_API WaveformRequest getWaveform(
@@ -126,7 +136,8 @@ namespace tl
                 const ftk::Path& mediaPath,
                 const ftk::Size2I&,
                 const std::optional<OTIO_NS::TimeRange>& = std::nullopt,
-                const IOOptions& = IOOptions());
+                const IOOptions& = IOOptions(),
+                const ftk::Path& audioPath = ftk::Path());
 
             //! Cancel pending requests.
             TL_UI_API void cancelRequests(const std::vector<uint64_t>&);

@@ -78,6 +78,12 @@ namespace tl
                 //! by naming the timeline as well as the media, and nothing
                 //! has to carry the byte ranges around.
                 ftk::Path timelinePath;
+
+                //! The audio file chosen alongside the timeline's own file.
+                //! The video file does not record it, so a thumbnail or a
+                //! waveform asked for without it is about a timeline that
+                //! has no audio.
+                ftk::Path timelineAudioPath;
                 IOOptions ioOptions;
 
                 //! Horizontal placement relative to the timeline origin. This

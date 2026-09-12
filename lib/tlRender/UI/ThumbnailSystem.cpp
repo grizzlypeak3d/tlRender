@@ -52,10 +52,12 @@ namespace tl
             std::string getInfoKey(
                 const ftk::Path& path,
                 const ftk::Path& mediaPath,
+                const ftk::Path& audioPath,
                 const IOOptions& options)
             {
                 std::stringstream ss;
-                ss << path.get() << ";" << mediaPath.get() << ";";
+                ss << path.get() << ";" << mediaPath.get() << ";" <<
+                    audioPath.get() << ";";
                 for (const auto& i : options)
                 {
                     ss << i.first << ":" << i.second << ";";
@@ -86,10 +88,12 @@ namespace tl
 
             std::string getTimelineKey(
                 const ftk::Path& path,
+                const ftk::Path& audioPath,
                 const IOOptions& options)
             {
                 std::stringstream ss;
-                ss << path.get() << ";" << seqHash(path) << ";";
+                ss << path.get() << ";" << seqHash(path) << ";" <<
+                    audioPath.get() << ";";
                 for (const auto& i : options)
                 {
                     ss << i.first << ":" << i.second << ";";
@@ -106,6 +110,7 @@ namespace tl
                 ftk::LRUCache<std::string, std::shared_ptr<Timeline> >& cache,
                 std::mutex& mutex,
                 const ftk::Path& path,
+                const ftk::Path& audioPath,
                 const IOOptions& ioOptions,
                 bool keep = true)
             {
@@ -114,7 +119,7 @@ namespace tl
                 // seconds, so opening it three times is three times too
                 // many. The timeline has no thread of its own and guards its
                 // caches, so the threads can read it at once.
-                const std::string key = getTimelineKey(path, ioOptions);
+                const std::string key = getTimelineKey(path, audioPath, ioOptions);
                 std::shared_ptr<Timeline> out;
                 {
                     std::unique_lock<std::mutex> lock(mutex);
@@ -138,7 +143,10 @@ namespace tl
                 // cannot find: an application started from the Finder gets
                 // the launch daemon's PATH, not a shell's.
                 options.ioOptions = ioOptions;
-                out = Timeline::create(context, path, options);
+                // With the audio file chosen alongside it: nothing in the
+                // video file says there is one, so a timeline opened from the
+                // path alone would have no audio to draw.
+                out = Timeline::create(context, path, audioPath, options);
                 if (keep)
                 {
                     std::unique_lock<std::mutex> lock(mutex);
@@ -155,11 +163,13 @@ namespace tl
             std::string getThumbnailKey(
                 const ftk::Path& path,
                 const ftk::Path& mediaPath,
+                const ftk::Path& audioPath,
                 int height,
                 const std::optional<OTIO_NS::RationalTime>& time,
                 const IOOptions& options)
             {
                 std::stringstream ss;
+                ss << audioPath.get() << ";";
                 ss << path.get() << ";" << seqHash(path) << ";" <<
                     mediaPath.get() << ";" << seqHash(mediaPath) << ";" <<
                     height << ";";
@@ -178,11 +188,13 @@ namespace tl
             std::string getWaveformKey(
                 const ftk::Path& path,
                 const ftk::Path& mediaPath,
+                const ftk::Path& audioPath,
                 const ftk::Size2I& size,
                 const std::optional<OTIO_NS::TimeRange>& timeRange,
                 const IOOptions& options)
             {
                 std::stringstream ss;
+                ss << audioPath.get() << ";";
                 ss << path.get() << ";" << seqHash(path) << ";" <<
                     mediaPath.get() << ";" << seqHash(mediaPath) << ";" <<
                     size << ";";
@@ -210,6 +222,7 @@ namespace tl
                 uint64_t id = 0;
                 ftk::Path path;
                 ftk::Path mediaPath;
+                ftk::Path audioPath;
                 IOOptions options;
                 std::promise<IOInfo> promise;
             };
@@ -219,6 +232,7 @@ namespace tl
                 uint64_t id = 0;
                 ftk::Path path;
                 ftk::Path mediaPath;
+                ftk::Path audioPath;
                 int height = 0;
                 std::optional<OTIO_NS::RationalTime> time;
                 IOOptions options;
@@ -231,6 +245,7 @@ namespace tl
                 uint64_t id = 0;
                 ftk::Path path;
                 ftk::Path mediaPath;
+                ftk::Path audioPath;
                 ftk::Size2I size;
                 std::optional<OTIO_NS::TimeRange> timeRange;
                 IOOptions options;
@@ -469,15 +484,17 @@ namespace tl
 
         InfoRequest ThumbnailSystem::getInfo(
             const ftk::Path& path,
-            const IOOptions& options)
+            const IOOptions& options,
+            const ftk::Path& audioPath)
         {
-            return getInfo(path, path, options);
+            return getInfo(path, path, options, audioPath);
         }
 
         InfoRequest ThumbnailSystem::getInfo(
             const ftk::Path& path,
             const ftk::Path& mediaPath,
-            const IOOptions& options)
+            const IOOptions& options,
+            const ftk::Path& audioPath)
         {
             FTK_P();
             (p.requestId)++;
@@ -486,9 +503,10 @@ namespace tl
             request->id = p.requestId;
             request->path = path;
             request->mediaPath = mediaPath;
+            request->audioPath = audioPath;
             request->options = options;
 
-            const std::string key = getInfoKey(path, mediaPath, options);
+            const std::string key = getInfoKey(path, mediaPath, audioPath, options);
             IOInfo info;
             bool notify = false;
             {
@@ -521,9 +539,10 @@ namespace tl
             int height,
             const std::optional<OTIO_NS::RationalTime>& time,
             const IOOptions& options,
-            ThumbnailType type)
+            ThumbnailType type,
+            const ftk::Path& audioPath)
         {
-            return getThumbnail(path, path, height, time, options, type);
+            return getThumbnail(path, path, height, time, options, type, audioPath);
         }
 
         ThumbnailRequest ThumbnailSystem::getThumbnail(
@@ -532,7 +551,8 @@ namespace tl
             int height,
             const std::optional<OTIO_NS::RationalTime>& time,
             const IOOptions& options,
-            ThumbnailType type)
+            ThumbnailType type,
+            const ftk::Path& audioPath)
         {
             FTK_P();
             (p.requestId)++;
@@ -541,6 +561,7 @@ namespace tl
             request->id = p.requestId;
             request->path = path;
             request->mediaPath = mediaPath;
+            request->audioPath = audioPath;
             request->height = height;
             request->time = time;
             request->options = options;
@@ -549,6 +570,7 @@ namespace tl
             const std::string key = getThumbnailKey(
                 path,
                 mediaPath,
+                audioPath,
                 height,
                 time,
                 options);
@@ -585,9 +607,10 @@ namespace tl
             const ftk::Path& path,
             const ftk::Size2I& size,
             const std::optional<OTIO_NS::TimeRange>& range,
-            const IOOptions& options)
+            const IOOptions& options,
+            const ftk::Path& audioPath)
         {
-            return getWaveform(path, {}, size, range, options);
+            return getWaveform(path, {}, size, range, options, audioPath);
         }
 
         WaveformRequest ThumbnailSystem::getWaveform(
@@ -595,7 +618,8 @@ namespace tl
             const ftk::Path& mediaPath,
             const ftk::Size2I& size,
             const std::optional<OTIO_NS::TimeRange>& timeRange,
-            const IOOptions& options)
+            const IOOptions& options,
+            const ftk::Path& audioPath)
         {
             FTK_P();
             (p.requestId)++;
@@ -604,6 +628,7 @@ namespace tl
             request->id = p.requestId;
             request->path = path;
             request->mediaPath = mediaPath;
+            request->audioPath = audioPath;
             request->size = size;
             request->timeRange = timeRange;
             request->options = options;
@@ -611,6 +636,7 @@ namespace tl
             const std::string key = getWaveformKey(
                 path,
                 mediaPath,
+                audioPath,
                 size,
                 timeRange,
                 options);
@@ -784,7 +810,7 @@ namespace tl
                         auto context = p.context.lock();
                         if (auto timeline = getTimeline(
                             context, p.ioCache, p.ioCacheMutex, request->path,
-                            request->options))
+                            request->audioPath, request->options))
                         {
                             timeline->getMediaInfo(
                                 request->mediaPath, info, request->options);
@@ -795,7 +821,8 @@ namespace tl
                     request->promise.set_value(info);
 
                     const std::string key = getInfoKey(
-                        request->path, request->mediaPath, request->options);
+                        request->path, request->mediaPath, request->audioPath,
+                        request->options);
                     std::unique_lock<std::mutex> lock(p.infoMutex.mutex);
                     p.infoMutex.cache.add(key, info);
                 }
@@ -872,7 +899,7 @@ namespace tl
                         auto context = p.context.lock();
                         auto timeline = getTimeline(
                             context, p.ioCache, p.ioCacheMutex, request->path,
-                            request->options,
+                            request->audioPath, request->options,
                             ThumbnailType::Timeline == request->type);
                         IOInfo info;
                         if (timeline &&
@@ -975,6 +1002,7 @@ namespace tl
                     const std::string key = getThumbnailKey(
                         request->path,
                         request->mediaPath,
+                        request->audioPath,
                         request->height,
                         request->time,
                         request->options);
@@ -1124,7 +1152,7 @@ namespace tl
                         auto context = p.context.lock();
                         auto timeline = getTimeline(
                             context, p.ioCache, p.ioCacheMutex, request->path,
-                            request->options);
+                            request->audioPath, request->options);
                         IOInfo info;
                         if (timeline &&
                             timeline->getMediaInfo(
@@ -1170,6 +1198,7 @@ namespace tl
                     const std::string key = getWaveformKey(
                         request->path,
                         request->mediaPath,
+                        request->audioPath,
                         request->size,
                         request->timeRange,
                         request->options);
