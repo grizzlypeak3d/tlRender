@@ -611,7 +611,9 @@ namespace tl
         void Viewport::zoomOut()
         {
             FTK_P();
-            setZoom(p.zoom->get() / 2.0, _getViewportCenter());
+            setZoom(
+                p.zoom->get() / 2.0,
+                p.mouse.inside ? p.mouse.pos : _getViewportCenter());
         }
 
         const ftk::RangeD& Viewport::getZoomRange() const
@@ -1434,43 +1436,6 @@ namespace tl
                     {
                         const OTIO_NS::RationalTime t = p.player->getCurrentTime();
                         p.player->seek(t + OTIO_NS::RationalTime(delta, t.rate()));
-                    }
-                }
-            }
-        }
-
-        void Viewport::keyPressEvent(ftk::KeyEvent& event)
-        {
-            FTK_P();
-            if (p.inputEnabled)
-            {
-                p.mouse.pos = toViewportPos(event.pos);
-
-                if (0 == event.modifiers)
-                {
-                    switch (event.key)
-                    {
-                    case ftk::Key::_0:
-                        event.accept = true;
-                        setZoom(1.0, p.mouse.pos);
-                        break;
-
-                    case ftk::Key::Equals:
-                        event.accept = true;
-                        setZoom(p.zoom->get() * 2.0, p.mouse.pos);
-                        break;
-
-                    case ftk::Key::Minus:
-                        event.accept = true;
-                        setZoom(p.zoom->get() / 2.0, p.mouse.pos);
-                        break;
-
-                    case ftk::Key::Backspace:
-                        event.accept = true;
-                        setFrameView(true);
-                        break;
-
-                    default: break;
                     }
                 }
             }
