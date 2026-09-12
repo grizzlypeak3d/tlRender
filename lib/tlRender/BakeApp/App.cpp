@@ -129,6 +129,11 @@ namespace tl
                 "FFmpeg",
                 "mjpeg",
                 ftk::quotes(ffmpegCodecs));
+            _cmdLine.ffmpegPixelFormat = ftk::CmdLineOption<std::string>::create(
+                { "-ffmpegPixelFormat", "-ffpf" },
+                "Output pixel format, e.g. \"yuv422p10le\", or \"best\" for the "
+                "codec's format that loses the least. The default is the codec's first.",
+                "FFmpeg");
             _cmdLine.ffmpegAudioCodec = ftk::CmdLineOption<std::string>::create(
                 { "-ffmpegAudioCodec", "-ffac" },
                 "Output audio codec. The default is chosen by the output format.",
@@ -230,6 +235,7 @@ namespace tl
 #endif // TLRENDER_EXR
 #if defined(TLRENDER_FFMPEG_PLUGIN)
                     _cmdLine.ffmpegCodec,
+                    _cmdLine.ffmpegPixelFormat,
                     _cmdLine.ffmpegAudioCodec,
                     _cmdLine.ffmpegThreadCount,
                     _cmdLine.ffmpegWriteCmd,
@@ -515,6 +521,10 @@ namespace tl
             if (_cmdLine.ffmpegCodec->hasValue())
             {
                 out["FFmpeg/Codec"] = _cmdLine.ffmpegCodec->getValue();
+            }
+            if (_cmdLine.ffmpegPixelFormat->hasValue())
+            {
+                out["FFmpeg/PixelFormat"] = _cmdLine.ffmpegPixelFormat->getValue();
             }
             if (_cmdLine.ffmpegAudioCodec->hasValue())
             {

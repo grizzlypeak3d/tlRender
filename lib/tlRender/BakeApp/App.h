@@ -57,6 +57,7 @@ namespace tl
 #endif // TLRENDER_EXR
 #if defined(TLRENDER_FFMPEG_PLUGIN)
             std::shared_ptr<ftk::CmdLineOption<std::string> > ffmpegCodec;
+            std::shared_ptr<ftk::CmdLineOption<std::string> > ffmpegPixelFormat;
             std::shared_ptr<ftk::CmdLineOption<std::string> > ffmpegAudioCodec;
             std::shared_ptr<ftk::CmdLineOption<int> > ffmpegThreadCount;
             std::shared_ptr<ftk::CmdLineFlag> ffmpegWriteCmd;
