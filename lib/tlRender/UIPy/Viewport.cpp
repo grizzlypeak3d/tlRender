@@ -140,6 +140,10 @@ namespace tl
                     &Viewport::setZoom,
                     nb::arg("zoom"),
                     nb::arg("focus") = ftk::V2I())
+                .def("center", &Viewport::center)
+                .def("resetZoom", &Viewport::resetZoom)
+                .def("zoomIn", &Viewport::zoomIn)
+                .def("zoomOut", &Viewport::zoomOut)
                 .def_prop_rw(
                     "zoomRange",
                     &Viewport::getZoomRange,

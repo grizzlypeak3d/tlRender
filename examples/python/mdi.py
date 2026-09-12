@@ -13,7 +13,9 @@ import os
 class MainWindow(ftk.MainWindow):
     def __init__(self, context):
         ftk.MainWindow.__init__(self, context, app, ftk.Size2I(1280, 960))
-        
+
+        self._viewports = []
+
         # Create a scroll widget.
         self._scrollWidget = ftk.ScrollWidget(context)
         self._scrollWidget.border = False
@@ -45,6 +47,7 @@ class MainWindow(ftk.MainWindow):
 
                 viewport = tl.ui.Viewport(self.context)
                 viewport.player = player
+                self._viewports.append(viewport)
 
                 playbackToolBar = tl.ui.PlaybackToolBar(self.context)
                 playbackToolBar.player = player
@@ -69,6 +72,34 @@ class MainWindow(ftk.MainWindow):
                 timelineWidget.parent = vLayout
                 self._mdiCanvas.addWidget(text, event.pos, splitter)
 
+    def keyPressEvent(self, event):
+        # The viewports have no keys of their own; the one under the
+        # cursor gets them here.
+        viewport = self._viewportAt(event.pos)
+        if viewport and 0 == event.modifiers:
+            if ftk.Key.Backspace == event.key:
+                event.accept = True
+                viewport.frameView = True
+            elif ftk.Key._0 == event.key:
+                event.accept = True
+                viewport.resetZoom()
+            elif ftk.Key.Equals == event.key:
+                event.accept = True
+                viewport.zoomIn()
+            elif ftk.Key.Minus == event.key:
+                event.accept = True
+                viewport.zoomOut()
+        if not event.accept:
+            ftk.MainWindow.keyPressEvent(self, event)
+
+    def _viewportAt(self, pos):
+        for viewport in self._viewports:
+            # A closed window's viewport is still in the list, but no
+            # longer in this window.
+            if viewport.window and ftk.contains(viewport.geometry, pos):
+                return viewport
+        return None
+
     def _scrollInfoCallback(self, info):
         self._miniMap.setScrollInfo(info)
 
@@ -82,8 +113,8 @@ class MainWindow(ftk.MainWindow):
 context = ftk.Context()
 tl.ui.init(context)
 app = ftk.App(context, sys.argv, "mdi", "Python MDI example.")
-if app.exitValue != 0:
-    sys.exit(app.exitValue)
+if app.hasCmdLineHelp:
+    sys.exit(0)
 
 # Create the main window.
 window = MainWindow(context)

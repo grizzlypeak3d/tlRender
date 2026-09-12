@@ -14,12 +14,15 @@
 
 #include <tlRender/Timeline/Player.h>
 
+#include <ftk/UI/Action.h>
 #include <ftk/UI/App.h>
 #include <ftk/UI/Divider.h>
 #include <ftk/UI/FileBrowser.h>
 #include <ftk/UI/FileBrowserWidgets.h>
 #include <ftk/UI/Label.h>
 #include <ftk/UI/MainWindow.h>
+#include <ftk/UI/Menu.h>
+#include <ftk/UI/MenuBar.h>
 #include <ftk/UI/RowLayout.h>
 #include <ftk/UI/ScrollWidget.h>
 #include <ftk/UI/Splitter.h>
@@ -100,6 +103,43 @@ int main(int argc, char* argv[])
         scrollWidget->setParent(browserLayout);
 
         auto viewport = tl::ui::Viewport::create(context, splitter);
+
+        // The viewport has no keys of its own; the application gives it
+        // them, here as the shortcuts of a menu.
+        std::weak_ptr<tl::ui::Viewport> viewportWeak(viewport);
+        auto viewMenu = window->getMenuBar()->addMenu("View");
+        viewMenu->addAction(Action::create(
+            "Frame",
+            KeyShortcut(Key::Backspace),
+            [viewportWeak]
+            {
+                if (auto viewport = viewportWeak.lock())
+                    viewport->setFrameView(true);
+            }));
+        viewMenu->addAction(Action::create(
+            "Zoom 1:1",
+            KeyShortcut(Key::_0),
+            [viewportWeak]
+            {
+                if (auto viewport = viewportWeak.lock())
+                    viewport->resetZoom();
+            }));
+        viewMenu->addAction(Action::create(
+            "Zoom In",
+            KeyShortcut(Key::Equals),
+            [viewportWeak]
+            {
+                if (auto viewport = viewportWeak.lock())
+                    viewport->zoomIn();
+            }));
+        viewMenu->addAction(Action::create(
+            "Zoom Out",
+            KeyShortcut(Key::Minus),
+            [viewportWeak]
+            {
+                if (auto viewport = viewportWeak.lock())
+                    viewport->zoomOut();
+            }));
 
         Divider::create(context, Orientation::Vertical, layout);
         // The label says what is showing and what it cost, so the feel

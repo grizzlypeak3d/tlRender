@@ -55,6 +55,66 @@ using namespace ftk;
 
 namespace
 {
+    //! The window, which frames and zooms the viewport from the keyboard:
+    //! the viewport has no keys of its own, and without a menu bar there
+    //! are no shortcuts to give it them.
+    class PlayerWindow : public Window
+    {
+    protected:
+        PlayerWindow() = default;
+
+    public:
+        static std::shared_ptr<PlayerWindow> create(
+            const std::shared_ptr<Context>& context,
+            const std::shared_ptr<App>& app,
+            const std::string& title)
+        {
+            auto out = std::shared_ptr<PlayerWindow>(new PlayerWindow);
+            out->_init(context, app, title, Size2I(1280, 960));
+            return out;
+        }
+
+        void setViewport(const std::shared_ptr<tl::ui::Viewport>& value)
+        {
+            _viewport = value;
+        }
+
+        void keyPressEvent(KeyEvent& event) override
+        {
+            auto viewport = _viewport.lock();
+            if (viewport && 0 == event.modifiers)
+            {
+                switch (event.key)
+                {
+                case Key::Backspace:
+                    event.accept = true;
+                    viewport->setFrameView(true);
+                    break;
+                case Key::_0:
+                    event.accept = true;
+                    viewport->resetZoom();
+                    break;
+                case Key::Equals:
+                    event.accept = true;
+                    viewport->zoomIn();
+                    break;
+                case Key::Minus:
+                    event.accept = true;
+                    viewport->zoomOut();
+                    break;
+                default: break;
+                }
+            }
+            if (!event.accept)
+            {
+                Window::keyPressEvent(event);
+            }
+        }
+
+    private:
+        std::weak_ptr<tl::ui::Viewport> _viewport;
+    };
+
     //! The volume slider and the mute, in a popup under the volume
     //! button.
     class AudioPopup : public IWidgetPopup
@@ -222,7 +282,7 @@ int main(int argc, char** argv)
 #endif
         const bool overlayUI = overlayOption->found() || mobile;
 
-        auto window = Window::create(context, app, "player");
+        auto window = PlayerWindow::create(context, app, "player");
         if (mobile)
         {
             // Touch has no hover: a tooltip would appear under the
@@ -234,6 +294,7 @@ int main(int argc, char** argv)
         auto overlayLayout = OverlayLayout::create(context, layout);
         overlayLayout->setVStretch(Stretch::Expanding);
         auto viewport = tl::ui::Viewport::create(context, overlayLayout);
+        window->setViewport(viewport);
         // The overlay gives the full box; the spacers and the cross
         // axis alignment are what center the label in it.
         auto loadingLayout = HorizontalLayout::create(context, overlayLayout);

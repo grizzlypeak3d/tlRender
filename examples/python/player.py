@@ -23,10 +23,10 @@ import os
 # Create the application.
 context = ftk.Context()
 tl.ui.init(context)
-cmdLineInput = ftk.CmdLineValueArgString("Input", "Input file")
+cmdLineInput = ftk.CmdLineArgString("Input", "Input file")
 app = ftk.App(context, sys.argv, "timeline", "Python timeline example.", [ cmdLineInput ])
-if app.exitValue != 0:
-    sys.exit(app.exitValue)
+if app.hasCmdLineHelp:
+    sys.exit(0)
 
 # Create the timeline and timeline player.
 #
@@ -71,6 +71,26 @@ ftk.Divider(context, ftk.Orientation.Vertical, vLayout)
 
 timelineWidget.parent = vLayout
 window.widget = splitter
+
+# The viewport has no keys of its own; give it them as the shortcuts of a
+# menu.
+viewMenu = window.menuBar.addMenu("View")
+viewMenu.addAction(ftk.Action(
+    "Frame",
+    ftk.KeyShortcut(ftk.Key.Backspace),
+    lambda: setattr(viewport, "frameView", True)))
+viewMenu.addAction(ftk.Action(
+    "Zoom 1:1",
+    ftk.KeyShortcut(ftk.Key._0),
+    lambda: viewport.resetZoom()))
+viewMenu.addAction(ftk.Action(
+    "Zoom In",
+    ftk.KeyShortcut(ftk.Key.Equals),
+    lambda: viewport.zoomIn()))
+viewMenu.addAction(ftk.Action(
+    "Zoom Out",
+    ftk.KeyShortcut(ftk.Key.Minus),
+    lambda: viewport.zoomOut()))
 
 # Run the application.
 app.run()

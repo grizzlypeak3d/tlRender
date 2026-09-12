@@ -84,6 +84,26 @@ class MainWindow(ftk.MainWindow):
 
         # Setup callbacks.
         selfWeak = weakref.ref(self)
+
+        # The viewport has no keys of its own; give it them as the
+        # shortcuts of a menu.
+        viewMenu = self.menuBar.addMenu("View")
+        viewMenu.addAction(ftk.Action(
+            "Frame",
+            ftk.KeyShortcut(ftk.Key.Backspace),
+            lambda: setattr(selfWeak()._viewport, "frameView", True)))
+        viewMenu.addAction(ftk.Action(
+            "Zoom 1:1",
+            ftk.KeyShortcut(ftk.Key._0),
+            lambda: selfWeak()._viewport.resetZoom()))
+        viewMenu.addAction(ftk.Action(
+            "Zoom In",
+            ftk.KeyShortcut(ftk.Key.Equals),
+            lambda: selfWeak()._viewport.zoomIn()))
+        viewMenu.addAction(ftk.Action(
+            "Zoom Out",
+            ftk.KeyShortcut(ftk.Key.Minus),
+            lambda: selfWeak()._viewport.zoomOut()))
         self._fileBrowserPathWidget.setCallback(
             lambda path: selfWeak()._pathUpdate(path))
 
@@ -125,8 +145,8 @@ class MainWindow(ftk.MainWindow):
 context = ftk.Context()
 tl.ui.init(context)
 app = ftk.App(context, sys.argv, "browser-python", "Python browser example.")
-if app.exitValue != 0:
-    sys.exit(app.exitValue)
+if app.hasCmdLineHelp:
+    sys.exit(0)
 
 # Create the main window.
 window = MainWindow(context, app)
