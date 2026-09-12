@@ -129,6 +129,51 @@ namespace tl
                 FTK_CHECK(ftk::Size2I(1920 * 2, 1080 * 2) == renderSize);
             }
             {
+                // Side by side, the second is as tall as the first, and one
+                // above the other it is as wide, whichever of them is wider:
+                // an anamorphic picture beside a spherical one, both ways
+                // around, and with the pixels taken as square.
+                ftk::ImageInfo anamorphic(64, 36, ftk::ImageType::RGBA_U8);
+                anamorphic.pixelAspectRatio = 2.F;
+                const ftk::ImageInfo spherical(1920, 1080, ftk::ImageType::RGBA_U8);
+
+                auto boxes = getBoxes(
+                    { Compare::Horizontal },
+                    AspectRatioOptions(),
+                    { anamorphic, spherical });
+                FTK_CHECK(ftk::Box2I(0, 0, 128, 36) == boxes[0]);
+                FTK_CHECK(ftk::Box2I(128, 0, 64, 36) == boxes[1]);
+
+                boxes = getBoxes(
+                    { Compare::Horizontal },
+                    AspectRatioOptions(),
+                    { spherical, anamorphic });
+                FTK_CHECK(ftk::Box2I(0, 0, 1920, 1080) == boxes[0]);
+                FTK_CHECK(ftk::Box2I(1920, 0, 3840, 1080) == boxes[1]);
+
+                const AspectRatioOptions square(AspectRatio(1.F), AspectRatioType::Pixel);
+                boxes = getBoxes(
+                    { Compare::Horizontal },
+                    square,
+                    { anamorphic, spherical });
+                FTK_CHECK(ftk::Box2I(0, 0, 64, 36) == boxes[0]);
+                FTK_CHECK(ftk::Box2I(64, 0, 64, 36) == boxes[1]);
+
+                boxes = getBoxes(
+                    { Compare::Vertical },
+                    AspectRatioOptions(),
+                    { spherical, anamorphic });
+                FTK_CHECK(ftk::Box2I(0, 0, 1920, 1080) == boxes[0]);
+                FTK_CHECK(ftk::Box2I(0, 1080, 1920, 540) == boxes[1]);
+
+                boxes = getBoxes(
+                    { Compare::Vertical },
+                    AspectRatioOptions(),
+                    { anamorphic, spherical });
+                FTK_CHECK(ftk::Box2I(0, 0, 128, 36) == boxes[0]);
+                FTK_CHECK(ftk::Box2I(0, 36, 128, 72) == boxes[1]);
+            }
+            {
                 const auto time = getCompareTime(
                     OTIO_NS::RationalTime(0.0, 24.0),
                     OTIO_NS::TimeRange(

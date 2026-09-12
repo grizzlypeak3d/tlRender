@@ -94,11 +94,14 @@ namespace tl
             }
             if (options.sameSize && count > 1)
             {
-                out.push_back(getBox(
-                    ftk::Box2I(size.w, 0, size.w, size.h),
-                    infos[1],
-                    aspectRatioOptions,
-                    BoxHAlign::Left));
+                // As tall as the first, however wide that makes it. Fitted
+                // into a copy of the first one's box instead, it only kept
+                // the height when it was no wider than the first.
+                const float aspect = getAspectRatio(infos[1], aspectRatioOptions);
+                const int w = aspect > 0.F ?
+                    static_cast<int>(std::round(size.h * aspect)) :
+                    size.w;
+                out.push_back(ftk::Box2I(size.w, 0, w, size.h));
             }
             else if (count > 1)
             {
@@ -117,12 +120,13 @@ namespace tl
             }
             if (options.sameSize && count > 1)
             {
-                out.push_back(getBox(
-                    ftk::Box2I(0, size.h, size.w, size.h),
-                    infos[1],
-                    aspectRatioOptions,
-                    BoxHAlign::Center,
-                    BoxVAlign::Top));
+                // As wide as the first, however tall that makes it; see
+                // the horizontal comparison.
+                const float aspect = getAspectRatio(infos[1], aspectRatioOptions);
+                const int h = aspect > 0.F ?
+                    static_cast<int>(std::round(size.w / aspect)) :
+                    size.h;
+                out.push_back(ftk::Box2I(0, size.h, size.w, h));
             }
             else if (count > 1)
             {
