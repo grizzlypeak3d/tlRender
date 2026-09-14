@@ -113,6 +113,30 @@ namespace tl
             return presets;
         }
 
+        #if LIBAVCODEC_VERSION_INT >= AV_VERSION_INT(61, 12, 100)
+        static const AVPixelFormat* getCodecPixelFormats(const AVCodec* codec)
+        {
+            const void* configs = nullptr;
+            if (avcodec_get_supported_config(
+                    nullptr,
+                    codec,
+                    AV_CODEC_CONFIG_PIX_FORMAT,
+                    0,
+                    &configs,
+                    nullptr) < 0)
+            {
+                return nullptr;
+            }
+
+            return static_cast<const AVPixelFormat*>(configs);
+        }
+        #else
+        static const AVPixelFormat* getCodecPixelFormats(const AVCodec* codec)
+        {
+            return codec->pix_fmts;
+        }
+        #endif
+
         void Write::_init(
             const ftk::Path& path,
             const IOInfo& info,
@@ -157,7 +181,8 @@ namespace tl
             {
                 throw std::runtime_error(ftk::Format("Cannot allocate stream: \"{0}\"").arg(p.fileName));
             }
-            if (!avCodec->pix_fmts)
+            const auto* pixFmts = getCodecPixelFormats(avCodec);
+            if (!pixFmts)
             {
                 throw std::runtime_error(ftk::Format("No pixel formats available: \"{0}\"").arg(p.fileName));
             }
@@ -168,7 +193,7 @@ namespace tl
             p.avCodecContext->width = videoInfo.size.w;
             p.avCodecContext->height = videoInfo.size.h;
             p.avCodecContext->sample_aspect_ratio = AVRational({ 1, 1 });
-            p.avCodecContext->pix_fmt = avCodec->pix_fmts[0];
+            p.avCodecContext->pix_fmt = pixFmts[0];
             // A pixel format for the preset to choose, rather than whichever
             // the encoder lists first: FFV1 lists 4:2:0 first, which is not
             // lossless, and ProRes lists 4:2:2 first whatever the profile.
@@ -181,7 +206,7 @@ namespace tl
                 {
                     int loss = 0;
                     avPixelFormat = avcodec_find_best_pix_fmt_of_list(
-                        avCodec->pix_fmts,
+                        pixFmts,
                         toAVPixelFormat(videoInfo.type),
                         0,
                         &loss);
@@ -191,7 +216,7 @@ namespace tl
                     avPixelFormat = av_get_pix_fmt(i->second.c_str());
                 }
                 bool supported = false;
-                for (const AVPixelFormat* j = avCodec->pix_fmts; *j != AV_PIX_FMT_NONE; ++j)
+                for (const AVPixelFormat* j = pixFmts; *j != AV_PIX_FMT_NONE; ++j)
                 {
                     if (*j == avPixelFormat)
                     {
