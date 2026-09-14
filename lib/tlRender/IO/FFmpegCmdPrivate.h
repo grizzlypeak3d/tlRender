@@ -30,8 +30,9 @@ namespace tl
             //! running.
             int finish();
 
-            //! Read whatever the process wrote to standard error, for
-            //! reporting a failure.
+            //! Get the end of what the process wrote to standard error, for
+            //! reporting a failure. Standard error is read as the process
+            //! runs, so this waits for nothing while the process is alive.
             std::string readAllErrors();
 
             private:

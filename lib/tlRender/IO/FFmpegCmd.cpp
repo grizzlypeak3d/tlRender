@@ -11,6 +11,7 @@
 
 #include <cstdlib>
 #include <mutex>
+#include <thread>
 #if !defined(_WIN32)
 #include <unistd.h>
 #endif // _WIN32
@@ -142,6 +143,15 @@ namespace tl
         {
             subprocess_s subprocess;
             bool joined = false;
+
+            // Standard error is read for as long as the process runs. Left
+            // unread it fills: ffmpeg then blocks writing its log and stops
+            // reading its input, and a writer feeding it blocks with it. On
+            // Windows the pipe holds 4096 bytes, which ffmpeg's progress
+            // output fills in seconds.
+            std::thread errorsThread;
+            std::mutex errorsMutex;
+            std::string errors;
         };
 
         namespace
@@ -245,6 +255,30 @@ namespace tl
                 throw std::runtime_error(ftk::Format("Cannot run command: \"{0}\"").
                     arg(ftk::join(cmd, ' ')));
             }
+
+            p.errorsThread = std::thread(
+                [this]
+                {
+                    FTK_P();
+                    // Only the end is kept: that is where an error is.
+                    const size_t errorsMax = 64 * 1024;
+                    const size_t chunkSize = 1024;
+                    std::string chunk(chunkSize, 0);
+                    size_t size = 0;
+                    do
+                    {
+                        size = subprocess_read_stderr(&p.subprocess, chunk.data(), chunkSize);
+                        if (size > 0)
+                        {
+                            std::lock_guard<std::mutex> lock(p.errorsMutex);
+                            p.errors.append(chunk.data(), size);
+                            if (p.errors.size() > errorsMax)
+                            {
+                                p.errors.erase(0, p.errors.size() - errorsMax);
+                            }
+                        }
+                    } while (size > 0);
+                });
         }
 
         Pipe::~Pipe()
@@ -254,6 +288,10 @@ namespace tl
             {
                 // finish() already reaped the child; there is nothing left
                 // to wait for.
+                if (p.errorsThread.joinable())
+                {
+                    p.errorsThread.join();
+                }
                 subprocess_destroy(&p.subprocess);
                 return;
             }
@@ -278,6 +316,12 @@ namespace tl
                 subprocess_terminate(&p.subprocess);
             }
             subprocess_join(&p.subprocess, nullptr);
+            // The process is gone, so its standard error has ended and the
+            // thread reading it returns.
+            if (p.errorsThread.joinable())
+            {
+                p.errorsThread.join();
+            }
             subprocess_destroy(&p.subprocess);
         }
 
@@ -305,23 +349,25 @@ namespace tl
             int code = -1;
             subprocess_join(&p.subprocess, &code);
             p.joined = true;
+            if (p.errorsThread.joinable())
+            {
+                p.errorsThread.join();
+            }
             return code;
         }
 
         std::string Pipe::readAllErrors()
         {
             FTK_P();
-            std::string out;
-            size_t size = 0;
-            do
+            // All of it once the process has exited; a process still running
+            // has only written so much.
+            if (p.errorsThread.joinable() &&
+                (p.joined || 0 == subprocess_alive(&p.subprocess)))
             {
-                const size_t chunkSize = 1024;
-                std::string chunk(chunkSize, 0);
-                size = subprocess_read_stderr(&p.subprocess, chunk.data(), chunkSize);
-                chunk.resize(size);
-                out += chunk;
-            } while (size > 0);
-            return out;
+                p.errorsThread.join();
+            }
+            std::lock_guard<std::mutex> lock(p.errorsMutex);
+            return p.errors;
         }
 
         size_t Pipe::read(uint8_t* data, size_t size)

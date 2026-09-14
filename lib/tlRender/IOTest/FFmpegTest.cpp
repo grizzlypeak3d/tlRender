@@ -22,6 +22,7 @@
 #include <cmath>
 #include <future>
 #include <sstream>
+#include <thread>
 
 namespace tl
 {
@@ -361,6 +362,75 @@ namespace tl
                     path, { plainMemFile }, options);
                 FTK_CHECK(!std::dynamic_pointer_cast<ffmpeg_cmd::VideoRead>(
                     plainReader));
+            }
+
+            // Writing through the command line finishes however much ffmpeg
+            // writes to its standard error. Unread, the pipe filled and
+            // ffmpeg stopped reading its input, so the writer blocked for
+            // good; the pipe is only 4096 bytes on Windows, where the
+            // progress output alone was enough. The log is turned up here to
+            // fill a larger pipe too, and the write runs on a thread so a
+            // hang fails the test instead of stopping it.
+            {
+                const ftk::Path writePath(
+                    ftk::fromFileSystem(_getTempDir() / "FFmpegCommandLineWrite.mp4"));
+                const ftk::ImageInfo writeImageInfo(32, 32, ftk::ImageType::RGB_U8);
+                const int frames = 240;
+                IOInfo writeInfo;
+                writeInfo.video.push_back(writeImageInfo);
+                writeInfo.videoTime = OTIO_NS::TimeRange(
+                    OTIO_NS::RationalTime(0.0, 24.0),
+                    OTIO_NS::RationalTime(frames, 24.0));
+                IOOptions writeOptions;
+                writeOptions["FFmpeg/WriteCommandLine"] = "1";
+                writeOptions["FFmpeg/WriteArgs"] =
+                    "-loglevel trace -stats_period 0.001 -codec:v mpeg4";
+                auto writePlugin2 = writeSystem->getPlugin(writePath);
+                FTK_CHECK(writePlugin2);
+                if (writePlugin2)
+                {
+                    auto promise = std::make_shared<std::promise<bool> >();
+                    auto future = promise->get_future();
+                    std::thread(
+                        [writePlugin2, writePath, writeInfo, writeOptions,
+                            writeImageInfo, promise]
+                        {
+                            bool out = false;
+                            try
+                            {
+                                auto write = writePlugin2->write(
+                                    writePath, writeInfo, writeOptions);
+                                for (int i = 0; i < frames; ++i)
+                                {
+                                    write->writeVideo(
+                                        OTIO_NS::RationalTime(i, 24.0),
+                                        ftk::Image::create(writeImageInfo));
+                                }
+                                write->finish();
+                                // The command line wrote it, not the
+                                // library, which has no such pipe.
+                                out = std::dynamic_pointer_cast<ffmpeg_cmd::Write>(
+                                    write) != nullptr;
+                            }
+                            catch (const std::exception&)
+                            {}
+                            promise->set_value(out);
+                        }).detach();
+                    const bool done =
+                        future.wait_for(std::chrono::seconds(60)) ==
+                        std::future_status::ready;
+                    FTK_CHECK(done);
+                    if (done)
+                    {
+                        FTK_CHECK(future.get());
+                        auto reader = readPlugin->videoRead(writePath, IOOptions());
+                        FTK_CHECK(reader);
+                        const IOInfo writtenInfo = reader->getInfo().get();
+                        FTK_CHECK(writtenInfo.videoTime.has_value());
+                        FTK_CHECK(!writtenInfo.video.empty() &&
+                            writtenInfo.video[0].size == writeImageInfo.size);
+                    }
+                }
             }
         }
 

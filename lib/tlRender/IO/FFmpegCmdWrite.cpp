@@ -96,6 +96,8 @@ namespace tl
             const Options ffOptions(options);
             std::vector<std::string> cmd;
             cmd.push_back(ffOptions.ffmpegPath);
+            cmd.push_back("-hide_banner");
+            cmd.push_back("-nostats");
             cmd.push_back("-y");
             cmd.push_back("-f");
             cmd.push_back("rawvideo");
