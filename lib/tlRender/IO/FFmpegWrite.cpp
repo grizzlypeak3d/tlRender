@@ -138,7 +138,7 @@ namespace tl
             return presets;
         }
 
-        void Write::_init
+        void Write::_init(
             const ftk::Path& path,
             const IOInfo& info,
             const IOOptions& options,
