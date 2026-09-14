@@ -67,6 +67,31 @@ namespace tl
                 }
                 return out;
             }
+
+            //! Getting codec pixel format depends on FFmpeg version.
+            #if LIBAVCODEC_VERSION_INT >= AV_VERSION_INT(61, 13, 100)
+            const AVPixelFormat* getCodecPixelFormats(const AVCodec* codec)
+            {
+                const void* configs = nullptr;
+                if (avcodec_get_supported_config(
+                        nullptr,
+                        codec,
+                        AV_CODEC_CONFIG_PIX_FORMAT,
+                        0,
+                        &configs,
+                        nullptr) < 0)
+                {
+                    return nullptr;
+                }
+
+                return static_cast<const AVPixelFormat*>(configs);
+            }
+            #else
+            const AVPixelFormat* getCodecPixelFormats(const AVCodec* codec)
+            {
+                return codec->pix_fmts;
+            }
+            #endif
         }
 
         const std::vector<WritePreset>& getWritePresets()
@@ -113,31 +138,7 @@ namespace tl
             return presets;
         }
 
-        #if LIBAVCODEC_VERSION_INT >= AV_VERSION_INT(61, 12, 100)
-        static const AVPixelFormat* getCodecPixelFormats(const AVCodec* codec)
-        {
-            const void* configs = nullptr;
-            if (avcodec_get_supported_config(
-                    nullptr,
-                    codec,
-                    AV_CODEC_CONFIG_PIX_FORMAT,
-                    0,
-                    &configs,
-                    nullptr) < 0)
-            {
-                return nullptr;
-            }
-
-            return static_cast<const AVPixelFormat*>(configs);
-        }
-        #else
-        static const AVPixelFormat* getCodecPixelFormats(const AVCodec* codec)
-        {
-            return codec->pix_fmts;
-        }
-        #endif
-
-        void Write::_init(
+        void Write::_init
             const ftk::Path& path,
             const IOInfo& info,
             const IOOptions& options,
