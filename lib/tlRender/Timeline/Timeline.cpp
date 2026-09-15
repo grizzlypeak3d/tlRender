@@ -2103,6 +2103,24 @@ namespace tl
         cancel(p.mutex.audioRequests);
     }
 
+    void Timeline::closeReaders()
+    {
+        FTK_P();
+        // Taken out under the lock and let go of after it: a reader's
+        // destructor cancels what it has queued and waits for the frame in
+        // its decoder, and every read of this timeline waits on the lock.
+        // A read already under way holds its own reference, and finishes.
+        std::vector<std::shared_ptr<IVideoRead> > video;
+        std::vector<std::shared_ptr<IAudioRead> > audio;
+        {
+            std::unique_lock<std::mutex> lock(p.readCacheMutex);
+            video = p.videoReadCache.getValues();
+            audio = p.audioReadCache.getValues();
+            p.videoReadCache.clear();
+            p.audioReadCache.clear();
+        }
+    }
+
     size_t Timeline::getObjectCount()
     {
         return objectCount;

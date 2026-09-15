@@ -295,6 +295,11 @@ namespace tl
         //! Cancel requests.
         TL_TIMELINE_API void cancelRequests(const std::vector<uint64_t>&);
 
+        //! Close the readers, which hold the decoders and what they have
+        //! decoded. The next read opens them again, while the timeline
+        //! itself stays open.
+        TL_TIMELINE_API void closeReaders();
+
         ///@}
 
         //! Get the number of objects currenty instantiated.

@@ -574,6 +574,28 @@ namespace tl
                     "A movie with audio should cost two readers, not {0}").
                     arg(audioCount));
             }
+
+            // Closing the readers leaves the timeline open, and a read opens
+            // the reader it needs again.
+            const size_t before = IIO::getObjectCount();
+            auto timeline = Timeline::create(_context, audioPath, options);
+            const auto read = [&]
+                {
+                    auto future = timeline->readMedia(
+                        audioPath, timeline->getTimeRange().start_time());
+                    if (future.valid())
+                    {
+                        future.get();
+                    }
+                };
+            read();
+            FTK_CHECK(IIO::getObjectCount() - before == audioCount);
+            timeline->closeReaders();
+            FTK_CHECK(IIO::getObjectCount() == before);
+            read();
+            // Only the video reader: the audio one was opened with the
+            // timeline, and after closing waits for something to be heard.
+            FTK_CHECK(IIO::getObjectCount() - before == 1);
         }
 
         void TimelineTest::_memLifetime()
