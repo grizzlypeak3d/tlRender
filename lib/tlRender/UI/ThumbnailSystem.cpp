@@ -33,13 +33,13 @@ namespace tl
 
         namespace
         {
-            // Timelines, which are opened without a thread and so hold none:
-            // a file browser listing can keep the ones it is showing rather
-            // than reopening two at a time. Idle entries are
-            // dropped after ioCacheTimeout regardless. The unit is open
-            // readers, so the count stays small: each entry can hold tens
-            // of megabytes of decoder state (#828).
-            const size_t ioCacheMax   = 12;
+            // Timelines kept open for the timeline widget, which comes back
+            // for frame after frame of the file it is showing. Only that
+            // one: each holds its decoders, a gigabyte for a UHD movie, and
+            // with more than one the files that had been closed stayed open
+            // until the cache went idle, which with thumbnails being asked
+            // for could be never (DJV #873).
+            const size_t ioCacheMax   = 1;
             // How long a thread holds its open timelines once it goes idle.
             // The point is to let go of readers, and the decode subprocesses
             // they keep alive, after a file is closed. It has to be long
@@ -808,9 +808,13 @@ namespace tl
                     try
                     {
                         auto context = p.context.lock();
+                        // Uses the open timeline when there is one, but does
+                        // not keep one: information is asked for once per
+                        // file, and keeping it would push out the timeline
+                        // the thumbnails are reading from.
                         if (auto timeline = getTimeline(
                             context, p.ioCache, p.ioCacheMutex, request->path,
-                            request->audioPath, request->options))
+                            request->audioPath, request->options, false))
                         {
                             timeline->getMediaInfo(
                                 request->mediaPath, info, request->options);

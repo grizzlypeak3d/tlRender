@@ -23,6 +23,7 @@ namespace tl
             void _gapSeq();
             void _seqFrame();
             void _separateAudio();
+            void _timelineCache();
         };
     }
 }

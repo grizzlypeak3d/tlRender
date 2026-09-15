@@ -16,8 +16,10 @@
 #include <ftk/Core/Context.h>
 #include <ftk/Core/Format.h>
 #include <algorithm>
+#include <chrono>
 #include <cstring>
 #include <filesystem>
+#include <thread>
 
 #include <ftk/Core/Image.h>
 #include <ftk/Core/Path.h>
@@ -41,6 +43,7 @@ namespace tl
             _gapSeq();
             _seqFrame();
             _separateAudio();
+            _timelineCache();
             auto thumbnailSystem = _context->getSystem<ui::ThumbnailSystem>();
             const std::vector<ftk::Path> paths =
             {
@@ -192,6 +195,37 @@ namespace tl
                 audioPath).future.get();
             FTK_CHECK(waveform != nullptr);
 #endif // TLRENDER_FFMPEG_PLUGIN
+        }
+
+        void ThumbnailSystemTest::_timelineCache()
+        {
+            // Thumbnails of one file after another keep only the last file
+            // open (DJV #873).
+            const ftk::Path a(TLRENDER_SAMPLE_DATA, "Seq/BART_2021-02-07.0001.jpg");
+            const ftk::Path b(TLRENDER_SAMPLE_DATA, "Seq/BART_2021-02-07.0002.jpg");
+            if (!_context->getSystem<ReadSystem>()->getPlugin(a))
+            {
+                return;
+            }
+            // The thread lets go of what it read from after answering, so
+            // the count is given a moment to settle.
+            const auto settle = [](size_t count)
+                {
+                    const auto start = std::chrono::steady_clock::now();
+                    while (Timeline::getObjectCount() != count &&
+                        std::chrono::steady_clock::now() - start < std::chrono::seconds(2))
+                    {
+                        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+                    }
+                    return Timeline::getObjectCount();
+                };
+            auto thumbnailSystem = _context->getSystem<ui::ThumbnailSystem>();
+            const size_t count = Timeline::getObjectCount();
+            thumbnailSystem->getThumbnail(a, 16).future.get();
+            const size_t open = settle(count + 1);
+            FTK_CHECK(open <= count + 1);
+            thumbnailSystem->getThumbnail(b, 16).future.get();
+            FTK_CHECK(open == settle(open));
         }
 
         void ThumbnailSystemTest::_seqFrame()
