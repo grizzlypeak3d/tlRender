@@ -68,30 +68,60 @@ namespace tl
                 return out;
             }
 
-            //! Getting codec pixel format depends on FFmpeg version.
-            #if LIBAVCODEC_VERSION_INT >= AV_VERSION_INT(61, 13, 100)
+            // What an encoder supports moved from the AVCodec fields to
+            // avcodec_get_supported_config() in FFmpeg 7.1, and the fields
+            // are deprecated from then on. Each list ends with its sentinel,
+            // and a null list means the encoder does not say.
+#if LIBAVCODEC_VERSION_INT >= AV_VERSION_INT(61, 13, 100)
+            const void* getCodecConfig(const AVCodec* codec, AVCodecConfig config)
+            {
+                const void* out = nullptr;
+                if (avcodec_get_supported_config(
+                    nullptr,
+                    codec,
+                    config,
+                    0,
+                    &out,
+                    nullptr) < 0)
+                {
+                    out = nullptr;
+                }
+                return out;
+            }
+
             const AVPixelFormat* getCodecPixelFormats(const AVCodec* codec)
             {
-                const void* configs = nullptr;
-                if (avcodec_get_supported_config(
-                        nullptr,
-                        codec,
-                        AV_CODEC_CONFIG_PIX_FORMAT,
-                        0,
-                        &configs,
-                        nullptr) < 0)
-                {
-                    return nullptr;
-                }
-
-                return static_cast<const AVPixelFormat*>(configs);
+                return static_cast<const AVPixelFormat*>(
+                    getCodecConfig(codec, AV_CODEC_CONFIG_PIX_FORMAT));
             }
-            #else
+
+            const AVSampleFormat* getCodecSampleFormats(const AVCodec* codec)
+            {
+                return static_cast<const AVSampleFormat*>(
+                    getCodecConfig(codec, AV_CODEC_CONFIG_SAMPLE_FORMAT));
+            }
+
+            const int* getCodecSampleRates(const AVCodec* codec)
+            {
+                return static_cast<const int*>(
+                    getCodecConfig(codec, AV_CODEC_CONFIG_SAMPLE_RATE));
+            }
+#else // LIBAVCODEC_VERSION_INT
             const AVPixelFormat* getCodecPixelFormats(const AVCodec* codec)
             {
                 return codec->pix_fmts;
             }
-            #endif
+
+            const AVSampleFormat* getCodecSampleFormats(const AVCodec* codec)
+            {
+                return codec->sample_fmts;
+            }
+
+            const int* getCodecSampleRates(const AVCodec* codec)
+            {
+                return codec->supported_samplerates;
+            }
+#endif // LIBAVCODEC_VERSION_INT
         }
 
         const std::vector<WritePreset>& getWritePresets()
@@ -440,10 +470,11 @@ namespace tl
                     // Pick a sample format supported by the encoder,
                     // preferring an exact match with the input.
                     AVSampleFormat avSampleFormat = p.avSampleFormatIn;
-                    if (avAudioCodec->sample_fmts)
+                    if (const AVSampleFormat* sampleFormats =
+                        getCodecSampleFormats(avAudioCodec))
                     {
-                        avSampleFormat = avAudioCodec->sample_fmts[0];
-                        for (const AVSampleFormat* i = avAudioCodec->sample_fmts;
+                        avSampleFormat = sampleFormats[0];
+                        for (const AVSampleFormat* i = sampleFormats;
                             *i != AV_SAMPLE_FMT_NONE;
                             ++i)
                         {
@@ -458,10 +489,10 @@ namespace tl
                     // Pick a sample rate supported by the encoder,
                     // preferring the closest to the input.
                     int sampleRate = info.audio.sampleRate;
-                    if (avAudioCodec->supported_samplerates)
+                    if (const int* sampleRates = getCodecSampleRates(avAudioCodec))
                     {
-                        int closest = avAudioCodec->supported_samplerates[0];
-                        for (const int* i = avAudioCodec->supported_samplerates; *i; ++i)
+                        int closest = sampleRates[0];
+                        for (const int* i = sampleRates; *i; ++i)
                         {
                             if (std::abs(*i - sampleRate) < std::abs(closest - sampleRate))
                             {
