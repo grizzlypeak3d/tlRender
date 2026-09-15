@@ -47,6 +47,52 @@ namespace tl
             _commandLine();
             _subfileSeek();
             _pixelAspectRatio();
+            _presets();
+        }
+
+        void FFmpegTest::_presets()
+        {
+            auto writePlugin = _context->getSystem<WriteSystem>()->getPlugin<ffmpeg::WritePlugin>();
+            const auto& all = ffmpeg::getWritePresets();
+            const auto available = writePlugin->getWritePresets();
+            const auto& codecs = writePlugin->getCodecs();
+            const auto hasName = [](const std::vector<ffmpeg::WritePreset>& presets, const std::string& name)
+            {
+                for (const auto& preset : presets)
+                {
+                    if (preset.name == name)
+                        return true;
+                }
+                return false;
+            };
+            FTK_CHECK(available.size() <= all.size());
+            for (const auto& preset : available)
+            {
+                FTK_CHECK(hasName(all, preset.name));
+                if (!preset.command)
+                {
+                    // Offered only with the encoder it names.
+                    const auto i = preset.options.find("FFmpeg/Codec");
+                    FTK_CHECK(i != preset.options.end());
+                    bool found = false;
+                    for (const auto& codec : codecs)
+                    {
+                        found |= codec == i->second;
+                    }
+                    FTK_CHECK(found);
+                }
+            }
+            for (const auto& preset : all)
+            {
+                // The command line ones depend on an ffmpeg application, not
+                // on the encoders built in, so they are always offered.
+                if (preset.command)
+                {
+                    FTK_CHECK(hasName(available, preset.name));
+                }
+            }
+            // MJPEG is in every build, the minimal one included.
+            FTK_CHECK(hasName(available, "MJPEG"));
         }
 
         void FFmpegTest::_subfileSeek()

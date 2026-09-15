@@ -145,7 +145,9 @@ namespace tl
             const AVCodec* avCodec = avcodec_find_encoder_by_name(codec.c_str());
             if (!avCodec)
             {
-                throw std::runtime_error(ftk::Format("Cannot find encoder: \"{0}\"").arg(p.fileName));
+                throw std::runtime_error(ftk::Format("Cannot find encoder \"{0}\": \"{1}\"").
+                    arg(codec).
+                    arg(p.fileName));
             }
             p.avCodecContext = avcodec_alloc_context3(avCodec);
             if (!p.avCodecContext)

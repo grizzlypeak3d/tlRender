@@ -26,6 +26,7 @@ namespace tl
             void _commandLine();
             void _subfileSeek();
             void _pixelAspectRatio();
+            void _presets();
             // Members rather than free helpers so they can report a
             // failed check, which goes through the test.
             void write(

@@ -10,6 +10,8 @@
 #include <ftk/Core/Format.h>
 #include <ftk/Core/LogSystem.h>
 
+#include <algorithm>
+
 extern "C"
 {
 #include <libavcodec/avcodec.h>
@@ -705,6 +707,29 @@ namespace tl
         const std::vector<std::string>& WritePlugin::getAudioCodecs() const
         {
             return _p->audioCodecNames;
+        }
+
+        std::vector<WritePreset> WritePlugin::getWritePresets() const
+        {
+            FTK_P();
+            std::vector<WritePreset> out;
+            for (const auto& preset : ffmpeg::getWritePresets())
+            {
+                bool available = preset.command;
+                if (!available)
+                {
+                    const auto i = preset.options.find("FFmpeg/Codec");
+                    available =
+                        i != preset.options.end() &&
+                        std::find(p.codecNames.begin(), p.codecNames.end(), i->second) !=
+                            p.codecNames.end();
+                }
+                if (available)
+                {
+                    out.push_back(preset);
+                }
+            }
+            return out;
         }
 
         ftk::ImageInfo WritePlugin::getInfo(
