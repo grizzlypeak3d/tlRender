@@ -9,6 +9,18 @@
 
 namespace tl
 {
+    namespace
+    {
+        //! The value of a hexadecimal digit, or -1 if it is not one.
+        int fromHex(char c)
+        {
+            if (c >= '0' && c <= '9') return c - '0';
+            if (c >= 'a' && c <= 'f') return c - 'a' + 10;
+            if (c >= 'A' && c <= 'F') return c - 'A' + 10;
+            return -1;
+        }
+    }
+
     std::string getURLScheme(const std::string& url)
     {
         const std::regex rx("^([A-Za-z0-9+-\\.]+://)");
@@ -47,37 +59,34 @@ namespace tl
 
     std::string decodeURL(const std::string& url)
     {
+        // Decoded by hand rather than with an expression. This is called for
+        // every media reference of every clip each time a timeline is opened,
+        // and the expression was compiled on each call: a bundle of a hundred
+        // clips paid for two hundred compilations, which cost more than the
+        // decoding did.
         std::string out;
-
-        // Find all percent encodings.
-        size_t pos = 0;
-        const std::regex rx("(%[0-9A-Fa-f][0-9A-Fa-f])");
-        for (auto i = std::sregex_iterator(url.begin(), url.end(), rx);
-            i != std::sregex_iterator();
-            ++i)
+        out.reserve(url.size());
+        const size_t size = url.size();
+        for (size_t i = 0; i < size; ++i)
         {
-            // Copy parts without any encodings.
-            if (pos != static_cast<size_t>(i->position()))
+            // Only a complete escape is an escape. A stray percent, or one
+            // with fewer than two hexadecimal digits after it, is a character
+            // like any other, which is what the expression did.
+            int hi = -1;
+            int lo = -1;
+            if ('%' == url[i] &&
+                (i + 2) < size &&
+                (hi = fromHex(url[i + 1])) >= 0 &&
+                (lo = fromHex(url[i + 2])) >= 0)
             {
-                out.append(url.substr(pos, i->position() - pos));
-                pos = i->position();
+                out.push_back(static_cast<char>(hi * 16 + lo));
+                i += 2;
             }
-
-            // Convert the encoding and append it.
-            std::stringstream ss;
-            ss << std::hex << i->str().substr(1);
-            unsigned int j = 0;
-            ss >> j;
-            out.push_back(char(j));
-            pos += i->str().size();
+            else
+            {
+                out.push_back(url[i]);
+            }
         }
-
-        // Copy the remainder without any encodings.
-        if (pos < url.size())
-        {
-            out.append(url.substr(pos, url.size() - pos));
-        }
-
         return out;
     }
 }
