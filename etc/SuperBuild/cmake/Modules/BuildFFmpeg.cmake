@@ -39,14 +39,19 @@ set(FFmpeg_OBJCFLAGS "--extra-objcflags=-I${CMAKE_INSTALL_PREFIX}/include")
 set(FFmpeg_LDFLAGS)
 if(WIN32)
     list(APPEND FFmpeg_LDFLAGS "--extra-ldflags=/LIBPATH:${CMAKE_INSTALL_PREFIX}/lib")
+    # Which C runtime, and only to the compiler. The linker takes no -MD:
+    # cl writes the runtime choice into each object as a /DEFAULTLIB
+    # directive and link.exe reads it from there. Passed to the linker as
+    # well it answers "LNK4044: unrecognized option; ignored" and exits
+    # zero, which FFmpeg 8 accepted and FFmpeg 9 does not -- its test_ld
+    # reads LNK4044 out of the linker's output and calls it a failure, so
+    # the first thing to fail was configure's own compiler sanity check.
     if(CMAKE_BUILD_TYPE MATCHES "^Debug$")
         list(APPEND FFmpeg_CFLAGS "--extra-cflags=-MDd")
         list(APPEND FFmpeg_CXXFLAGS "--extra-cxxflags=-MDd")
-        list(APPEND FFmpeg_LDFLAGS "--extra-ldflags=-MDd")
     else()
         list(APPEND FFmpeg_CFLAGS "--extra-cflags=-MD")
         list(APPEND FFmpeg_CXXFLAGS "--extra-cxxflags=-MD")
-        list(APPEND FFmpeg_LDFLAGS "--extra-ldflags=-MD")
     endif()
 elseif(APPLE)
     list(APPEND FFmpeg_LDFLAGS "--extra-ldflags=-L${CMAKE_INSTALL_PREFIX}/lib")
@@ -72,7 +77,14 @@ if(FFmpeg_DEBUG)
     list(APPEND FFmpeg_CFLAGS "--extra-cflags=-g")
     list(APPEND FFmpeg_CXXFLAGS "--extra-cxxflags=-g")
     list(APPEND FFmpeg_OBJCFLAGS "--extra-objcflags=-g")
-    list(APPEND FFmpeg_LDFLAGS "--extra-ldflags=-g")
+    # The same split as the runtime flags above: FFmpeg turns -g into cl's
+    # -Z7, which the linker does not take, and asking link.exe to write the
+    # symbols is spelled /DEBUG.
+    if(WIN32)
+        list(APPEND FFmpeg_LDFLAGS "--extra-ldflags=/DEBUG")
+    else()
+        list(APPEND FFmpeg_LDFLAGS "--extra-ldflags=-g")
+    endif()
 endif()
 set(FFmpeg_CONFIGURE_ARGS
     --prefix=${CMAKE_INSTALL_PREFIX}
