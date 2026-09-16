@@ -5,9 +5,12 @@
 
 #include <ftk/Core/FileIO.h>
 #include <ftk/Core/Format.h>
+#include <ftk/Core/Path.h>
 
 #include <algorithm>
 #include <array>
+#include <filesystem>
+#include <mutex>
 #include <vector>
 
 namespace tl
@@ -46,6 +49,70 @@ namespace tl
         //! it needs sixty-four bit sizes, which makes its data descriptor
         //! eight bytes longer.
         constexpr int64_t zipMaxU32 = 0xFFFFFFFF;
+
+        //! How many bundles keep their entry table once nothing is reading
+        //! them. Opening a bundle walks its whole central directory, which
+        //! for 25,000 entries costs seconds, and the thumbnails come back for
+        //! the same bundle over and over. A handful covers the files a
+        //! session has open without holding tables for bundles long gone.
+        constexpr size_t zipEntryCacheMax = 4;
+
+        //! What identifies a bundle: not the name alone, since a file written
+        //! again in place is a different archive at the same path.
+        std::string entryCacheKey(const std::string& fileName, size_t fileSize)
+        {
+            int64_t modified = 0;
+            std::error_code ec;
+            const auto time = std::filesystem::last_write_time(
+                ftk::toFileSystem(fileName), ec);
+            if (!ec)
+            {
+                modified = time.time_since_epoch().count();
+            }
+            return ftk::Format("{0};{1};{2}").
+                arg(fileName).arg(fileSize).arg(modified);
+        }
+
+        std::mutex entryCacheMutex;
+        //! Least recently used last, so the oldest is the one to go.
+        std::vector<std::pair<std::string, std::shared_ptr<const ZipReader::EntryMap> > >
+            entryCache;
+
+        std::shared_ptr<const ZipReader::EntryMap> entryCacheGet(const std::string& key)
+        {
+            std::unique_lock<std::mutex> lock(entryCacheMutex);
+            for (size_t i = 0; i < entryCache.size(); ++i)
+            {
+                if (entryCache[i].first == key)
+                {
+                    auto out = entryCache[i].second;
+                    auto entry = std::move(entryCache[i]);
+                    entryCache.erase(entryCache.begin() + i);
+                    entryCache.push_back(std::move(entry));
+                    return out;
+                }
+            }
+            return nullptr;
+        }
+
+        void entryCacheAdd(
+            const std::string& key,
+            const std::shared_ptr<const ZipReader::EntryMap>& value)
+        {
+            std::unique_lock<std::mutex> lock(entryCacheMutex);
+            for (const auto& i : entryCache)
+            {
+                if (i.first == key)
+                {
+                    return;
+                }
+            }
+            entryCache.push_back(std::make_pair(key, value));
+            while (entryCache.size() > zipEntryCacheMax)
+            {
+                entryCache.erase(entryCache.begin());
+            }
+        }
 
         //! Entries are grouped by what follows their data, since that is what
         //! the derivation has to account for.
@@ -115,7 +182,7 @@ namespace tl
         if (_reader)
         {
             _reader.reset();
-            _entries.clear();
+            _entries.reset();
         }
 
         _fileName = fileName;
@@ -132,6 +199,23 @@ namespace tl
         {
             throw std::runtime_error(ftk::Format(
                 "Cannot open zip reader: \"{0}\"").arg(fileName));
+        }
+
+        // The entry table is the expensive part of opening a bundle, and it
+        // does not change while the file does not. A reader that follows
+        // another over the same bundle -- a thumbnail after a thumbnail --
+        // takes the table it built rather than walking the directory again.
+        // Only the table is shared: this reader still has its own handle, so
+        // nothing is kept open on its behalf.
+        const std::string cacheKey = entryCacheKey(fileName, fileSize);
+        if (auto cached = entryCacheGet(cacheKey))
+        {
+            _entries = cached;
+            _logSystem->print("tl::ZipReader", ftk::Format(
+                "Opened \"{0}\": {1} entries, from the entry cache").
+                arg(fileName).arg(_entries->size()),
+                ftk::LogType::Message);
+            return;
         }
 
         err = mz_zip_reader_goto_first_entry(_reader.get());
@@ -340,6 +424,7 @@ namespace tl
             }
         }
 
+        auto entries = std::make_shared<EntryMap>();
         for (const auto& record : records)
         {
             if (record.dataOffset < 0 ||
@@ -351,13 +436,16 @@ namespace tl
                     "Local zip entry out of bounds: \"{0}\"").arg(fileName));
             }
             Entry entry{ record.dataOffset, record.size };
-            if (!_entries.emplace(record.name, entry).second)
+            if (!entries->emplace(record.name, entry).second)
             {
                 _logSystem->print("tl::ZipReader", ftk::Format(
                     "Duplicate zip entry, ignoring subsequent: \"{0}\"").arg(record.name),
                     ftk::LogType::Warning);
             }
         }
+
+        _entries = entries;
+        entryCacheAdd(cacheKey, entries);
 
         _logSystem->print("tl::ZipReader", ftk::Format(
             "Opened \"{0}\": {1} entries, {2} local headers read").
@@ -367,8 +455,12 @@ namespace tl
 
     std::optional<ZipReader::Entry> ZipReader::find(const std::string& name) const
     {
-        const auto i = _entries.find(name);
-        return i != _entries.end() ? std::optional<Entry>(i->second) : std::nullopt;
+        if (!_entries)
+        {
+            return std::nullopt;
+        }
+        const auto i = _entries->find(name);
+        return i != _entries->end() ? std::optional<Entry>(i->second) : std::nullopt;
     }
 
     std::string ZipReader::readText(const std::string& name)

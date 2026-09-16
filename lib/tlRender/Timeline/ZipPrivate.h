@@ -6,7 +6,9 @@
 #include <ftk/Core/LogSystem.h>
 
 #include <map>
+#include <memory>
 #include <optional>
+#include <string>
 
 #include <mz.h>
 #include <mz_strm.h>
@@ -35,11 +37,15 @@ namespace tl
     public:
         ZipReader(const std::shared_ptr<ftk::LogSystem>&);
 
+        struct Entry { int64_t offset; int64_t size; };
+
+        //! Where every stored entry of a bundle lives. Immutable once built,
+        //! so that readers of the same bundle can share one.
+        using EntryMap = std::map<std::string, Entry>;
+
         void open(
             const std::string& fileName,
             size_t fileSize);
-
-        struct Entry { int64_t offset; int64_t size; };
 
         std::optional<Entry> find(const std::string& name) const;
 
@@ -50,6 +56,6 @@ namespace tl
         std::string _fileName;
         size_t _fileSize = 0;
         MZReaderPtr _reader;
-        std::map<std::string, Entry> _entries;
+        std::shared_ptr<const EntryMap> _entries;
     };
 }
