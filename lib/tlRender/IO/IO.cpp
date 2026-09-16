@@ -96,6 +96,15 @@ namespace tl
         return out;
     }
 
+    const ftk::ImageInfo& getVideoInfo(const IOInfo& info, int layer)
+    {
+        const size_t index =
+            layer >= 0 && static_cast<size_t>(layer) < info.video.size() ?
+            static_cast<size_t>(layer) :
+            0;
+        return info.video[index];
+    }
+
     IOInfo merge(const IOInfo& video, const IOInfo& audio)
     {
         IOInfo out = video;

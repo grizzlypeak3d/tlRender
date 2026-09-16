@@ -85,6 +85,18 @@ namespace tl
     //! put back together.
     TL_IO_API IOInfo merge(const IOInfo& video, const IOInfo& audio);
 
+    //! Get the information for a video layer.
+    //!
+    //! A file's layers each have their own -- an EXR can hold a half colour
+    //! layer beside a float depth one -- so reporting a file's video means
+    //! saying which layer is being reported. Which one that is comes from the
+    //! player.
+    //!
+    //! The caller has already checked there is a layer to return. An index
+    //! past the end is not worth throwing over: it reads as the first layer,
+    //! which is what a file with one layer gives anyway.
+    TL_IO_API const ftk::ImageInfo& getVideoInfo(const IOInfo&, int layer);
+
     //! Video I/O data.
     struct TL_IO_API_TYPE VideoData
     {
