@@ -183,6 +183,8 @@ namespace tl
                         }
 
                         const ftk::Box2I displayWindow = fromImath(imfHeader.displayWindow());
+                        const ftk::Box2I infoDataWindow =
+                            fromImath(imfHeader.dataWindow());
                         const auto& imfChannels = imfHeader.channels();
                         std::set<std::string> imfChannelNames;
                         for (auto i = imfChannels.begin(); i != imfChannels.end(); ++i)
@@ -283,6 +285,8 @@ namespace tl
                                 case Imf::PixelType::UINT:  info.type = ftk::ImageType::RGB_U32; break;
                                 default: break;
                                 }
+                                const bool planar = _usePlanes(
+                                    info, displayWindow == infoDataWindow);
                                 if (info.type != ftk::ImageType::None)
                                 {
                                     info.name = "RGB" + view;
@@ -297,6 +301,7 @@ namespace tl
                                     layer.channels.push_back(*g);
                                     layer.channels.push_back(*b);
                                     layer.pixelType = imfPixelType;
+                                    layer.planar = planar;
                                     _layers.push_back(layer);
                                     imfDefaultChannelNames.erase(r);
                                     imfDefaultChannelNames.erase(g);
@@ -383,6 +388,8 @@ namespace tl
                                 layer.channels.insert(layer.channels.end(), imfUIntNames.begin(), imfUIntNames.end());
                                 layer.pixelType = Imf::PixelType::UINT;
                             }
+                            layer.planar = _usePlanes(
+                                info, displayWindow == infoDataWindow);
                             if (info.type != ftk::ImageType::None)
                             {
                                 info.name = i + view;
@@ -430,7 +437,18 @@ namespace tl
                         const ftk::Box2I intersectedWindow = ftk::intersect(displayWindow, dataWindow);
                         const bool fast = displayWindow == dataWindow;
 
-                        const ftk::ImageInfo& imageInfo = _info.video[layer];
+                        // The type was chosen from the first file of the
+                        // sequence. A later frame can have a data window the
+                        // first did not, and the windowed read below writes
+                        // interleaved pixels: read that frame interleaved
+                        // rather than write those pixels into planes. The
+                        // renderer draws from the image's own info, so a frame
+                        // that differs from the rest still draws.
+                        ftk::ImageInfo imageInfo = _info.video[layer];
+                        if (!fast && ftk::ImageType::RGB_F16_P == imageInfo.type)
+                        {
+                            imageInfo.type = ftk::ImageType::RGB_F16;
+                        }
                         out.image = ftk::Image::create(imageInfo);
                         out.image->setTags(_info.tags);
                         const int channels = ftk::getChannelCount(imageInfo.type);
@@ -439,6 +457,19 @@ namespace tl
                         const int scb = imageInfo.size.w * channels * channelByteCount;
                         if (fast)
                         {
+                            // Where a channel's samples sit. Interleaved, they
+                            // are one pixel apart and the channel starts at its
+                            // offset within the first pixel; planar, they are
+                            // one sample apart and the channel starts at its
+                            // own plane.
+                            const bool planar =
+                                ftk::ImageType::RGB_F16_P == imageInfo.type;
+                            const int xStride = planar ? channelByteCount : cb;
+                            const int yStride = planar ?
+                                (imageInfo.size.w * channelByteCount) : scb;
+                            const size_t planeByteCount =
+                                static_cast<size_t>(imageInfo.size.w) *
+                                imageInfo.size.h * channelByteCount;
                             Imf::FrameBuffer frameBuffer;
                             for (int c = 0; c < channels; ++c)
                             {
@@ -449,16 +480,20 @@ namespace tl
                                 // window). Without this, a non-zero display-window
                                 // origin shifts the image and writes past the end
                                 // of the buffer. In the fast path display == data.
+                                char* base =
+                                    reinterpret_cast<char*>(out.image->getData()) +
+                                    (planar ?
+                                        (c * planeByteCount) :
+                                        (c * channelByteCount));
+                                base -= displayWindow.min.y * yStride;
+                                base -= displayWindow.min.x * xStride;
                                 frameBuffer.insert(
                                     _layers[layer].channels[c],
                                     Imf::Slice(
                                         _layers[layer].pixelType,
-                                        reinterpret_cast<char*>(out.image->getData())
-                                            - (displayWindow.min.y * scb)
-                                            - (displayWindow.min.x * cb)
-                                            + (c * channelByteCount),
-                                        cb,
-                                        scb,
+                                        base,
+                                        xStride,
+                                        yStride,
                                         sampling.x,
                                         sampling.y,
                                         0.F));
@@ -483,7 +518,7 @@ namespace tl
                                     // written but unreadable. Report it.
                                     throw;
                                 }
-                                _blankFrom(out.image, displayWindow, y, scb);
+                                _blankFrom(out.image, displayWindow, y, imageInfo);
                             }
                         }
                         else
@@ -541,7 +576,7 @@ namespace tl
                                 }
                                 std::memset(p, 0, end - p);
                             }
-                            _blankFrom(out.image, displayWindow, y, scb);
+                            _blankFrom(out.image, displayWindow, y, imageInfo);
                         }
                     }
                     return out;
@@ -573,18 +608,47 @@ namespace tl
                 //! Blank the rows from the given one on. The image is not
                 //! cleared when it is created, so whatever was not read holds
                 //! nothing in particular.
+                //!
+                //! Zero is black either way. These images are three channel,
+                //! so the shader supplies an opaque alpha and there is none
+                //! here to get wrong.
                 static void _blankFrom(
                     const std::shared_ptr<ftk::Image>& image,
                     const ftk::Box2I& displayWindow,
                     int y,
-                    int scb)
+                    const ftk::ImageInfo& info)
                 {
-                    if (y <= displayWindow.max.y)
+                    if (y > displayWindow.max.y)
                     {
+                        return;
+                    }
+                    const size_t row =
+                        static_cast<size_t>(y - displayWindow.min.y);
+                    const size_t rows =
+                        static_cast<size_t>(displayWindow.max.y - y + 1);
+                    const int channels = ftk::getChannelCount(info.type);
+                    const int depth = ftk::getBitDepth(info.type) / 8;
+                    if (ftk::ImageType::RGB_F16_P == info.type)
+                    {
+                        // A row of a planar image is one run per plane rather
+                        // than a single run.
+                        const size_t planeRow =
+                            static_cast<size_t>(info.size.w) * depth;
+                        const size_t plane = planeRow * info.size.h;
+                        for (int c = 0; c < channels; ++c)
+                        {
+                            std::memset(
+                                image->getData() + (c * plane) + (row * planeRow),
+                                0,
+                                rows * planeRow);
+                        }
+                    }
+                    else
+                    {
+                        const size_t scb =
+                            static_cast<size_t>(info.size.w) * channels * depth;
                         std::memset(
-                            image->getData() + ((y - displayWindow.min.y) * scb),
-                            0,
-                            static_cast<size_t>(displayWindow.max.y - y + 1) * scb);
+                            image->getData() + (row * scb), 0, rows * scb);
                     }
                 }
 
@@ -597,7 +661,37 @@ namespace tl
                     int part = 0;
                     std::vector<std::string> channels;
                     Imf::PixelType pixelType = Imf::PixelType::HALF;
+                    //! Whether this layer reads into planes rather than into
+                    //! interleaved pixels.
+                    bool planar = false;
                 };
+
+                //! Read three channel half images into planes.
+                //!
+                //! There is no three channel half texture on Metal, so an
+                //! RGB_F16 upload is widened by the driver every frame; three
+                //! single channel planes are not. OpenEXR fills whatever
+                //! strides the slices describe, so reading into planes costs
+                //! the decode nothing.
+                //!
+                //! Only where the display and data windows agree: the
+                //! windowed read walks scanlines of interleaved pixels, and it
+                //! has not been taught to walk three planes.
+                //!
+                //! Changes the type where it applies, and says whether it did
+                //! so the layer can record it. Every other channel count is
+                //! left alone -- one, two and four channel images all have a
+                //! texture format of their own and are not widened.
+                static bool _usePlanes(ftk::ImageInfo& info, bool windowsAgree)
+                {
+                    const bool out =
+                        ftk::ImageType::RGB_F16 == info.type && windowsAgree;
+                    if (out)
+                    {
+                        info.type = ftk::ImageType::RGB_F16_P;
+                    }
+                    return out;
+                }
                 std::vector<Layer> _layers;
             };
         }
