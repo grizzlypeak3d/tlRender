@@ -15,7 +15,7 @@ endif()
 # The library versions are written out in the install names below and in the
 # packaging, so check them against libavutil/version.h and its siblings when
 # this moves: a point release bumps them.
-set(FFmpeg_URL https://github.com/FFmpeg/FFmpeg/archive/refs/tags/n8.1.2.tar.gz)
+set(FFmpeg_URL https://github.com/FFmpeg/FFmpeg/archive/refs/tags/n9.0.1.tar.gz)
 
 set(FFmpeg_DEPS)
 if(TLRENDER_AOM)
@@ -129,200 +129,322 @@ else()
         --enable-ffnvcodec
         --enable-nvdec)
 endif()
+# What the build carries, in two parts: the codecs that need no patent
+# licence, which every build has, and the ones that do, which only a build
+# that is not the minimal one gets.
+#
+# Neither is "whatever FFmpeg ships". A blanket build claims 225 file
+# extensions -- Audible audiobooks, Commodore 64 video, ANSI art -- and
+# every one of them reaches the file associations and the file browser.
+# What is listed is what a review tool opens.
+set(FFmpeg_FREE_ARGS
+    --disable-decoders
+    --disable-encoders
+    --disable-demuxers
+    --disable-muxers
+    --disable-parsers
+    --disable-protocols
+    # AAC is left out deliberately, and it is the codec a QuickTime movie
+    # defaults to, so a minimal build writes movies without audio and cannot
+    # read the ones it would otherwise have written. Opus and Vorbis below
+    # are what it has instead.
+    --enable-decoder=apv
+    --enable-decoder=av1
+    --enable-decoder=cfhd
+    --enable-decoder=flac
+    --enable-decoder=mjpeg
+    # Royalty free by design: the Xiph, Google and AOM codecs, and the
+    # BBC's VC-2. Nothing here is in a patent pool.
+    --enable-decoder=vp8
+    --enable-decoder=theora
+    --enable-decoder=dirac
+    # Lossless, and none of them encumbered: FFV1 is what archives use,
+    # the others are intermediates a facility hands around.
+    --enable-decoder=ffv1
+    --enable-decoder=utvideo
+    --enable-decoder=huffyuv
+    --enable-decoder=ffvhuff
+    --enable-decoder=magicyuv
+    --enable-decoder=qtrle
+    --enable-decoder=png
+    --enable-decoder=apng
+    # Audio. AAC is deliberately absent (see above), so these are what a
+    # minimal build has: Opus and Vorbis for lossy, the rest lossless.
+    --enable-decoder=opus
+    --enable-decoder=vorbis
+    --enable-decoder=speex
+    --enable-decoder=alac
+    --enable-decoder=wavpack
+    --enable-decoder=tta
+    --enable-decoder=mp3
+    --enable-decoder=mpeg2video
+    --enable-decoder=mpeg4
+    --enable-decoder=pcm_alaw
+    --enable-decoder=pcm_bluray
+    --enable-decoder=pcm_dvd
+    --enable-decoder=pcm_f16le
+    --enable-decoder=pcm_f24le
+    --enable-decoder=pcm_f32be
+    --enable-decoder=pcm_f32le
+    --enable-decoder=pcm_f64be
+    --enable-decoder=pcm_f64le
+    --enable-decoder=pcm_lxf
+    --enable-decoder=pcm_mulaw
+    --enable-decoder=pcm_s16be
+    --enable-decoder=pcm_s16be_planar
+    --enable-decoder=pcm_s16le
+    --enable-decoder=pcm_s16le_planar
+    --enable-decoder=pcm_s24be
+    --enable-decoder=pcm_s24daud
+    --enable-decoder=pcm_s24le
+    --enable-decoder=pcm_s24le_planar
+    --enable-decoder=pcm_s32be
+    --enable-decoder=pcm_s32le
+    --enable-decoder=pcm_s32le_planar
+    --enable-decoder=pcm_s64be
+    --enable-decoder=pcm_s64le
+    --enable-decoder=pcm_s8
+    --enable-decoder=pcm_s8_planar
+    --enable-decoder=pcm_sga
+    --enable-decoder=pcm_u16be
+    --enable-decoder=pcm_u16le
+    --enable-decoder=pcm_u24be
+    --enable-decoder=pcm_u24le
+    --enable-decoder=pcm_u32be
+    --enable-decoder=pcm_u32le
+    --enable-decoder=pcm_u8
+    --enable-decoder=pcm_vidc
+    --enable-decoder=rawvideo
+    --enable-decoder=v210
+    --enable-decoder=v210x
+    # Not v308, v408 or v410: FFmpeg 9 dropped the codecs for the
+    # uncompressed 4:4:4 QuickTime tags and maps those fourccs to
+    # rawvideo, which is enabled below. Naming them here only produced
+    # a configure warning.
+    --enable-decoder=vp9
+    --enable-decoder=yuv4
+    --enable-encoder=cfhd
+    --enable-encoder=flac
+    --enable-encoder=mjpeg
+    # The writable half of the above. There is no VP8, Theora or Dirac
+    # encoder without an external library, and no AV1 one without the
+    # aom or SVT builds added further down.
+    --enable-encoder=vc2
+    --enable-encoder=ffv1
+    --enable-encoder=utvideo
+    --enable-encoder=huffyuv
+    --enable-encoder=ffvhuff
+    --enable-encoder=magicyuv
+    --enable-encoder=qtrle
+    --enable-encoder=png
+    --enable-encoder=apng
+    --enable-encoder=opus
+    --enable-encoder=vorbis
+    --enable-encoder=alac
+    --enable-encoder=wavpack
+    --enable-encoder=tta
+    --enable-encoder=mpeg2video
+    --enable-encoder=mpeg4
+    --enable-encoder=pcm_alaw
+    --enable-encoder=pcm_bluray
+    --enable-encoder=pcm_dvd
+    --enable-encoder=pcm_f32be
+    --enable-encoder=pcm_f32le
+    --enable-encoder=pcm_f64be
+    --enable-encoder=pcm_f64le
+    --enable-encoder=pcm_mulaw
+    --enable-encoder=pcm_s16be
+    --enable-encoder=pcm_s16be_planar
+    --enable-encoder=pcm_s16le
+    --enable-encoder=pcm_s16le_planar
+    --enable-encoder=pcm_s24be
+    --enable-encoder=pcm_s24daud
+    --enable-encoder=pcm_s24le
+    --enable-encoder=pcm_s24le_planar
+    --enable-encoder=pcm_s32be
+    --enable-encoder=pcm_s32le
+    --enable-encoder=pcm_s32le_planar
+    --enable-encoder=pcm_s64be
+    --enable-encoder=pcm_s64le
+    --enable-encoder=pcm_s8
+    --enable-encoder=pcm_s8_planar
+    --enable-encoder=pcm_u16be
+    --enable-encoder=pcm_u16le
+    --enable-encoder=pcm_u24be
+    --enable-encoder=pcm_u24le
+    --enable-encoder=pcm_u32be
+    --enable-encoder=pcm_u32le
+    --enable-encoder=pcm_u8
+    --enable-encoder=pcm_vidc
+    --enable-encoder=rawvideo
+    --enable-encoder=v210
+    --enable-encoder=yuv4
+    --enable-demuxer=aiff
+    --enable-demuxer=apv
+    --enable-demuxer=av1
+    --enable-demuxer=flac
+    --enable-demuxer=m4v
+    --enable-demuxer=matroska
+    --enable-demuxer=mjpeg
+    # Also MP4: there is no mp4 demuxer, mov reads both.
+    --enable-demuxer=mov
+    --enable-demuxer=mp3
+    --enable-demuxer=mxf
+    # The containers those codecs arrive in. Ogg carries Theora, Vorbis,
+    # Opus and Speex; AVI and NUT are where the lossless intermediates
+    # tend to be.
+    --enable-demuxer=ogg
+    --enable-demuxer=avi
+    --enable-demuxer=nut
+    --enable-demuxer=apng
+    --enable-demuxer=pcm_alaw
+    --enable-demuxer=pcm_f32be
+    --enable-demuxer=pcm_f32le
+    --enable-demuxer=pcm_f64be
+    --enable-demuxer=pcm_f64le
+    --enable-demuxer=pcm_mulaw
+    --enable-demuxer=pcm_s16be
+    --enable-demuxer=pcm_s16le
+    --enable-demuxer=pcm_s24be
+    --enable-demuxer=pcm_s24le
+    --enable-demuxer=pcm_s32be
+    --enable-demuxer=pcm_s32le
+    --enable-demuxer=pcm_s8
+    --enable-demuxer=pcm_u16be
+    --enable-demuxer=pcm_u16le
+    --enable-demuxer=pcm_u24be
+    --enable-demuxer=pcm_u24le
+    --enable-demuxer=pcm_u32be
+    --enable-demuxer=pcm_u32le
+    --enable-demuxer=pcm_u8
+    --enable-demuxer=pcm_vidc
+    --enable-demuxer=rawvideo
+    --enable-demuxer=v210
+    --enable-demuxer=v210x
+    --enable-demuxer=wav
+    --enable-demuxer=yuv4mpegpipe
+    --enable-muxer=aiff
+    --enable-muxer=apv
+    --enable-muxer=flac
+    --enable-muxer=m4v
+    --enable-muxer=mjpeg
+    --enable-muxer=mov
+    --enable-muxer=mp4
+    --enable-muxer=mpeg2video
+    --enable-muxer=mxf
+    --enable-muxer=ogg
+    --enable-muxer=avi
+    --enable-muxer=nut
+    --enable-muxer=webm
+    --enable-muxer=apng
+    --enable-muxer=pcm_alaw
+    --enable-muxer=pcm_f32be
+    --enable-muxer=pcm_f32le
+    --enable-muxer=pcm_f64be
+    --enable-muxer=pcm_f64le
+    --enable-muxer=pcm_mulaw
+    --enable-muxer=pcm_s16be
+    --enable-muxer=pcm_s16le
+    --enable-muxer=pcm_s24be
+    --enable-muxer=pcm_s24le
+    --enable-muxer=pcm_s32be
+    --enable-muxer=pcm_s32le
+    --enable-muxer=pcm_s8
+    --enable-muxer=pcm_u16be
+    --enable-muxer=pcm_u16le
+    --enable-muxer=pcm_u24be
+    --enable-muxer=pcm_u24le
+    --enable-muxer=pcm_u32be
+    --enable-muxer=pcm_u32le
+    --enable-muxer=pcm_u8
+    --enable-muxer=pcm_vidc
+    --enable-muxer=rawvideo
+    --enable-muxer=wav
+    --enable-muxer=yuv4mpegpipe
+    --enable-parser=apv
+    --enable-parser=av1
+    --enable-parser=flac
+    --enable-parser=mjpeg
+    --enable-parser=mpeg4video
+    --enable-parser=mpegaudio
+    --enable-parser=mpegvideo
+    --enable-parser=vp9
+    --enable-parser=vp8
+    --enable-parser=opus
+    --enable-parser=vorbis
+    --enable-parser=dirac
+    --enable-parser=png
+    --enable-protocol=file
+    # For reading a byte range of a file in place -- media stored in
+    # an OTIOZ bundle. A protocol, not a codec, so it carries no
+    # licensing weight.
+    --enable-protocol=subfile)
+
+# Codecs that need a patent licence. DJV Studio and a build from source have
+# them; the packages do not. Adding a decoder here also adds whatever file
+# extensions its demuxer claims, so the containers below are the ones a
+# review tool is handed, not everything that could carry the codec.
+set(FFmpeg_LICENSED_ARGS
+    --enable-decoder=h264
+    --enable-decoder=hevc
+    --enable-decoder=vc1
+    --enable-decoder=prores
+    --enable-decoder=prores_raw
+    --enable-decoder=dnxhd
+    --enable-decoder=dvvideo
+    --enable-decoder=jpeg2000
+    --enable-decoder=mjpegb
+    --enable-decoder=mpeg1video
+    --enable-decoder=aac
+    --enable-decoder=ac3
+    --enable-decoder=eac3
+    --enable-decoder=mp2
+    --enable-decoder=dca
+    --enable-decoder=truehd
+    # No software h264 or hevc encoder: those need x264 and x265, which are
+    # GPL. Writing them is VideoToolbox's job on the platforms that have it.
+    --enable-encoder=prores
+    --enable-encoder=prores_ks
+    --enable-encoder=prores_aw
+    --enable-encoder=dnxhd
+    --enable-encoder=dvvideo
+    --enable-encoder=jpeg2000
+    --enable-encoder=mpeg1video
+    --enable-encoder=aac
+    --enable-encoder=ac3
+    --enable-encoder=eac3
+    --enable-encoder=mp2
+    --enable-demuxer=mpegts
+    --enable-demuxer=mpegps
+    --enable-demuxer=dv
+    --enable-demuxer=h264
+    --enable-demuxer=hevc
+    --enable-demuxer=aac
+    --enable-demuxer=ac3
+    --enable-demuxer=eac3
+    --enable-demuxer=dts
+    --enable-muxer=mpegts
+    --enable-muxer=dv
+    --enable-muxer=ac3
+    --enable-muxer=eac3
+    --enable-parser=h264
+    --enable-parser=hevc
+    --enable-parser=vc1
+    --enable-parser=aac
+    --enable-parser=ac3
+    --enable-parser=dca
+    --enable-parser=jpeg2000
+    --enable-parser=dvaudio)
+
+list(APPEND FFmpeg_CONFIGURE_ARGS ${FFmpeg_FREE_ARGS})
 if(TLRENDER_FFMPEG_MINIMAL)
-    # Codecs that can be shipped without a patent license. AAC is left out
-    # deliberately, and it is the codec a QuickTime movie defaults to, so a
-    # minimal build writes movies without audio and cannot read the ones it
-    # would otherwise have written. That is the trade, not an oversight.
-    #
     # The blanket --enable-hwaccels above cannot survive here: enabling a
     # hardware decoder pulls in the software decoder it depends on, which
     # quietly put h264, hevc, and prores back into the minimal build. No
     # hardware decoding in the minimal packages is the trade.
-    list(APPEND FFmpeg_CONFIGURE_ARGS
-        --disable-hwaccels
-        --disable-decoders
-        --enable-decoder=apv
-        --enable-decoder=av1
-        --enable-decoder=cfhd
-        --enable-decoder=flac
-        --enable-decoder=mjpeg
-        --enable-decoder=mp3
-        --enable-decoder=mpeg2video
-        --enable-decoder=mpeg4
-        --enable-decoder=pcm_alaw
-        --enable-decoder=pcm_bluray
-        --enable-decoder=pcm_dvd
-        --enable-decoder=pcm_f16le
-        --enable-decoder=pcm_f24le
-        --enable-decoder=pcm_f32be
-        --enable-decoder=pcm_f32le
-        --enable-decoder=pcm_f64be
-        --enable-decoder=pcm_f64le
-        --enable-decoder=pcm_lxf
-        --enable-decoder=pcm_mulaw
-        --enable-decoder=pcm_s16be
-        --enable-decoder=pcm_s16be_planar
-        --enable-decoder=pcm_s16le
-        --enable-decoder=pcm_s16le_planar
-        --enable-decoder=pcm_s24be
-        --enable-decoder=pcm_s24daud
-        --enable-decoder=pcm_s24le
-        --enable-decoder=pcm_s24le_planar
-        --enable-decoder=pcm_s32be
-        --enable-decoder=pcm_s32le
-        --enable-decoder=pcm_s32le_planar
-        --enable-decoder=pcm_s64be
-        --enable-decoder=pcm_s64le
-        --enable-decoder=pcm_s8
-        --enable-decoder=pcm_s8_planar
-        --enable-decoder=pcm_sga
-        --enable-decoder=pcm_u16be
-        --enable-decoder=pcm_u16le
-        --enable-decoder=pcm_u24be
-        --enable-decoder=pcm_u24le
-        --enable-decoder=pcm_u32be
-        --enable-decoder=pcm_u32le
-        --enable-decoder=pcm_u8
-        --enable-decoder=pcm_vidc
-        --enable-decoder=rawvideo
-        --enable-decoder=v210
-        --enable-decoder=v210x
-        --enable-decoder=v308
-        --enable-decoder=v408
-        --enable-decoder=v410
-        --enable-decoder=vp9
-        --enable-decoder=yuv4
-        --disable-encoders
-        --enable-encoder=cfhd
-        --enable-encoder=flac
-        --enable-encoder=mjpeg
-        --enable-encoder=mpeg2video
-        --enable-encoder=mpeg4
-        --enable-encoder=pcm_alaw
-        --enable-encoder=pcm_bluray
-        --enable-encoder=pcm_dvd
-        --enable-encoder=pcm_f32be
-        --enable-encoder=pcm_f32le
-        --enable-encoder=pcm_f64be
-        --enable-encoder=pcm_f64le
-        --enable-encoder=pcm_mulaw
-        --enable-encoder=pcm_s16be
-        --enable-encoder=pcm_s16be_planar
-        --enable-encoder=pcm_s16le
-        --enable-encoder=pcm_s16le_planar
-        --enable-encoder=pcm_s24be
-        --enable-encoder=pcm_s24daud
-        --enable-encoder=pcm_s24le
-        --enable-encoder=pcm_s24le_planar
-        --enable-encoder=pcm_s32be
-        --enable-encoder=pcm_s32le
-        --enable-encoder=pcm_s32le_planar
-        --enable-encoder=pcm_s64be
-        --enable-encoder=pcm_s64le
-        --enable-encoder=pcm_s8
-        --enable-encoder=pcm_s8_planar
-        --enable-encoder=pcm_u16be
-        --enable-encoder=pcm_u16le
-        --enable-encoder=pcm_u24be
-        --enable-encoder=pcm_u24le
-        --enable-encoder=pcm_u32be
-        --enable-encoder=pcm_u32le
-        --enable-encoder=pcm_u8
-        --enable-encoder=pcm_vidc
-        --enable-encoder=rawvideo
-        --enable-encoder=v210
-        --enable-encoder=v308
-        --enable-encoder=v408
-        --enable-encoder=v410
-        --enable-encoder=yuv4
-        --disable-demuxers
-        --enable-demuxer=aiff
-        --enable-demuxer=apv
-        --enable-demuxer=av1
-        --enable-demuxer=flac
-        --enable-demuxer=m4v
-        --enable-demuxer=matroska
-        --enable-demuxer=mjpeg
-        --enable-demuxer=mov
-        --enable-demuxer=mp3
-        --enable-demuxer=mp4
-        --enable-demuxer=mxf
-        --enable-demuxer=pcm_alaw
-        --enable-demuxer=pcm_f32be
-        --enable-demuxer=pcm_f32le
-        --enable-demuxer=pcm_f64be
-        --enable-demuxer=pcm_f64le
-        --enable-demuxer=pcm_mulaw
-        --enable-demuxer=pcm_s16be
-        --enable-demuxer=pcm_s16le
-        --enable-demuxer=pcm_s24be
-        --enable-demuxer=pcm_s24le
-        --enable-demuxer=pcm_s32be
-        --enable-demuxer=pcm_s32le
-        --enable-demuxer=pcm_s8
-        --enable-demuxer=pcm_u16be
-        --enable-demuxer=pcm_u16le
-        --enable-demuxer=pcm_u24be
-        --enable-demuxer=pcm_u24le
-        --enable-demuxer=pcm_u32be
-        --enable-demuxer=pcm_u32le
-        --enable-demuxer=pcm_u8
-        --enable-demuxer=pcm_vidc
-        --enable-demuxer=rawvideo
-        --enable-demuxer=v210
-        --enable-demuxer=v210x
-        --enable-demuxer=wav
-        --enable-demuxer=yuv4mpegpipe
-        --disable-muxers
-        --enable-muxer=aiff
-        --enable-muxer=apv
-        --enable-muxer=flac
-        --enable-muxer=m4v
-        --enable-muxer=mjpeg
-        --enable-muxer=mov
-        --enable-muxer=mp4
-        --enable-muxer=mpeg2video
-        --enable-muxer=mxf
-        --enable-muxer=pcm_alaw
-        --enable-muxer=pcm_f32be
-        --enable-muxer=pcm_f32le
-        --enable-muxer=pcm_f64be
-        --enable-muxer=pcm_f64le
-        --enable-muxer=pcm_mulaw
-        --enable-muxer=pcm_s16be
-        --enable-muxer=pcm_s16le
-        --enable-muxer=pcm_s24be
-        --enable-muxer=pcm_s24le
-        --enable-muxer=pcm_s32be
-        --enable-muxer=pcm_s32le
-        --enable-muxer=pcm_s8
-        --enable-muxer=pcm_u16be
-        --enable-muxer=pcm_u16le
-        --enable-muxer=pcm_u24be
-        --enable-muxer=pcm_u24le
-        --enable-muxer=pcm_u32be
-        --enable-muxer=pcm_u32le
-        --enable-muxer=pcm_u8
-        --enable-muxer=pcm_vidc
-        --enable-muxer=rawvideo
-        --enable-muxer=wav
-        --enable-muxer=yuv4mpegpipe
-        --disable-parsers
-        --enable-parser=apv
-        --enable-parser=av1
-        --enable-parser=flac
-        --enable-parser=mjpeg
-        --enable-parser=mpeg4video
-        --enable-parser=mpegaudio
-        --enable-parser=mpegvideo
-        --enable-parser=vp9
-        --disable-protocols
-        --enable-protocol=file
-        # For reading a byte range of a file in place -- media stored in
-        # an OTIOZ bundle. A protocol, not a codec, so it carries no
-        # licensing weight.
-        --enable-protocol=subfile)
+    list(APPEND FFmpeg_CONFIGURE_ARGS --disable-hwaccels)
+else()
+    list(APPEND FFmpeg_CONFIGURE_ARGS ${FFmpeg_LICENSED_ARGS})
 endif()
 if(TLRENDER_AOM)
     list(APPEND FFmpeg_CONFIGURE_ARGS
@@ -410,34 +532,34 @@ else()
     endif()
     if(APPLE)
         list(APPEND FFmpeg_INSTALL
-            COMMAND install_name_tool -id @rpath/libavcodec.62.28.102.dylib ${CMAKE_INSTALL_PREFIX}/lib/libavcodec.62.dylib
-            COMMAND install_name_tool -id @rpath/libavdevice.62.3.102.dylib ${CMAKE_INSTALL_PREFIX}/lib/libavdevice.62.dylib
-            COMMAND install_name_tool -id @rpath/libavformat.62.12.102.dylib ${CMAKE_INSTALL_PREFIX}/lib/libavformat.62.dylib
-            COMMAND install_name_tool -id @rpath/libavutil.60.26.102.dylib ${CMAKE_INSTALL_PREFIX}/lib/libavutil.60.dylib
-            COMMAND install_name_tool -id @rpath/libswresample.6.3.102.dylib ${CMAKE_INSTALL_PREFIX}/lib/libswresample.6.dylib
-            COMMAND install_name_tool -id @rpath/libswscale.9.5.102.dylib ${CMAKE_INSTALL_PREFIX}/lib/libswscale.9.dylib
+            COMMAND install_name_tool -id @rpath/libavcodec.63.1.101.dylib ${CMAKE_INSTALL_PREFIX}/lib/libavcodec.63.dylib
+            COMMAND install_name_tool -id @rpath/libavdevice.63.1.101.dylib ${CMAKE_INSTALL_PREFIX}/lib/libavdevice.63.dylib
+            COMMAND install_name_tool -id @rpath/libavformat.63.1.101.dylib ${CMAKE_INSTALL_PREFIX}/lib/libavformat.63.dylib
+            COMMAND install_name_tool -id @rpath/libavutil.61.1.101.dylib ${CMAKE_INSTALL_PREFIX}/lib/libavutil.61.dylib
+            COMMAND install_name_tool -id @rpath/libswresample.7.1.101.dylib ${CMAKE_INSTALL_PREFIX}/lib/libswresample.7.dylib
+            COMMAND install_name_tool -id @rpath/libswscale.10.1.101.dylib ${CMAKE_INSTALL_PREFIX}/lib/libswscale.10.dylib
             COMMAND install_name_tool
-                -change ${CMAKE_INSTALL_PREFIX}/lib/libswresample.6.dylib @rpath/libswresample.6.dylib
-                -change ${CMAKE_INSTALL_PREFIX}/lib/libavutil.60.dylib @rpath/libavutil.60.dylib
-                ${CMAKE_INSTALL_PREFIX}/lib/libavcodec.62.28.102.dylib
+                -change ${CMAKE_INSTALL_PREFIX}/lib/libswresample.7.dylib @rpath/libswresample.7.dylib
+                -change ${CMAKE_INSTALL_PREFIX}/lib/libavutil.61.dylib @rpath/libavutil.61.dylib
+                ${CMAKE_INSTALL_PREFIX}/lib/libavcodec.63.1.101.dylib
             COMMAND install_name_tool
-                -change ${CMAKE_INSTALL_PREFIX}/lib/libswscale.9.dylib @rpath/libswscale.9.dylib
-                -change ${CMAKE_INSTALL_PREFIX}/lib/libavformat.62.dylib @rpath/libavformat.62.dylib
-                -change ${CMAKE_INSTALL_PREFIX}/lib/libavcodec.62.dylib @rpath/libavcodec.62.dylib
-                -change ${CMAKE_INSTALL_PREFIX}/lib/libswresample.6.dylib @rpath/libswresample.6.dylib
-                -change ${CMAKE_INSTALL_PREFIX}/lib/libavutil.60.dylib @rpath/libavutil.60.dylib
-                ${CMAKE_INSTALL_PREFIX}/lib/libavdevice.62.3.102.dylib
+                -change ${CMAKE_INSTALL_PREFIX}/lib/libswscale.10.dylib @rpath/libswscale.10.dylib
+                -change ${CMAKE_INSTALL_PREFIX}/lib/libavformat.63.dylib @rpath/libavformat.63.dylib
+                -change ${CMAKE_INSTALL_PREFIX}/lib/libavcodec.63.dylib @rpath/libavcodec.63.dylib
+                -change ${CMAKE_INSTALL_PREFIX}/lib/libswresample.7.dylib @rpath/libswresample.7.dylib
+                -change ${CMAKE_INSTALL_PREFIX}/lib/libavutil.61.dylib @rpath/libavutil.61.dylib
+                ${CMAKE_INSTALL_PREFIX}/lib/libavdevice.63.1.101.dylib
             COMMAND install_name_tool
-                -change ${CMAKE_INSTALL_PREFIX}/lib/libavcodec.62.dylib @rpath/libavcodec.62.dylib
-                -change ${CMAKE_INSTALL_PREFIX}/lib/libswresample.6.dylib @rpath/libswresample.6.dylib
-                -change ${CMAKE_INSTALL_PREFIX}/lib/libavutil.60.dylib @rpath/libavutil.60.dylib
-                ${CMAKE_INSTALL_PREFIX}/lib/libavformat.62.12.102.dylib
+                -change ${CMAKE_INSTALL_PREFIX}/lib/libavcodec.63.dylib @rpath/libavcodec.63.dylib
+                -change ${CMAKE_INSTALL_PREFIX}/lib/libswresample.7.dylib @rpath/libswresample.7.dylib
+                -change ${CMAKE_INSTALL_PREFIX}/lib/libavutil.61.dylib @rpath/libavutil.61.dylib
+                ${CMAKE_INSTALL_PREFIX}/lib/libavformat.63.1.101.dylib
             COMMAND install_name_tool
-                -change ${CMAKE_INSTALL_PREFIX}/lib/libavutil.60.dylib @rpath/libavutil.60.dylib
-                ${CMAKE_INSTALL_PREFIX}/lib/libswresample.6.3.102.dylib
+                -change ${CMAKE_INSTALL_PREFIX}/lib/libavutil.61.dylib @rpath/libavutil.61.dylib
+                ${CMAKE_INSTALL_PREFIX}/lib/libswresample.7.1.101.dylib
             COMMAND install_name_tool
-                -change ${CMAKE_INSTALL_PREFIX}/lib/libavutil.60.dylib @rpath/libavutil.60.dylib
-                ${CMAKE_INSTALL_PREFIX}/lib/libswscale.9.5.102.dylib)
+                -change ${CMAKE_INSTALL_PREFIX}/lib/libavutil.61.dylib @rpath/libavutil.61.dylib
+                ${CMAKE_INSTALL_PREFIX}/lib/libswscale.10.1.101.dylib)
     endif()
 endif()
 
