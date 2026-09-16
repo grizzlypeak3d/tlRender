@@ -37,6 +37,14 @@ namespace tl
         //! Get the output image information.
         TL_CORE_API const ftk::ImageInfo& getOutputInfo() const;
 
+        //! Whether this scaler can scale.
+        //!
+        //! False when the image types are ones FFmpeg will not convert
+        //! between, in which case process() returns nothing. Worth reporting:
+        //! a thumbnail that silently never arrives reads as nothing having
+        //! happened.
+        TL_CORE_API bool isValid() const;
+
         //! Scale image data.
         TL_CORE_API std::shared_ptr<ftk::Image> process(
             const std::shared_ptr<ftk::Image>&);

@@ -839,6 +839,7 @@ namespace tl
             // reused across the frames of one file and replaced when a
             // request brings a different image or size.
             std::shared_ptr<ftk::Image> scaleImage(
+                const std::shared_ptr<ftk::LogSystem>& logSystem,
                 std::shared_ptr<ImageScale>& scale,
                 const std::shared_ptr<ftk::Image>& image,
                 const ftk::Size2I& size)
@@ -849,6 +850,19 @@ namespace tl
                     scale->getOutputInfo() != outputInfo)
                 {
                     scale = ImageScale::create(image->getInfo(), outputInfo);
+                    // Said once per scaler rather than once per frame: the
+                    // slot is kept until the formats change. Without it a
+                    // type FFmpeg will not convert is a thumbnail that never
+                    // appears and nothing anywhere saying why.
+                    if (!scale->isValid())
+                    {
+                        logSystem->print("tl::ui::ThumbnailSystem", ftk::Format(
+                            "Cannot scale \"{0}\" to \"{1}\", no thumbnails "
+                            "for it").
+                            arg(image->getInfo().type).
+                            arg(outputInfo.type),
+                            ftk::LogType::Warning);
+                    }
                 }
                 return scale->process(image);
             }
@@ -930,6 +944,7 @@ namespace tl
                                         p.thumbnailThread.running)
                                     {
                                         image = scaleImage(
+                                            context->getLogSystem(),
                                             p.thumbnailThread.scale,
                                             videoData.image,
                                             size);
@@ -992,6 +1007,7 @@ namespace tl
                                 if (layerImage && p.thumbnailThread.running)
                                 {
                                     image = scaleImage(
+                                        context->getLogSystem(),
                                         p.thumbnailThread.scale,
                                         layerImage,
                                         size);

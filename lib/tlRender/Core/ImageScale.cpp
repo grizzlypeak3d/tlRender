@@ -8,6 +8,8 @@ extern "C"
 {
 #include <libswscale/swscale.h>
 }
+
+#include <half.h>
 #endif // TLRENDER_FFMPEG
 
 namespace tl
@@ -48,11 +50,53 @@ namespace tl
             case ftk::ImageType::YUV_420SP_U8: out = AV_PIX_FMT_NV12; break;
             case ftk::ImageType::YUV_420SP_U16: out = AV_PIX_FMT_P016; break;
 
+            // Planar half float. FFmpeg orders the planes green, blue, red;
+            // the planes are handed over in that order below.
+            case ftk::ImageType::RGB_F16_P: out = AV_PIX_FMT_GBRPF16; break;
+
             // RGB_U10 is packed 10:10:10:2 with the red in the high bits,
             // which is not X2RGB10; the U32 types have no FFmpeg format.
             default: break;
             }
             return out;
+        }
+
+        //! An image type swscale will take as input, for one it will not.
+        //!
+        //! Only RGBA_F32 needs this. Of everything mapped above it is the
+        //! single type swscale has no input support for -- packed RGBA float
+        //! is missing from its table, while RGB_F32 and RGBA_F16 beside it
+        //! are there. Still missing upstream as of FFmpeg 9.0.1 and its
+        //! master, so this is not waiting on a release.
+        //!
+        //! Half rather than sixteen bit integer: these are high dynamic range
+        //! images, and integer would clamp everything above one before the
+        //! image was scaled. Half cannot hold what is past its own range
+        //! either, but that is far enough out to be beyond what a thumbnail
+        //! says anything about.
+        ftk::ImageType getScaleInputType(ftk::ImageType value)
+        {
+            return ftk::ImageType::RGBA_F32 == value ?
+                ftk::ImageType::RGBA_F16 :
+                value;
+        }
+
+        //! Narrow float samples to half. The images are the same size and
+        //! channel count; only the depth differs.
+        void toHalf(
+            const std::shared_ptr<ftk::Image>& in,
+            const std::shared_ptr<ftk::Image>& out)
+        {
+            const ftk::ImageInfo& info = in->getInfo();
+            const size_t count =
+                static_cast<size_t>(info.size.w) * info.size.h *
+                ftk::getChannelCount(info.type);
+            const float* p = reinterpret_cast<const float*>(in->getData());
+            half* q = reinterpret_cast<half*>(out->getData());
+            for (size_t i = 0; i < count; ++i)
+            {
+                q[i] = p[i];
+            }
         }
 
         //! Fill the per plane pointers and strides for an image. The
@@ -153,6 +197,20 @@ namespace tl
                 strides[1] = cw * 2 * 2;
                 planeH[1] = ch;
                 break;
+            case ftk::ImageType::RGB_F16_P:
+            {
+                // Stored red, green, blue. FFmpeg wants green, blue, red.
+                const size_t plane = w * h * 2;
+                planes[0] = data + plane;
+                planes[1] = data + plane * 2;
+                planes[2] = data;
+                strides[0] = w * 2;
+                strides[1] = w * 2;
+                strides[2] = w * 2;
+                planeH[1] = h;
+                planeH[2] = h;
+                break;
+            }
             default:
                 planes[0] = data;
                 strides[0] = info.getByteCount() / h;
@@ -176,6 +234,10 @@ namespace tl
         ftk::ImageInfo outputInfo;
 #if defined(TLRENDER_FFMPEG)
         SwsContext* swsContext = nullptr;
+        //! What the input is converted to when swscale will not take it as
+        //! it is. Invalid when the input needs no conversion.
+        ftk::ImageInfo stagingInfo;
+        std::shared_ptr<ftk::Image> staging;
 #endif // TLRENDER_FFMPEG
     };
 
@@ -189,10 +251,16 @@ namespace tl
 #if defined(TLRENDER_FFMPEG)
         if (p.inputInfo.isValid() && p.outputInfo.isValid())
         {
+            const ftk::ImageType inputType = getScaleInputType(p.inputInfo.type);
+            if (inputType != p.inputInfo.type)
+            {
+                p.stagingInfo = p.inputInfo;
+                p.stagingInfo.type = inputType;
+            }
             p.swsContext = sws_getContext(
                 p.inputInfo.size.w,
                 p.inputInfo.size.h,
-                fromImageType(p.inputInfo.type),
+                fromImageType(inputType),
                 p.outputInfo.size.w,
                 p.outputInfo.size.h,
                 fromImageType(p.outputInfo.type),
@@ -262,6 +330,15 @@ namespace tl
         return _p->outputInfo;
     }
 
+    bool ImageScale::isValid() const
+    {
+#if defined(TLRENDER_FFMPEG)
+        return _p->swsContext != nullptr;
+#else // TLRENDER_FFMPEG
+        return false;
+#endif // TLRENDER_FFMPEG
+    }
+
     std::shared_ptr<ftk::Image> ImageScale::process(
         const std::shared_ptr<ftk::Image>& value)
     {
@@ -270,10 +347,20 @@ namespace tl
 #if defined(TLRENDER_FFMPEG)
         if (p.swsContext && value && value->getInfo() == p.inputInfo)
         {
+            std::shared_ptr<ftk::Image> input = value;
+            if (p.stagingInfo.isValid())
+            {
+                if (!p.staging)
+                {
+                    p.staging = ftk::Image::create(p.stagingInfo);
+                }
+                toHalf(value, p.staging);
+                input = p.staging;
+            }
             out = ftk::Image::create(p.outputInfo);
             uint8_t* inPlanes[4];
             int inStrides[4];
-            getPlanes(value, inPlanes, inStrides);
+            getPlanes(input, inPlanes, inStrides);
             uint8_t* outPlanes[4];
             int outStrides[4];
             getPlanes(out, outPlanes, outStrides);
