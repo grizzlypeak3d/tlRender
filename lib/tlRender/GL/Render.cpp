@@ -8,8 +8,12 @@
 #include <ftk/Core/Format.h>
 #include <ftk/Core/LogSystem.h>
 
+#include <algorithm>
 #include <array>
+#include <cstdlib>
+#include <filesystem>
 #include <list>
+#include <mutex>
 
 #define _USE_MATH_DEFINES
 #include <math.h>
@@ -218,6 +222,115 @@ namespace tl
                 }
             }
 
+            // The configuration the options name, read once. Reading one
+            // parses a whole YAML document -- the built in configuration
+            // included -- and OCIO keeps its processor cache on the object,
+            // so building a second one throws that away as well.
+            //
+            // A configuration that comes from a file is remembered with
+            // that file's size and write time, so editing it is still
+            // picked up.
+            struct OCIOConfigKey
+            {
+                OCIOConfig  kind = OCIOConfig::BuiltIn;
+                std::string fileName;
+                uintmax_t   size = 0;
+                int64_t     time = 0;
+
+                bool operator == (const OCIOConfigKey&) const = default;
+            };
+
+            OCIO::ConstConfigRcPtr ocioConfig(const OCIOOptions& options)
+            {
+                OCIOConfigKey key;
+                key.kind = options.config;
+                switch (options.config)
+                {
+                case OCIOConfig::EnvVar:
+                    if (const char* env = std::getenv("OCIO"))
+                    {
+                        key.fileName = env;
+                    }
+                    break;
+                case OCIOConfig::File:
+                    key.fileName = options.fileName;
+                    break;
+                default: break;
+                }
+                if (!key.fileName.empty())
+                {
+                    std::error_code ec;
+                    const std::filesystem::path path(key.fileName);
+                    const auto size = std::filesystem::file_size(path, ec);
+                    if (!ec)
+                    {
+                        key.size = size;
+                    }
+                    const auto time = std::filesystem::last_write_time(path, ec);
+                    if (!ec)
+                    {
+                        key.time = time.time_since_epoch().count();
+                    }
+                }
+
+                // Most recently used first, and bounded: what is in play is
+                // the configuration the viewport draws through and whatever
+                // the timeline items use.
+                static std::mutex mutex;
+                static std::list<
+                    std::pair<OCIOConfigKey, OCIO::ConstConfigRcPtr> > cache;
+                std::unique_lock<std::mutex> lock(mutex);
+                for (auto i = cache.begin(); i != cache.end(); ++i)
+                {
+                    if (i->first == key)
+                    {
+                        cache.splice(cache.begin(), cache, i);
+                        return cache.front().second;
+                    }
+                }
+
+                OCIO::ConstConfigRcPtr out;
+                switch (options.config)
+                {
+                case OCIOConfig::BuiltIn:
+                    out = OCIO::Config::CreateFromFile("ocio://default");
+                    break;
+                case OCIOConfig::EnvVar:
+                    out = OCIO::Config::CreateFromEnv();
+                    break;
+                case OCIOConfig::File:
+                    if (!options.fileName.empty())
+                    {
+                        out = OCIO::Config::CreateFromFile(options.fileName.c_str());
+                    }
+                    break;
+                default: break;
+                }
+                if (out)
+                {
+                    cache.push_front(std::make_pair(key, out));
+                    while (cache.size() > 4)
+                    {
+                        cache.pop_back();
+                    }
+                }
+                return out;
+            }
+
+            // What the data and shaders built from a set of options are
+            // keyed by, so that two sets can be held at once.
+            std::string ocioOptionsKey(const OCIOOptions& options)
+            {
+                return
+                    std::string(options.enabled ? "1" : "0") + '\n' +
+                    std::to_string(static_cast<int>(options.config)) + '\n' +
+                    options.fileName + '\n' +
+                    options.input + '\n' +
+                    options.display + '\n' +
+                    options.view + '\n' +
+                    options.look;
+            }
+
             // Load the configuration and build the two stages. The color
             // corrections apply between the halves of the transform when
             // the configuration names a scene linear role, so they operate
@@ -226,22 +339,7 @@ namespace tl
             // of it.
             void ocioDataInit(OCIOData& data, const OCIOOptions& options)
             {
-                switch (options.config)
-                {
-                case OCIOConfig::BuiltIn:
-                    data.config = OCIO::Config::CreateFromFile("ocio://default");
-                    break;
-                case OCIOConfig::EnvVar:
-                    data.config = OCIO::Config::CreateFromEnv();
-                    break;
-                case OCIOConfig::File:
-                    if (!options.fileName.empty())
-                    {
-                        data.config = OCIO::Config::CreateFromFile(options.fileName.c_str());
-                    }
-                    break;
-                default: break;
-                }
+                data.config = ocioConfig(options);
                 if (!data.config)
                 {
                     throw std::runtime_error("Cannot get OCIO configuration");
@@ -302,6 +400,13 @@ namespace tl
             IRender::_init(logSystem, fontSystem);
             FTK_P();
             p.baseRender = ftk::gl::Render::create(logSystem, fontSystem);
+#if defined(TLRENDER_OCIO)
+            // The key for the options as they start out, so that anything
+            // drawn before the first setOCIOOptions() is keyed the same way
+            // as it would be after being set to the same value.
+            p.ocioKey = ocioOptionsKey(p.ocioOptions);
+            p.ocioKeys.push_front(p.ocioKey);
+#endif // TLRENDER_OCIO
         }
 
         Render::Render() :
@@ -386,28 +491,45 @@ namespace tl
             if (value == p.ocioOptions)
                 return;
 
-#if defined(TLRENDER_OCIO)
-            p.ocioData.clear();
-            p.ocioDataBound.reset();
-            p.ocioToLinearBound.reset();
-            p.ocioInputCache.clear();
-#endif // TLRENDER_OCIO
-
             p.ocioOptions = value;
 
 #if defined(TLRENDER_OCIO)
+            p.ocioDataBound.reset();
+            p.ocioToLinearBound.reset();
+
+            // Switch to this set of options rather than throwing away what
+            // the last set built: the viewport and the timeline items pass
+            // different options every frame, so the two alternate.
+            p.ocioKey = ocioOptionsKey(p.ocioOptions);
+            auto i = std::find(p.ocioKeys.begin(), p.ocioKeys.end(), p.ocioKey);
+            if (i != p.ocioKeys.end())
+            {
+                p.ocioKeys.erase(i);
+            }
+            p.ocioKeys.push_front(p.ocioKey);
+            while (p.ocioKeys.size() > 4)
+            {
+                // The data holds textures and the shaders are compiled, so
+                // what is no longer being drawn through is let go of.
+                _ocioErase(p.ocioKeys.back());
+                p.ocioKeys.pop_back();
+            }
+
             if (p.ocioOptions.enabled &&
                 !p.ocioOptions.input.empty() &&
                 !p.ocioOptions.display.empty() &&
                 !p.ocioOptions.view.empty())
             {
-                auto data = std::make_shared<OCIOData>();
-                ocioDataInit(*data, p.ocioOptions);
-                p.ocioData[p.ocioOptions.input] = data;
+                const std::string key = p.ocioKey + '\n' + p.ocioOptions.input;
+                if (p.ocioData.find(key) == p.ocioData.end())
+                {
+                    auto data = std::make_shared<OCIOData>();
+                    ocioDataInit(*data, p.ocioOptions);
+                    p.ocioData[key] = data;
+                }
             }
 #endif // TLRENDER_OCIO
 
-            _displayShadersReset();
             _displayShader();
         }
 
@@ -700,7 +822,10 @@ namespace tl
             p.ocioDataBound = ocioData;
 #endif // TLRENDER_OCIO
 
-            const std::string key = "display:" + input;
+            // The options are in the key as well as the input: the shader
+            // carries the transform's source, so two sets of options make
+            // two different shaders for the same input.
+            const std::string key = "display:" + p.ocioKey + '\n' + input;
             if (!p.shaders[key])
             {
                 std::string toLinearDef;
@@ -781,7 +906,8 @@ namespace tl
             // cannot be built is remembered as empty, so it draws without
             // color management rather than breaking the draw or being
             // tried again every frame.
-            auto i = p.ocioData.find(input);
+            const std::string key = p.ocioKey + '\n' + input;
+            auto i = p.ocioData.find(key);
             if (i == p.ocioData.end())
             {
                 auto data = std::make_shared<OCIOData>();
@@ -795,7 +921,7 @@ namespace tl
                 {
                     data.reset();
                 }
-                i = p.ocioData.insert(std::make_pair(input, data)).first;
+                i = p.ocioData.insert(std::make_pair(key, data)).first;
             }
             return i->second;
         }
@@ -810,7 +936,8 @@ namespace tl
             const auto ocioData = _ocioData(input);
             if (ocioData && ocioData->toLinear.shaderDesc)
             {
-                const std::string key = "toLinear:" + input;
+                const std::string key =
+                    "toLinear:" + p.ocioKey + '\n' + input;
                 if (!p.shaders[key])
                 {
                     const std::string source = toLinearFragmentSource(
@@ -843,11 +970,12 @@ namespace tl
 #if defined(TLRENDER_OCIO)
             if (out.empty() && p.ocioInputResolver && !path.empty())
             {
-                auto i = p.ocioInputCache.find(path);
+                const std::string key = p.ocioKey + '\n' + path;
+                auto i = p.ocioInputCache.find(key);
                 if (i == p.ocioInputCache.end())
                 {
                     i = p.ocioInputCache.insert(std::make_pair(
-                        path,
+                        key,
                         p.ocioInputResolver(
                             path,
                             image ? image->getTags() : ftk::ImageTags()))).first;
@@ -857,6 +985,32 @@ namespace tl
 #endif // TLRENDER_OCIO
             return out;
         }
+
+#if defined(TLRENDER_OCIO)
+        void Render::_ocioErase(const std::string& ocioKey)
+        {
+            FTK_P();
+            // Everything built for one set of options: its data, and the
+            // display and to-linear shaders compiled from it. All three are
+            // keyed by the options followed by the input color space.
+            const std::string suffix = ocioKey + '\n';
+            const std::array<std::string, 3> prefixes =
+                { "", "display:", "toLinear:" };
+            const auto erase = [&suffix, &prefixes](auto& map, size_t prefix)
+            {
+                const std::string begin = prefixes[prefix] + suffix;
+                auto i = map.lower_bound(begin);
+                while (i != map.end() &&
+                    0 == i->first.compare(0, begin.size(), begin))
+                {
+                    i = map.erase(i);
+                }
+            };
+            erase(p.ocioData, 0);
+            erase(p.shaders, 1);
+            erase(p.shaders, 2);
+        }
+#endif // TLRENDER_OCIO
 
         void Render::_displayShadersReset()
         {
