@@ -608,9 +608,16 @@ else()
     endif()
 endif()
 
+# Two patches, both sent upstream; drop each one once a release carries
+# the fix.
+#
 # The subfile protocol clips a seek to thirty-two bits, so a bundled movie
 # with its moov atom past 2 GB does not open through it (FFmpeg-patch/
-# subfile.patch, sent upstream; drop it once a release carries the fix).
+# subfile.patch).
+#
+# The APV encoder calls oapvm_create() with the arguments it took before
+# OpenAPV 1.0, so it does not compile against a current OpenAPV
+# (FFmpeg-patch/liboapv.patch).
 find_package(Git REQUIRED)
 
 ExternalProject_Add(
@@ -622,6 +629,11 @@ ExternalProject_Add(
         -DGIT_EXECUTABLE=${GIT_EXECUTABLE}
         -DPATCH_SOURCE_DIR=${CMAKE_CURRENT_BINARY_DIR}/FFmpeg/src/FFmpeg
         -DPATCH_FILE=${CMAKE_CURRENT_SOURCE_DIR}/FFmpeg-patch/subfile.patch
+        -P ${CMAKE_CURRENT_LIST_DIR}/ApplyPatch.cmake
+    COMMAND ${CMAKE_COMMAND}
+        -DGIT_EXECUTABLE=${GIT_EXECUTABLE}
+        -DPATCH_SOURCE_DIR=${CMAKE_CURRENT_BINARY_DIR}/FFmpeg/src/FFmpeg
+        -DPATCH_FILE=${CMAKE_CURRENT_SOURCE_DIR}/FFmpeg-patch/liboapv.patch
         -P ${CMAKE_CURRENT_LIST_DIR}/ApplyPatch.cmake
     CONFIGURE_COMMAND ${FFmpeg_CONFIGURE}
     BUILD_COMMAND ${FFmpeg_BUILD}
