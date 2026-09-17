@@ -822,10 +822,14 @@ namespace tl
             p.ocioDataBound = ocioData;
 #endif // TLRENDER_OCIO
 
+#if defined(TLRENDER_OCIO)
             // The options are in the key as well as the input: the shader
             // carries the transform's source, so two sets of options make
             // two different shaders for the same input.
             const std::string key = "display:" + p.ocioKey + '\n' + input;
+#else // TLRENDER_OCIO
+            const std::string key = "display:" + input;
+#endif // TLRENDER_OCIO
             if (!p.shaders[key])
             {
                 std::string toLinearDef;
