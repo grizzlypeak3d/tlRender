@@ -42,6 +42,7 @@ set(BUILD_SHARED_LIBS ON CACHE BOOL \"\")
 set(TLRENDER_USD OFF CACHE BOOL \"\")
 set(TLRENDER_PYTHON OFF CACHE BOOL \"\")
 set(TLRENDER_FFMPEG_MINIMAL \"${TLRENDER_FFMPEG_MINIMAL}\" CACHE BOOL \"\")
+set(TLRENDER_IGNORE_PREFIX_PATH \"${TLRENDER_IGNORE_PREFIX_PATH}\" CACHE STRING \"\")
 ")
     # What scikit-build-core decided for this build -- the compilers, the
     # Ninja it installed, and on macOS the architecture and deployment

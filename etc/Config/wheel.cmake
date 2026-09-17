@@ -29,6 +29,15 @@ set(TLRENDER_FFMPEG_MINIMAL ON CACHE BOOL "")
 # Shared, for the reason default.cmake gives.
 set(BUILD_SHARED_LIBS ON CACHE BOOL "")
 
+# Homebrew is /opt/homebrew on Apple silicon and /usr/local on Intel, and
+# only the first is ignored by default. An Intel runner has a Homebrew
+# libjpeg, which OpenImageIO found in place of the one built here; the
+# wheel then carried a library built for macOS 14 and the repair tool
+# refused it against the 10.15 the wheel is tagged for.
+if(APPLE)
+    set(TLRENDER_IGNORE_PREFIX_PATH "/opt/homebrew;/usr/local" CACHE STRING "")
+endif()
+
 # libGL rather than the GLVND libraries FindOpenGL prefers: libGL is among the
 # libraries a manylinux wheel may take from the system, and libOpenGL is not.
 set(OpenGL_GL_PREFERENCE LEGACY CACHE STRING "")
