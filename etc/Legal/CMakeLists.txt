@@ -15,6 +15,7 @@ set(LEGAL
     LICENSE_nlohmann_json.txt
     LICENSE_nv-codec-headers.txt
     LICENSE_OFL.txt
+    LICENSE_openapv.txt
     LICENSE_OpenColorIO.txt
     LICENSE_OpenEXR.txt
     LICENSE_OpenImageIO.md
