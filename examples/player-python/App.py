@@ -2,7 +2,7 @@
 # Copyright Contributors to the feather-tk project.
 
 import opentimelineio as otio
-import ftkPy as ftk
+import feather_tk as ftk
 import tlRenderPy as tl
 
 import DocumentModel

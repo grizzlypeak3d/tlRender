@@ -30,7 +30,7 @@ target_include_directories(tlIOPy
         ${NB_DIR}/include
         ${NB_DIR}/ext/robin_map/include)
 
-target_link_libraries(tlIOPy tlIO Python3::Python)
+target_link_libraries(tlIOPy PUBLIC tlIO PRIVATE ${TLRENDER_NANOBIND_LIBRARY})
 
 set_target_properties(tlIOPy PROPERTIES FOLDER lib)
 set_target_properties(tlIOPy PROPERTIES PUBLIC_HEADER "${HEADERS}")

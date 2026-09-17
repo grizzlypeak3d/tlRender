@@ -285,10 +285,26 @@ tlrender_prune_include_directories(OpenColorIO::OpenColorIO)
 tlrender_prune_include_directories(OpenImageIO::OpenImageIO)
 
 # Python dependencies
+#
+# tlRenderPy is built the way feather-tk's module is, the stable ABI or not
+# and against the same nanobind library, since nanobind shares types only
+# between modules built alike and tlRenderPy takes its types from
+# feather_tk. So this is feather-tk's own option, declared here too because
+# feather-tk is not added until below.
+set(ftk_PYTHON_STABLE_ABI ON CACHE BOOL "Build the Python module against the stable ABI")
 if(TLRENDER_PYTHON)
-    find_package(Python3 REQUIRED Interpreter Development)
-    # nanobind uses CMake's newer FindPython module.
-    find_package(Python REQUIRED COMPONENTS Interpreter Development)
+    # Development.Module rather than Development, as feather-tk asks: an
+    # extension module does not link libpython.
+    set(TLRENDER_PYTHON_COMPONENTS Interpreter Development.Module)
+    set(TLRENDER_PYTHON_VERSION 3.10)
+    set(TLRENDER_NANOBIND_LIBRARY nanobind-static)
+    if(ftk_PYTHON_STABLE_ABI)
+        # nanobind supports the stable ABI from Python 3.12.
+        list(APPEND TLRENDER_PYTHON_COMPONENTS Development.SABIModule)
+        set(TLRENDER_PYTHON_VERSION 3.12)
+        set(TLRENDER_NANOBIND_LIBRARY nanobind-static-abi3)
+    endif()
+    find_package(Python ${TLRENDER_PYTHON_VERSION} REQUIRED COMPONENTS ${TLRENDER_PYTHON_COMPONENTS})
     find_package(nanobind REQUIRED CONFIG)
 endif()
 

@@ -42,7 +42,7 @@ target_include_directories(tlTimelinePy
         ${NB_DIR}/include
         ${NB_DIR}/ext/robin_map/include)
 
-target_link_libraries(tlTimelinePy tlTimeline Python3::Python)
+target_link_libraries(tlTimelinePy PUBLIC tlTimeline PRIVATE ${TLRENDER_NANOBIND_LIBRARY})
 
 # The player bindings alone go past what a COFF object can hold, which is what
 # pybind11 does to a translation unit that names a lot of types:

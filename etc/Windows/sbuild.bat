@@ -53,6 +53,6 @@ cmake --build build-%BUILD_TYPE% --config %BUILD_TYPE%
 if %ERRORLEVEL% neq 0 exit /b %ERRORLEVEL%
 
 rem The install directory is how everything downstream finds what was built:
-rem the tests import ftkPy from there, and packaging reads it.
+rem the tests import feather_tk from there, and packaging reads it.
 cmake --build build-%BUILD_TYPE% --config %BUILD_TYPE% --target install
 if %ERRORLEVEL% neq 0 exit /b %ERRORLEVEL%

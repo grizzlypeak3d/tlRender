@@ -1,4 +1,8 @@
-nanobind_add_module(tlRenderPy NB_STATIC Bindings.cpp)
+set(STABLE_ABI)
+if(ftk_PYTHON_STABLE_ABI)
+    set(STABLE_ABI STABLE_ABI)
+endif()
+nanobind_add_module(tlRenderPy ${STABLE_ABI} NB_STATIC Bindings.cpp)
 
 target_include_directories(tlRenderPy
     PUBLIC

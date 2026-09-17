@@ -44,7 +44,7 @@ target_include_directories(tlUIPy
         ${NB_DIR}/include
         ${NB_DIR}/ext/robin_map/include)
 
-target_link_libraries(tlUIPy tlUI Python3::Python)
+target_link_libraries(tlUIPy PUBLIC tlUI PRIVATE ${TLRENDER_NANOBIND_LIBRARY})
 
 set_target_properties(tlUIPy PROPERTIES FOLDER lib)
 set_target_properties(tlUIPy PROPERTIES PUBLIC_HEADER "${HEADERS}")

@@ -23,7 +23,7 @@ NB_MODULE(tlRenderPy, m)
     m.doc() = "tlRender is an open source library for building playback and review applications for visual effects, film, and animation.";
 
     nb::module_::import_("opentimelineio");
-    nb::module_::import_("ftkPy");
+    nb::module_::import_("feather_tk");
 
     tl::python::coreBind(m);
     tl::python::ioBind(m);

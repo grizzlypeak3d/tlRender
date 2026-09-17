@@ -23,10 +23,10 @@ set(OTIO_ARGS
     -DOTIO_SHARED_LIBS=${OTIO_SHARED_LIBS}
     # The same interpreter the rest of the build was pointed at. OTIO is an
     # external project, so it does not inherit the cache entry that says which
-    # one, and it asks by a different name: OTIO calls find_package(Python)
-    # where feather-tk, tlRender and DJV call find_package(Python3), and the
-    # two read their own ROOT_DIR. Left to find its own OTIO can pick another
-    # interpreter, and on Windows a Debug build then stops at the link:
+    # one. OTIO, feather-tk, tlRender and DJV all call find_package(Python),
+    # so Python_ROOT_DIR is the one hint for all of them. Left to find its own
+    # OTIO can pick another interpreter, and on Windows a Debug build then
+    # stops at the link:
     #
     #     LINK : fatal error LNK1104: cannot open file 'python313.lib'
     #
@@ -36,7 +36,7 @@ set(OTIO_ARGS
     # bare name, with no directory to find it on. An interpreter that ships no
     # debug library never gets into this. Empty here is no argument at all,
     # which is the ordinary case and what continuous integration does.
-    -DPython_ROOT_DIR=${Python3_ROOT_DIR}
+    -DPython_ROOT_DIR=${Python_ROOT_DIR}
     -DOTIO_PYTHON_INSTALL=${TLRENDER_PYTHON})
 
 # On Linux the loader looks for a library's dependencies with that library's

@@ -29,7 +29,7 @@ target_include_directories(tlCorePy
         ${NB_DIR}/include
         ${NB_DIR}/ext/robin_map/include)
 
-target_link_libraries(tlCorePy tlCore Python3::Python)
+target_link_libraries(tlCorePy PUBLIC tlCore PRIVATE ${TLRENDER_NANOBIND_LIBRARY})
 
 set_target_properties(tlCorePy PROPERTIES FOLDER lib)
 set_target_properties(tlCorePy PROPERTIES PUBLIC_HEADER "${HEADERS}")

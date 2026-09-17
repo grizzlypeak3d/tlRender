@@ -42,5 +42,5 @@ cmake \
 cmake --build build-$BUILD_TYPE --config $BUILD_TYPE
 
 # The install directory is how everything downstream finds what was built:
-# the tests import ftkPy from there, and packaging reads it.
+# the tests import feather_tk from there, and packaging reads it.
 cmake --build build-$BUILD_TYPE --config $BUILD_TYPE --target install

@@ -16,7 +16,7 @@ jobs:
         submodules: recursive
     - uses: actions/setup-python@v6
       with:
-        python-version: '3.11'
+        python-version: '3.12'
 
     - name: Setup environment
       run: |
@@ -54,7 +54,7 @@ jobs:
         submodules: recursive
     - uses: actions/setup-python@v6
       with:
-        python-version: '3.11'
+        python-version: '3.12'
 
     - name: Setup environment
       run: |
@@ -87,7 +87,7 @@ jobs:
         submodules: recursive
     - uses: actions/setup-python@v6
       with:
-        python-version: '3.11'
+        python-version: '3.12'
 
     - name: Setup environment
       run: |
@@ -123,7 +123,7 @@ jobs:
         submodules: recursive
     - uses: actions/setup-python@v6
       with:
-        python-version: '3.11'
+        python-version: '3.12'
 
     - name: Setup environment
       run: |
@@ -155,7 +155,7 @@ jobs:
         submodules: recursive
     - uses: actions/setup-python@v6
       with:
-        python-version: '3.11'
+        python-version: '3.12'
 
     - name: Setup environment
       run: |
@@ -187,7 +187,7 @@ jobs:
         submodules: recursive
     - uses: actions/setup-python@v6
       with:
-        python-version: '3.11'
+        python-version: '3.12'
 
     - name: Setup environment
       run: |
@@ -221,7 +221,7 @@ jobs:
         submodules: recursive
     - uses: actions/setup-python@v6
       with:
-        python-version: '3.11'
+        python-version: '3.12'
 
     - name: Setup environment
       run: |
@@ -253,7 +253,7 @@ jobs:
         submodules: recursive
     - uses: actions/setup-python@v6
       with:
-        python-version: '3.11'
+        python-version: '3.12'
     - uses: ilammy/setup-nasm@v1
 
     # \bug Any spaces before the ">>" will be considered part of the path.
@@ -294,7 +294,7 @@ jobs:
         submodules: recursive
     - uses: actions/setup-python@v6
       with:
-        python-version: '3.11'
+        python-version: '3.12'
     - uses: ilammy/setup-nasm@v1
 
     # \bug Any spaces before the ">>" will be considered part of the path.
