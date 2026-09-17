@@ -75,6 +75,16 @@ if(MSVC)
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /MP")
 endif()
 
+# Prefixes holding libraries this build uses but does not build: a wheel
+# build is given the feather-tk wheel, which brings zlib, libpng and
+# FreeType with it. They are searched as well as the install prefix, and
+# named to the dependencies that do not find them by CMake -- FFmpeg
+# configures itself.
+set(TLRENDER_EXTRA_PREFIXES ${CMAKE_PREFIX_PATH})
+list(REMOVE_ITEM TLRENDER_EXTRA_PREFIXES ${CMAKE_INSTALL_PREFIX})
+set(TLRENDER_FIND_ROOT_PATH ${CMAKE_INSTALL_PREFIX} ${TLRENDER_EXTRA_PREFIXES})
+string(REPLACE ";" "|" TLRENDER_FIND_ROOT_PATH_TMP "${TLRENDER_FIND_ROOT_PATH}")
+
 # https://stackoverflow.com/questions/45414507/pass-a-list-of-prefix-paths-to-externalproject-add-in-cmake-args
 string(REPLACE ";" "|" CMAKE_MODULE_PATH_TMP "${CMAKE_MODULE_PATH}")
 string(REPLACE ";" "|" CMAKE_PREFIX_PATH_TMP "${CMAKE_PREFIX_PATH}")
@@ -83,7 +93,7 @@ string(REPLACE ";" "|" CMAKE_PREFIX_PATH_TMP "${CMAKE_PREFIX_PATH}")
 set(TLRENDER_EXTERNAL_ARGS
     -DCMAKE_MODULE_PATH=${CMAKE_MODULE_PATH_TMP}
     -DCMAKE_TOOLCHAIN_FILE=${CMAKE_TOOLCHAIN_FILE}
-    -DCMAKE_FIND_ROOT_PATH=${CMAKE_INSTALL_PREFIX}
+    -DCMAKE_FIND_ROOT_PATH=${TLRENDER_FIND_ROOT_PATH_TMP}
     -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
     -DCMAKE_INSTALL_PREFIX=${CMAKE_INSTALL_PREFIX}
     -DCMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH_TMP}
