@@ -15,7 +15,7 @@ The library is written in C++ and uses the CMake build system, with Python
 bindings on PyPI:
 
 ```sh
-pip install tlrender
+pip install tlRender
 ```
 
 These screenshots show an example application built with tlRender. The

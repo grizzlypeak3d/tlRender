@@ -12,7 +12,7 @@ requires = [
 build-backend = "scikit_build_core.build"
 
 [project]
-name = "tlrender"
+name = "tlRender"
 dynamic = ["version"]
 description = "A library for building playback and review applications for film, VFX, and animation"
 readme = "README.md"
