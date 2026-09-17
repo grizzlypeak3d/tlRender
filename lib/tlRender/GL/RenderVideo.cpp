@@ -1062,19 +1062,11 @@ namespace tl
             ftk::Size2I scaledBufferSize;
 
 #if !defined(FTK_API_GLES_3)
-            // The picture has been drawn at its own size; the view's zoom is
-            // applied by the draw below. When that is a large reduction the
-            // four texels a linear fetch reads miss most of it, so reduce the
-            // buffer first, with the filter the View tool asks for.
-            //
-            // Before the display transform rather than after: this way the
-            // resample weighs the working values rather than display referred
-            // ones, and the transform then runs over the smaller picture.
-            if (p.buffers["video"] &&
-                ftk::ImageFilter::HighQuality == filters.minify)
+            // What the box comes to on screen, which is the render transform
+            // applied to its corners. Both filters answer to it: whether the
+            // picture is reduced, and whether it is enlarged.
+            ftk::Size2I onScreen;
             {
-                // What the box comes to on screen, which is the render
-                // transform applied to its corners.
                 const ftk::M44F& m = p.baseRender->getTransform();
                 const ftk::Size2I renderSize = p.baseRender->getRenderSize();
                 const auto toPixels = [&m, &renderSize](float x, float y)
@@ -1086,9 +1078,22 @@ namespace tl
                 };
                 const ftk::V2F a = toPixels(box.min.x, box.min.y);
                 const ftk::V2F b = toPixels(box.max.x + 1, box.max.y + 1);
-                const ftk::Size2I onScreen(
+                onScreen = ftk::Size2I(
                     static_cast<int>(std::round(std::fabs(b.x - a.x))),
                     static_cast<int>(std::round(std::fabs(b.y - a.y))));
+            }
+
+            // The picture has been drawn at its own size; the view's zoom is
+            // applied by the draw below. When that is a large reduction the
+            // four texels a linear fetch reads miss most of it, so reduce the
+            // buffer first, with the filter the View tool asks for.
+            //
+            // Before the display transform rather than after: this way the
+            // resample weighs the working values rather than display referred
+            // ones, and the transform then runs over the smaller picture.
+            if (p.buffers["video"] &&
+                ftk::ImageFilter::HighQuality == filters.minify)
+            {
                 if (onScreen.isValid() &&
                     (onScreen.w < offscreenBufferSize.w ||
                      onScreen.h < offscreenBufferSize.h))
@@ -1153,9 +1158,19 @@ namespace tl
                 const ftk::Size2I displaySize = videoID == videoScaledID ?
                     scaledBufferSize :
                     offscreenBufferSize;
+                // Only along an axis that is actually enlarged. The kernel
+                // does not pass through the texels it is given, so at the
+                // one to one size -- an export at the picture's own size, or
+                // the buffer the reduction above leaves -- it would soften
+                // the picture and, with the clamp that stops it ringing,
+                // move it by a fraction of a pixel. An anamorphic picture can
+                // be enlarged along one axis only.
+                const bool magnify = ftk::ImageFilter::HighQuality == filters.magnify;
                 displayShader->setUniform(
-                    "magnifyHighQuality",
-                    ftk::ImageFilter::HighQuality == filters.magnify);
+                    "magnifyAxes",
+                    ftk::V2F(
+                        magnify && onScreen.w > displaySize.w ? 1.F : 0.F,
+                        magnify && onScreen.h > displaySize.h ? 1.F : 0.F));
                 displayShader->setUniform(
                     "textureSize",
                     ftk::V2F(displaySize.w, displaySize.h));

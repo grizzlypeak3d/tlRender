@@ -83,7 +83,6 @@ class App(ftk.App):
         # Initialize the file browser.
         fileBrowserSystem = self.context.getSystemByName("ftk::FileBrowserSystem")
         fileBrowserSystem.model.exts = tl.getExts(self.context)
-        fileBrowserSystem.recentFilesModel = self._recentFilesModel
 
         # Create the main window.
         self._window = MainWindow.MainWindow(self.context, self)
@@ -103,3 +102,7 @@ class App(ftk.App):
     def _playerUpdate(self, player):
         if player:
             self._recentFilesModel.addRecent(player.path.get())
+            # The file browser offers the directories of what was opened,
+            # however it was opened.
+            fileBrowserSystem = self.context.getSystemByName("ftk::FileBrowserSystem")
+            fileBrowserSystem.recentDirsModel.addRecent(ftk.Path(player.path.dir))

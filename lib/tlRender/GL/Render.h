@@ -139,6 +139,7 @@ namespace tl
 #if defined(TLRENDER_OCIO)
             std::shared_ptr<OCIOData> _ocioData(const std::string& input);
             void _ocioErase(const std::string& ocioKey);
+            void _ocioError(const std::string&);
 #endif // TLRENDER_OCIO
             std::shared_ptr<ftk::gl::Shader> _toLinearShader(
                 const std::string& input);

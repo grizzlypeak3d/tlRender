@@ -15,6 +15,7 @@
 #include <ftk/Core/Path.h>
 
 #include <algorithm>
+#include <cstring>
 #include <cstdio>
 #include <filesystem>
 #include <array>
@@ -48,6 +49,66 @@ namespace tl
             _subfileSeek();
             _pixelAspectRatio();
             _presets();
+            _frameOrder();
+        }
+
+        void FFmpegTest::_frameOrder()
+        {
+            // Each frame written is the frame read back. The writer once
+            // handed the encoder the same buffer every frame, and an encoder
+            // that keeps references to its frames -- QuickTime Animation
+            // diffs against the last one, ProRes and PNG queue several on
+            // threads -- saw later pictures in place of earlier ones. The
+            // frames here are each a different flat level, so any frame
+            // carrying another one's picture shows. QuickTime Animation is
+            // lossless and in every build, and it gets it wrong every time
+            // rather than when the threads happen to.
+            auto writePlugin = _context->getSystem<WriteSystem>()->getPlugin<ffmpeg::WritePlugin>();
+            const auto& codecs = writePlugin->getCodecs();
+            if (std::find(codecs.begin(), codecs.end(), "qtrle") == codecs.end())
+            {
+                _print("Skipped: no QuickTime Animation encoder");
+                return;
+            }
+            const ftk::Path path(
+                ftk::fromFileSystem(_getTempDir() / "FFmpegFrameOrderTest.mov"));
+            const ftk::ImageInfo imageInfo(64, 64, ftk::ImageType::RGB_U8);
+            const int frames = 24;
+            IOInfo info;
+            info.video.push_back(imageInfo);
+            info.videoTime = OTIO_NS::TimeRange(
+                OTIO_NS::RationalTime(0.0, 24.0),
+                OTIO_NS::RationalTime(frames, 24.0));
+            {
+                IOOptions options;
+                options["FFmpeg/Codec"] = "qtrle";
+                auto write = writePlugin->write(path, info, options);
+                for (int i = 0; i < frames; ++i)
+                {
+                    auto image = ftk::Image::create(imageInfo);
+                    std::memset(image->getData(), i * 10, image->getByteCount());
+                    write->writeVideo(OTIO_NS::RationalTime(i, 24.0), image);
+                }
+                write->finish();
+            }
+
+            IOOptions options;
+            options["FFmpeg/YUVToRGB"] = "1";
+            auto readPlugin = _context->getSystem<ReadSystem>()->getPlugin(path);
+            auto read = readPlugin->videoRead(path, options);
+            FTK_CHECK(read);
+            for (int i = 0; i < frames; ++i)
+            {
+                const auto data = read->readVideo(OTIO_NS::RationalTime(i, 24.0)).get();
+                FTK_CHECK(data.image);
+                const int level = data.image->getData()[0];
+                if (level != i * 10)
+                {
+                    _print(ftk::Format("Frame {0}: level {1}, expected {2}").
+                        arg(i).arg(level).arg(i * 10));
+                }
+                FTK_CHECK(level == i * 10);
+            }
         }
 
         void FFmpegTest::_presets()
@@ -634,8 +695,9 @@ namespace tl
                 { "FFmpeg/VideoBufferSize", "1" },
                 { "FFmpeg/AudioBufferSize", "1/1" },
                 { "FFmpeg/Codec", "mjpeg" },
-                { "FFmpeg/Codec", "v210" },
-                { "FFmpeg/Codec", "v410" }
+                // Not v410: FFmpeg 9 removed its encoder, and the row only
+                // logged the failure to find one.
+                { "FFmpeg/Codec", "v210" }
             };
 
             for (const auto& fileName : fileNames)
@@ -655,10 +717,10 @@ namespace tl
                                 options["FFmpeg/Codec"] = "mjpeg";
                                 options[option.first] = option.second;
                                 const std::string codec = options["FFmpeg/Codec"];
-                                // MP4 cannot tag the uncompressed v210 and
-                                // v410 codecs; they require MOV.
+                                // MP4 cannot tag the uncompressed v210
+                                // codec; it requires MOV.
                                 const std::string extension =
-                                    ("v210" == codec || "v410" == codec) ?
+                                    "v210" == codec ?
                                     ".mov" :
                                     ".mp4";
                                 const auto imageInfo = writePlugin->getInfo(ftk::ImageInfo(size, pixelType));

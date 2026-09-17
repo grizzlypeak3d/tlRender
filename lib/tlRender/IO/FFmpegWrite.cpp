@@ -901,6 +901,18 @@ namespace tl
             default: break;
             }
 
+            // The encoder keeps a reference to each frame it is given rather
+            // than a copy, and with frame threading it still holds several
+            // when the next one arrives. Writing into the same buffer would
+            // change the pictures it has not encoded yet -- each frame came
+            // out as one a few frames later, and the last ones repeated --
+            // so the frame gets a buffer of its own whenever the encoder
+            // still has the old one.
+            int r = av_frame_make_writable(p.avFrame);
+            if (r < 0)
+            {
+                throw std::runtime_error(ftk::Format("{0}: \"{1}\"").arg(getErrorLabel(r)).arg(p.fileName));
+            }
             sws_scale(
                 p.swsContext,
                 (uint8_t const* const*)p.avFrame2->data,
