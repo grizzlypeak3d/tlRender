@@ -27,4 +27,5 @@ ExternalProject_Add(
     DEPENDS ${svt-av1_DEPS}
     URL ${svt-av1_URL}
     URL_HASH ${svt-av1_HASH}
+    LIST_SEPARATOR |
     CMAKE_ARGS ${svt-av1_ARGS})

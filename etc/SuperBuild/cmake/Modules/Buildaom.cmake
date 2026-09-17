@@ -24,4 +24,5 @@ ExternalProject_Add(
     DEPENDS ${aom_DEPS}
     GIT_REPOSITORY ${aom_GIT_REPOSITORY}
     GIT_TAG ${aom_GIT_TAG}
+    LIST_SEPARATOR |
     CMAKE_ARGS ${aom_ARGS})
