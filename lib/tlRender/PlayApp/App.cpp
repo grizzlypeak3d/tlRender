@@ -107,6 +107,10 @@ namespace tl
                 {
                     _filesModel->open(i);
                     _recentFilesModel->addRecent(i);
+                    // The file browser offers the directories of what was
+                    // opened, however it was opened.
+                    _context->getSystem<ftk::FileBrowserSystem>()->
+                        getRecentDirsModel()->addRecent(ftk::Path(i.getDir()));
                 }
                 catch (const std::exception& e)
                 {
@@ -185,7 +189,6 @@ namespace tl
             ftk::FileBrowserOptions fileBrowserOptions;
             fileBrowserOptions.dirList.seqExts = tl::getExts(_context, static_cast<int>(tl::FileType::Seq));
             fileBrowserSystem->getModel()->setOptions(fileBrowserOptions);
-            fileBrowserSystem->setRecentFilesModel(_recentFilesModel);
 
             // Create the main window.
             _window = MainWindow::create(
