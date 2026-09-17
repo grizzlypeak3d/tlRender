@@ -24,6 +24,9 @@ endif()
 if(TLRENDER_SVTAV1)
     list(APPEND FFmpeg_DEPS svt-av1)
 endif()
+if(TLRENDER_OPENAPV)
+    list(APPEND FFmpeg_DEPS openapv)
+endif()
 if(TLRENDER_NASM)
     list(APPEND FFmpeg_DEPS NASM)
 endif()
@@ -160,6 +163,8 @@ set(FFmpeg_FREE_ARGS
     # defaults to, so a minimal build writes movies without audio and cannot
     # read the ones it would otherwise have written. Opus and Vorbis below
     # are what it has instead.
+    # APV: the decoder is FFmpeg's own, and the encoder is OpenAPV's,
+    # enabled further down where that library was built.
     --enable-decoder=apv
     --enable-decoder=av1
     --enable-decoder=cfhd
@@ -468,6 +473,11 @@ if(TLRENDER_SVTAV1)
         --enable-libsvtav1
         --enable-encoder=libsvtav1)
 endif()
+if(TLRENDER_OPENAPV)
+    list(APPEND FFmpeg_CONFIGURE_ARGS
+        --enable-liboapv
+        --enable-encoder=liboapv)
+endif()
 if(TLRENDER_NASM)
     list(APPEND FFmpeg_CONFIGURE_ARGS
         --x86asmexe=${CMAKE_INSTALL_PREFIX}/bin/nasm)
@@ -507,11 +517,12 @@ if(WIN32)
     string(REPLACE ${FFmpeg_PKG_CONFIG_DRIVE} /${FFmpeg_PKG_CONFIG_DRIVE_LETTER} FFmpeg_PKG_CONFIG ${FFmpeg_PKG_CONFIG})
 
     list(JOIN FFmpeg_CONFIGURE_ARGS " " FFmpeg_CONFIGURE_ARGS_TMP)
-    # pkgconf because libaom and libsvtav1 are the two dependencies FFmpeg
-    # will only find through pkg-config; the rest are found here by the
-    # include and library paths passed above. Without it PKG_CONFIG_PATH is
+    # pkgconf because libaom and libsvtav1 are the dependencies FFmpeg will
+    # only find through pkg-config; the rest are found here by the include
+    # and library paths passed above. Without it PKG_CONFIG_PATH is
     # exported into a shell that has nothing to read it, and --enable-libaom
-    # fails however well the libraries themselves were built.
+    # fails however well the libraries themselves were built. (OpenAPV is a
+    # third, where it is built; it is not, on this toolchain.)
     set(FFmpeg_CONFIGURE ${FFmpeg_MSYS2}
         -c "pacman -S diffutils make nasm pkgconf --noconfirm && \
         export PKG_CONFIG_PATH=${FFmpeg_PKG_CONFIG} && \

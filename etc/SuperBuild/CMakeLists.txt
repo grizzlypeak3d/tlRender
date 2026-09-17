@@ -20,6 +20,17 @@ set(TLRENDER_EXR ON CACHE BOOL "Build OpenEXR")
 # it on PATH either way.
 set(TLRENDER_AOM ON CACHE BOOL "Build AOM")
 set(TLRENDER_SVTAV1 ON CACHE BOOL "Build SVT-AV1")
+# OpenAPV is the only APV encoder FFmpeg has, and it does not build with
+# MSVC: its own Windows builds are cross compiled with MinGW, which is not
+# what the rest of these dependencies are built with. Windows reads APV and
+# does not write it; the export preset is filtered out by the encoders the
+# build actually has, so nothing offers what is not there.
+if(MSVC)
+    set(TLRENDER_OPENAPV_DEFAULT OFF)
+else()
+    set(TLRENDER_OPENAPV_DEFAULT ON)
+endif()
+set(TLRENDER_OPENAPV ${TLRENDER_OPENAPV_DEFAULT} CACHE BOOL "Build OpenAPV, for writing APV")
 set(TLRENDER_FFMPEG ON CACHE BOOL "Build FFmpeg (required for audio, see the README for building FFmpeg on Windows)")
 set(TLRENDER_FFMPEG_MINIMAL OFF CACHE BOOL "Enable a minimal set of FFmpeg codecs")
 set(TLRENDER_SUBPROCESS ON CACHE BOOL "Build subprocess")
@@ -151,6 +162,9 @@ if(TLRENDER_FFMPEG)
     endif()
     if(TLRENDER_SVTAV1)
         include(Buildsvt-av1)
+    endif()
+    if(TLRENDER_OPENAPV)
+        include(Buildopenapv)
     endif()
     if(NOT WIN32 AND NOT APPLE)
         include(Buildnv-codec-headers)
