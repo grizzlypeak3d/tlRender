@@ -523,8 +523,19 @@ namespace tl
                 const std::string key = p.ocioKey + '\n' + p.ocioOptions.input;
                 if (p.ocioData.find(key) == p.ocioData.end())
                 {
+                    // Remembered as empty when it cannot be built, the same
+                    // as _ocioData(): the picture is drawn without color
+                    // management rather than not at all.
                     auto data = std::make_shared<OCIOData>();
-                    ocioDataInit(*data, p.ocioOptions);
+                    try
+                    {
+                        ocioDataInit(*data, p.ocioOptions);
+                    }
+                    catch (const std::exception& e)
+                    {
+                        _ocioError(e.what());
+                        data.reset();
+                    }
                     p.ocioData[key] = data;
                 }
             }
@@ -558,169 +569,184 @@ namespace tl
             p.lutOptions = value;
 
 #if defined(TLRENDER_OCIO)
+            // A LUT that cannot be read -- a file since moved, or one a
+            // review names on another machine -- leaves the picture as it is
+            // rather than taking it away: the error is logged and the display
+            // draws without the LUT. Throwing from here stopped the draw it
+            // was called from, so the viewport showed nothing. The LUT is
+            // built apart and kept only once it is whole, so a failure
+            // partway leaves nothing half made behind.
             if (p.lutOptions.enabled && !p.lutOptions.fileName.empty())
             {
-                p.lutData.reset(new OCIOLUTData);
+                try
+                {
+                    auto lutData = std::make_unique<OCIOLUTData>();
 
-                p.lutData->config = OCIO::Config::CreateRaw();
-                if (!p.lutData->config)
-                {
-                    throw std::runtime_error("Cannot create OCIO configuration");
-                }
-
-                p.lutData->transform = OCIO::FileTransform::Create();
-                if (!p.lutData->transform)
-                {
-                    p.lutData.reset();
-                    throw std::runtime_error("Cannot create OCIO transform");
-                }
-                p.lutData->transform->setSrc(p.lutOptions.fileName.c_str());
-                p.lutData->transform->setDirection(
-                    LUTDirection::Inverse == p.lutOptions.direction ?
-                        OCIO::TRANSFORM_DIR_INVERSE :
-                        OCIO::TRANSFORM_DIR_FORWARD);
-                p.lutData->transform->validate();
-
-                p.lutData->processor = p.lutData->config->getProcessor(p.lutData->transform);
-                if (!p.lutData->processor)
-                {
-                    p.lutData.reset();
-                    throw std::runtime_error("Cannot get OCIO processor");
-                }
-                p.lutData->gpuProcessor = p.lutData->processor->getDefaultGPUProcessor();
-                if (!p.lutData->gpuProcessor)
-                {
-                    p.lutData.reset();
-                    throw std::runtime_error("Cannot get OCIO GPU processor");
-                }
-                p.lutData->shaderDesc = OCIO::GpuShaderDesc::CreateShaderDesc();
-                if (!p.lutData->shaderDesc)
-                {
-                    p.lutData.reset();
-                    throw std::runtime_error("Cannot create OCIO shader description");
-                }
-                p.lutData->shaderDesc->setLanguage(gpuLanguage);
-                p.lutData->shaderDesc->setFunctionName("lutFunc");
-                p.lutData->shaderDesc->setResourcePrefix("lut");
-                p.lutData->gpuProcessor->extractGpuShaderInfo(p.lutData->shaderDesc);
-
-                // Create 3D textures.
-                glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
-#if !defined(FTK_API_GLES_3)
-                // ES has no byte swapping; the data is native order.
-                glPixelStorei(GL_UNPACK_SWAP_BYTES, 0);
-#endif // FTK_API_GLES_3
-                const unsigned num3DTextures = p.lutData->shaderDesc->getNum3DTextures();
-                unsigned currentTexture = 0;
-                for (unsigned i = 0; i < num3DTextures; ++i, ++currentTexture)
-                {
-                    const char* textureName = nullptr;
-                    const char* samplerName = nullptr;
-                    unsigned edgelen = 0;
-                    OCIO::Interpolation interpolation = OCIO::INTERP_LINEAR;
-                    p.lutData->shaderDesc->get3DTexture(i, textureName, samplerName, edgelen, interpolation);
-                    if (!textureName ||
-                        !*textureName ||
-                        !samplerName ||
-                        !*samplerName ||
-                        0 == edgelen)
+                    lutData->config = OCIO::Config::CreateRaw();
+                    if (!lutData->config)
                     {
-                        p.lutData.reset();
-                        throw std::runtime_error("The OCIO texture data is corrupted");
+                        throw std::runtime_error("Cannot create OCIO configuration");
                     }
 
-                    const float* values = nullptr;
-                    p.lutData->shaderDesc->get3DTextureValues(i, values);
-                    if (!values)
+                    lutData->transform = OCIO::FileTransform::Create();
+                    if (!lutData->transform)
                     {
-                        p.lutData.reset();
-                        throw std::runtime_error("The OCIO texture values are missing");
+                        throw std::runtime_error("Cannot create OCIO transform");
+                    }
+                    lutData->transform->setSrc(p.lutOptions.fileName.c_str());
+                    lutData->transform->setDirection(
+                        LUTDirection::Inverse == p.lutOptions.direction ?
+                            OCIO::TRANSFORM_DIR_INVERSE :
+                            OCIO::TRANSFORM_DIR_FORWARD);
+                    lutData->transform->validate();
+
+                    lutData->processor = lutData->config->getProcessor(lutData->transform);
+                    if (!lutData->processor)
+                    {
+                        throw std::runtime_error("Cannot get OCIO processor");
+                    }
+                    lutData->gpuProcessor = lutData->processor->getDefaultGPUProcessor();
+                    if (!lutData->gpuProcessor)
+                    {
+                        throw std::runtime_error("Cannot get OCIO GPU processor");
+                    }
+                    lutData->shaderDesc = OCIO::GpuShaderDesc::CreateShaderDesc();
+                    if (!lutData->shaderDesc)
+                    {
+                        throw std::runtime_error("Cannot create OCIO shader description");
+                    }
+                    lutData->shaderDesc->setLanguage(gpuLanguage);
+                    lutData->shaderDesc->setFunctionName("lutFunc");
+                    lutData->shaderDesc->setResourcePrefix("lut");
+                    lutData->gpuProcessor->extractGpuShaderInfo(lutData->shaderDesc);
+
+                    // Create 3D textures.
+                    glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
+    #if !defined(FTK_API_GLES_3)
+                    // ES has no byte swapping; the data is native order.
+                    glPixelStorei(GL_UNPACK_SWAP_BYTES, 0);
+    #endif // FTK_API_GLES_3
+                    const unsigned num3DTextures = lutData->shaderDesc->getNum3DTextures();
+                    unsigned currentTexture = 0;
+                    for (unsigned i = 0; i < num3DTextures; ++i, ++currentTexture)
+                    {
+                        const char* textureName = nullptr;
+                        const char* samplerName = nullptr;
+                        unsigned edgelen = 0;
+                        OCIO::Interpolation interpolation = OCIO::INTERP_LINEAR;
+                        lutData->shaderDesc->get3DTexture(i, textureName, samplerName, edgelen, interpolation);
+                        if (!textureName ||
+                            !*textureName ||
+                            !samplerName ||
+                            !*samplerName ||
+                            0 == edgelen)
+                        {
+                                throw std::runtime_error("The OCIO texture data is corrupted");
+                        }
+
+                        const float* values = nullptr;
+                        lutData->shaderDesc->get3DTextureValues(i, values);
+                        if (!values)
+                        {
+                                throw std::runtime_error("The OCIO texture values are missing");
+                        }
+
+                        unsigned textureId = 0;
+                        glGenTextures(1, &textureId);
+                        glBindTexture(GL_TEXTURE_3D, textureId);
+                        setTextureParameters(GL_TEXTURE_3D, interpolation);
+                        glTexImage3D(GL_TEXTURE_3D, 0, lutInternalFormatRGB, edgelen, edgelen, edgelen, 0, GL_RGB, GL_FLOAT, values);
+                        lutData->textures.push_back(OCIOTexture(textureId, textureName, samplerName, GL_TEXTURE_3D));
                     }
 
-                    unsigned textureId = 0;
-                    glGenTextures(1, &textureId);
-                    glBindTexture(GL_TEXTURE_3D, textureId);
-                    setTextureParameters(GL_TEXTURE_3D, interpolation);
-                    glTexImage3D(GL_TEXTURE_3D, 0, lutInternalFormatRGB, edgelen, edgelen, edgelen, 0, GL_RGB, GL_FLOAT, values);
-                    p.lutData->textures.push_back(OCIOTexture(textureId, textureName, samplerName, GL_TEXTURE_3D));
+                    // Create 1D textures.
+                    const unsigned numTextures = lutData->shaderDesc->getNumTextures();
+                    for (unsigned i = 0; i < numTextures; ++i, ++currentTexture)
+                    {
+                        const char* textureName = nullptr;
+                        const char* samplerName = nullptr;
+                        unsigned width = 0;
+                        unsigned height = 0;
+                        OCIO::GpuShaderDesc::TextureType channel = OCIO::GpuShaderDesc::TEXTURE_RGB_CHANNEL;
+                        OCIO::GpuShaderDesc::TextureDimensions dimensions = OCIO::GpuShaderDesc::TEXTURE_1D;
+                        OCIO::Interpolation interpolation = OCIO::INTERP_LINEAR;
+                        lutData->shaderDesc->getTexture(
+                            i, textureName,
+                            samplerName,
+                            width,
+                            height,
+                            channel,
+                            dimensions,
+                            interpolation);
+                        if (!textureName ||
+                            !*textureName ||
+                            !samplerName ||
+                            !*samplerName ||
+                            width == 0)
+                        {
+                                throw std::runtime_error("The OCIO texture data is corrupted");
+                        }
+
+                        const float* values = nullptr;
+                        lutData->shaderDesc->getTextureValues(i, values);
+                        if (!values)
+                        {
+                                throw std::runtime_error("The OCIO texture values are missing");
+                        }
+
+                        unsigned textureId = 0;
+                        GLint internalformat = lutInternalFormatRGB;
+                        GLenum format = GL_RGB;
+                        if (OCIO::GpuShaderCreator::TEXTURE_RED_CHANNEL == channel)
+                        {
+                            internalformat = lutInternalFormatR;
+                            format = GL_RED;
+                        }
+                        glGenTextures(1, &textureId);
+                        switch (dimensions)
+                        {
+                        case OCIO::GpuShaderDesc::TEXTURE_1D:
+    #if defined(FTK_API_GLES_3)
+                            // ES has no 1D textures; the ES shader samples a
+                            // height of one.
+                            glBindTexture(GL_TEXTURE_2D, textureId);
+                            setTextureParameters(GL_TEXTURE_2D, interpolation);
+                            glTexImage2D(GL_TEXTURE_2D, 0, internalformat, width, 1, 0, format, GL_FLOAT, values);
+    #else // FTK_API_GLES_3
+                            glBindTexture(GL_TEXTURE_1D, textureId);
+                            setTextureParameters(GL_TEXTURE_1D, interpolation);
+                            glTexImage1D(GL_TEXTURE_1D, 0, internalformat, width, 0, format, GL_FLOAT, values);
+    #endif // FTK_API_GLES_3
+                            break;
+                        case OCIO::GpuShaderDesc::TEXTURE_2D:
+                            glBindTexture(GL_TEXTURE_2D, textureId);
+                            setTextureParameters(GL_TEXTURE_2D, interpolation);
+                            glTexImage2D(GL_TEXTURE_2D, 0, internalformat, width, height, 0, format, GL_FLOAT, values);
+                            break;
+                        }
+                        lutData->textures.push_back(OCIOTexture(
+                            textureId,
+                            textureName,
+                            samplerName,
+    #if defined(FTK_API_GLES_3)
+                            GL_TEXTURE_2D));
+    #else // FTK_API_GLES_3
+                            (height > 1) ? GL_TEXTURE_2D : GL_TEXTURE_1D));
+    #endif // FTK_API_GLES_3
+                    }
+                    p.lutData = std::move(lutData);
                 }
-
-                // Create 1D textures.
-                const unsigned numTextures = p.lutData->shaderDesc->getNumTextures();
-                for (unsigned i = 0; i < numTextures; ++i, ++currentTexture)
+                catch (const std::exception& e)
                 {
-                    const char* textureName = nullptr;
-                    const char* samplerName = nullptr;
-                    unsigned width = 0;
-                    unsigned height = 0;
-                    OCIO::GpuShaderDesc::TextureType channel = OCIO::GpuShaderDesc::TEXTURE_RGB_CHANNEL;
-                    OCIO::GpuShaderDesc::TextureDimensions dimensions = OCIO::GpuShaderDesc::TEXTURE_1D;
-                    OCIO::Interpolation interpolation = OCIO::INTERP_LINEAR;
-                    p.lutData->shaderDesc->getTexture(
-                        i, textureName,
-                        samplerName,
-                        width,
-                        height,
-                        channel,
-                        dimensions,
-                        interpolation);
-                    if (!textureName ||
-                        !*textureName ||
-                        !samplerName ||
-                        !*samplerName ||
-                        width == 0)
+                    if (auto logSystem = _logSystem.lock())
                     {
-                        p.lutData.reset();
-                        throw std::runtime_error("The OCIO texture data is corrupted");
+                        logSystem->print(
+                            "tl::gl::Render",
+                            ftk::Format("Cannot read the LUT \"{0}\": {1}").
+                                arg(p.lutOptions.fileName).
+                                arg(e.what()),
+                            ftk::LogType::Error);
                     }
-
-                    const float* values = nullptr;
-                    p.lutData->shaderDesc->getTextureValues(i, values);
-                    if (!values)
-                    {
-                        p.lutData.reset();
-                        throw std::runtime_error("The OCIO texture values are missing");
-                    }
-
-                    unsigned textureId = 0;
-                    GLint internalformat = lutInternalFormatRGB;
-                    GLenum format = GL_RGB;
-                    if (OCIO::GpuShaderCreator::TEXTURE_RED_CHANNEL == channel)
-                    {
-                        internalformat = lutInternalFormatR;
-                        format = GL_RED;
-                    }
-                    glGenTextures(1, &textureId);
-                    switch (dimensions)
-                    {
-                    case OCIO::GpuShaderDesc::TEXTURE_1D:
-#if defined(FTK_API_GLES_3)
-                        // ES has no 1D textures; the ES shader samples a
-                        // height of one.
-                        glBindTexture(GL_TEXTURE_2D, textureId);
-                        setTextureParameters(GL_TEXTURE_2D, interpolation);
-                        glTexImage2D(GL_TEXTURE_2D, 0, internalformat, width, 1, 0, format, GL_FLOAT, values);
-#else // FTK_API_GLES_3
-                        glBindTexture(GL_TEXTURE_1D, textureId);
-                        setTextureParameters(GL_TEXTURE_1D, interpolation);
-                        glTexImage1D(GL_TEXTURE_1D, 0, internalformat, width, 0, format, GL_FLOAT, values);
-#endif // FTK_API_GLES_3
-                        break;
-                    case OCIO::GpuShaderDesc::TEXTURE_2D:
-                        glBindTexture(GL_TEXTURE_2D, textureId);
-                        setTextureParameters(GL_TEXTURE_2D, interpolation);
-                        glTexImage2D(GL_TEXTURE_2D, 0, internalformat, width, height, 0, format, GL_FLOAT, values);
-                        break;
-                    }
-                    p.lutData->textures.push_back(OCIOTexture(
-                        textureId,
-                        textureName,
-                        samplerName,
-#if defined(FTK_API_GLES_3)
-                        GL_TEXTURE_2D));
-#else // FTK_API_GLES_3
-                        (height > 1) ? GL_TEXTURE_2D : GL_TEXTURE_1D));
-#endif // FTK_API_GLES_3
                 }
             }
 #endif // TLRENDER_OCIO
@@ -921,8 +947,9 @@ namespace tl
                     options.input = input;
                     ocioDataInit(*data, options);
                 }
-                catch (const std::exception&)
+                catch (const std::exception& e)
                 {
+                    _ocioError(e.what());
                     data.reset();
                 }
                 i = p.ocioData.insert(std::make_pair(key, data)).first;
@@ -991,6 +1018,19 @@ namespace tl
         }
 
 #if defined(TLRENDER_OCIO)
+        void Render::_ocioError(const std::string& what)
+        {
+            // Once for each set of options and input, since a failure is
+            // remembered and not tried again.
+            if (auto logSystem = _logSystem.lock())
+            {
+                logSystem->print(
+                    "tl::gl::Render",
+                    ftk::Format("Cannot use the OCIO configuration: {0}").arg(what),
+                    ftk::LogType::Error);
+            }
+        }
+
         void Render::_ocioErase(const std::string& ocioKey)
         {
             FTK_P();

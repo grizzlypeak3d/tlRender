@@ -21,10 +21,14 @@
 #include <ftk/Core/Context.h>
 #include <ftk/Core/FontSystem.h>
 #include <ftk/Core/Mesh.h>
+#include <ftk/Core/Path.h>
 #include <ftk/Core/Format.h>
 
 #if defined(TLRENDER_OCIO)
 #include <OpenColorIO/OpenColorIO.h>
+
+#include <array>
+#include <filesystem>
 namespace OCIO = OCIO_NAMESPACE;
 #endif // TLRENDER_OCIO
 
@@ -551,6 +555,56 @@ namespace tl
             catch (const std::exception& e)
             {
                 _error(e.what());
+            }
+
+            // A LUT or an OCIO configuration that cannot be read leaves the
+            // picture as it is. Both used to throw from the options, which
+            // the viewport met in the middle of its draw and so showed
+            // nothing at all.
+            try
+            {
+                const std::string missing = ftk::fromFileSystem(
+                    std::filesystem::temp_directory_path() / "tlRenderTestMissing");
+                // What the frame draws as with neither, which the frame
+                // drawn with a missing one has to match.
+                const auto draw = [&render, &frames, &boxes]
+                {
+                    render->begin(imageSize);
+                    render->drawVideo(frames, boxes);
+                    render->end();
+                    std::array<uint8_t, 4> pixel = { 0, 0, 0, 0 };
+                    glReadPixels(
+                        imageSize.w / 2, imageSize.h / 2, 1, 1,
+                        GL_RGBA, GL_UNSIGNED_BYTE, pixel.data());
+                    return pixel;
+                };
+                const std::array<uint8_t, 4> unaltered = draw();
+
+                LUTOptions lutOptions;
+                lutOptions.enabled = true;
+                lutOptions.fileName = missing + ".cube";
+                render->setLUTOptions(lutOptions);
+                FTK_CHECK(draw() == unaltered);
+                render->setLUTOptions(LUTOptions());
+
+                OCIOOptions ocioOptions;
+                ocioOptions.enabled = true;
+                ocioOptions.config = OCIOConfig::File;
+                ocioOptions.fileName = missing + ".ocio";
+                ocioOptions.input = "scene_linear";
+                ocioOptions.display = "sRGB";
+                ocioOptions.view = "Raw";
+                render->setOCIOOptions(ocioOptions);
+                FTK_CHECK(draw() == unaltered);
+                render->setOCIOOptions(OCIOOptions());
+            }
+            catch (const std::exception& e)
+            {
+                // Throwing is the failure this is here to find, and _error()
+                // alone does not fail the test.
+                _error(e.what());
+                const bool threw = true;
+                FTK_CHECK(!threw);
             }
 #endif // TLRENDER_OCIO
         }
