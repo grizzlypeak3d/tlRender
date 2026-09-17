@@ -141,6 +141,29 @@ namespace tl
                       { "FFmpeg/CodecOptions", "profile=4444" },
                       { "FFmpeg/PixelFormat", "yuv444p10le" } },
                     false },
+                // APV, through OpenAPV: FFmpeg's own "apv" codec reads and
+                // does not write. The pixel format is named rather than left
+                // to the encoder, which lists grayscale first and would
+                // otherwise write the picture without its color. The profile
+                // follows the pixel format on its own.
+                //
+                // The quantizer is named too. OpenAPV's own default, 32,
+                // writes about 40% of what ProRes 422 HQ does from the same
+                // frames, and these sit in one menu beside the ProRes
+                // presets: an export named for its codec rather than for a
+                // quality should not be the more compressed one by
+                // surprise. 20 measured close to ProRes 422 HQ on 1080p
+                // camera footage.
+                { "APV 422",
+                    { { "FFmpeg/Codec", "liboapv" },
+                      { "FFmpeg/CodecOptions", "qp=20" },
+                      { "FFmpeg/PixelFormat", "yuv422p10le" } },
+                    false },
+                { "APV 444",
+                    { { "FFmpeg/Codec", "liboapv" },
+                      { "FFmpeg/CodecOptions", "qp=20" },
+                      { "FFmpeg/PixelFormat", "yuv444p10le" } },
+                    false },
                 { "FFV1 (lossless)",
                     { { "FFmpeg/Codec", "ffv1" },
                       { "FFmpeg/PixelFormat", "best" } },

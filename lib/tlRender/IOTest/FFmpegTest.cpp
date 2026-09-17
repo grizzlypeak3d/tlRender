@@ -862,6 +862,12 @@ namespace tl
                 { "prores_ks", "yuv422p10le", ftk::Size2I(1280, 720), true,
                     ftk::YUVCoefficients::REC709, ftk::VideoLevels::LegalRange, .03F },
                 { "prores_ks", "yuv444p10le", ftk::Size2I(360, 240), true,
+                    ftk::YUVCoefficients::BT601, ftk::VideoLevels::LegalRange, .03F },
+                // APV, where OpenAPV was built: skipped like any other
+                // codec this FFmpeg has no encoder for.
+                { "liboapv", "yuv422p10le", ftk::Size2I(1280, 720), true,
+                    ftk::YUVCoefficients::REC709, ftk::VideoLevels::LegalRange, .03F },
+                { "liboapv", "yuv444p10le", ftk::Size2I(360, 240), true,
                     ftk::YUVCoefficients::BT601, ftk::VideoLevels::LegalRange, .03F }
             };
             const ftk::Path path(ftk::fromFileSystem(_getTempDir() / "FFmpegConvertTest.mov"));
