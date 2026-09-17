@@ -16,6 +16,6 @@ target_include_directories(tlUITest
         $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/tests>
         $<INSTALL_INTERFACE:include>)
 
-target_link_libraries(tlUITest tlUI ftkTestLib)
+target_link_libraries(tlUITest tlUI ftk::ftkTestLib)
 
 set_target_properties(tlUITest PROPERTIES FOLDER tests)

@@ -3,9 +3,9 @@
 # PYBIND11_MODULE puts a function body inside a macro, so gcov reports the end
 # line of a module init function as the line the macro starts on, and lcov 2
 # treats that disagreement as fatal and abandons the whole capture. Filtering
-# is not an alternative: tlRenderPy is part of what is being measured, and the
-# capture fails before any of the removals below run. feather-tk ignores it the
-# same way for the same reason.
+# is not an alternative: the tlrender module is part of what is being
+# measured, and the capture fails before any of the removals below run.
+# feather-tk ignores it the same way for the same reason.
 lcov -c -b . -d . -o coverage.info --ignore-errors mismatch
 lcov -r coverage.info '*/usr/*' -o coverage_filtered.info
 lcov -r coverage_filtered.info '*/install/*' -o coverage_filtered.info

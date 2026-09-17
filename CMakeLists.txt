@@ -27,6 +27,15 @@ project(
     HOMEPAGE_URL "https://github.com/grizzlypeak3d/tlRender"
     LANGUAGES CXX C)
 
+# A Python wheel build: scikit-build-core sets SKBUILD. The wheel settings
+# are read before the options below, the way "cmake -C" would read them, so
+# they win; the dependencies are built here too, since pip runs one CMake
+# project and nothing before it.
+if(SKBUILD)
+    include(etc/Config/wheel.cmake)
+    include(etc/Python/tlWheelDeps.cmake)
+endif()
+
 #-------------------------------------------------------------------------------
 # Build options
 
@@ -38,6 +47,16 @@ set(TLRENDER_OIIO ON CACHE BOOL "Enable support for OpenImageIO")
 set(TLRENDER_SVG ON CACHE BOOL "Enable support for SVG I/O")
 set(TLRENDER_USD OFF CACHE BOOL "Enable support for USD")
 set(TLRENDER_PYTHON OFF CACHE BOOL "Enable support for Python")
+# Where the tlrender package goes, relative to the install prefix. The
+# default keeps "PYTHONPATH=<prefix>/lib" working; a wheel puts the
+# package at its root instead.
+set(TLRENDER_PYTHON_INSTALL_DIR "lib/tlrender" CACHE STRING "Python package install directory")
+# feather-tk built as part of this project from deps/ftk, or an installed
+# one found with find_package() -- which is what a wheel does, so that
+# tlrender loads the libraries in the feather-tk wheel rather than copies.
+set(TLRENDER_FTK_PACKAGE OFF CACHE BOOL "Use an installed feather-tk rather than deps/ftk")
+# Where FFmpeg was installed; the super build puts it in the install prefix.
+set(TLRENDER_FFMPEG_PREFIX "${CMAKE_INSTALL_PREFIX}" CACHE PATH "FFmpeg install prefix")
 set(TLRENDER_PROGRAMS ON CACHE BOOL "Build programs")
 set(TLRENDER_EXAMPLES ON CACHE BOOL "Build examples")
 set(TLRENDER_TESTS ON CACHE BOOL "Build tests")
@@ -106,7 +125,11 @@ endif()
 
 if(WIN32)
 elseif(APPLE)
-    set(CMAKE_INSTALL_RPATH "@executable_path/../lib")
+    # @loader_path rather than @executable_path, so that the libraries have
+    # an rpath of their own as well as the executables: the loading chain's
+    # rpaths usually cover a library, but not one loaded by itself, and the
+    # wheel repair tool checks each library that way.
+    set(CMAKE_INSTALL_RPATH "@loader_path/../lib")
     # The freshly built libraries have to come before the installed
     # copies, or a binary run from the build tree quietly loads the
     # stale install -- so they are gathered into one directory that
@@ -120,6 +143,15 @@ elseif(APPLE)
         "${CMAKE_INSTALL_PREFIX}/lib")
 else()
     set(CMAKE_INSTALL_RPATH "$ORIGIN/../lib")
+endif()
+# The rest of an rpath, relative to <prefix>/lib: a wheel names feather-tk's
+# libraries in the feather_tk package beside it.
+if(TLRENDER_INSTALL_RPATH_EXTRA)
+    if(APPLE)
+        list(APPEND CMAKE_INSTALL_RPATH "@loader_path/${TLRENDER_INSTALL_RPATH_EXTRA}")
+    elseif(UNIX)
+        list(APPEND CMAKE_INSTALL_RPATH "$ORIGIN/${TLRENDER_INSTALL_RPATH_EXTRA}")
+    endif()
 endif()
 
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
@@ -148,22 +180,22 @@ if(TLRENDER_FFMPEG)
         set(FFmpeg_FOUND TRUE)
         add_library(FFmpeg::avutil STATIC IMPORTED)
         set_property(TARGET FFmpeg::avutil PROPERTY
-             IMPORTED_LOCATION "${CMAKE_INSTALL_PREFIX}/lib/avutil.lib")
+             IMPORTED_LOCATION "${TLRENDER_FFMPEG_PREFIX}/lib/avutil.lib")
         add_library(FFmpeg::avdevice STATIC IMPORTED)
         set_property(TARGET FFmpeg::avdevice PROPERTY
-             IMPORTED_LOCATION "${CMAKE_INSTALL_PREFIX}/lib/avdevice.lib")
+             IMPORTED_LOCATION "${TLRENDER_FFMPEG_PREFIX}/lib/avdevice.lib")
         add_library(FFmpeg::avformat STATIC IMPORTED)
         set_property(TARGET FFmpeg::avformat PROPERTY
-             IMPORTED_LOCATION "${CMAKE_INSTALL_PREFIX}/lib/avformat.lib")
+             IMPORTED_LOCATION "${TLRENDER_FFMPEG_PREFIX}/lib/avformat.lib")
         add_library(FFmpeg::avcodec STATIC IMPORTED)
         set_property(TARGET FFmpeg::avcodec PROPERTY
-             IMPORTED_LOCATION "${CMAKE_INSTALL_PREFIX}/lib/avcodec.lib")
+             IMPORTED_LOCATION "${TLRENDER_FFMPEG_PREFIX}/lib/avcodec.lib")
         add_library(FFmpeg::swresample STATIC IMPORTED)
         set_property(TARGET FFmpeg::swresample PROPERTY
-             IMPORTED_LOCATION "${CMAKE_INSTALL_PREFIX}/lib/swresample.lib")
+             IMPORTED_LOCATION "${TLRENDER_FFMPEG_PREFIX}/lib/swresample.lib")
         add_library(FFmpeg::swscale STATIC IMPORTED)
         set_property(TARGET FFmpeg::swscale PROPERTY
-             IMPORTED_LOCATION "${CMAKE_INSTALL_PREFIX}/lib/swscale.lib")
+             IMPORTED_LOCATION "${TLRENDER_FFMPEG_PREFIX}/lib/swscale.lib")
         add_library(FFmpeg::FFmpeg INTERFACE IMPORTED)
         set_property(TARGET FFmpeg::FFmpeg PROPERTY
             INTERFACE_LINK_LIBRARIES
@@ -177,22 +209,22 @@ if(TLRENDER_FFMPEG)
         set(FFmpeg_FOUND TRUE)
         add_library(FFmpeg::avdevice STATIC IMPORTED)
         set_property(TARGET FFmpeg::avdevice PROPERTY
-             IMPORTED_LOCATION "${CMAKE_INSTALL_PREFIX}/lib/libavdevice.dylib")
+             IMPORTED_LOCATION "${TLRENDER_FFMPEG_PREFIX}/lib/libavdevice.dylib")
         add_library(FFmpeg::avformat STATIC IMPORTED)
         set_property(TARGET FFmpeg::avformat PROPERTY
-             IMPORTED_LOCATION "${CMAKE_INSTALL_PREFIX}/lib/libavformat.dylib")
+             IMPORTED_LOCATION "${TLRENDER_FFMPEG_PREFIX}/lib/libavformat.dylib")
         add_library(FFmpeg::avcodec STATIC IMPORTED)
         set_property(TARGET FFmpeg::avcodec PROPERTY
-             IMPORTED_LOCATION "${CMAKE_INSTALL_PREFIX}/lib/libavcodec.dylib")
+             IMPORTED_LOCATION "${TLRENDER_FFMPEG_PREFIX}/lib/libavcodec.dylib")
         add_library(FFmpeg::swresample STATIC IMPORTED)
         set_property(TARGET FFmpeg::swresample PROPERTY
-             IMPORTED_LOCATION "${CMAKE_INSTALL_PREFIX}/lib/libswresample.dylib")
+             IMPORTED_LOCATION "${TLRENDER_FFMPEG_PREFIX}/lib/libswresample.dylib")
         add_library(FFmpeg::swscale STATIC IMPORTED)
         set_property(TARGET FFmpeg::swscale PROPERTY
-             IMPORTED_LOCATION "${CMAKE_INSTALL_PREFIX}/lib/libswscale.dylib")
+             IMPORTED_LOCATION "${TLRENDER_FFMPEG_PREFIX}/lib/libswscale.dylib")
         add_library(FFmpeg::avutil STATIC IMPORTED)
         set_property(TARGET FFmpeg::avutil PROPERTY
-             IMPORTED_LOCATION "${CMAKE_INSTALL_PREFIX}/lib/libavutil.dylib")
+             IMPORTED_LOCATION "${TLRENDER_FFMPEG_PREFIX}/lib/libavutil.dylib")
         add_library(FFmpeg::FFmpeg INTERFACE IMPORTED)
         set_property(TARGET FFmpeg::FFmpeg PROPERTY
             INTERFACE_LINK_LIBRARIES
@@ -208,13 +240,13 @@ if(TLRENDER_FFMPEG)
         set(FFmpeg_FOUND TRUE)
         add_library(FFmpeg::avutil STATIC IMPORTED)
         set_property(TARGET FFmpeg::avutil PROPERTY
-             IMPORTED_LOCATION "${CMAKE_INSTALL_PREFIX}/lib/libavutil.a")
+             IMPORTED_LOCATION "${TLRENDER_FFMPEG_PREFIX}/lib/libavutil.a")
         add_library(FFmpeg::swresample STATIC IMPORTED)
         set_property(TARGET FFmpeg::swresample PROPERTY
-             IMPORTED_LOCATION "${CMAKE_INSTALL_PREFIX}/lib/libswresample.a")
+             IMPORTED_LOCATION "${TLRENDER_FFMPEG_PREFIX}/lib/libswresample.a")
         add_library(FFmpeg::swscale STATIC IMPORTED)
         set_property(TARGET FFmpeg::swscale PROPERTY
-             IMPORTED_LOCATION "${CMAKE_INSTALL_PREFIX}/lib/libswscale.a")
+             IMPORTED_LOCATION "${TLRENDER_FFMPEG_PREFIX}/lib/libswscale.a")
     else()
         find_package(PkgConfig REQUIRED)
         pkg_check_modules(
@@ -286,10 +318,10 @@ tlrender_prune_include_directories(OpenImageIO::OpenImageIO)
 
 # Python dependencies
 #
-# tlRenderPy is built the way feather-tk's module is, the stable ABI or not
-# and against the same nanobind library, since nanobind shares types only
-# between modules built alike and tlRenderPy takes its types from
-# feather_tk. So this is feather-tk's own option, declared here too because
+# The tlrender module is built the way feather-tk's module is, the stable
+# ABI or not and against the same nanobind library, since nanobind shares
+# types only between modules built alike and the tlrender module takes its
+# types from feather_tk. So this is feather-tk's own option, declared here too because
 # feather-tk is not added until below.
 set(ftk_PYTHON_STABLE_ABI ON CACHE BOOL "Build the Python module against the stable ABI")
 if(TLRENDER_PYTHON)
@@ -309,28 +341,50 @@ if(TLRENDER_PYTHON)
 endif()
 
 #-------------------------------------------------------------------------------
-# Git submodules
+# feather-tk
 
-find_package(Git REQUIRED)
-if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/deps/ftk/CMakeLists.txt")
-    execute_process(
-        COMMAND ${GIT_EXECUTABLE} submodule update --init --recursive
-        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-        RESULT_VARIABLE GIT_SUBMODULE_RESULT)
-    if(NOT GIT_SUBMODULE_RESULT EQUAL 0)
-        message(FATAL_ERROR "git submodule update failed with ${GIT_SUBMODULE_RESULT}")
+if(TLRENDER_FTK_PACKAGE)
+    find_package(ftk REQUIRED)
+    # The graphics API is feather-tk's option, which an installed package
+    # does not carry; the wheels are OpenGL 4.1.
+    if(NOT ftk_API)
+        set(ftk_API "GL_4_1")
     endif()
+    # The resource tool is the package's imported target; the name
+    # ftk_icon_resources() falls back on is the one inside feather-tk's
+    # own tree.
+    set(ftk_RESOURCE_COMMAND ftk::ftk-resource)
+    if(TLRENDER_PYTHON)
+        # feather-tk builds this library when it is added below; an
+        # installed one leaves it to us. Built the same way, since the
+        # binding libraries are compiled into the module against it.
+        nanobind_build_library(${TLRENDER_NANOBIND_LIBRARY})
+        if(ftk_PYTHON_STABLE_ABI)
+            target_compile_definitions(${TLRENDER_NANOBIND_LIBRARY} PUBLIC Py_LIMITED_API=0x030C0000)
+        endif()
+    endif()
+else()
+    find_package(Git REQUIRED)
+    if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/deps/ftk/CMakeLists.txt")
+        execute_process(
+            COMMAND ${GIT_EXECUTABLE} submodule update --init --recursive
+            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+            RESULT_VARIABLE GIT_SUBMODULE_RESULT)
+        if(NOT GIT_SUBMODULE_RESULT EQUAL 0)
+            message(FATAL_ERROR "git submodule update failed with ${GIT_SUBMODULE_RESULT}")
+        endif()
+    endif()
+
+    add_subdirectory(deps/ftk)
+    add_library(ftk::ftkResource ALIAS ftkResource)
+    add_library(ftk::ftkCore ALIAS ftkCore)
+    add_library(ftk::ftkGL ALIAS ftkGL)
+    add_library(ftk::ftkUI ALIAS ftkUI)
+    add_library(ftk::ftkTestLib ALIAS ftkTestLib)
 endif()
 
 #-------------------------------------------------------------------------------
 # Sub-directories
-
-add_subdirectory(deps/ftk)
-add_library(ftk::ftkResource ALIAS ftkResource)
-add_library(ftk::ftkCore ALIAS ftkCore)
-add_library(ftk::ftkGL ALIAS ftkGL)
-add_library(ftk::ftkUI ALIAS ftkUI)
-add_library(ftk::ftkTestLib ALIAS ftkTestLib)
 
 add_subdirectory(lib/tlRender)
 if(TLRENDER_PROGRAMS)

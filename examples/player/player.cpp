@@ -26,7 +26,7 @@
 #include <ftk/UI/Divider.h>
 #include <ftk/UI/IWidgetPopup.h>
 #include <ftk/UI/IntEditSlider.h>
-#include <ftk/UI/ComboBoxPrivate.h>
+#include <ftk/UI/ComboBoxMenu.h>
 #include <ftk/UI/Label.h>
 #include <ftk/UI/Tooltip.h>
 #include <ftk/UI/OverlayLayout.h>

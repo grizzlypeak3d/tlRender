@@ -2,7 +2,7 @@
 # Copyright Contributors to the tlRender project.
 
 import feather_tk as ftk
-import tlRenderPy as tl
+import tlrender as tl
 
 import opentimelineio as otio
 
@@ -178,9 +178,8 @@ class ObserverTest(unittest.TestCase):
 
     def test_rational_time(self):
         # The opentime values convert between the opentimelineio and
-        # tlRenderPy modules only when both are built with the same
-        # pybind11 -- this is the test that fails if the superbuild's
-        # pin drifts from the version OTIO vendors.
+        # tlrender modules by value, through opentimelineio's Python API
+        # (see OTIOCasters.h), so this holds for any opentimelineio.
         observable = tl.ObservableRationalTime(otio.opentime.RationalTime(0, 24))
         times = []
         observer = tl.RationalTimeObserver(

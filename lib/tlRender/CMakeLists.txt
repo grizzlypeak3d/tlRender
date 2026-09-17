@@ -19,6 +19,14 @@ if(TLRENDER_TESTS)
 endif()
 
 if(TLRENDER_PYTHON)
+    # A wheel leaves out the binding archives: nothing links them but the
+    # module, which already has. Their headers stay, for the modules built
+    # on this one.
+    set(TLRENDER_PYTHON_ARCHIVE_INSTALL)
+    if(SKBUILD)
+        set(TLRENDER_PYTHON_ARCHIVE_INSTALL EXCLUDE_FROM_ALL)
+    endif()
+
     add_subdirectory(CorePy)
     add_subdirectory(IOPy)
     add_subdirectory(TimelinePy)

@@ -3,7 +3,7 @@
 
 import opentimelineio as otio
 import feather_tk as ftk
-import tlRenderPy as tl
+import tlrender as tl
 
 import json
 import weakref

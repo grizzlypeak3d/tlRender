@@ -2,7 +2,7 @@
 # Copyright Contributors to the feather-tk project.
 
 import feather_tk
-import tlRenderPy as tl
+import tlrender as tl
 
 import unittest
 
@@ -30,7 +30,7 @@ class EnumsTest(unittest.TestCase):
                         values,
                         list(range(len(values))),
                         f"{prefix}.{name} has gaps: {values}")
-                elif isinstance(obj, type(tl)) and obj.__name__.startswith("tlRenderPy"):
+                elif isinstance(obj, type(tl)) and obj.__name__.startswith("tlrender"):
                     walk(obj, f"{prefix}.{name}")
         walk(tl, "tl")
         self.assertGreater(len(seen), 0)

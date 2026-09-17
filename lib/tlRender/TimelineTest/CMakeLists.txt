@@ -36,6 +36,6 @@ target_include_directories(tlTimelineTest
         $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/tests>
         $<INSTALL_INTERFACE:include>)
 
-target_link_libraries(tlTimelineTest tlTimeline ftkTestLib)
+target_link_libraries(tlTimelineTest tlTimeline ftk::ftkTestLib)
 
 set_target_properties(tlTimelineTest PROPERTIES FOLDER tests)

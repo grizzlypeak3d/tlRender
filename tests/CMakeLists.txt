@@ -10,10 +10,10 @@ if(TLRENDER_PYTHON)
     # else looks. The bindings link opentimelineio directly, so the directory
     # has to be named here too or the import fails on Windows with
     #
-    #     ImportError: DLL load failed while importing tlRenderPy:
+    #     ImportError: DLL load failed while importing _tlrender:
     #     The specified module could not be found.
     add_test(
-        NAME tlRenderPy-test
+        NAME tlrender-test
         COMMAND ${Python_EXECUTABLE}
             ${CMAKE_CURRENT_SOURCE_DIR}/run-python-tests.py
             ${CMAKE_INSTALL_PREFIX}/bin
@@ -22,13 +22,19 @@ if(TLRENDER_PYTHON)
     # ctest run works anywhere; OTIO's Python package is installed by the
     # superbuild. The flag crosses to Python as an environment variable,
     # where the tests that need OpenGL read it and skip.
+    # The feather_tk package is in the build tree when feather-tk is built
+    # here, and on PYTHONPATH already when it is an installed package.
     set(PYTHON_TEST_ENV
-        "PYTHONPATH=path_list_append:$<TARGET_FILE_DIR:_feather_tk>/.."
-        "PYTHONPATH=path_list_append:$<TARGET_FILE_DIR:tlRenderPy>"
+        "PYTHONPATH=path_list_prepend:${CMAKE_BINARY_DIR}/python")
+    if(TARGET _feather_tk)
+        list(APPEND PYTHON_TEST_ENV
+            "PYTHONPATH=path_list_append:$<TARGET_FILE_DIR:_feather_tk>/..")
+    endif()
+    list(APPEND PYTHON_TEST_ENV
         "PYTHONPATH=path_list_append:${CMAKE_INSTALL_PREFIX}/python")
     if(TLRENDER_TESTS_NO_GL)
         list(APPEND PYTHON_TEST_ENV "TLRENDER_TESTS_NO_GL=set:1")
     endif()
-    set_tests_properties(tlRenderPy-test PROPERTIES
+    set_tests_properties(tlrender-test PROPERTIES
         ENVIRONMENT_MODIFICATION "${PYTHON_TEST_ENV}")
 endif()

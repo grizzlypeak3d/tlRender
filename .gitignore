@@ -12,3 +12,7 @@ __pycache__
 
 # Personal build settings, read by etc/Config/default.cmake.
 etc/Config/local.cmake
+
+# Python wheel builds.
+build-wheel
+dist
