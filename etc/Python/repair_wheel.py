@@ -82,7 +82,9 @@ def main():
                 "--ignore-existing",
                 "--no-mangle-all",
                 "--add-path", bin_dir,
-                "--exclude", ":".join(names),
+                # os.pathsep: delvewheel splits its lists the way the
+                # platform splits PATH, which is ";" on Windows.
+                "--exclude", os.pathsep.join(names),
                 wheel)
 
         else:

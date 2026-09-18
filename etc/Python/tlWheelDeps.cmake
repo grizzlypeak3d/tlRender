@@ -23,6 +23,20 @@ file(TO_CMAKE_PATH "${TLRENDER_WHEEL_FTK}" TLRENDER_WHEEL_FTK)
 message(STATUS "Using feather-tk from ${TLRENDER_WHEEL_FTK}")
 
 set(TLRENDER_WHEEL_DEPS "${CMAKE_BINARY_DIR}/deps" CACHE PATH "Dependencies prefix for wheel builds")
+
+if(APPLE)
+    # Homebrew's headers are in the compiler's own search path -- clang
+    # reads /usr/local/include, where Homebrew installs on Intel -- and
+    # CMAKE_IGNORE_PREFIX_PATH does not reach that: OpenImageIO compiled
+    # against an Intel runner's newer libpng headers while linking the
+    # 1.6.43 of the feather-tk wheel, and the link failed on png_get_cICP.
+    # A directory given with -I is searched before the compiler's own, so
+    # naming these first is what settles which headers are read. The
+    # dependencies are handed the same flags below.
+    set(TLRENDER_WHEEL_INCLUDES "-I${TLRENDER_WHEEL_FTK}/include -I${TLRENDER_WHEEL_DEPS}/include")
+    set(CMAKE_C_FLAGS "${TLRENDER_WHEEL_INCLUDES} ${CMAKE_C_FLAGS}" CACHE STRING "" FORCE)
+    set(CMAKE_CXX_FLAGS "${TLRENDER_WHEEL_INCLUDES} ${CMAKE_CXX_FLAGS}" CACHE STRING "" FORCE)
+endif()
 set(TLRENDER_WHEEL_DEPS_STAMP "${TLRENDER_WHEEL_DEPS}/.tlrender-wheel-deps")
 
 if(NOT EXISTS "${TLRENDER_WHEEL_DEPS_STAMP}")
@@ -50,6 +64,8 @@ set(TLRENDER_IGNORE_PREFIX_PATH \"${TLRENDER_IGNORE_PREFIX_PATH}\" CACHE STRING 
     foreach(var
         CMAKE_C_COMPILER
         CMAKE_CXX_COMPILER
+        CMAKE_C_FLAGS
+        CMAKE_CXX_FLAGS
         CMAKE_MAKE_PROGRAM
         CMAKE_OSX_ARCHITECTURES
         CMAKE_OSX_DEPLOYMENT_TARGET)
