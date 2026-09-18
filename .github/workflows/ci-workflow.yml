@@ -255,6 +255,15 @@ jobs:
       with:
         python-version: '3.12'
     - uses: ilammy/setup-nasm@v1
+    # FFmpeg builds with MSYS2: a fresh one from its GitHub release, with the
+    # packages the build needs, kept between runs. The build would otherwise
+    # download them from the package mirror every time, and the mirror has
+    # been the thing to fail.
+    - uses: msys2/setup-msys2@v2
+      id: msys2
+      with:
+        msystem: MSYS
+        install: diffutils make nasm pkgconf
 
     # \bug Any spaces before the ">>" will be considered part of the path.
     - name: Setup environment
@@ -269,6 +278,8 @@ jobs:
         
     - name: Build tlRender
       shell: cmd
+      env:
+        MSYS_INSTALL_PATH: ${{ steps.msys2.outputs.msys2-location }}
       run: |
         tl\etc\Windows\sbuild.bat tl Debug ci-windows
 
@@ -296,6 +307,15 @@ jobs:
       with:
         python-version: '3.12'
     - uses: ilammy/setup-nasm@v1
+    # FFmpeg builds with MSYS2: a fresh one from its GitHub release, with the
+    # packages the build needs, kept between runs. The build would otherwise
+    # download them from the package mirror every time, and the mirror has
+    # been the thing to fail.
+    - uses: msys2/setup-msys2@v2
+      id: msys2
+      with:
+        msystem: MSYS
+        install: diffutils make nasm pkgconf
 
     # \bug Any spaces before the ">>" will be considered part of the path.
     - name: Setup environment
@@ -310,6 +330,8 @@ jobs:
         
     - name: Build tlRender
       shell: cmd
+      env:
+        MSYS_INSTALL_PATH: ${{ steps.msys2.outputs.msys2-location }}
       run: |
         tl\etc\Windows\sbuild.bat tl Debug ci-windows-python
 

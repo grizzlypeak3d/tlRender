@@ -1,7 +1,13 @@
 include(ExternalProject)
 
 if(WIN32)
-    # Build FFmpeg with MSYS2 on Windows.
+    # Build FFmpeg with MSYS2 on Windows. An MSYS2 somewhere other than
+    # C:/msys64 is named by MSYS_INSTALL_PATH, in the cache or the
+    # environment: continuous integration installs its own, with the packages
+    # below already in it, rather than download them on every build.
+    if(NOT MSYS_INSTALL_PATH AND DEFINED ENV{MSYS_INSTALL_PATH})
+        file(TO_CMAKE_PATH "$ENV{MSYS_INSTALL_PATH}" MSYS_INSTALL_PATH)
+    endif()
     find_package(Msys REQUIRED)
 endif()
 
@@ -530,14 +536,17 @@ if(WIN32)
     string(REPLACE ${FFmpeg_PKG_CONFIG_DRIVE} /${FFmpeg_PKG_CONFIG_DRIVE_LETTER} FFmpeg_PKG_CONFIG ${FFmpeg_PKG_CONFIG})
 
     list(JOIN FFmpeg_CONFIGURE_ARGS " " FFmpeg_CONFIGURE_ARGS_TMP)
-    # pkgconf because libaom and libsvtav1 are the dependencies FFmpeg will
-    # only find through pkg-config; the rest are found here by the include
-    # and library paths passed above. Without it PKG_CONFIG_PATH is
-    # exported into a shell that has nothing to read it, and --enable-libaom
-    # fails however well the libraries themselves were built. (OpenAPV is a
-    # third, where it is built; it is not, on this toolchain.)
+    # --needed, so that an MSYS2 that has the packages already -- continuous
+    # integration's -- does not reach for the package mirror, which has been
+    # the thing to fail. pkgconf because libaom and libsvtav1 are the
+    # dependencies FFmpeg will only find through pkg-config; the rest are
+    # found here by the include and library paths passed above. Without it
+    # PKG_CONFIG_PATH is exported into a shell that has nothing to read it,
+    # and --enable-libaom fails however well the libraries themselves were
+    # built. (OpenAPV is a third, where it is built; it is not, on this
+    # toolchain.)
     set(FFmpeg_CONFIGURE ${FFmpeg_MSYS2}
-        -c "pacman -S diffutils make nasm pkgconf --noconfirm && \
+        -c "pacman -S --needed diffutils make nasm pkgconf --noconfirm && \
         export PKG_CONFIG_PATH=${FFmpeg_PKG_CONFIG} && \
         ./configure ${FFmpeg_CONFIGURE_ARGS_TMP}")
     set(FFmpeg_BUILD ${FFmpeg_MSYS2} -c "make -j${FFmpeg_BUILD_JOBS}")

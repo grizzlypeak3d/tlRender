@@ -93,9 +93,22 @@ jobs:
     - uses: ilammy/setup-nasm@v1
       if: runner.os == 'Windows'
 
+    # FFmpeg builds with MSYS2: a fresh one from its GitHub release, with the
+    # packages the build needs, kept between runs. The build would otherwise
+    # download them from the package mirror every time, and the mirror has
+    # been the thing to fail.
+    - uses: msys2/setup-msys2@v2
+      id: msys2
+      if: runner.os == 'Windows'
+      with:
+        msystem: MSYS
+        install: diffutils make nasm pkgconf
+
     # One stable ABI wheel per platform; the configuration is in
     # pyproject.toml.
     - uses: pypa/cibuildwheel@v4.2.1
+      env:
+        MSYS_INSTALL_PATH: ${{ steps.msys2.outputs.msys2-location }}
 
     - uses: actions/upload-artifact@v7
       with:
