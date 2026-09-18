@@ -741,7 +741,7 @@ namespace tl
     {
         if (auto logSystem = this->logSystem.lock())
         {
-            const std::string id = ftk::Format("tl::Player {0}").arg(this);
+            const std::string id = ftk::Format("tl::Player {0}").arg(logId);
 
             // Get values.
             OTIO_NS::RationalTime currentTime;

@@ -27,6 +27,12 @@ namespace tl
     {
         std::weak_ptr<ftk::Context> context;
         std::weak_ptr<ftk::LogSystem> logSystem;
+        //! What the log calls this timeline.
+        //!
+        //! Counted rather than the address, which the allocator hands out
+        //! again: two timelines in one session can print the same pointer,
+        //! and the log then says one of them was destroyed twice.
+        size_t logId = 0;
         std::shared_ptr<ftk::FileIO> fileIO;
         OTIO_NS::SerializableObject::Retainer<OTIO_NS::Timeline> otioTimeline;
         // OTIO works out an item's range in its track by summing the duration

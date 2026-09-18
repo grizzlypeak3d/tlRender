@@ -61,6 +61,8 @@ namespace tl
         void log();
 
         std::weak_ptr<ftk::LogSystem> logSystem;
+        //! What the log calls this player; see Timeline::Private::logId.
+        size_t logId = 0;
         PlayerOptions playerOptions;
         std::shared_ptr<Timeline> timeline;
         OTIO_NS::TimeRange timeRange;

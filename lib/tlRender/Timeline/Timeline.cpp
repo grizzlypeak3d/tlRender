@@ -354,12 +354,12 @@ namespace tl
         auto logSystem = context->getLogSystem();
         logSystem->print(
             "tl::Timeline::_init",
-            ftk::Format(
-                "\n"
-                "    Path: {0}\n"
-                "    Audio path: {1}").
-            arg(path.get()).
-            arg(audioPath.get()));
+            audioPath.isEmpty() ?
+                path.get() :
+                ftk::Format("{0} (audio {1})").
+                    arg(path.get()).
+                    arg(audioPath.get()).
+                    str());
 
         // A file that is not there, said the same way whatever the file is.
         // Every format arrives here, while the failure itself surfaces much
@@ -912,6 +912,10 @@ namespace tl
         auto logSystem = context->getLogSystem();
         p.logSystem = logSystem;
         {
+            static std::atomic<size_t> logIdCounter(0);
+            p.logId = ++logIdCounter;
+        }
+        {
             std::vector<std::string> lines;
             lines.push_back(std::string());
             lines.push_back(ftk::Format("    * Image sequence audio: {0}").
@@ -920,7 +924,7 @@ namespace tl
                 arg(ftk::join(options.imageSeqAudioExts, ", ")));
             lines.push_back(ftk::Format("    * Image sequence audio file name: {0}").
                 arg(options.imageSeqAudioFileName));
-            lines.push_back(ftk::Format("    * Compatability: {0}").
+            lines.push_back(ftk::Format("    * Compatibility: {0}").
                 arg(options.compat));
             lines.push_back(ftk::Format("    * Read thread count: {0}").
                 arg(options.readThreadCount));
@@ -928,15 +932,41 @@ namespace tl
                 arg(options.audioRequestMax));
             for (const auto& i : options.ioOptions)
             {
+                // Not the USD camera, which is the clip's name and so
+                // belongs to one request rather than to the session: it
+                // changes with every thumbnail and would make every
+                // timeline's options look new.
+                if ("USD/CameraName" == i.first)
+                {
+                    continue;
+                }
                 lines.push_back(ftk::Format("    * AV I/O {0}: {1}").
                     arg(i.first).
                     arg(i.second));
             }
             lines.push_back(ftk::Format("    * Path max number digits: {0}").
                 arg(options.pathOptions.seqMaxDigits));
-            logSystem->print(
-                ftk::Format("tl::Timeline {0}").arg(this),
-                ftk::join(lines, "\n"));
+            // These describe the configuration, not this timeline, and a
+            // session opens many timelines with the same ones -- the
+            // thumbnails alone make one per request. Printed when they
+            // change, which is what a reader needs and is otherwise more
+            // than half of the log.
+            const std::string text = ftk::join(lines, "\n");
+            static std::mutex logOptionsMutex;
+            static std::string logOptionsPrev;
+            bool changed = false;
+            {
+                std::unique_lock<std::mutex> lock(logOptionsMutex);
+                changed = text != logOptionsPrev;
+                if (changed)
+                {
+                    logOptionsPrev = text;
+                }
+            }
+            if (changed)
+            {
+                logSystem->print("tl::Timeline options", text);
+            }
         }
 
         p.otioTimeline = otioTimeline;
@@ -1095,7 +1125,7 @@ namespace tl
         p.updateReadErrors();
 
         logSystem->print(
-            ftk::Format("tl::Timeline {0}").arg(this),
+            ftk::Format("tl::Timeline {0}").arg(p.logId),
             ftk::Format(
                 "\n"
                 "    * Time range: {0}\n"
@@ -1161,7 +1191,7 @@ namespace tl
         if (auto logSystem = p.logSystem.lock())
         {
             logSystem->print(
-                ftk::Format("tl::~Timeline {0}").arg(this),
+                ftk::Format("tl::~Timeline {0}").arg(p.logId),
                 p.path.get());
         }
 
@@ -2694,7 +2724,7 @@ namespace tl
                     audioRequestsSize = p.mutex.audioRequests.size();
                 }
                 logSystem->print(
-                    ftk::Format("tl::Timeline {0}").arg(this),
+                    ftk::Format("tl::Timeline {0}").arg(p.logId),
                     ftk::Format(
                         "\n"
                         "    * Path: {0}\n"

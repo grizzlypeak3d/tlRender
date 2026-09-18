@@ -67,6 +67,10 @@ namespace tl
         auto logSystem = context->getLogSystem();
         p.logSystem = logSystem;
         {
+            static std::atomic<size_t> logIdCounter(0);
+            p.logId = ++logIdCounter;
+        }
+        {
             std::vector<std::string> lines;
             lines.push_back(std::string());
             lines.push_back(ftk::Format("    * Video cache: {0}GB").
@@ -82,7 +86,7 @@ namespace tl
             lines.push_back(ftk::Format("    * Sleep timeout: {0}ms").
                 arg(playerOptions.sleepTimeout.count()));
             logSystem->print(
-                ftk::Format("tl::Player {0}").arg(this),
+                ftk::Format("tl::Player {0}").arg(p.logId),
                 ftk::join(lines, "\n"));
         }
 
@@ -197,7 +201,7 @@ namespace tl
         if (auto logSystem = p.logSystem.lock())
         {
             logSystem->print(
-                ftk::Format("tl::~Player {0}").arg(this),
+                ftk::Format("tl::~Player {0}").arg(p.logId),
                 p.timeline->getPath().get());
         }
 
