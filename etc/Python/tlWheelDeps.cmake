@@ -12,17 +12,31 @@
 # build directory (build-dir in pyproject.toml) to build them once, or point
 # TLRENDER_WHEEL_DEPS at a prefix built some other way.
 
-# Where the feather-tk wheel is, without importing it.
+# Where the dependencies are built. Continuous integration keeps them
+# between runs by naming a directory it caches; see wheels-workflow.yml.
+if(DEFINED ENV{TLRENDER_WHEEL_DEPS})
+    file(TO_CMAKE_PATH "$ENV{TLRENDER_WHEEL_DEPS}" TLRENDER_WHEEL_DEPS_DEFAULT)
+else()
+    set(TLRENDER_WHEEL_DEPS_DEFAULT "${CMAKE_BINARY_DIR}/deps")
+endif()
+set(TLRENDER_WHEEL_DEPS "${TLRENDER_WHEEL_DEPS_DEFAULT}" CACHE PATH "Dependencies prefix for wheel builds")
+
+# The feather-tk wheel, a build requirement, is in pip's build environment,
+# a directory named anew for every build. The dependencies record where the
+# zlib and libpng they link are, so they are built against a copy of it at a
+# path that stays put, beside them: a set built in an earlier run -- kept by
+# continuous integration -- then still names something that is there.
 execute_process(
     COMMAND ${Python_EXECUTABLE} -c
         "import importlib.util, os; print(os.path.dirname(importlib.util.find_spec('feather_tk').origin))"
-    OUTPUT_VARIABLE TLRENDER_WHEEL_FTK
+    OUTPUT_VARIABLE TLRENDER_WHEEL_FTK_SOURCE
     OUTPUT_STRIP_TRAILING_WHITESPACE
     COMMAND_ERROR_IS_FATAL ANY)
-file(TO_CMAKE_PATH "${TLRENDER_WHEEL_FTK}" TLRENDER_WHEEL_FTK)
-message(STATUS "Using feather-tk from ${TLRENDER_WHEEL_FTK}")
-
-set(TLRENDER_WHEEL_DEPS "${CMAKE_BINARY_DIR}/deps" CACHE PATH "Dependencies prefix for wheel builds")
+file(TO_CMAKE_PATH "${TLRENDER_WHEEL_FTK_SOURCE}" TLRENDER_WHEEL_FTK_SOURCE)
+set(TLRENDER_WHEEL_FTK "${TLRENDER_WHEEL_DEPS}-feather_tk")
+file(REMOVE_RECURSE "${TLRENDER_WHEEL_FTK}")
+file(COPY "${TLRENDER_WHEEL_FTK_SOURCE}/" DESTINATION "${TLRENDER_WHEEL_FTK}")
+message(STATUS "Using feather-tk from ${TLRENDER_WHEEL_FTK_SOURCE}")
 
 if(APPLE)
     # Homebrew's headers are in the compiler's own search path -- clang
@@ -32,11 +46,17 @@ if(APPLE)
     # 1.6.43 of the feather-tk wheel, and the link failed on png_get_cICP.
     # A directory given with -I is searched before the compiler's own, so
     # naming these first is what settles which headers are read. The
-    # dependencies are handed the same flags below.
+    # dependencies are handed the same flags below. Once only, since the
+    # flags are cached and a build directory is configured again.
     set(TLRENDER_WHEEL_INCLUDES "-I${TLRENDER_WHEEL_FTK}/include -I${TLRENDER_WHEEL_DEPS}/include")
-    set(CMAKE_C_FLAGS "${TLRENDER_WHEEL_INCLUDES} ${CMAKE_C_FLAGS}" CACHE STRING "" FORCE)
-    set(CMAKE_CXX_FLAGS "${TLRENDER_WHEEL_INCLUDES} ${CMAKE_CXX_FLAGS}" CACHE STRING "" FORCE)
+    foreach(flags CMAKE_C_FLAGS CMAKE_CXX_FLAGS)
+        string(FIND "${${flags}}" "${TLRENDER_WHEEL_INCLUDES}" found)
+        if(found EQUAL -1)
+            set(${flags} "${TLRENDER_WHEEL_INCLUDES} ${${flags}}" CACHE STRING "" FORCE)
+        endif()
+    endforeach()
 endif()
+
 set(TLRENDER_WHEEL_DEPS_STAMP "${TLRENDER_WHEEL_DEPS}/.tlrender-wheel-deps")
 
 if(NOT EXISTS "${TLRENDER_WHEEL_DEPS_STAMP}")
