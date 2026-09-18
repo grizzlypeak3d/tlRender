@@ -26,6 +26,7 @@ ExternalProject_Add(
     PREFIX ${CMAKE_CURRENT_BINARY_DIR}/openapv
     URL ${openapv_URL}
     URL_HASH ${openapv_HASH}
+    LIST_SEPARATOR |
     CMAKE_ARGS ${openapv_ARGS})
 
 # The static library installs into a directory of its own, and the
