@@ -14,12 +14,25 @@ name: Wheels
 on:
   push:
     tags: ['[0-9]+.[0-9]+.[0-9]+*']
+    # A run can use the caches made on its own branch or on main, and a tag
+    # is not a branch: it finds the dependencies only if main built them.
+    # So main builds them, without publishing, whenever what decides them
+    # changes -- the same files the cache key is made from.
+    branches: [main]
+    paths:
+      - pyproject.toml
+      - etc/SuperBuild/**
+      - etc/Config/wheel.cmake
+      - etc/Python/tlWheelDeps.cmake
+      - etc/Python/fix_rpaths.py
   pull_request:
     paths:
       - pyproject.toml
       - etc/Config/wheel.cmake
       - etc/Python/**
       - lib/tlRender/tlRenderPy/**
+      - tlRenderConfig.cmake.in
+      - tests/wheel-consumer/**
       - .github/workflows/wheels-workflow.yml
   workflow_dispatch:
     inputs:
@@ -53,11 +66,27 @@ jobs:
 
     env:
       CMAKE_BUILD_PARALLEL_LEVEL: 4
+      # The dependencies are built into a directory kept between runs, so
+      # that a change to tlRender alone does not build FFmpeg and the rest
+      # again; see etc/Python/tlWheelDeps.cmake. macOS and Windows build
+      # here and read the path as it is. Linux builds in a container, which
+      # is given the directory and the path to it there.
+      TLRENDER_WHEEL_DEPS: ${{ github.workspace }}/wheel-cache/deps
+      CIBW_CONTAINER_ENGINE: "docker; create_args: --volume=${{ github.workspace }}/wheel-cache:/wheel-cache"
+      CIBW_ENVIRONMENT_LINUX: TLRENDER_WHEEL_DEPS=/wheel-cache/deps
 
     steps:
     - uses: actions/checkout@v6
       with:
         submodules: recursive
+
+    # Built again whenever anything that decides what they are changes: the
+    # super build, the wheel's configuration, or pyproject.toml, which pins
+    # the feather-tk they are built against.
+    - uses: actions/cache@v6
+      with:
+        path: wheel-cache
+        key: wheel-deps-${{ matrix.name }}-${{ hashFiles('etc/SuperBuild/**', 'etc/Config/wheel.cmake', 'etc/Python/tlWheelDeps.cmake', 'etc/Python/fix_rpaths.py', 'pyproject.toml') }}
 
     # FFmpeg and libjpeg-turbo find NASM on PATH on Windows; the super build
     # builds its own elsewhere.

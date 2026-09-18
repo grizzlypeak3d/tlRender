@@ -72,8 +72,11 @@ skip = "*-musllinux_*"
 # and Linux, which are not supported.
 archs = ["native"]
 build-verbosity = 1
-# The runners have no OpenGL; the tests that need it skip.
-test-command = "python {project}/tests/run-python-tests.py"
+# The runners have no OpenGL; the tests that need it skip. After them, a C++
+# program is built against the installed wheels with cmake from pip, which
+# checks that the CMake packages in them name their own files.
+test-requires = ["cmake"]
+test-command = "python {project}/tests/run-python-tests.py && python {project}/tests/wheel-consumer/check.py"
 test-environment = { TLRENDER_TESTS_NO_GL = "1" }
 # feather-tk's libraries stay in the feather-tk wheel; the script shows the
 # repair tools where they are and has them left out (see its comment).

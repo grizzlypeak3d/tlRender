@@ -10,6 +10,14 @@ include(CMakeFindDependencyMacro)
 # scope, so the search path is put back at the end.
 set(_tlRender_PREFIX_PATH ${CMAKE_PREFIX_PATH})
 list(PREPEND CMAKE_PREFIX_PATH "${PACKAGE_PREFIX_DIR}")
+# In a wheel feather-tk is the feather_tk package beside this one, so a
+# project names tlRender alone.
+list(APPEND CMAKE_PREFIX_PATH "${PACKAGE_PREFIX_DIR}/../feather_tk")
+
+# feather-tk first: it brings nlohmann_json, zlib, libpng and FreeType,
+# which are found below as well, and finding it adds its own prefix to the
+# search -- in a wheel, the feather_tk package beside this one.
+find_package(ftk REQUIRED)
 
 # Base dependencies
 find_package(Imath REQUIRED)
@@ -167,9 +175,6 @@ if(@TLRENDER_USD@)
         add_definitions(-DTLRENDER_USD)
     endif()
 endif()
-
-# feather-tk dependencies
-find_package(ftk REQUIRED)
 
 set(CMAKE_PREFIX_PATH ${_tlRender_PREFIX_PATH})
 unset(_tlRender_PREFIX_PATH)

@@ -70,8 +70,10 @@ CMake package, so a project with its own bindings can build against the same
 installation:
 
 ```sh
-cmake -DCMAKE_PREFIX_PATH="$(python -c "import tlrender; print(tlrender.get_cmake_dir())");$(python -c "import feather_tk; print(feather_tk.get_cmake_dir())")" ...
+cmake -DtlRender_DIR="$(python -c "import tlrender; print(tlrender.get_cmake_dir())")" ...
 ```
+
+tlRender's package finds feather-tk's in the `feather_tk` package beside it.
 
 
 ## Building Dependencies
