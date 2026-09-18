@@ -33,6 +33,103 @@ Features:
 * Available for Linux, macOS, and Windows
 
 
+## Quick start
+
+A window that plays a timeline, movie, or image sequence given on the
+command line.
+
+### C++
+
+```cpp
+#include <tlRender/UI/Init.h>
+#include <tlRender/UI/Viewport.h>
+#include <tlRender/Timeline/Player.h>
+
+#include <ftk/UI/App.h>
+#include <ftk/UI/MainWindow.h>
+
+#include <iostream>
+
+using namespace ftk;
+
+int main(int argc, char** argv)
+{
+    try
+    {
+        // Create the context and application.
+        auto context = Context::create();
+        tl::ui::init(context);
+        auto input = CmdLineArg<std::string>::create(
+            "input", "A timeline, movie, or image sequence.");
+        auto app = App::create(
+            context, argc, argv, "simple", "Simple player example.", { input });
+        if (app->hasCmdLineHelp())
+            return 0;
+
+        // Create a timeline and a player for it.
+        auto timeline = tl::Timeline::create(context, Path(input->getValue()));
+        auto player = tl::Player::create(context, timeline);
+
+        // Show the player in a window.
+        auto window = MainWindow::create(context, app);
+        auto viewport = tl::ui::Viewport::create(context);
+        viewport->setPlayer(player);
+        window->setWidget(viewport);
+
+        // Start playback and run the application.
+        player->setPlayback(tl::Playback::Forward);
+        app->run();
+    }
+    catch (const std::exception& e)
+    {
+        std::cout << "ERROR: " << e.what() << std::endl;
+        return 1;
+    }
+    return 0;
+}
+```
+
+### Python
+
+The same player, after `pip install tlRender`:
+
+```python
+import feather_tk as ftk
+import tlrender as tl
+import sys
+
+# Create the context and application.
+context = ftk.Context()
+tl.ui.init(context)
+input = ftk.CmdLineArgString("input", "A timeline, movie, or image sequence.")
+app = ftk.App(context, sys.argv, "simple", "Simple player example.", [input])
+if app.hasCmdLineHelp:
+    sys.exit(0)
+
+# Create a timeline and a player for it.
+timeline = tl.Timeline(context, ftk.Path(input.value))
+player = tl.Player(context, timeline)
+
+# Show the player in a window.
+window = ftk.MainWindow(context, app)
+viewport = tl.ui.Viewport(context)
+viewport.player = player
+window.widget = viewport
+
+# Start playback and run the application.
+player.playback = tl.Playback.Forward
+app.run()
+
+# Clean up.
+window = None
+app = None
+```
+
+The [examples](https://github.com/grizzlypeak3d/tlRender/tree/main/examples)
+directory has fuller players in both languages, with playback controls and a
+timeline.
+
+
 ## Web Player
 
 An experimental build of the example player runs in the browser,
