@@ -31,6 +31,7 @@ namespace tl
             void _foreground();
             void _prims();
             void _oneToOne();
+            void _yuvLevels();
             void _color();
         };
     }
