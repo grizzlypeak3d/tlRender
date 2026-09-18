@@ -7,6 +7,8 @@
 #include <tlRender/IO/Read.h>
 #include <tlRender/IO/Write.h>
 
+#include <atomic>
+
 struct AVFrame;
 
 namespace tl
@@ -217,6 +219,10 @@ namespace tl
 
         private:
             static void _logCallback(void*, int, const char*, va_list);
+            //! Whether FFmpeg's own messages reach the log, and how many
+            //! have been; see the comment where the callback is installed.
+            static bool _logEnabled;
+            static std::atomic<size_t> _logCount;
 
             // av_log_set_callback() installs a process-global C callback with
             // no user-data parameter, so it can't be handed an instance

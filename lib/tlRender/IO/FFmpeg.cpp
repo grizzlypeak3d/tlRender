@@ -24,6 +24,9 @@ extern "C"
 #include <libavutil/mastering_display_metadata.h>
 }
 
+#include <atomic>
+#include <cstdlib>
+
 namespace tl
 {
     namespace ffmpeg
@@ -252,6 +255,8 @@ namespace tl
         }
 
         std::weak_ptr<ftk::LogSystem> ReadPlugin::_logSystemWeak;
+        bool ReadPlugin::_logEnabled = false;
+        std::atomic<size_t> ReadPlugin::_logCount(0);
 
         struct ReadPlugin::Private
         {
@@ -341,8 +346,25 @@ namespace tl
             IReadPlugin::_init("FFmpeg", extensions, logSystem);
 
             _logSystemWeak = logSystem;
-            //av_log_set_level(AV_LOG_QUIET);
-            av_log_set_level(AV_LOG_VERBOSE);
+            // FFmpeg's own commentary is off. What it says is written per
+            // frame and per macroblock -- a damaged movie produced two
+            // thousand lines in one second, and around ninety a second for
+            // as long as it kept decoding -- and none of it is anything a
+            // reader of the log can act on. The failures that matter are
+            // the ones this plugin checks for itself, from the return of
+            // every call it makes, and those are reported with a file name
+            // and a reason.
+            //
+            // The callback stays installed rather than being left unset,
+            // which would send all of it to the console instead: av_vlog()
+            // hands every message to the callback whatever the level, and
+            // it is av_log_default_callback() that writes to stderr and
+            // that honors the level below.
+            //
+            // TLRENDER_FFMPEG_LOG in the environment puts it back, for
+            // looking into a decode that is going wrong.
+            _logEnabled = nullptr != std::getenv("TLRENDER_FFMPEG_LOG");
+            av_log_set_level(_logEnabled ? AV_LOG_VERBOSE : AV_LOG_QUIET);
             av_log_set_callback(_logCallback);
 
             logSystem->print(
@@ -601,6 +623,10 @@ namespace tl
 
         void ReadPlugin::_logCallback(void*, int level, const char* fmt, va_list vl)
         {
+            if (!_logEnabled)
+            {
+                return;
+            }
             switch (level)
             {
             case AV_LOG_PANIC:
@@ -608,17 +634,41 @@ namespace tl
             case AV_LOG_ERROR:
             case AV_LOG_WARNING:
             case AV_LOG_INFO:
-                if (auto logSystem = _logSystemWeak.lock())
-                {
-                    char buf[ftk::cStringSize];
-                    vsnprintf(buf, ftk::cStringSize, fmt, vl);
-                    std::string s(buf);
-                    ftk::removeTrailingNewlines(s);
-                    logSystem->print("tl::ffmpeg::ReadPlugin", s);
-                }
                 break;
-            case AV_LOG_VERBOSE:
-            default: break;
+            default:
+                return;
+            }
+            // Bounded even when it is asked for. The rate is set by the
+            // damage in the media rather than by anything this application
+            // does -- a corrupt movie wrote around ninety messages a second
+            // for as long as it kept decoding -- and a session left running
+            // against one would otherwise write until the disk filled.
+            // Counted after the level, so the budget is spent on messages
+            // that are logged rather than on ones FFmpeg merely offered.
+            const size_t max = 1000;
+            const size_t count = ++_logCount;
+            if (count > max)
+            {
+                if (max + 1 == count)
+                {
+                    if (auto logSystem = _logSystemWeak.lock())
+                    {
+                        logSystem->print(
+                            "tl::ffmpeg::ReadPlugin",
+                            ftk::Format(
+                                "{0} messages from FFmpeg; no more are logged "
+                                "for the rest of this session").arg(max));
+                    }
+                }
+                return;
+            }
+            if (auto logSystem = _logSystemWeak.lock())
+            {
+                char buf[ftk::cStringSize];
+                vsnprintf(buf, ftk::cStringSize, fmt, vl);
+                std::string s(buf);
+                ftk::removeTrailingNewlines(s);
+                logSystem->print("tl::ffmpeg::ReadPlugin", s);
             }
         }
 
