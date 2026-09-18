@@ -177,6 +177,18 @@ namespace tl
             p.keepalive = nullptr;
         }
 #endif // FTK_SDL3
+#if defined(FTK_SDL2) || defined(FTK_SDL3)
+        // The audio the constructor started, and SDL itself if this is the
+        // last of its users; see Player::_init().
+        if (p.init)
+        {
+            SDL_QuitSubSystem(SDL_INIT_AUDIO);
+            if (0 == SDL_WasInit(0))
+            {
+                SDL_Quit();
+            }
+        }
+#endif // FTK_SDL2 || FTK_SDL3
     }
 
     std::shared_ptr<AudioSystem> AudioSystem::create(const std::shared_ptr<ftk::Context>& context)

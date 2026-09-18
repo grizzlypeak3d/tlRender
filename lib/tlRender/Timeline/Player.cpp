@@ -48,6 +48,17 @@ namespace tl
     {
         FTK_P();
 
+        // The player's audio stream is destroyed in its destructor, so it
+        // holds SDL's audio open for itself rather than relying on the
+        // AudioSystem to: in Python the context, and the systems in it, can
+        // be freed before the player is, and SDL counts each subsystem's
+        // users.
+#if defined(FTK_SDL2)
+        p.sdlAudio = SDL_InitSubSystem(SDL_INIT_AUDIO) >= 0;
+#elif defined(FTK_SDL3)
+        p.sdlAudio = SDL_InitSubSystem(SDL_INIT_AUDIO);
+#endif // FTK_SDL2
+
         if (auto system = context->getSystem<System>())
         {
             system->_addPlayer(shared_from_this());
@@ -209,6 +220,16 @@ namespace tl
             p.sdlStream = nullptr;
         }
 #endif // FTK_SDL2
+#if defined(FTK_SDL2) || defined(FTK_SDL3)
+        if (p.sdlAudio)
+        {
+            SDL_QuitSubSystem(SDL_INIT_AUDIO);
+            if (0 == SDL_WasInit(0))
+            {
+                SDL_Quit();
+            }
+        }
+#endif // FTK_SDL2 || FTK_SDL3
 
         --objectCount;
     }
