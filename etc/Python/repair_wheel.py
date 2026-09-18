@@ -59,7 +59,23 @@ def main():
                     "--exclude", package]
             if archs:
                 args += ["--require-archs", archs]
-            run(*args, wheel, env=env)
+            args.append(wheel)
+            # delocate looks for an @rpath library in the library's rpaths
+            # and then in /usr/local/lib and /usr/lib, the way the loader
+            # falls back, before it reads DYLD_LIBRARY_PATH. The rpath to the
+            # feather_tk package is nowhere in the wheel it unpacks, so on an
+            # Intel Mac, where Homebrew installs to /usr/local, it found
+            # Homebrew's libpng and FreeType there and copied them in. It is
+            # run here with feather-tk's libraries in place of /usr/local/lib
+            # -- the list its own tests replace the same way.
+            code = (
+                "import sys\n"
+                "import delocate.libsana\n"
+                f"delocate.libsana._default_paths_to_search = ({lib_dir!r}, '/usr/lib')\n"
+                "from delocate.cmd.delocate_wheel import main\n"
+                f"sys.argv = {args!r}\n"
+                "main()\n")
+            run(sys.executable, "-c", code, env=env)
 
         elif sys.platform.startswith("linux"):
             lib_dir = os.path.join(package, "lib")
