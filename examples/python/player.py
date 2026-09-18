@@ -95,6 +95,10 @@ viewMenu.addAction(ftk.Action(
 # Run the application.
 app.run()
 
-# Clean up.
+# Clean up. The menu's actions hold lambdas that refer to this module's
+# globals, and the globals hold the menu: that cycle passes through C++, so
+# Python's garbage collector can't break it. Drop the menu first, or the
+# player is still alive when Python exits.
+viewMenu = None
 window = None
 app = None
