@@ -92,6 +92,7 @@ namespace tl
             _background();
             _foreground();
             _prims();
+            _oneToOne();
             _color();
         }
 
@@ -233,6 +234,93 @@ namespace tl
         }
 
         //! The drawing the renderer passes through to the one underneath it.
+        void RenderTest::_oneToOne()
+        {
+            // A picture drawn at its own size must come back exactly as it
+            // went in, whatever the filters: this is what an export at the
+            // source size does, and any resampling at all shows as soft or
+            // shifted edges against the source in a wipe (DJV #876). Hard
+            // black and white edges, at even and odd columns, in an odd
+            // sized image -- where a half pixel error in placing the box
+            // has nowhere to hide.
+            auto window = createWindow(_context);
+            auto render = gl::Render::create(
+                _context->getLogSystem(),
+                _context->getSystem<ftk::FontSystem>());
+            const ftk::Size2I size(63, 17);
+            auto image = ftk::Image::create(size, ftk::ImageType::RGBA_U8);
+            for (int y = 0; y < size.h; ++y)
+            {
+                uint8_t* p = image->getData() + y * size.w * 4;
+                for (int x = 0; x < size.w; ++x)
+                {
+                    // Stripes one, two and three wide, then a block.
+                    const bool white =
+                        (x >= 3 && x < 4) ||
+                        (x >= 7 && x < 9) ||
+                        (x >= 12 && x < 15) ||
+                        (x >= 20 && x < 41);
+                    const uint8_t v = white ? 255 : 0;
+                    p[x * 4 + 0] = v;
+                    p[x * 4 + 1] = v;
+                    p[x * 4 + 2] = v;
+                    p[x * 4 + 3] = 255;
+                }
+            }
+            VideoLayer layer;
+            layer.image = image;
+            VideoFrame frame;
+            frame.size = size;
+            frame.layers.push_back(layer);
+            const std::vector<ftk::Box2I> boxes = { ftk::Box2I(0, 0, size.w, size.h) };
+
+            auto buffer = ftk::gl::OffscreenBuffer::create(
+                size,
+                ftk::gl::offscreenColorDefault);
+            ftk::gl::OffscreenBufferBinding bufferBinding(buffer);
+            for (auto minify : ftk::getImageFilterEnums())
+            {
+                for (auto magnify : ftk::getImageFilterEnums())
+                {
+                    ftk::ImageOptions imageOptions;
+                    imageOptions.imageFilters.minify = minify;
+                    imageOptions.imageFilters.magnify = magnify;
+                    render->begin(size);
+                    render->drawVideo({ frame }, boxes, { imageOptions });
+                    render->end();
+
+                    std::vector<uint8_t> pixels(size.w * size.h * 4);
+                    glPixelStorei(GL_PACK_ALIGNMENT, 1);
+                    glReadPixels(0, 0, size.w, size.h, GL_RGBA, GL_UNSIGNED_BYTE, pixels.data());
+                    // Read back bottom up; the source is top down. Compare
+                    // the middle row either way, which is the same.
+                    const int row = size.h / 2;
+                    int differ = 0;
+                    std::string got;
+                    for (int x = 0; x < size.w; ++x)
+                    {
+                        const uint8_t a = image->getData()[(row * size.w + x) * 4];
+                        const uint8_t b = pixels[(row * size.w + x) * 4];
+                        if (a != b)
+                        {
+                            ++differ;
+                        }
+                        if (x < 16)
+                        {
+                            got += ftk::Format("{0} ").arg(static_cast<int>(b)).str();
+                        }
+                    }
+                    _print(ftk::Format("One to one, minify {0}, magnify {1}: {2} "
+                        "columns differ; first columns {3}").
+                        arg(minify).
+                        arg(magnify).
+                        arg(differ).
+                        arg(got));
+                    FTK_CHECK(0 == differ);
+                }
+            }
+        }
+
         void RenderTest::_prims()
         {
             auto window = createWindow(_context);

@@ -50,6 +50,93 @@ namespace tl
             _pixelAspectRatio();
             _presets();
             _frameOrder();
+            _conversionEdges();
+        }
+
+        void FFmpegTest::_conversionEdges()
+        {
+            // A one pixel line survives the conversion to YUV and back. The
+            // writer's scaler took a conversion at the same size for a
+            // resample and interpolated the chroma, so a red line in a 4:4:4
+            // file came back smeared across three pixels (DJV #876). FFV1 is
+            // lossless and in every build, so anything lost here is the
+            // conversion's, not the codec's. 4:4:4 only: 4:2:2 and 4:2:0
+            // halve the chroma by design, and a saturated line loses its
+            // color there whatever the scaler does.
+            auto writePlugin = _context->getSystem<WriteSystem>()->getPlugin<ffmpeg::WritePlugin>();
+            const auto& codecs = writePlugin->getCodecs();
+            if (std::find(codecs.begin(), codecs.end(), "ffv1") == codecs.end())
+            {
+                _print("Skipped: no FFV1 encoder");
+                return;
+            }
+            const ftk::ImageInfo imageInfo(64, 32, ftk::ImageType::RGB_U8);
+            auto image = ftk::Image::create(imageInfo);
+            std::memset(image->getData(), 0, image->getByteCount());
+            const int redX = 20;
+            const int whiteX = 41;
+            for (int y = 0; y < imageInfo.size.h; ++y)
+            {
+                uint8_t* row = image->getData() + y * imageInfo.size.w * 3;
+                row[redX * 3 + 0] = 255;
+                row[whiteX * 3 + 0] = 255;
+                row[whiteX * 3 + 1] = 255;
+                row[whiteX * 3 + 2] = 255;
+            }
+            IOInfo info;
+            info.video.push_back(imageInfo);
+            info.videoTime = OTIO_NS::TimeRange(
+                OTIO_NS::RationalTime(0.0, 24.0),
+                OTIO_NS::RationalTime(1.0, 24.0));
+            for (const std::string pixelFormat : { "yuv444p", "yuv444p10le" })
+            {
+                const ftk::Path path(ftk::fromFileSystem(
+                    _getTempDir() / ("FFmpegConversionEdgesTest-" + pixelFormat + ".mov")));
+                {
+                    IOOptions options;
+                    options["FFmpeg/Codec"] = "ffv1";
+                    options["FFmpeg/PixelFormat"] = pixelFormat;
+                    auto write = writePlugin->write(path, info, options);
+                    write->writeVideo(OTIO_NS::RationalTime(0.0, 24.0), image);
+                    write->finish();
+                }
+                IOOptions options;
+                options["FFmpeg/YUVToRGB"] = "1";
+                auto readPlugin = _context->getSystem<ReadSystem>()->getPlugin(path);
+                auto read = readPlugin->videoRead(path, options);
+                FTK_CHECK(read);
+                const auto data = read->readVideo(OTIO_NS::RationalTime(0.0, 24.0)).get();
+                FTK_CHECK(data.image);
+                if (!data.image)
+                {
+                    continue;
+                }
+                const auto& outInfo = data.image->getInfo();
+                const int channels = ftk::getChannelCount(outInfo.type);
+                const int bytes = ftk::getBitDepth(outInfo.type) / 8;
+                const int y = imageInfo.size.h / 2;
+                // As eight bits, whatever the reader gave back.
+                const auto px = [&](int x, int c)
+                {
+                    const size_t i = (y * outInfo.size.w + x) * channels + c;
+                    const uint8_t* p = data.image->getData();
+                    return 2 == bytes ?
+                        static_cast<int>(reinterpret_cast<const uint16_t*>(p)[i] >> 8) :
+                        static_cast<int>(p[i]);
+                };
+                _print(ftk::Format("{0}: red line {1} {2} {3}, white line {4} {5} {6}").
+                    arg(pixelFormat).
+                    arg(px(redX - 1, 0)).arg(px(redX, 0)).arg(px(redX + 1, 0)).
+                    arg(px(whiteX - 1, 0)).arg(px(whiteX, 0)).arg(px(whiteX + 1, 0)));
+                // Within a few levels: YUV cannot hold every RGB value
+                // exactly, but a line is either there or it has spread.
+                FTK_CHECK(px(redX, 0) > 240);
+                FTK_CHECK(px(redX - 1, 0) < 15);
+                FTK_CHECK(px(redX + 1, 0) < 15);
+                FTK_CHECK(px(whiteX, 1) > 240);
+                FTK_CHECK(px(whiteX - 1, 1) < 15);
+                FTK_CHECK(px(whiteX + 1, 1) < 15);
+            }
         }
 
         void FFmpegTest::_frameOrder()
