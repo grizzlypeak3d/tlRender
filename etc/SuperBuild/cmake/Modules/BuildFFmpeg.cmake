@@ -538,13 +538,12 @@ if(WIN32)
     list(JOIN FFmpeg_CONFIGURE_ARGS " " FFmpeg_CONFIGURE_ARGS_TMP)
     # --needed, so that an MSYS2 that has the packages already -- continuous
     # integration's -- does not reach for the package mirror, which has been
-    # the thing to fail. pkgconf because libaom and libsvtav1 are the
+    # the thing to fail. pkgconf because libaom, libsvtav1 and OpenAPV are the
     # dependencies FFmpeg will only find through pkg-config; the rest are
     # found here by the include and library paths passed above. Without it
     # PKG_CONFIG_PATH is exported into a shell that has nothing to read it,
     # and --enable-libaom fails however well the libraries themselves were
-    # built. (OpenAPV is a third, where it is built; it is not, on this
-    # toolchain.)
+    # built.
     set(FFmpeg_CONFIGURE ${FFmpeg_MSYS2}
         -c "pacman -S --needed diffutils make nasm pkgconf --noconfirm && \
         export PKG_CONFIG_PATH=${FFmpeg_PKG_CONFIG} && \
