@@ -409,3 +409,16 @@ install(
     FILES ${CMAKE_CURRENT_BINARY_DIR}/tlRenderConfig.cmake
     DESTINATION lib/cmake/tlRender
     COMPONENT dev)
+
+# Last, once everything is installed: the wheel's CMake packages are made
+# to name its own files rather than the directories they were built in, and
+# the extra copies of each library are dropped. See etc/Python/relocate.py.
+if(SKBUILD)
+    install(CODE "execute_process(
+        COMMAND \"${Python_EXECUTABLE}\"
+            \"${PROJECT_SOURCE_DIR}/etc/Python/relocate.py\"
+            \"\${CMAKE_INSTALL_PREFIX}\"
+            \"${TLRENDER_WHEEL_DEPS}\"
+            \"${TLRENDER_WHEEL_FTK}\"
+        COMMAND_ERROR_IS_FATAL ANY)")
+endif()
