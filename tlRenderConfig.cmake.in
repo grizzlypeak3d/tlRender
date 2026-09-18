@@ -5,6 +5,12 @@ list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_LIST_DIR})
 
 include(CMakeFindDependencyMacro)
 
+# The dependencies are installed with tlRender, by the super build and in a
+# wheel, so they are looked for here first. This file runs in the caller's
+# scope, so the search path is put back at the end.
+set(_tlRender_PREFIX_PATH ${CMAKE_PREFIX_PATH})
+list(PREPEND CMAKE_PREFIX_PATH "${PACKAGE_PREFIX_DIR}")
+
 # Base dependencies
 find_package(Imath REQUIRED)
 find_package(nlohmann_json REQUIRED)
@@ -30,22 +36,22 @@ if(@TLRENDER_FFMPEG@)
         set(FFmpeg_FOUND TRUE)
         add_library(FFmpeg::avdevice STATIC IMPORTED)
         set_property(TARGET FFmpeg::avdevice PROPERTY
-             IMPORTED_LOCATION "${CMAKE_INSTALL_PREFIX}/lib/avdevice.lib")
+             IMPORTED_LOCATION "${PACKAGE_PREFIX_DIR}/lib/avdevice.lib")
         add_library(FFmpeg::avformat STATIC IMPORTED)
         set_property(TARGET FFmpeg::avformat PROPERTY
-             IMPORTED_LOCATION "${CMAKE_INSTALL_PREFIX}/lib/avformat.lib")
+             IMPORTED_LOCATION "${PACKAGE_PREFIX_DIR}/lib/avformat.lib")
         add_library(FFmpeg::avcodec STATIC IMPORTED)
         set_property(TARGET FFmpeg::avcodec PROPERTY
-             IMPORTED_LOCATION "${CMAKE_INSTALL_PREFIX}/lib/avcodec.lib")
+             IMPORTED_LOCATION "${PACKAGE_PREFIX_DIR}/lib/avcodec.lib")
         add_library(FFmpeg::swresample STATIC IMPORTED)
         set_property(TARGET FFmpeg::swresample PROPERTY
-             IMPORTED_LOCATION "${CMAKE_INSTALL_PREFIX}/lib/swresample.lib")
+             IMPORTED_LOCATION "${PACKAGE_PREFIX_DIR}/lib/swresample.lib")
         add_library(FFmpeg::swscale STATIC IMPORTED)
         set_property(TARGET FFmpeg::swscale PROPERTY
-             IMPORTED_LOCATION "${CMAKE_INSTALL_PREFIX}/lib/swscale.lib")
+             IMPORTED_LOCATION "${PACKAGE_PREFIX_DIR}/lib/swscale.lib")
         add_library(FFmpeg::avutil STATIC IMPORTED)
         set_property(TARGET FFmpeg::avutil PROPERTY
-             IMPORTED_LOCATION "${CMAKE_INSTALL_PREFIX}/lib/avutil.lib")
+             IMPORTED_LOCATION "${PACKAGE_PREFIX_DIR}/lib/avutil.lib")
         add_library(FFmpeg::FFmpeg INTERFACE IMPORTED)
         set_property(TARGET FFmpeg::FFmpeg PROPERTY
             INTERFACE_LINK_LIBRARIES
@@ -59,22 +65,22 @@ if(@TLRENDER_FFMPEG@)
         set(FFmpeg_FOUND TRUE)
         add_library(FFmpeg::avdevice STATIC IMPORTED)
         set_property(TARGET FFmpeg::avdevice PROPERTY
-             IMPORTED_LOCATION "${CMAKE_INSTALL_PREFIX}/lib/libavdevice.dylib")
+             IMPORTED_LOCATION "${PACKAGE_PREFIX_DIR}/lib/libavdevice.dylib")
         add_library(FFmpeg::avformat STATIC IMPORTED)
         set_property(TARGET FFmpeg::avformat PROPERTY
-             IMPORTED_LOCATION "${CMAKE_INSTALL_PREFIX}/lib/libavformat.dylib")
+             IMPORTED_LOCATION "${PACKAGE_PREFIX_DIR}/lib/libavformat.dylib")
         add_library(FFmpeg::avcodec STATIC IMPORTED)
         set_property(TARGET FFmpeg::avcodec PROPERTY
-             IMPORTED_LOCATION "${CMAKE_INSTALL_PREFIX}/lib/libavcodec.dylib")
+             IMPORTED_LOCATION "${PACKAGE_PREFIX_DIR}/lib/libavcodec.dylib")
         add_library(FFmpeg::swresample STATIC IMPORTED)
         set_property(TARGET FFmpeg::swresample PROPERTY
-             IMPORTED_LOCATION "${CMAKE_INSTALL_PREFIX}/lib/libswresample.dylib")
+             IMPORTED_LOCATION "${PACKAGE_PREFIX_DIR}/lib/libswresample.dylib")
         add_library(FFmpeg::swscale STATIC IMPORTED)
         set_property(TARGET FFmpeg::swscale PROPERTY
-             IMPORTED_LOCATION "${CMAKE_INSTALL_PREFIX}/lib/libswscale.dylib")
+             IMPORTED_LOCATION "${PACKAGE_PREFIX_DIR}/lib/libswscale.dylib")
         add_library(FFmpeg::avutil STATIC IMPORTED)
         set_property(TARGET FFmpeg::avutil PROPERTY
-             IMPORTED_LOCATION "${CMAKE_INSTALL_PREFIX}/lib/libavutil.dylib")
+             IMPORTED_LOCATION "${PACKAGE_PREFIX_DIR}/lib/libavutil.dylib")
         add_library(FFmpeg::FFmpeg INTERFACE IMPORTED)
         set_property(TARGET FFmpeg::FFmpeg PROPERTY
             INTERFACE_LINK_LIBRARIES
@@ -90,13 +96,31 @@ if(@TLRENDER_FFMPEG@)
         set(FFmpeg_FOUND TRUE)
         add_library(FFmpeg::avutil STATIC IMPORTED)
         set_property(TARGET FFmpeg::avutil PROPERTY
-             IMPORTED_LOCATION "${CMAKE_INSTALL_PREFIX}/lib/libavutil.a")
+             IMPORTED_LOCATION "${PACKAGE_PREFIX_DIR}/lib/libavutil.a")
         add_library(FFmpeg::swresample STATIC IMPORTED)
         set_property(TARGET FFmpeg::swresample PROPERTY
-             IMPORTED_LOCATION "${CMAKE_INSTALL_PREFIX}/lib/libswresample.a")
+             IMPORTED_LOCATION "${PACKAGE_PREFIX_DIR}/lib/libswresample.a")
         add_library(FFmpeg::swscale STATIC IMPORTED)
         set_property(TARGET FFmpeg::swscale PROPERTY
-             IMPORTED_LOCATION "${CMAKE_INSTALL_PREFIX}/lib/libswscale.a")
+             IMPORTED_LOCATION "${PACKAGE_PREFIX_DIR}/lib/libswscale.a")
+    elseif(EXISTS "${PACKAGE_PREFIX_DIR}/lib/libavutil.so")
+        # Installed beside tlRender, as in a wheel, which leaves out the
+        # pkg-config files since they hold the build machine's paths.
+        set(FFmpeg_FOUND TRUE)
+        foreach(_tlRender_FFMPEG_LIB avdevice avformat avcodec swresample swscale avutil)
+            add_library(FFmpeg::${_tlRender_FFMPEG_LIB} SHARED IMPORTED)
+            set_property(TARGET FFmpeg::${_tlRender_FFMPEG_LIB} PROPERTY
+                IMPORTED_LOCATION "${PACKAGE_PREFIX_DIR}/lib/lib${_tlRender_FFMPEG_LIB}.so")
+        endforeach()
+        add_library(FFmpeg::FFmpeg INTERFACE IMPORTED)
+        set_property(TARGET FFmpeg::FFmpeg PROPERTY
+            INTERFACE_LINK_LIBRARIES
+            FFmpeg::avdevice
+            FFmpeg::avformat
+            FFmpeg::avcodec
+            FFmpeg::swresample
+            FFmpeg::swscale
+            FFmpeg::avutil)
     else()
         find_package(PkgConfig REQUIRED)
         pkg_check_modules(
@@ -146,6 +170,9 @@ endif()
 
 # feather-tk dependencies
 find_package(ftk REQUIRED)
+
+set(CMAKE_PREFIX_PATH ${_tlRender_PREFIX_PATH})
+unset(_tlRender_PREFIX_PATH)
 
 include("${CMAKE_CURRENT_LIST_DIR}/tlResourceTargets.cmake")
 include("${CMAKE_CURRENT_LIST_DIR}/tlCoreTargets.cmake")

@@ -14,7 +14,7 @@ target_include_directories(tlGLTest
         $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/tests>
         $<INSTALL_INTERFACE:include>)
 
-target_link_libraries(tlGLTest tlGL ftkTestLib)
+target_link_libraries(tlGLTest tlGL ftk::ftkTestLib)
 if(TLRENDER_OCIO)
     # To ask the built-in configuration what displays and views it has,
     # rather than naming ones that may not be in every version of it.

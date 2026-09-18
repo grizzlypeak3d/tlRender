@@ -52,8 +52,8 @@ set(TLRENDER_OIIO ON CACHE BOOL "")
 set(TLRENDER_LIBRAW ON CACHE BOOL "")
 set(TLRENDER_USD OFF CACHE BOOL "")
 # The Python bindings, derived down the stack the way the dependencies run:
-# tlRenderPy needs feather_tk. Setting this one is enough, and because local.cmake
-# is read first, ftk_PYTHON can still be named on its own to build only the
+# the tlrender module needs feather_tk. Setting this one is enough, and
+# because local.cmake is read first, ftk_PYTHON can still be named on its own to build only the
 # feather-tk bindings.
 set(TLRENDER_PYTHON OFF CACHE BOOL "")
 set(ftk_PYTHON ${TLRENDER_PYTHON} CACHE BOOL "")
@@ -67,9 +67,9 @@ set(ftk_API "GL_4_1" CACHE STRING "")
 # binding module would otherwise link its own static copy of the stack, and
 # two copies of a library in one process do not share its type information.
 #
-# OpenTimelineIO is where that shows first: its own Python package and
-# tlRenderPy each bring a libopentimelineio of their own, and reading the
-# plugin manifest across the two fails with "bad any cast". SDL says the same
+# OpenTimelineIO is where that shows first: its own Python package and the
+# tlrender module each bring a libopentimelineio of their own, and reading
+# the plugin manifest across the two fails with "bad any cast". SDL says the same
 # thing more loudly on macOS, where the duplicate announces itself as an
 # Objective-C class implemented twice.
 #

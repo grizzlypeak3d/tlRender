@@ -4,7 +4,7 @@
 #include <tlRender/UI/TimeUnitsWidget.h>
 
 #include <ftk/UI/ButtonGroup.h>
-#include <ftk/UI/ComboBoxPrivate.h>
+#include <ftk/UI/ComboBoxMenu.h>
 #include <ftk/UI/RowLayout.h>
 #include <ftk/UI/ToolButton.h>
 

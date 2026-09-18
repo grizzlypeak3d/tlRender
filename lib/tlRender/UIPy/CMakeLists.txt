@@ -24,8 +24,8 @@ set(SOURCE
     TimelineWidget.cpp
     Viewport.cpp)
 
-# Static. The bindings are linked by tlRenderPy and nothing else, so there
-# is no API here for anything to import -- the module absorbs them.
+# Static. The bindings are linked by the tlrender module and nothing else,
+# so there is no API here for anything to import -- the module absorbs them.
 add_library(tlUIPy STATIC ${HEADERS} ${HEADERS_PRIVATE} ${SOURCE})
 # Hidden, as the module is: the binding classes hold nanobind's types,
 # which are hidden, and GCC warns about a class more visible than its
@@ -50,7 +50,7 @@ set_target_properties(tlUIPy PROPERTIES FOLDER lib)
 set_target_properties(tlUIPy PROPERTIES PUBLIC_HEADER "${HEADERS}")
 
 install(TARGETS tlUIPy
-    ARCHIVE DESTINATION lib COMPONENT dev
+    ARCHIVE DESTINATION lib COMPONENT dev ${TLRENDER_PYTHON_ARCHIVE_INSTALL}
     LIBRARY DESTINATION lib
     RUNTIME DESTINATION bin
     PUBLIC_HEADER DESTINATION include/tlRender/tlUIPy COMPONENT dev)

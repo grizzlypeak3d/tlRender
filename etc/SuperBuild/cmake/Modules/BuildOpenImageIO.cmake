@@ -56,4 +56,5 @@ ExternalProject_Add(
     DEPENDS ${OpenImageIO_DEPS}
     GIT_REPOSITORY ${OpenImageIO_GIT_REPOSITORY}
     GIT_TAG ${OpenImageIO_GIT_TAG}
+    LIST_SEPARATOR |
     CMAKE_ARGS ${OpenImageIO_ARGS})

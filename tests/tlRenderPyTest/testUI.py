@@ -2,7 +2,7 @@
 # Copyright Contributors to the tlRender project.
 
 import feather_tk as ftk
-import tlRenderPy as tl
+import tlrender as tl
 
 import os
 import unittest

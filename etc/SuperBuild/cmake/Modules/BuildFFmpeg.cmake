@@ -40,6 +40,19 @@ set(FFmpeg_CFLAGS "--extra-cflags=-I${CMAKE_INSTALL_PREFIX}/include")
 set(FFmpeg_CXXFLAGS "--extra-cxxflags=-I${CMAKE_INSTALL_PREFIX}/include")
 set(FFmpeg_OBJCFLAGS "--extra-objcflags=-I${CMAKE_INSTALL_PREFIX}/include")
 set(FFmpeg_LDFLAGS)
+# The prefixes the super build did not install into: zlib comes from the
+# feather-tk wheel in a wheel build, and configure looks for it with the
+# compiler rather than with CMake, so it is told where to look.
+foreach(prefix ${TLRENDER_EXTRA_PREFIXES})
+    list(APPEND FFmpeg_CFLAGS "--extra-cflags=-I${prefix}/include")
+    list(APPEND FFmpeg_CXXFLAGS "--extra-cxxflags=-I${prefix}/include")
+    list(APPEND FFmpeg_OBJCFLAGS "--extra-objcflags=-I${prefix}/include")
+    if(WIN32)
+        list(APPEND FFmpeg_LDFLAGS "--extra-ldflags=/LIBPATH:${prefix}/lib")
+    else()
+        list(APPEND FFmpeg_LDFLAGS "--extra-ldflags=-L${prefix}/lib")
+    endif()
+endforeach()
 if(WIN32)
     list(APPEND FFmpeg_LDFLAGS "--extra-ldflags=/LIBPATH:${CMAKE_INSTALL_PREFIX}/lib")
     # Which C runtime, and only to the compiler. The linker takes no -MD:

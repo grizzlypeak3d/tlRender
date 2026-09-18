@@ -1,7 +1,8 @@
 [![License](https://img.shields.io/badge/License-BSD%203--Clause-blue.svg)](https://opensource.org/licenses/BSD-3-Clause)
 [![Build Status](https://github.com/grizzlypeak3d/tlRender/actions/workflows/ci-workflow.yml/badge.svg)](https://github.com/grizzlypeak3d/tlRender/actions/workflows/ci-workflow.yml)
+[![PyPI](https://img.shields.io/pypi/v/tlrender.svg)](https://pypi.org/project/tlrender/)
 
-# ![tlRender Icon](etc/Icons/tlRender_32.png)&nbsp;tlRender
+# ![tlRender Icon](https://raw.githubusercontent.com/grizzlypeak3d/tlRender/main/etc/Icons/tlRender_32.png)&nbsp;tlRender
 
 tlRender is an open source library for building playback and review
 applications for visual effects, film, and animation.
@@ -10,13 +11,18 @@ The library can render and playback timelines with multiple video clips,
 image sequences, audio clips, and transitions. Examples are provided for
 integrating the library with OpenGL applications.
 
-The library is written in C++ and uses the CMake build system.
+The library is written in C++ and uses the CMake build system, with Python
+bindings on PyPI:
+
+```sh
+pip install tlRender
+```
 
 These screenshots show an example application built with tlRender. The
 application is comparing two images with a wipe and horizontal layout.
 
-![player 1](etc/Images/player_1.png)
-![player 2](etc/Images/player_2.png)
+![player 1](https://raw.githubusercontent.com/grizzlypeak3d/tlRender/main/etc/Images/player_1.png)
+![player 2](https://raw.githubusercontent.com/grizzlypeak3d/tlRender/main/etc/Images/player_2.png)
 
 Features:
 * Support for timelines, image sequences, movies, and audio files
@@ -38,6 +44,34 @@ playing movies with the WebCodecs API:
 
 The "url" query plays a movie from any host that allows cross-origin
 range reads.
+
+
+## Python
+
+The Python bindings are one wheel per platform for CPython 3.12 and later,
+built on the [feather-tk](https://pypi.org/project/feather-tk/) wheel, which
+pip installs with them, and
+[OpenTimelineIO](https://pypi.org/project/opentimelineio/):
+
+```python
+import opentimelineio as otio
+import feather_tk as ftk
+import tlrender as tl
+```
+
+The wheel has only the FFmpeg codecs that need no patent license; build from
+source for the rest. OpenTimelineIO does not publish wheels for every
+platform tlRender does, so on some pip builds it from source, which needs a
+C++ compiler.
+
+The [Python examples](https://github.com/grizzlypeak3d/tlRender/tree/main/examples/python)
+show the API in use. The wheel also carries the C++ libraries, headers, and
+CMake package, so a project with its own bindings can build against the same
+installation:
+
+```sh
+cmake -DCMAKE_PREFIX_PATH="$(python -c "import tlrender; print(tlrender.get_cmake_dir())");$(python -c "import feather_tk; print(feather_tk.get_cmake_dir())")" ...
+```
 
 
 ## Building Dependencies

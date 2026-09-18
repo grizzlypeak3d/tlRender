@@ -35,7 +35,7 @@ target_include_directories(tlIOTest
         $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/tests>
         $<INSTALL_INTERFACE:include>)
 
-target_link_libraries(tlIOTest tlIO ftkTestLib)
+target_link_libraries(tlIOTest tlIO ftk::ftkTestLib)
 if(TLRENDER_FFMPEG_PLUGIN)
     # The test asks FFmpeg itself what this build can encode, so it needs the
     # libraries rather than only the plugin that wraps them: tlIO links them
