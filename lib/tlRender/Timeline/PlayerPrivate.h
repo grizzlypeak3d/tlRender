@@ -131,6 +131,11 @@ namespace tl
 #elif defined(FTK_SDL3)
         SDL_AudioStream* sdlStream = nullptr;
 #endif // FTK_SDL2
+#if defined(FTK_SDL2) || defined(FTK_SDL3)
+        // A reference to SDL's audio, held for as long as the player: see
+        // _init().
+        bool sdlAudio = false;
+#endif // FTK_SDL2 || FTK_SDL3
 
         std::atomic<bool> running;
 
