@@ -22,13 +22,16 @@ _here = _os.path.dirname(_os.path.abspath(__file__))
 # Python 3.8 stopped finding an extension module's DLLs through PATH on
 # Windows, so the directories they are in are named here, before the module
 # is imported: bin in a wheel, and the prefix's bin when the package is
-# installed to <prefix>/lib/tlrender. The handles are kept, since closing
-# one takes its directory away again.
+# installed to <prefix>/lib/tlrender. lib as well, since OpenTimelineIO
+# installs its DLLs there rather than in bin. The handles are kept, since
+# closing one takes its directory away again.
 _dll_directories = []
 if _sys.platform == "win32":
     for _dir in (
             _os.path.join(_here, "bin"),
-            _os.path.join(_here, _os.pardir, _os.pardir, "bin")):
+            _os.path.join(_here, "lib"),
+            _os.path.join(_here, _os.pardir, _os.pardir, "bin"),
+            _os.path.join(_here, _os.pardir)):
         if _os.path.isdir(_dir):
             _dll_directories.append(_os.add_dll_directory(_dir))
 
