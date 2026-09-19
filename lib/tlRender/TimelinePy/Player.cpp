@@ -124,6 +124,8 @@ namespace tl
                 .def_prop_rw("mediaReferenceKey", &Player::getMediaReferenceKey, &Player::setMediaReferenceKey, nb::rv_policy::copy)
                 .def_prop_ro("observeMediaReferenceKey", &Player::observeMediaReferenceKey)
                 .def_prop_ro("mediaReferenceKeys", &Player::getMediaReferenceKeys)
+                .def_prop_rw("compareMediaReferenceKeys", &Player::getCompareMediaReferenceKeys, &Player::setCompareMediaReferenceKeys)
+                .def_prop_ro("observeCompareMediaReferenceKeys", &Player::observeCompareMediaReferenceKeys)
 
                 .def_prop_rw("videoLayer", &Player::getVideoLayer, &Player::setVideoLayer)
                 .def_prop_ro("observeVideoLayer", &Player::observeVideoLayer)

@@ -58,6 +58,7 @@ namespace tl
             _player();
             _seqAndAudio();
             _compare();
+            _compareMediaReferences();
         }
 
         void PlayerTest::_enums()
@@ -539,6 +540,60 @@ namespace tl
                 // And with the comparison taken away again.
                 player->setCompare({});
                 FTK_CHECK(compare.empty());
+            }
+            catch (const std::exception& e)
+            {
+                _error(e.what());
+            }
+        }
+
+        void PlayerTest::_compareMediaReferences()
+        {
+            // Each comparison timeline can be on a media reference of its
+            // own, so that a proxy can be put against the full resolution
+            // version; one without a key of its own follows the player's.
+            try
+            {
+                const ftk::Path path(TLRENDER_SAMPLE_DATA, "MultipleMediaRefs.otio");
+                auto player = Player::create(_context, Timeline::create(_context, path));
+                auto b = Timeline::create(_context, path);
+                auto c = Timeline::create(_context, path);
+
+                std::vector<std::string> keys;
+                auto keysObserver = ftk::ListObserver<std::string>::create(
+                    player->observeCompareMediaReferenceKeys(),
+                    [&keys](const std::vector<std::string>& value)
+                    {
+                        keys = value;
+                    });
+
+                player->setCompare({ b, c });
+                player->setCompareMediaReferenceKeys({ "Full" });
+                FTK_CHECK(std::vector<std::string>({ "Full" }) == keys);
+                FTK_CHECK(player->getMediaReferenceKey().empty());
+                FTK_CHECK("Full" == b->getMediaReferenceKey());
+                FTK_CHECK(c->getMediaReferenceKey().empty());
+
+                // The player's key reaches only the timeline without one.
+                player->setMediaReferenceKey("Proxy");
+                FTK_CHECK("Proxy" == player->getTimeline()->getMediaReferenceKey());
+                FTK_CHECK("Full" == b->getMediaReferenceKey());
+                FTK_CHECK("Proxy" == c->getMediaReferenceKey());
+
+                // An empty key is kept as the authored reference rather than
+                // taken for no key.
+                player->setCompareMediaReferenceKeys({ "Full", "" });
+                FTK_CHECK(c->getMediaReferenceKey().empty());
+
+                // A new comparison takes the keys already set.
+                auto d = Timeline::create(_context, path);
+                player->setCompare({ d });
+                FTK_CHECK("Full" == d->getMediaReferenceKey());
+
+                // Without keys of their own they follow the player again.
+                player->setCompareMediaReferenceKeys({});
+                FTK_CHECK(keys.empty());
+                FTK_CHECK("Proxy" == d->getMediaReferenceKey());
             }
             catch (const std::exception& e)
             {

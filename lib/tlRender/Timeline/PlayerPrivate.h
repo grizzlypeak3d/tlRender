@@ -60,6 +60,9 @@ namespace tl
 
         void log();
 
+        //! The media reference key for the comparison timeline at the index.
+        std::string compareMediaReferenceKey(size_t) const;
+
         std::weak_ptr<ftk::LogSystem> logSystem;
         //! What the log calls this player; see Timeline::Private::logId.
         size_t logId = 0;
@@ -86,6 +89,7 @@ namespace tl
         std::shared_ptr<ftk::Observable<CompareTime> > compareTime;
         std::shared_ptr<ftk::Observable<IOOptions> > ioOptions;
         std::shared_ptr<ftk::Observable<std::string> > mediaReferenceKey;
+        std::shared_ptr<ftk::ObservableList<std::string> > compareMediaReferenceKeys;
         std::shared_ptr<ftk::Observable<int> > videoLayer;
         std::shared_ptr<ftk::ObservableList<int> > compareVideoLayers;
         std::shared_ptr<ftk::ObservableList<VideoFrame> > currentVideoFrame;

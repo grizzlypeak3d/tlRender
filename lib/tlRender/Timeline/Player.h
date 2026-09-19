@@ -305,7 +305,8 @@ namespace tl
         ///
         //! Clips may carry several media references, for example a proxy and a
         //! full resolution version of the same media, selected by key. The key
-        //! is applied to the timeline and to any comparison timelines.
+        //! is applied to the timeline and to any comparison timelines that
+        //! have no key of their own.
         ///@{
 
         //! Get the media reference key. An empty key, the default, leaves
@@ -324,6 +325,21 @@ namespace tl
         //! Get the media reference keys used by the timeline and any
         //! comparison timelines, sorted and without duplicates.
         TL_TIMELINE_API std::vector<std::string> getMediaReferenceKeys() const;
+
+        //! Get the comparison media reference keys.
+        TL_TIMELINE_API const std::vector<std::string>& getCompareMediaReferenceKeys() const;
+
+        //! Observe the comparison media reference keys.
+        TL_TIMELINE_API std::shared_ptr<ftk::IObservableList<std::string> > observeCompareMediaReferenceKeys() const;
+
+        //! Set the media reference key of each comparison timeline, in order,
+        //! so that a comparison can put one version against another. A
+        //! comparison timeline past the end of the list takes the key set
+        //! with setMediaReferenceKey(). An empty key is a key like any other
+        //! here: the media reference each clip was authored with.
+        //!
+        //! The cache is cleared so that the media already read is replaced.
+        TL_TIMELINE_API void setCompareMediaReferenceKeys(const std::vector<std::string>&);
 
         ///@}
 

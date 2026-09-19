@@ -27,6 +27,7 @@ namespace tl
             void _player(const std::shared_ptr<Player>&);
             void _seqAndAudio();
             void _compare();
+            void _compareMediaReferences();
         };
     }
 }
