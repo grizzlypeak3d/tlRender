@@ -331,6 +331,24 @@ namespace tl
                 p.scrollWidget->getScrollPos());
         }
 
+        void TimelineWidget::setViewZoomAtCurrentTime(double zoom)
+        {
+            FTK_P();
+            const ftk::Box2I vp = p.scrollWidget->getScrollInfo().viewport;
+            const ftk::V2I scrollPos = p.scrollWidget->getScrollPos();
+            const int x = p.ruler->timeToPos(p.currentTime) - vp.min.x;
+            const int focus = x >= 0 && x <= vp.w() ? x : vp.w() / 2;
+
+            // The current time's position in the content; scrolling there
+            // less the focus puts it under the focus before the zoom.
+            const int content = x + scrollPos.x;
+            _setViewZoom(
+                zoom,
+                p.scale,
+                ftk::V2I(focus, 0),
+                ftk::V2I(content - focus, scrollPos.y));
+        }
+
         void TimelineWidget::frameView()
         {
             FTK_P();

@@ -70,6 +70,10 @@ namespace tl
                 double,
                 const ftk::V2I& focus);
 
+            //! Set the view zoom, keeping the current time where it is on
+            //! screen, or centering it if it is out of view.
+            TL_UI_API void setViewZoomAtCurrentTime(double);
+
             //! Frame the view.
             TL_UI_API void frameView();
 
