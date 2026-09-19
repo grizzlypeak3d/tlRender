@@ -93,6 +93,7 @@ namespace tl
             _foreground();
             _prims();
             _oneToOne();
+            _yuvLevels();
             _color();
         }
 
@@ -317,6 +318,120 @@ namespace tl
                         arg(differ).
                         arg(got));
                     FTK_CHECK(0 == differ);
+                }
+            }
+        }
+
+        void RenderTest::_yuvLevels()
+        {
+            // Flat YUV pictures in every planar type, at the black, grey,
+            // and white of each range, must come back as the RGB they stand
+            // for. Legal range over eight bits keeps the 8-bit levels in its
+            // high byte, and taking it for 8-bit levels read 10-bit white
+            // as 253.
+            auto window = createWindow(_context);
+            auto render = gl::Render::create(
+                _context->getLogSystem(),
+                _context->getSystem<ftk::FontSystem>());
+            const ftk::Size2I size(8, 4);
+            auto buffer = ftk::gl::OffscreenBuffer::create(
+                size,
+                ftk::gl::offscreenColorDefault);
+            ftk::gl::OffscreenBufferBinding bufferBinding(buffer);
+
+            struct Level
+            {
+                ftk::VideoLevels levels;
+                int y;
+                int c;
+                uint8_t rgb;
+            };
+            // 8-bit code values; the 16-bit types take them times 256, the
+            // way a 10-bit file shifted up to sixteen bits has them.
+            const std::vector<Level> levels =
+            {
+                { ftk::VideoLevels::LegalRange, 16, 128, 0 },
+                { ftk::VideoLevels::LegalRange, 126, 128, 128 },
+                { ftk::VideoLevels::LegalRange, 235, 128, 255 },
+                { ftk::VideoLevels::FullRange, 0, 128, 0 },
+                { ftk::VideoLevels::FullRange, 255, 128, 255 }
+            };
+            const std::vector<ftk::ImageType> types =
+            {
+                ftk::ImageType::YUV_420P_U8,
+                ftk::ImageType::YUV_422P_U8,
+                ftk::ImageType::YUV_444P_U8,
+                ftk::ImageType::YUV_420SP_U8,
+                ftk::ImageType::YUV_420P_U16,
+                ftk::ImageType::YUV_422P_U16,
+                ftk::ImageType::YUV_444P_U16,
+                ftk::ImageType::YUV_420SP_U16
+            };
+            for (const auto type : types)
+            {
+                const bool u16 =
+                    ftk::ImageType::YUV_420P_U16 == type ||
+                    ftk::ImageType::YUV_422P_U16 == type ||
+                    ftk::ImageType::YUV_444P_U16 == type ||
+                    ftk::ImageType::YUV_420SP_U16 == type;
+                for (const auto& level : levels)
+                {
+                    ftk::ImageInfo info(size, type);
+                    info.videoLevels = level.levels;
+                    auto image = ftk::Image::create(info);
+                    // The luma plane, then the chroma, whichever way the
+                    // chroma is laid out: it is all the same value.
+                    const size_t lumaCount = size.w * size.h;
+                    if (u16)
+                    {
+                        const size_t count = image->getByteCount() / 2;
+                        uint16_t* p = reinterpret_cast<uint16_t*>(image->getData());
+                        // Full range white is the top of the 16-bit range.
+                        const int y = 255 == level.y && ftk::VideoLevels::FullRange == level.levels ?
+                            65535 :
+                            level.y * 256;
+                        for (size_t i = 0; i < count; ++i)
+                        {
+                            p[i] = i < lumaCount ? y : level.c * 256;
+                        }
+                    }
+                    else
+                    {
+                        const size_t count = image->getByteCount();
+                        uint8_t* p = image->getData();
+                        for (size_t i = 0; i < count; ++i)
+                        {
+                            p[i] = i < lumaCount ? level.y : level.c;
+                        }
+                    }
+                    VideoLayer layer;
+                    layer.image = image;
+                    VideoFrame frame;
+                    frame.size = size;
+                    frame.layers.push_back(layer);
+                    render->begin(size);
+                    render->drawVideo(
+                        { frame },
+                        { ftk::Box2I(0, 0, size.w, size.h) },
+                        { ftk::ImageOptions() });
+                    render->end();
+
+                    std::vector<uint8_t> pixels(size.w * size.h * 4);
+                    glPixelStorei(GL_PACK_ALIGNMENT, 1);
+                    glReadPixels(0, 0, size.w, size.h, GL_RGBA, GL_UNSIGNED_BYTE, pixels.data());
+                    const uint8_t* rgb = pixels.data() + ((size.h / 2) * size.w + size.w / 2) * 4;
+                    _print(ftk::Format("YUV levels, {0} {1}, Y {2}: {3} {4} {5}, expected {6}").
+                        arg(type).
+                        arg(level.levels).
+                        arg(level.y).
+                        arg(static_cast<int>(rgb[0])).
+                        arg(static_cast<int>(rgb[1])).
+                        arg(static_cast<int>(rgb[2])).
+                        arg(static_cast<int>(level.rgb)));
+                    for (int i = 0; i < 3; ++i)
+                    {
+                        FTK_CHECK(level.rgb == rgb[i]);
+                    }
                 }
             }
         }
