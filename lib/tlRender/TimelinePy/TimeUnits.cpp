@@ -21,7 +21,7 @@
 #include <nanobind/stl/set.h>
 #include <nanobind/stl/shared_ptr.h>
 #include <nanobind/stl/filesystem.h>
-#include <nanobind/stl/function.h>
+#include <tlRender/CorePy/Function.h>
 
 namespace nb = nanobind;
 
