@@ -362,10 +362,14 @@ namespace tl
                 ftk::ImageType::YUV_422P_U8,
                 ftk::ImageType::YUV_444P_U8,
                 ftk::ImageType::YUV_420SP_U8,
+#if !defined(FTK_API_GLES_3)
+                // ES 3.0 has no 16-bit normalized textures, so feather-tk
+                // does not support the U16 types there.
                 ftk::ImageType::YUV_420P_U16,
                 ftk::ImageType::YUV_422P_U16,
                 ftk::ImageType::YUV_444P_U16,
                 ftk::ImageType::YUV_420SP_U16
+#endif // FTK_API_GLES_3
             };
             for (const auto type : types)
             {
