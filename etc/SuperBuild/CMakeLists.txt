@@ -85,8 +85,26 @@ endif()
 # FreeType with it. They are searched as well as the install prefix, and
 # named to the dependencies that do not find them by CMake -- FFmpeg
 # configures itself.
-set(TLRENDER_EXTRA_PREFIXES ${CMAKE_PREFIX_PATH})
-list(REMOVE_ITEM TLRENDER_EXTRA_PREFIXES ${CMAKE_INSTALL_PREFIX})
+#
+# Spelled the one way before the install prefix is taken back out of them.
+# CMAKE_PREFIX_PATH arrives as it was typed -- the build scripts put it
+# together from %CD%, which is backslashed on Windows -- and is stored
+# verbatim, having no type to be converted by. CMAKE_INSTALL_PREFIX is a
+# PATH entry, which CMake has already turned to forward slashes. The two
+# then spell the same directory differently, list(REMOVE_ITEM) compares
+# the strings, and the install prefix stays in a list that means "not the
+# install prefix": passed to FFmpeg a second time, its backslashes eaten
+# by the shell on the way, as "-IC:Devdjv/install-Release/include".
+#
+# The same conversion is what makes a prefix that is genuinely extra
+# usable here at all, for the wheel build that is the reason for these.
+set(TLRENDER_EXTRA_PREFIXES)
+foreach(prefix ${CMAKE_PREFIX_PATH})
+    file(TO_CMAKE_PATH "${prefix}" prefix)
+    list(APPEND TLRENDER_EXTRA_PREFIXES "${prefix}")
+endforeach()
+file(TO_CMAKE_PATH "${CMAKE_INSTALL_PREFIX}" TLRENDER_INSTALL_PREFIX)
+list(REMOVE_ITEM TLRENDER_EXTRA_PREFIXES "${TLRENDER_INSTALL_PREFIX}")
 set(TLRENDER_FIND_ROOT_PATH ${CMAKE_INSTALL_PREFIX} ${TLRENDER_EXTRA_PREFIXES})
 string(REPLACE ";" "|" TLRENDER_FIND_ROOT_PATH_TMP "${TLRENDER_FIND_ROOT_PATH}")
 
