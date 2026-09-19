@@ -5,6 +5,7 @@
 
 #include <ftk/GL/GL.h>
 #include <ftk/GL/Mesh.h>
+#include <ftk/GL/Texture.h>
 #include <ftk/GL/Util.h>
 #include <ftk/Core/Format.h>
 #include <ftk/Core/Math.h>
@@ -1061,7 +1062,6 @@ namespace tl
             unsigned int videoScaledID = 0;
             ftk::Size2I scaledBufferSize;
 
-#if !defined(FTK_API_GLES_3)
             // What the box comes to on screen, which is the render transform
             // applied to its corners. Both filters answer to it: whether the
             // picture is reduced, and whether it is enlarged.
@@ -1083,6 +1083,7 @@ namespace tl
                     static_cast<int>(std::round(std::fabs(b.y - a.y))));
             }
 
+#if !defined(FTK_API_GLES_3)
             // The picture has been drawn at its own size; the view's zoom is
             // applied by the draw below. When that is a large reduction the
             // four texels a linear fetch reads miss most of it, so reduce the
@@ -1209,6 +1210,23 @@ namespace tl
 
                 glActiveTexture(static_cast<GLenum>(GL_TEXTURE0));
                 glBindTexture(GL_TEXTURE_2D, videoID);
+                // At the one to one size every pixel lands on a texel, and a
+                // linear fetch returns it only if it lands exactly on the
+                // center: a GPU that keeps few bits of the filter weight
+                // (Mesa's llvmpipe keeps eight) turns the smallest offset
+                // into a level of the neighbor at every edge. Nothing needs
+                // filtering here, so nothing is.
+                const auto& sampledBuffer = videoID == videoScaledID ?
+                    p.buffers["videoScaled"] :
+                    p.buffers["video"];
+                const bool oneToOne =
+                    sampledBuffer &&
+                    onScreen == sampledBuffer->getSize();
+                if (oneToOne)
+                {
+                    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+                    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+                }
                 size_t texturesOffset = 1;
 #if defined(TLRENDER_OCIO)
                 if (p.ocioDataBound)
@@ -1253,6 +1271,16 @@ namespace tl
                 {
                     p.vaos["video"]->bind();
                     p.vaos["video"]->draw(GL_TRIANGLES, 0, p.vbos["video"]->getSize());
+                }
+                if (oneToOne)
+                {
+                    // The buffer is kept for the next frame, which may not be
+                    // one to one.
+                    glActiveTexture(static_cast<GLenum>(GL_TEXTURE0));
+                    glBindTexture(GL_TEXTURE_2D, videoID);
+                    const ftk::ImageFilters& bufferFilters = sampledBuffer->getOptions().colorFilters;
+                    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, ftk::gl::getTextureFilter(bufferFilters.minify));
+                    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, ftk::gl::getTextureFilter(bufferFilters.magnify));
                 }
             }
 
