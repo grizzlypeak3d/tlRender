@@ -58,6 +58,7 @@ namespace tl
             OTIO_NS::RationalTime currentTime;
             double scale = 500.0;
             bool sizeInit = true;
+            std::optional<double> zoomPending;
 
             //! The width the timelines were last framed against. A scroll bar
             //! appearing takes width from them without the widget's own size
@@ -335,6 +336,16 @@ namespace tl
         {
             FTK_P();
             const ftk::Box2I vp = p.scrollWidget->getScrollInfo().viewport;
+
+            // Both zoom limits are measured from the viewport's width, so
+            // before the first layout there is nothing to measure and any
+            // zoom would be clamped away. A zoom from the command line
+            // arrives then: remember it and apply it once the size is known.
+            if (!p.player || vp.w() <= 1)
+            {
+                p.zoomPending = zoom;
+                return;
+            }
             const ftk::V2I scrollPos = p.scrollWidget->getScrollPos();
             const int x = p.ruler->timeToPos(p.currentTime) - vp.min.x;
             const int focus = x >= 0 && x <= vp.w() ? x : vp.w() / 2;
@@ -696,6 +707,14 @@ namespace tl
                 setFrameView(true);
                 p.frameViewWidth = viewport.w();
                 frameView();
+            }
+
+            // A zoom that arrived before this widget had a size.
+            if (p.zoomPending.has_value() && p.player && viewport.w() > 1)
+            {
+                const double zoom = p.zoomPending.value();
+                p.zoomPending.reset();
+                setViewZoomAtCurrentTime(zoom);
             }
         }
 
