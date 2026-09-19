@@ -685,10 +685,14 @@ namespace tl
                 frameView();
             }
             else if (!p.timelineItems.empty() &&
-                p.layout->getSizeHint().w < viewport.w())
+                p.scale < _getTimelineScale())
             {
                 // Zoomed out past the whole of them, so there is nothing left
                 // to look closely at and framing them is what was wanted.
+                // Asked of the scale rather than the laid out width: at the
+                // framed scale the two are the same size give or take the
+                // margins, so a width comparison turns framing back on every
+                // layout, and no zoom or unchecked Frame View would hold.
                 setFrameView(true);
                 p.frameViewWidth = viewport.w();
                 frameView();
