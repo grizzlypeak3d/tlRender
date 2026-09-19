@@ -8,6 +8,9 @@
 #include <ftk/Core/Assert.h>
 #include <ftk/Core/Format.h>
 
+#include <string>
+#include <vector>
+
 namespace tl
 {
     namespace timeline_tests
@@ -54,6 +57,40 @@ namespace tl
                 // Text that is not a time.
                 opentime::ErrorStatus error;
                 textToTime("not a time", 24.0, units, &error);
+            }
+
+            // Timecode fields that are not two digits wide: OTIO reads
+            // them at fixed positions, which drops the seconds here.
+            {
+                const auto time = textToTime("1:00:40:00", 24.0, TimeUnits::Timecode);
+                FTK_CHECK(time.has_value());
+                FTK_CHECK(time->value() == 87360.0);
+                const auto time2 = textToTime("01:0:40:0", 24.0, TimeUnits::Timecode);
+                FTK_CHECK(time2.has_value());
+                FTK_CHECK(time2->value() == 87360.0);
+                const auto time3 = textToTime(" 01:00:40:00 ", 24.0, TimeUnits::Timecode);
+                FTK_CHECK(time3.has_value());
+                FTK_CHECK(time3->value() == 87360.0);
+            }
+            for (const auto& text : std::vector<std::string>{
+                "",
+                "01:00:40",
+                "01:00:40:00:00",
+                "01:00:40:0x",
+                "01:00:40:000",
+                "01::40:00",
+                "01:00 :40:00" })
+            {
+                opentime::ErrorStatus error;
+                FTK_CHECK(!textToTime(text, 24.0, TimeUnits::Timecode, &error).has_value());
+                FTK_CHECK(opentime::is_error(error));
+            }
+
+            // Drop frame timecode keeps its ';' separator.
+            {
+                const auto time = textToTime("1:00:00;02", 30000.0 / 1001.0, TimeUnits::Timecode);
+                FTK_CHECK(time.has_value());
+                FTK_CHECK(time == OTIO_NS::RationalTime::from_timecode("01:00:00;02", 30000.0 / 1001.0));
             }
 
             // Timecode of a time with no timecode rate: audio counted in

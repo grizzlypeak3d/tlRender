@@ -67,6 +67,66 @@ namespace tl
         return out;
     }
 
+    namespace
+    {
+        // OTIO reads timecode at fixed positions, two characters to a
+        // field, so a field of any other width shifts the rest: "1:00:40:00"
+        // reads as one hour with no error. Each field is checked here and
+        // padded to two digits, keeping the separators, whose ';' is what
+        // says the timecode is drop frame.
+        std::optional<std::string> normalizeTimecode(const std::string& text)
+        {
+            std::string out;
+            std::string field;
+            size_t fields = 0;
+            const size_t first = text.find_first_not_of(" \t");
+            const size_t last = text.find_last_not_of(" \t");
+            const std::string trimmed = first != std::string::npos ?
+                text.substr(first, last - first + 1) :
+                std::string();
+            const auto addField =
+                [&out, &field, &fields]
+                {
+                    if (field.empty() || field.size() > 2)
+                    {
+                        return false;
+                    }
+                    if (1 == field.size())
+                    {
+                        out.push_back('0');
+                    }
+                    out.append(field);
+                    field.clear();
+                    ++fields;
+                    return true;
+                };
+            for (const char c : trimmed)
+            {
+                if (c >= '0' && c <= '9')
+                {
+                    field.push_back(c);
+                }
+                else if (':' == c || ';' == c)
+                {
+                    if (!addField())
+                    {
+                        return std::nullopt;
+                    }
+                    out.push_back(c);
+                }
+                else
+                {
+                    return std::nullopt;
+                }
+            }
+            if (!addField() || fields != 4)
+            {
+                return std::nullopt;
+            }
+            return out;
+        }
+    }
+
     std::optional<OTIO_NS::RationalTime> textToTime(
         const std::string& text,
         double rate,
@@ -107,7 +167,19 @@ namespace tl
             break;
         }
         case TimeUnits::Timecode:
-            out = OTIO_NS::RationalTime::from_timecode(text, rate, errorStatus);
+            if (const auto timecode = normalizeTimecode(text))
+            {
+                out = OTIO_NS::RationalTime::from_timecode(
+                    timecode.value(),
+                    rate,
+                    errorStatus);
+            }
+            else if (errorStatus)
+            {
+                *errorStatus = opentime::ErrorStatus(
+                    opentime::ErrorStatus::INVALID_TIMECODE_STRING,
+                    "Input timecode '" + text + "' is an invalid timecode");
+            }
             break;
         default: break;
         }
