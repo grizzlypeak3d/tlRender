@@ -152,7 +152,3 @@ if app.hasCmdLineHelp:
 window = MainWindow(context, app)
 
 app.run()
-
-# Clean up.
-window = None
-app = None

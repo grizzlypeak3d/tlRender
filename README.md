@@ -119,10 +119,6 @@ window.widget = viewport
 # Start playback and run the application.
 player.playback = tl.Playback.Forward
 app.run()
-
-# Clean up.
-window = None
-app = None
 ```
 
 The [examples](https://github.com/grizzlypeak3d/tlRender/tree/main/examples)
