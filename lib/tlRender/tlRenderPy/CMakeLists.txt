@@ -77,7 +77,11 @@ add_custom_command(
         --dll-dir $<TARGET_FILE_DIR:tlTimeline>
         --dll-dir $<TARGET_FILE_DIR:tlUI>
         --dll-dir ${CMAKE_INSTALL_PREFIX}/bin
+        --dll-dir ${CMAKE_INSTALL_PREFIX}/lib
+        # The dependencies of a wheel build, where OpenTimelineIO's
+        # libraries are in lib rather than bin.
         --dll-dir ${TLRENDER_FFMPEG_PREFIX}/bin
+        --dll-dir ${TLRENDER_FFMPEG_PREFIX}/lib
         --
         ${TLRENDER_STUBGEN}
         -q
@@ -89,7 +93,14 @@ add_custom_command(
         # in the build environment instead.
         -i ${CMAKE_INSTALL_PREFIX}/python
         -O ${TLRENDER_PYTHON_PACKAGE_DIR}
-    DEPENDS _tlrender ${TLRENDER_STUBGEN} ${PROJECT_SOURCE_DIR}/etc/Python/make_stub.py
+    # feather-tk's module as well where it is built here rather than
+    # installed: importing this one imports that one, which has to exist
+    # by then.
+    DEPENDS
+        _tlrender
+        $<TARGET_NAME_IF_EXISTS:_feather_tk>
+        ${TLRENDER_STUBGEN}
+        ${PROJECT_SOURCE_DIR}/etc/Python/make_stub.py
     COMMENT "Generating the tlrender type stubs")
 add_custom_target(_tlrender_stub ALL DEPENDS ${TLRENDER_PYTHON_STUB})
 file(TOUCH ${TLRENDER_PYTHON_PACKAGE_DIR}/py.typed)
