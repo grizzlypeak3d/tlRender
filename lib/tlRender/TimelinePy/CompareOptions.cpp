@@ -46,6 +46,8 @@ namespace tl
                 .def(nanobind::self == nanobind::self)
                 .def(nanobind::self != nanobind::self);
 
+            ftk::python::observable<CompareOptions>(m, "CompareOptions");
+
             m.def("to_json",
                 [](const CompareOptions& value)
                 {

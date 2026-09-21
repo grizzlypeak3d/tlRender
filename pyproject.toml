@@ -8,6 +8,9 @@ requires = [
     "scikit-build-core>=0.11",
     "nanobind==3.0.1",
     "feather-tk==0.14.0",
+    # Imported by the module, and the type stubs are written by importing
+    # it; the version is the runtime one below.
+    "opentimelineio>=0.18",
 ]
 build-backend = "scikit_build_core.build"
 

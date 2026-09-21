@@ -81,6 +81,8 @@ namespace tl
                 .def(nanobind::self == nanobind::self)
                 .def(nanobind::self != nanobind::self);
 
+            ftk::python::observable<ForegroundOptions>(m, "ForegroundOptions");
+
             m.def("to_json",
                 [](const Grid& value)
                 {

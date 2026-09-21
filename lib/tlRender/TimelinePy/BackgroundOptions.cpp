@@ -51,6 +51,8 @@ namespace tl
                 .def(nanobind::self == nanobind::self)
                 .def(nanobind::self != nanobind::self);
 
+            ftk::python::observable<BackgroundOptions>(m, "BackgroundOptions");
+
             m.def("to_json",
                 [](const Background& value)
                 {

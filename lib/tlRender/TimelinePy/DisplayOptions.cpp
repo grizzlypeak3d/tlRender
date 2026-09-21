@@ -119,6 +119,8 @@ namespace tl
                 .def(nanobind::self == nanobind::self)
                 .def(nanobind::self != nanobind::self);
 
+            ftk::python::observableList<DisplayOptions>(m, "DisplayOptions");
+
             m.def("to_json",
                 [](const Color& value)
                 {

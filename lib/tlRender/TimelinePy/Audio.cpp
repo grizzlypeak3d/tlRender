@@ -16,6 +16,8 @@
 #include <nanobind/stl/optional.h>
 #include <tlRender/TimelinePy/OTIOCasters.h>
 
+#include <ftk/CorePy/Bindings.h>
+
 #include <nanobind/stl/array.h>
 #include <nanobind/stl/set.h>
 #include <nanobind/stl/shared_ptr.h>
@@ -41,6 +43,8 @@ namespace tl
                 .def_rw("layers", &AudioFrame::layers)
                 .def(nanobind::self == nanobind::self)
                 .def(nanobind::self != nanobind::self);
+
+            ftk::python::observableList<AudioFrame>(m, "AudioFrame");
 
             m.def(
                 "isTimeEqual",
