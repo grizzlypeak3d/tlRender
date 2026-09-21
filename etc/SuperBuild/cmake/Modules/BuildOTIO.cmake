@@ -3,17 +3,24 @@ include(ExternalProject)
 find_package(Git REQUIRED)
 
 set(OTIO_GIT_REPOSITORY "https://github.com/AcademySoftwareFoundation/OpenTimelineIO.git")
-# "Add core C++ support for otioz and otiod, take 2 (#2021)", which also adds
-# bundle support for multiple media references and image sequences. Newer than
-# v0.18.1, which does not have it.
-set(OTIO_GIT_TAG "0eebd211b2055f111e2c53d04b5581adc594c1fc")
+# "Link whichever minizip-ng target is present (#2038)", the last of the
+# changes this build carried as a patch. Newer than v0.18.1, which has
+# neither that nor "Add core C++ support for otioz and otiod, take 2
+# (#2021)" -- bundles, and bundle support for multiple media references and
+# image sequences.
+set(OTIO_GIT_TAG "8ab0cf963624cfe3daf3c79c937cf603b4ef783b")
 
 set(OTIO_SHARED_LIBS ON)
 if(NOT BUILD_SHARED_LIBS)
     set(OTIO_SHARED_LIBS OFF)
 endif()
 
+# The any values OTIO hands out are cast here by type, which takes the type
+# info of types it does not mark as API: a hidden build gives this side a
+# second copy of those, and the cast then fails (see the patch).
 set(OTIO_ARGS
+    -DCMAKE_CXX_VISIBILITY_PRESET=default
+    -DCMAKE_VISIBILITY_INLINES_HIDDEN=OFF
     ${TLRENDER_EXTERNAL_ARGS}
     -DOTIO_FIND_IMATH=ON
     # Use the minizip-ng and zlib from the super build; without this OTIO
@@ -55,14 +62,16 @@ if(UNIX AND NOT APPLE)
     list(APPEND OTIO_ARGS "-DCMAKE_INSTALL_RPATH=$ORIGIN|$ORIGIN/../../lib")
 endif()
 
-# OTIO is patched, with two changes; see the notes in the patch itself.
+# OTIO is patched, with three changes; see the notes in the patch itself.
 #
-# The first has it link whichever minizip-ng target is present rather than
-# assuming the one from the compatibility layer. Without it OTIO cannot be
-# built against the super build's minizip-ng, which is built without that
-# layer.
+# The first drops the "_d" debug postfix, which hides the Python modules from
+# the release interpreter that runs the tests.
 #
-# The second is what a shared build on Windows needs. OTIO_EXPORTS and
+# The second has it hide its symbols only when the caller has not said
+# otherwise; upstream sets that for its Python modules, and it takes the type
+# info of the any values tlRender casts with it.
+#
+# The third is what a shared build on Windows needs. OTIO_EXPORTS and
 # OPENTIME_EXPORTS become PRIVATE rather than PUBLIC, so a consumer's headers
 # declare the API dllimport instead of dllexport, and the members that had no
 # OTIO_API on them get it -- OTIO_API_TYPE on the class is empty on Windows,

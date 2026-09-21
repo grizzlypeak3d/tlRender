@@ -1,8 +1,32 @@
 diff --git a/CMakeLists.txt b/CMakeLists.txt
-index ea11696..41dc22b 100644
+index 4ef85c4..fa7767c 100644
 --- a/CMakeLists.txt
 +++ b/CMakeLists.txt
-@@ -191,12 +191,20 @@ else()
+@@ -26,8 +26,21 @@ set(CMAKE_OSX_DEPLOYMENT_TARGET "10.15" CACHE STRING "Minimum OS X deployment ve
+ 
+ project(OpenTimelineIO VERSION ${OTIO_VERSION} LANGUAGES C CXX)
+ 
+-set(CMAKE_CXX_VISIBILITY_PRESET hidden)
+-set(CMAKE_VISIBILITY_INLINES_HIDDEN ON)
++# Hidden unless the caller has said otherwise. A C++ consumer that casts
++# the any values OTIO hands it -- a media reference, a metadata entry --
++# compares the type info of types that are not marked OTIO_API, which a
++# hidden build gives it a second copy of:
++#
++#     type mismatch while decoding
++#
++# so a build meant to be linked against asks for default visibility, and
++# one built for the Python modules keeps this.
++if(NOT DEFINED CMAKE_CXX_VISIBILITY_PRESET)
++    set(CMAKE_CXX_VISIBILITY_PRESET hidden)
++endif()
++if(NOT DEFINED CMAKE_VISIBILITY_INLINES_HIDDEN)
++    set(CMAKE_VISIBILITY_INLINES_HIDDEN ON)
++endif()
+ 
+ #------------------------------------------------------------------------------
+ # Options
+@@ -194,12 +207,20 @@ else()
      message(STATUS "Building C++ with Coverage: OFF")
  endif()
  
@@ -29,32 +53,6 @@ index ea11696..41dc22b 100644
  
  set_property(GLOBAL PROPERTY USE_FOLDERS ON)
  
-@@ -295,6 +303,25 @@ endif()
- # set up the internally hosted dependencies
- add_subdirectory(src/deps)
- 
-+# minizip-ng names its target for how it was built: with the compatibility
-+# layer it is MINIZIP::minizip, and without it MINIZIP::minizip-ng. Only an
-+# installed one found by find_package can be missing the compatibility name --
-+# the copy in src/deps aliases it either way -- but that is the configuration
-+# find_package can actually resolve, so probe rather than assume. The probe has
-+# to come after src/deps, which is where that target is defined.
-+if(TARGET MINIZIP::minizip-ng)
-+    set(OTIO_MINIZIP_TARGET MINIZIP::minizip-ng)
-+else()
-+    set(OTIO_MINIZIP_TARGET MINIZIP::minizip)
-+endif()
-+
-+# Installing the bundled copy needs the library itself: install(TARGETS) does
-+# not accept an alias.
-+get_target_property(OTIO_MINIZIP_LIB ${OTIO_MINIZIP_TARGET} ALIASED_TARGET)
-+if(NOT OTIO_MINIZIP_LIB)
-+    set(OTIO_MINIZIP_LIB ${OTIO_MINIZIP_TARGET})
-+endif()
-+
- add_subdirectory(src/opentime)
- add_subdirectory(src/opentimelineio)
- 
 diff --git a/src/opentime/CMakeLists.txt b/src/opentime/CMakeLists.txt
 index 4f07106..7674d22 100644
 --- a/src/opentime/CMakeLists.txt
@@ -77,18 +75,9 @@ index 4f07106..7674d22 100644
  else()
      target_compile_definitions(
 diff --git a/src/opentimelineio/CMakeLists.txt b/src/opentimelineio/CMakeLists.txt
-index dd1c881..2c527cc 100644
+index 994a493..2c527cc 100644
 --- a/src/opentimelineio/CMakeLists.txt
 +++ b/src/opentimelineio/CMakeLists.txt
-@@ -94,7 +94,7 @@ endif()
- 
- target_link_libraries(opentimelineio
-     PUBLIC opentime Imath::Imath
--    PRIVATE MINIZIP::minizip)
-+    PRIVATE ${OTIO_MINIZIP_TARGET})
- 
- set_target_properties(opentimelineio PROPERTIES
-     DEBUG_POSTFIX "${OTIO_DEBUG_POSTFIX}"
 @@ -105,9 +105,21 @@ if(OTIO_SHARED_LIBS)
      set_target_properties(opentimelineio PROPERTIES
          SOVERSION ${OTIO_SOVERSION}
@@ -112,15 +101,6 @@ index dd1c881..2c527cc 100644
          OTIO_EXPORTS)
  else()
      target_compile_definitions(
-@@ -137,7 +149,7 @@ if(OTIO_CXX_INSTALL)
-     set(OPENTIMELINEIO_INCLUDES ${OTIO_RESOLVED_CXX_INSTALL_DIR}/include)
- 
-     if(NOT OTIO_FIND_MINIZIP_NG)
--        install(TARGETS minizip
-+        install(TARGETS ${OTIO_MINIZIP_LIB}
-             EXPORT OpenTimelineIOTargets
-             ARCHIVE DESTINATION "${OTIO_RESOLVED_CXX_DYLIB_INSTALL_DIR}"
-             LIBRARY DESTINATION "${OTIO_RESOLVED_CXX_DYLIB_INSTALL_DIR}"
 diff --git a/src/opentimelineio/bundle.h b/src/opentimelineio/bundle.h
 index daa46a7..d708ed3 100644
 --- a/src/opentimelineio/bundle.h
@@ -588,13 +568,3 @@ index 2f9182a..77d9d3e 100644
          std::string    schema_name,
          int            schema_version,
          AnyDictionary& dict,
-diff --git a/tests/CMakeLists.txt b/tests/CMakeLists.txt
-index 510df88..4c73a81 100644
---- a/tests/CMakeLists.txt
-+++ b/tests/CMakeLists.txt
-@@ -40,4 +40,4 @@ foreach(test ${tests_opentimelineio})
-            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
- endforeach()
- 
--target_link_libraries(test_bundle MINIZIP::minizip)
-+target_link_libraries(test_bundle ${OTIO_MINIZIP_TARGET})
