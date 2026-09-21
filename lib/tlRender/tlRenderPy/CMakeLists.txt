@@ -84,6 +84,10 @@ add_custom_command(
         -r
         -m tlrender._tlrender
         -i ${CMAKE_BINARY_DIR}/python
+        # OpenTimelineIO, which the module imports: the super build
+        # installs its Python package here, and a wheel build has it
+        # in the build environment instead.
+        -i ${CMAKE_INSTALL_PREFIX}/python
         -O ${TLRENDER_PYTHON_PACKAGE_DIR}
     DEPENDS _tlrender ${TLRENDER_STUBGEN} ${PROJECT_SOURCE_DIR}/etc/Python/make_stub.py
     COMMENT "Generating the tlrender type stubs")
