@@ -14,6 +14,8 @@
 #include <array>
 #include <sstream>
 
+#include <cstdlib>
+
 #if defined(TLRENDER_OCIO)
 namespace OCIO = OCIO_NAMESPACE;
 #endif // TLRENDER_OCIO
@@ -102,6 +104,12 @@ namespace tl
         }
 #endif // TLRENDER_OCIO
         return out;
+    }
+
+    bool hasOCIOEnvVar()
+    {
+        const char* env = std::getenv("OCIO");
+        return env && env[0];
     }
 
     std::vector<std::string> getLUTFormatExts()

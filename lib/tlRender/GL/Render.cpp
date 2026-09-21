@@ -296,7 +296,10 @@ namespace tl
                     out = OCIO::Config::CreateFromFile("ocio://default");
                     break;
                 case OCIOConfig::EnvVar:
-                    out = OCIO::Config::CreateFromEnv();
+                    if (hasOCIOEnvVar())
+                    {
+                        out = OCIO::Config::CreateFromEnv();
+                    }
                     break;
                 case OCIOConfig::File:
                     if (!options.fileName.empty())

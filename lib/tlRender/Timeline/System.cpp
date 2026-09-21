@@ -9,10 +9,74 @@
 #include <ftk/Core/Context.h>
 #include <ftk/Core/Format.h>
 #include <ftk/Core/String.h>
+#include <ftk/Core/LogSystem.h>
 #include <ftk/Core/Timer.h>
+
+#if defined(TLRENDER_OCIO)
+#include <OpenColorIO/OpenColorIO.h>
+#endif // TLRENDER_OCIO
+
+#include <mutex>
+
+#if defined(TLRENDER_OCIO)
+namespace OCIO = OCIO_NAMESPACE;
+#endif // TLRENDER_OCIO
 
 namespace tl
 {
+    namespace
+    {
+#if defined(TLRENDER_OCIO)
+        // OpenColorIO writes to stderr, where nothing else here writes and
+        // where a person running the application never looks. Its messages
+        // go to the log with everything else: what a configuration says
+        // about itself belongs beside what was made of it.
+        //
+        // The function it is given is global and outlives any one system,
+        // so the log is held weakly and the function put back on the way
+        // out.
+        std::mutex ocioLogMutex;
+        std::weak_ptr<ftk::LogSystem> ocioLogSystem;
+
+        void ocioLog(const char* message)
+        {
+            std::shared_ptr<ftk::LogSystem> logSystem;
+            {
+                std::unique_lock<std::mutex> lock(ocioLogMutex);
+                logSystem = ocioLogSystem.lock();
+            }
+            if (!logSystem || !message)
+            {
+                return;
+            }
+            // "[OpenColorIO Info]: ..." says both where it came from and
+            // how much it matters; the log has its own places for those.
+            std::string s = message;
+            ftk::LogType type = ftk::LogType::Message;
+            const std::string prefix = "[OpenColorIO ";
+            if (0 == s.compare(0, prefix.size(), prefix))
+            {
+                const size_t end = s.find("]: ");
+                if (end != std::string::npos)
+                {
+                    const std::string level = s.substr(prefix.size(), end - prefix.size());
+                    if ("Warning" == level)
+                    {
+                        type = ftk::LogType::Warning;
+                    }
+                    else if ("Error" == level)
+                    {
+                        type = ftk::LogType::Error;
+                    }
+                    s = s.substr(end + 3);
+                }
+            }
+            ftk::removeTrailingNewlines(s);
+            logSystem->print("OpenColorIO", s, type);
+        }
+#endif // TLRENDER_OCIO
+    }
+
     struct System::Private
     {
         std::vector<std::weak_ptr<Player> > players;
@@ -32,6 +96,14 @@ namespace tl
         }
         _log(ftk::Format("\n    LUT formats: {0}").arg(ftk::join(s, ", ")));
 
+#if defined(TLRENDER_OCIO)
+        {
+            std::unique_lock<std::mutex> lock(ocioLogMutex);
+            ocioLogSystem = context->getLogSystem();
+        }
+        OCIO::SetLoggingFunction(ocioLog);
+#endif // TLRENDER_OCIO
+
         p.logTimer = ftk::Timer::create(context);
         p.logTimer->setRepeating(true);
         p.logTimer->start(
@@ -49,7 +121,13 @@ namespace tl
     }
 
     System::~System()
-    {}
+    {
+#if defined(TLRENDER_OCIO)
+        OCIO::ResetToDefaultLoggingFunction();
+        std::unique_lock<std::mutex> lock(ocioLogMutex);
+        ocioLogSystem.reset();
+#endif // TLRENDER_OCIO
+    }
 
     std::shared_ptr<System> System::create(const std::shared_ptr<ftk::Context>& context)
     {
