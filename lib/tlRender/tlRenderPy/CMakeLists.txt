@@ -76,6 +76,12 @@ add_custom_command(
         --dll-dir $<TARGET_FILE_DIR:tlIO>
         --dll-dir $<TARGET_FILE_DIR:tlTimeline>
         --dll-dir $<TARGET_FILE_DIR:tlUI>
+        # feather-tk's libraries too: built here as a sub-project, or in
+        # the feather_tk package in a wheel build. The namespaced names
+        # are both.
+        --dll-dir $<TARGET_FILE_DIR:ftk::ftkCore>
+        --dll-dir $<TARGET_FILE_DIR:ftk::ftkGL>
+        --dll-dir $<TARGET_FILE_DIR:ftk::ftkUI>
         --dll-dir ${CMAKE_INSTALL_PREFIX}/bin
         --dll-dir ${CMAKE_INSTALL_PREFIX}/lib
         # The dependencies of a wheel build, where OpenTimelineIO's
