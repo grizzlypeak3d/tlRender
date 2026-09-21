@@ -58,9 +58,6 @@ namespace tl
             ftk::python::observable<std::shared_ptr<Player> >(m, "Player");
             ftk::python::observableList<std::shared_ptr<Timeline> >(m, "Timeline");
             ftk::python::observable<CompareTime>(m, "CompareTime");
-            // The I/O options are a map of strings, which is what
-            // Player::observeIOOptions() hands out.
-            ftk::python::observable<IOOptions>(m, "IOOptions");
 
             nb::class_<Player>(
                 m, "Player",
