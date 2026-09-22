@@ -138,6 +138,14 @@ namespace tl
             std::string name;
             IOOptions options;
             bool command = false;
+
+            //! The file extensions this preset is written to, the first
+            //! being the one it is written to unless another is chosen.
+            //! Curated rather than asked of FFmpeg: the muxers answer for
+            //! more pairings than are worth offering, and refuse some they
+            //! write -- and what a container will hold is not the same
+            //! question as what to put in it.
+            std::vector<std::string> exts;
         };
 
         //! Get the movie export presets.

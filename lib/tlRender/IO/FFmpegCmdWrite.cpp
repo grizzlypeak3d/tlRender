@@ -282,6 +282,15 @@ namespace tl
             {
                 const std::string errors = p.pipe->readAllErrors();
                 p.pipe.reset();
+                // What the command leaves of a file it could not write is
+                // a file of no bytes, which reads as an export that half
+                // happened (DJV #886).
+                std::error_code ec;
+                const std::filesystem::path path = ftk::toFileSystem(getPath().get());
+                if (0 == std::filesystem::file_size(path, ec) && !ec)
+                {
+                    std::filesystem::remove(path, ec);
+                }
                 throw std::runtime_error(
                     ftk::Format("The command line exited with {0}: {1}").
                     arg(code).
