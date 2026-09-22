@@ -1,8 +1,33 @@
 diff --git a/CMakeLists.txt b/CMakeLists.txt
-index 4ef85c4..33da4a2 100644
+index 4ef85c4..6f48689 100644
 --- a/CMakeLists.txt
 +++ b/CMakeLists.txt
-@@ -194,12 +194,20 @@ else()
+@@ -26,8 +26,22 @@ set(CMAKE_OSX_DEPLOYMENT_TARGET "10.15" CACHE STRING "Minimum OS X deployment ve
+ 
+ project(OpenTimelineIO VERSION ${OTIO_VERSION} LANGUAGES C CXX)
+ 
+-set(CMAKE_CXX_VISIBILITY_PRESET hidden)
+-set(CMAKE_VISIBILITY_INLINES_HIDDEN ON)
++# Hidden unless the caller has said otherwise. The types OTIO hands out
++# are cast by type on this side -- a media reference, a metadata entry --
++# and a hidden build gives a consumer a second copy of the type info of
++# whatever it does not mark, in a shared build and a static one alike:
++#
++#     type mismatch while decoding
++#     bad any cast
++#
++# so a build meant to be linked against asks for default visibility, and
++# one built for the Python modules keeps this.
++if(NOT DEFINED CMAKE_CXX_VISIBILITY_PRESET)
++    set(CMAKE_CXX_VISIBILITY_PRESET hidden)
++endif()
++if(NOT DEFINED CMAKE_VISIBILITY_INLINES_HIDDEN)
++    set(CMAKE_VISIBILITY_INLINES_HIDDEN ON)
++endif()
+ 
+ #------------------------------------------------------------------------------
+ # Options
+@@ -194,12 +208,20 @@ else()
      message(STATUS "Building C++ with Coverage: OFF")
  endif()
  

@@ -14,7 +14,11 @@ if(NOT BUILD_SHARED_LIBS)
     set(OTIO_SHARED_LIBS OFF)
 endif()
 
+# The types OTIO hands out are cast here by type, which takes the type info
+# of everything it does not mark; see the patch.
 set(OTIO_ARGS
+    -DCMAKE_CXX_VISIBILITY_PRESET=default
+    -DCMAKE_VISIBILITY_INLINES_HIDDEN=OFF
     ${TLRENDER_EXTERNAL_ARGS}
     -DOTIO_FIND_IMATH=ON
     # Use the minizip-ng and zlib from the super build; without this OTIO
@@ -56,16 +60,18 @@ if(UNIX AND NOT APPLE)
     list(APPEND OTIO_ARGS "-DCMAKE_INSTALL_RPATH=$ORIGIN|$ORIGIN/../../lib")
 endif()
 
-# OTIO is patched, with two changes; see the notes in the patch itself.
+# OTIO is patched, with three changes; see the notes in the patch itself.
 #
 # The first drops the "_d" debug postfix, which hides the Python modules from
 # the release interpreter that runs the tests.
 #
-# The second keeps the type info of its types visible in a static build, so
-# that the any values it hands out can be cast here: upstream hides its
-# symbols, and the types are marked for export only in a shared build, so
-# this side was left making a second copy of that type info and the casts
-# stopped matching.
+# The second keeps the type info of its types visible in a static build,
+# where the marking upstream added for shared builds does nothing.
+#
+# The third has it hide its symbols only when the caller has not said
+# otherwise, and this build asks for default visibility: the marking covers
+# the types OTIO names, and a cast here of a type it does not name -- a
+# template, an optional -- still fails against a hidden build.
 #
 # A patch rather than whole file copies: it is smaller, it reads as the change
 # it makes, and moving OTIO_GIT_TAG stops the build instead of silently
