@@ -3,12 +3,11 @@ include(ExternalProject)
 find_package(Git REQUIRED)
 
 set(OTIO_GIT_REPOSITORY "https://github.com/AcademySoftwareFoundation/OpenTimelineIO.git")
-# "Link whichever minizip-ng target is present (#2038)", the last of the
-# changes this build carried as a patch. Newer than v0.18.1, which has
-# neither that nor "Add core C++ support for otioz and otiod, take 2
-# (#2021)" -- bundles, and bundle support for multiple media references and
-# image sequences.
-set(OTIO_GIT_TAG "8ab0cf963624cfe3daf3c79c937cf603b4ef783b")
+# "Fixes for API exports (#2039)", the last of the changes this build carried
+# as a patch. Newer than v0.18.1, which has neither that nor "Add core C++
+# support for otioz and otiod, take 2 (#2021)" -- bundles, and bundle support
+# for multiple media references and image sequences.
+set(OTIO_GIT_TAG "64bb3cd3d2d1")
 
 set(OTIO_SHARED_LIBS ON)
 if(NOT BUILD_SHARED_LIBS)
@@ -62,22 +61,14 @@ if(UNIX AND NOT APPLE)
     list(APPEND OTIO_ARGS "-DCMAKE_INSTALL_RPATH=$ORIGIN|$ORIGIN/../../lib")
 endif()
 
-# OTIO is patched, with three changes; see the notes in the patch itself.
+# OTIO is patched, with two changes; see the notes in the patch itself.
 #
 # The first drops the "_d" debug postfix, which hides the Python modules from
 # the release interpreter that runs the tests.
 #
 # The second has it hide its symbols only when the caller has not said
 # otherwise; upstream sets that for its Python modules, and it takes the type
-# info of the any values tlRender casts with it.
-#
-# The third is what a shared build on Windows needs. OTIO_EXPORTS and
-# OPENTIME_EXPORTS become PRIVATE rather than PUBLIC, so a consumer's headers
-# declare the API dllimport instead of dllexport, and the members that had no
-# OTIO_API on them get it -- OTIO_API_TYPE on the class is empty on Windows,
-# where only the per-member marking carries the declspec. Two source files that
-# define exported functions without including the header that marks them are
-# given the include as well.
+# info of the any values cast here with it.
 #
 # A patch rather than whole file copies: it is smaller, it reads as the change
 # it makes, and moving OTIO_GIT_TAG stops the build instead of silently
@@ -85,7 +76,7 @@ endif()
 # which the clone above needs anyway, so nothing new is asked of the machine --
 # the patch program itself is not on Windows.
 #
-# It goes away once these are upstream.
+# The first goes away once it is upstream; see OTIO PR #2040.
 ExternalProject_Add(
     OTIO
     PREFIX ${CMAKE_CURRENT_BINARY_DIR}/OTIO
