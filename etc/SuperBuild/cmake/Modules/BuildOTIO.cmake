@@ -14,12 +14,7 @@ if(NOT BUILD_SHARED_LIBS)
     set(OTIO_SHARED_LIBS OFF)
 endif()
 
-# The any values OTIO hands out are cast here by type, which takes the type
-# info of types it does not mark as API: a hidden build gives this side a
-# second copy of those, and the cast then fails (see the patch).
 set(OTIO_ARGS
-    -DCMAKE_CXX_VISIBILITY_PRESET=default
-    -DCMAKE_VISIBILITY_INLINES_HIDDEN=OFF
     ${TLRENDER_EXTERNAL_ARGS}
     -DOTIO_FIND_IMATH=ON
     # Use the minizip-ng and zlib from the super build; without this OTIO
@@ -66,9 +61,11 @@ endif()
 # The first drops the "_d" debug postfix, which hides the Python modules from
 # the release interpreter that runs the tests.
 #
-# The second has it hide its symbols only when the caller has not said
-# otherwise; upstream sets that for its Python modules, and it takes the type
-# info of the any values cast here with it.
+# The second keeps the type info of its types visible in a static build, so
+# that the any values it hands out can be cast here: upstream hides its
+# symbols, and the types are marked for export only in a shared build, so
+# this side was left making a second copy of that type info and the casts
+# stopped matching.
 #
 # A patch rather than whole file copies: it is smaller, it reads as the change
 # it makes, and moving OTIO_GIT_TAG stops the build instead of silently

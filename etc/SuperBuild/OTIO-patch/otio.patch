@@ -1,32 +1,8 @@
 diff --git a/CMakeLists.txt b/CMakeLists.txt
-index 4ef85c4..fa7767c 100644
+index 4ef85c4..33da4a2 100644
 --- a/CMakeLists.txt
 +++ b/CMakeLists.txt
-@@ -26,8 +26,21 @@ set(CMAKE_OSX_DEPLOYMENT_TARGET "10.15" CACHE STRING "Minimum OS X deployment ve
- 
- project(OpenTimelineIO VERSION ${OTIO_VERSION} LANGUAGES C CXX)
- 
--set(CMAKE_CXX_VISIBILITY_PRESET hidden)
--set(CMAKE_VISIBILITY_INLINES_HIDDEN ON)
-+# Hidden unless the caller has said otherwise. A C++ consumer that casts
-+# the any values OTIO hands it -- a media reference, a metadata entry --
-+# compares the type info of types that are not marked OTIO_API, which a
-+# hidden build gives it a second copy of:
-+#
-+#     type mismatch while decoding
-+#
-+# so a build meant to be linked against asks for default visibility, and
-+# one built for the Python modules keeps this.
-+if(NOT DEFINED CMAKE_CXX_VISIBILITY_PRESET)
-+    set(CMAKE_CXX_VISIBILITY_PRESET hidden)
-+endif()
-+if(NOT DEFINED CMAKE_VISIBILITY_INLINES_HIDDEN)
-+    set(CMAKE_VISIBILITY_INLINES_HIDDEN ON)
-+endif()
- 
- #------------------------------------------------------------------------------
- # Options
-@@ -194,12 +207,20 @@ else()
+@@ -194,12 +194,20 @@ else()
      message(STATUS "Building C++ with Coverage: OFF")
  endif()
  
@@ -53,3 +29,39 @@ index 4ef85c4..fa7767c 100644
  
  set_property(GLOBAL PROPERTY USE_FOLDERS ON)
  
+diff --git a/src/opentime/export.h b/src/opentime/export.h
+index 0d937a4..f7d495b 100644
+--- a/src/opentime/export.h
++++ b/src/opentime/export.h
+@@ -44,7 +44,12 @@
+ 
+ #if defined(OPENTIME_STATIC)
+ #    define OPENTIME_API
+-#    define OPENTIME_API_TYPE
++// The type stays visible even in a static build: its type info is what a
++// consumer's std::any casts and dynamic_casts are resolved by, and a build
++// that hides its symbols would otherwise give the consumer a second copy of
++// it. The attribute marks the type alone, not its members, so nothing is
++// exported that a static library would not have exported anyway.
++#    define OPENTIME_API_TYPE OPENTIMELINEIO_EXPORT_TYPE
+ #    define OPENTIME_API_TEMPLATE_CLASS(...)
+ #    define OPENTIME_API_TEMPLATE_STRUCT(...)
+ #    define OPENTIME_LOCAL
+diff --git a/src/opentimelineio/export.h b/src/opentimelineio/export.h
+index 08e9176..2a2fa7c 100644
+--- a/src/opentimelineio/export.h
++++ b/src/opentimelineio/export.h
+@@ -7,7 +7,12 @@
+ 
+ #if defined(OTIO_STATIC)
+ #    define OTIO_API
+-#    define OTIO_API_TYPE
++// The type stays visible even in a static build: its type info is what a
++// consumer's std::any casts and dynamic_casts are resolved by, and a build
++// that hides its symbols would otherwise give the consumer a second copy of
++// it. The attribute marks the type alone, not its members, so nothing is
++// exported that a static library would not have exported anyway.
++#    define OTIO_API_TYPE OPENTIMELINEIO_EXPORT_TYPE
+ #    define OTIO_API_TEMPLATE_CLASS(...)
+ #    define OTIO_API_TEMPLATE_STRUCT(...)
+ #    define OTIO_LOCAL
