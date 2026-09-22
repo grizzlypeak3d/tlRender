@@ -15,6 +15,7 @@
 #include <ftk/Core/Assert.h>
 #include <ftk/Core/Context.h>
 #include <ftk/Core/Format.h>
+#include <ftk/Core/Time.h>
 #include <algorithm>
 #include <chrono>
 #include <cstring>
@@ -42,6 +43,7 @@ namespace tl
         {
             _gapSeq();
             _seqFrame();
+            _overwritten();
             _separateAudio();
             _timelineCache();
             auto thumbnailSystem = _context->getSystem<ui::ThumbnailSystem>();
@@ -226,6 +228,48 @@ namespace tl
             FTK_CHECK(open <= count + 1);
             thumbnailSystem->getThumbnail(b, 16).future.get();
             FTK_CHECK(open == settle(open));
+        }
+
+        void ThumbnailSystemTest::_overwritten()
+        {
+            // A file written again under the same name is different media,
+            // and the thumbnail of what used to be there is not a thumbnail
+            // of it: an export run twice showed the picture of the first run
+            // (DJV #884).
+            auto readSystem = _context->getSystem<ReadSystem>();
+            auto writeSystem = _context->getSystem<WriteSystem>();
+            const ftk::Path path(ftk::fromFileSystem(
+                _getTempDir() / "ThumbOverwritten.png"));
+            auto writePlugin = writeSystem->getPlugin(path);
+            if (!writePlugin || !readSystem->getPlugin(path))
+            {
+                return;
+            }
+            IOInfo writeInfo;
+            writeInfo.video.push_back(writePlugin->getInfo(
+                ftk::ImageInfo(ftk::Size2I(16, 16), ftk::ImageType::RGB_U8)));
+
+            auto thumbnailSystem = _context->getSystem<ui::ThumbnailSystem>();
+            std::vector<int> values;
+            for (int value : { 60, 180 })
+            {
+                {
+                    auto write = writeSystem->write(path, writeInfo);
+                    auto image = ftk::Image::create(writeInfo.video[0]);
+                    std::memset(image->getData(), value, image->getByteCount());
+                    write->writeVideo(OTIO_NS::RationalTime(0.0, 24.0), image);
+                }
+                // The file systems that keep whole seconds would otherwise
+                // give both writes the same time.
+                ftk::sleep(std::chrono::milliseconds(1100));
+                auto request = thumbnailSystem->getThumbnail(path, 16);
+                auto image = request.future.get();
+                FTK_CHECK(image);
+                values.push_back(image->getData()[0]);
+                _print(ftk::Format("Thumbnail of {0}: {1}").
+                    arg(value).arg(values.back()));
+            }
+            FTK_CHECK(values[0] != values[1]);
         }
 
         void ThumbnailSystemTest::_seqFrame()

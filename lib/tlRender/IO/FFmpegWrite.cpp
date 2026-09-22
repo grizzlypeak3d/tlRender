@@ -4,10 +4,12 @@
 #include <tlRender/IO/FFmpegPrivate.h>
 
 #include <ftk/Core/Format.h>
+#include <ftk/Core/Path.h>
 #include <ftk/Core/String.h>
 #include <ftk/Core/LogSystem.h>
 
 #include <algorithm>
+#include <filesystem>
 
 extern "C"
 {
@@ -46,6 +48,9 @@ namespace tl
             int64_t audioSampleCount = 0;
 
             bool opened = false;
+            //! Whether the file has been created, and so has to be removed
+            //! if it is never written.
+            bool created = false;
             bool finished = false;
         };
 
@@ -638,11 +643,27 @@ namespace tl
             {
                 throw std::runtime_error(ftk::Format("{0}: \"{1}\"").arg(getErrorLabel(r)).arg(p.fileName));
             }
+            // The file exists from here; what is left of it when something
+            // goes wrong is nothing worth keeping, and a file of no bytes
+            // beside the ones that worked reads as an export that half
+            // happened (DJV #886).
+            p.created = true;
 
             r = avformat_write_header(p.avFormatContext, NULL);
             if (r < 0)
             {
-                throw std::runtime_error(ftk::Format("{0}: \"{1}\"").arg(getErrorLabel(r)).arg(p.fileName));
+                // What a container says when it will not carry the codec:
+                // "mov" holds AV1 in its mp4 flavor and not otherwise, and
+                // "Invalid argument" is all it says of that. Asked here
+                // rather than before the file is opened, since the muxers
+                // answer avformat_query_codec() for less than they write --
+                // FFV1 in "mov" is refused there and written fine (#886).
+                throw std::runtime_error(AVERROR(EINVAL) == r ?
+                    ftk::Format("The \"{0}\" format cannot hold \"{1}\" video: \"{2}\"").
+                        arg(p.avFormatContext->oformat->name).
+                        arg(avCodec->name).
+                        arg(p.fileName).str() :
+                    ftk::Format("{0}: \"{1}\"").arg(getErrorLabel(r)).arg(p.fileName).str());
             }
 
             p.avPacket = av_packet_alloc();
@@ -786,6 +807,16 @@ namespace tl
             if (p.avFormatContext)
             {
                 avformat_free_context(p.avFormatContext);
+            }
+
+            // A file that was created and never written to: the header could
+            // not be written, or something else stopped the writer before it
+            // began, and what is on disk is a file of no bytes that reads as
+            // an export gone half way.
+            if (p.created && !p.opened)
+            {
+                std::error_code ec;
+                std::filesystem::remove(ftk::toFileSystem(p.fileName), ec);
             }
         }
 

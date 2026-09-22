@@ -18,6 +18,7 @@
 #include <ftk/Core/Util.h>
 
 #include <algorithm>
+#include <filesystem>
 #include <atomic>
 #include <chrono>
 #include <list>
@@ -49,6 +50,33 @@ namespace tl
             const std::chrono::seconds ioCacheTimeout(60);
             const size_t infoCacheMax = 1000;
 
+            // When the file was last written, for a cache key. A file that
+            // was overwritten -- an export run again to the same name -- is
+            // the same path and different media, and a key without this went
+            // on serving the thumbnail of what used to be there (DJV #884).
+            // A sequence is asked about its first frame, which is what its
+            // path does not name.
+            std::string fileTime(const ftk::Path& path)
+            {
+                std::string fileName = path.get();
+                const auto& seq = path.getSeq();
+                if (!seq.empty())
+                {
+                    ftk::Path frame = path;
+                    frame.setNum(ftk::toString(seq.front().range.min(), path.getPad()));
+                    fileName = frame.get();
+                }
+                std::error_code ec;
+                const auto time = std::filesystem::last_write_time(
+                    ftk::toFileSystem(fileName), ec);
+                if (ec)
+                {
+                    return std::string();
+                }
+                return std::to_string(
+                    static_cast<int64_t>(time.time_since_epoch().count()));
+            }
+
             std::string getInfoKey(
                 const ftk::Path& path,
                 const ftk::Path& mediaPath,
@@ -56,8 +84,9 @@ namespace tl
                 const IOOptions& options)
             {
                 std::stringstream ss;
-                ss << path.get() << ";" << mediaPath.get() << ";" <<
-                    audioPath.get() << ";";
+                ss << path.get() << ";" << fileTime(path) << ";" <<
+                    mediaPath.get() << ";" << fileTime(mediaPath) << ";" <<
+                    audioPath.get() << ";" << fileTime(audioPath) << ";";
                 for (const auto& i : options)
                 {
                     ss << i.first << ":" << i.second << ";";
@@ -93,7 +122,8 @@ namespace tl
             {
                 std::stringstream ss;
                 ss << path.get() << ";" << seqHash(path) << ";" <<
-                    audioPath.get() << ";";
+                    audioPath.get() << ";" <<
+                    fileTime(path) << ";" << fileTime(audioPath) << ";";
                 for (const auto& i : options)
                 {
                     ss << i.first << ":" << i.second << ";";
@@ -169,9 +199,11 @@ namespace tl
                 const IOOptions& options)
             {
                 std::stringstream ss;
-                ss << audioPath.get() << ";";
+                ss << audioPath.get() << ";" << fileTime(audioPath) << ";";
                 ss << path.get() << ";" << seqHash(path) << ";" <<
+                    fileTime(path) << ";" <<
                     mediaPath.get() << ";" << seqHash(mediaPath) << ";" <<
+                    fileTime(mediaPath) << ";" <<
                     height << ";";
                 if (time.has_value())
                 {
@@ -194,9 +226,11 @@ namespace tl
                 const IOOptions& options)
             {
                 std::stringstream ss;
-                ss << audioPath.get() << ";";
+                ss << audioPath.get() << ";" << fileTime(audioPath) << ";";
                 ss << path.get() << ";" << seqHash(path) << ";" <<
+                    fileTime(path) << ";" <<
                     mediaPath.get() << ";" << seqHash(mediaPath) << ";" <<
+                    fileTime(mediaPath) << ";" <<
                     size << ";";
                 if (timeRange.has_value())
                 {
