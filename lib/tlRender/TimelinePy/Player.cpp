@@ -56,6 +56,8 @@ namespace tl
             ftk::python::observable<OTIO_NS::RationalTime>(m, "RationalTime");
             ftk::python::observable<OTIO_NS::TimeRange>(m, "TimeRange");
             ftk::python::observable<std::shared_ptr<Player> >(m, "Player");
+            ftk::python::observableList<std::shared_ptr<Timeline> >(m, "Timeline");
+            ftk::python::observable<CompareTime>(m, "CompareTime");
 
             nb::class_<Player>(
                 m, "Player",

@@ -239,6 +239,22 @@ namespace tl
                     FTK_CHECK(hasName(available, preset.name));
                 }
             }
+            // The file types a preset names have to be ones this build
+            // writes. A preset that lists an extension no muxer provides
+            // gives an export that reports success and leaves nothing
+            // behind, which is how the Matroska muxer being left out was
+            // found. The command line presets are not checked: what they
+            // can write is the ffmpeg application's business, not ours.
+            const auto& exts = writePlugin->getExts();
+            for (const auto& preset : available)
+            {
+                if (preset.command)
+                    continue;
+                for (const auto& ext : preset.exts)
+                {
+                    FTK_CHECK(exts.find(ext) != exts.end());
+                }
+            }
             // MJPEG is in every build, the minimal one included.
             FTK_CHECK(hasName(available, "MJPEG"));
         }

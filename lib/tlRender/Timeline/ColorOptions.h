@@ -98,6 +98,12 @@ namespace tl
     //! Get the list of LUT format file extensions.
     TL_TIMELINE_API std::vector<std::string> getLUTFormatExts();
 
+    //! Get whether the OCIO environment variable names a configuration.
+    //! An empty variable is not one: OpenColorIO answers a request for it
+    //! with a configuration that manages nothing, and says so on stderr
+    //! for each one asked for.
+    TL_TIMELINE_API bool hasOCIOEnvVar();
+
     //! \name Serialize
     ///@{
 

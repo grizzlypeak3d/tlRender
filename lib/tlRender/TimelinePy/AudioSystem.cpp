@@ -37,6 +37,9 @@ namespace tl
                 .def(nanobind::self == nanobind::self)
                 .def(nanobind::self != nanobind::self);
 
+            ftk::python::observable<AudioDeviceID>(m, "AudioDeviceID");
+            ftk::python::observableList<AudioDeviceID>(m, "AudioDeviceID");
+
             nb::class_<AudioDeviceInfo>(m, "AudioDeviceInfo")
                 .def(nb::init())
                 .def_rw("id", &AudioDeviceInfo::id)

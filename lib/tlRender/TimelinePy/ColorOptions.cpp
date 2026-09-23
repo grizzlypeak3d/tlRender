@@ -44,6 +44,8 @@ namespace tl
                 .def(nanobind::self == nanobind::self)
                 .def(nanobind::self != nanobind::self);
 
+            ftk::python::observable<OCIOOptions>(m, "OCIOOptions");
+
             FTK_ENUM_PY(m, LUTDirection);
             FTK_ENUM_BIND(m, LUTDirection);
 
@@ -58,6 +60,8 @@ namespace tl
                 .def_rw("order", &LUTOptions::order)
                 .def(nanobind::self == nanobind::self)
                 .def(nanobind::self != nanobind::self);
+
+            ftk::python::observable<LUTOptions>(m, "LUTOptions");
 
             m.def("getLUTFormatNames", &getLUTFormatNames);
             m.def("getLUTFormatExts", &getLUTFormatExts);

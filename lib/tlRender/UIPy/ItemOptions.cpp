@@ -82,6 +82,8 @@ namespace tl
                 .def_rw("lut", &DisplayOptions::lut)
                 .def(nanobind::self == nanobind::self)
                 .def(nanobind::self != nanobind::self);
+
+            ftk::python::observable<DisplayOptions>(m, "DisplayOptions");
             
         }
     }

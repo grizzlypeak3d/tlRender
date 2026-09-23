@@ -8,6 +8,7 @@
 
 #include <ftk/Core/Assert.h>
 #include <ftk/Core/Format.h>
+#include <ftk/Core/OS.h>
 #include <ftk/Core/LogSystem.h>
 
 #include <algorithm>
@@ -684,6 +685,18 @@ namespace tl
             const std::shared_ptr<ftk::LogSystem>& logSystem)
         {
             FTK_P();
+
+            // SVT-AV1 writes twenty lines about itself to stderr for each
+            // encoder opened, where nothing else here writes and where a
+            // person running the application never looks. Asked for
+            // warnings and errors instead, before any encoder exists: the
+            // library reads this once, when it first logs. A setting of
+            // the user's own is left as it is.
+            std::string svtLog;
+            if (!ftk::getEnv("SVT_LOG", svtLog))
+            {
+                ftk::setEnv("SVT_LOG", "2");
+            }
 
             // Get codecs.
             const AVCodec* avCodec = nullptr;

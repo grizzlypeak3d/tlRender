@@ -3,17 +3,22 @@ include(ExternalProject)
 find_package(Git REQUIRED)
 
 set(OTIO_GIT_REPOSITORY "https://github.com/AcademySoftwareFoundation/OpenTimelineIO.git")
-# "Add core C++ support for otioz and otiod, take 2 (#2021)", which also adds
-# bundle support for multiple media references and image sequences. Newer than
-# v0.18.1, which does not have it.
-set(OTIO_GIT_TAG "0eebd211b2055f111e2c53d04b5581adc594c1fc")
+# "Fixes for API exports (#2039)", the last of the changes this build carried
+# as a patch. Newer than v0.18.1, which has neither that nor "Add core C++
+# support for otioz and otiod, take 2 (#2021)" -- bundles, and bundle support
+# for multiple media references and image sequences.
+set(OTIO_GIT_TAG "64bb3cd3d2d1")
 
 set(OTIO_SHARED_LIBS ON)
 if(NOT BUILD_SHARED_LIBS)
     set(OTIO_SHARED_LIBS OFF)
 endif()
 
+# The types OTIO hands out are cast here by type, which takes the type info
+# of everything it does not mark; see the patch.
 set(OTIO_ARGS
+    -DCMAKE_CXX_VISIBILITY_PRESET=default
+    -DCMAKE_VISIBILITY_INLINES_HIDDEN=OFF
     ${TLRENDER_EXTERNAL_ARGS}
     -DOTIO_FIND_IMATH=ON
     # Use the minizip-ng and zlib from the super build; without this OTIO
@@ -55,20 +60,18 @@ if(UNIX AND NOT APPLE)
     list(APPEND OTIO_ARGS "-DCMAKE_INSTALL_RPATH=$ORIGIN|$ORIGIN/../../lib")
 endif()
 
-# OTIO is patched, with two changes; see the notes in the patch itself.
+# OTIO is patched, with three changes; see the notes in the patch itself.
 #
-# The first has it link whichever minizip-ng target is present rather than
-# assuming the one from the compatibility layer. Without it OTIO cannot be
-# built against the super build's minizip-ng, which is built without that
-# layer.
+# The first drops the "_d" debug postfix, which hides the Python modules from
+# the release interpreter that runs the tests.
 #
-# The second is what a shared build on Windows needs. OTIO_EXPORTS and
-# OPENTIME_EXPORTS become PRIVATE rather than PUBLIC, so a consumer's headers
-# declare the API dllimport instead of dllexport, and the members that had no
-# OTIO_API on them get it -- OTIO_API_TYPE on the class is empty on Windows,
-# where only the per-member marking carries the declspec. Two source files that
-# define exported functions without including the header that marks them are
-# given the include as well.
+# The second keeps the type info of its types visible in a static build,
+# where the marking upstream added for shared builds does nothing.
+#
+# The third has it hide its symbols only when the caller has not said
+# otherwise, and this build asks for default visibility: the marking covers
+# the types OTIO names, and a cast here of a type it does not name -- a
+# template, an optional -- still fails against a hidden build.
 #
 # A patch rather than whole file copies: it is smaller, it reads as the change
 # it makes, and moving OTIO_GIT_TAG stops the build instead of silently
@@ -76,7 +79,7 @@ endif()
 # which the clone above needs anyway, so nothing new is asked of the machine --
 # the patch program itself is not on Windows.
 #
-# It goes away once these are upstream.
+# The first goes away once it is upstream; see OTIO PR #2040.
 ExternalProject_Add(
     OTIO
     PREFIX ${CMAKE_CURRENT_BINARY_DIR}/OTIO

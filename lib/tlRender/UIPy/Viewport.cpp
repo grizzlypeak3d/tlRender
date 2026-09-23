@@ -30,6 +30,10 @@ namespace tl
     {
         void viewport(nb::module_& m)
         {
+            // A feather-tk type, whose observable list the viewport
+            // hands out; feather-tk's own module does not bind it.
+            ftk::python::observableList<ftk::ImageOptions>(m, "ImageOptions");
+
             using namespace ui;
 
             ftk::python::observable<std::pair<ftk::V2I, double> >(m, "ViewPosAndZoom");

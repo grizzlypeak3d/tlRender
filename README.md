@@ -152,10 +152,17 @@ import feather_tk as ftk
 import tlrender as tl
 ```
 
-The wheel has only the FFmpeg codecs that need no patent license; build from
-source for the rest. OpenTimelineIO does not publish wheels for every
-platform tlRender does, so on some pip builds it from source, which needs a
-C++ compiler.
+The wheel has only the FFmpeg codecs that need no patent license: AV1, APV,
+VP8 and VP9, MPEG-2 and MPEG-4, MJPEG, FFV1, CineForm, UT Video, HuffYUV,
+MagicYUV, Dirac, PNG, v210, and the FLAC, Opus, Vorbis, ALAC, MP3 and PCM
+audio codecs. **H.264, HEVC, ProRes, DNxHD, DV and AAC are not in it**, so a
+camera movie or anything else carrying them does not open with the wheel
+alone. Two ways to play them: install FFmpeg yourself, and tlRender reads
+them with the `ffmpeg` and `ffprobe` commands on `PATH`; or build from
+source, where the codecs are compiled in.
+
+OpenTimelineIO does not publish wheels for every platform tlRender does, so
+on some pip builds it from source, which needs a C++ compiler.
 
 The [Python examples](https://github.com/grizzlypeak3d/tlRender/tree/main/examples/python)
 show the API in use. The wheel also carries the C++ libraries, headers, and

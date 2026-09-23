@@ -52,9 +52,83 @@ if(RPATH_ORIGIN)
     set_target_properties(_tlrender PROPERTIES INSTALL_RPATH "${RPATHS}")
 endif()
 
+# Type stubs: the signatures of a compiled module in a form editors and
+# type checkers can read, since there is no Python source in it for them
+# to parse. Written by nanobind from the bindings themselves, which imports
+# the module that was just built -- through etc/Python/make_stub.py, which
+# names the directories its libraries are in first, since on Windows they
+# are not beside it and only os.add_dll_directory() finds them. Recursive,
+# for the ui submodule: the stubs are a _tlrender directory beside the
+# module. py.typed is what says they are to be trusted.
+if(EXISTS ${NB_DIR}/src/stubgen.py)
+    set(TLRENDER_STUBGEN ${NB_DIR}/src/stubgen.py)
+else()
+    set(TLRENDER_STUBGEN ${NB_DIR}/stubgen.py)
+endif()
+set(TLRENDER_PYTHON_STUB ${TLRENDER_PYTHON_PACKAGE_DIR}/_tlrender/__init__.pyi)
+add_custom_command(
+    OUTPUT ${TLRENDER_PYTHON_STUB}
+    COMMAND ${CMAKE_COMMAND} -E rm -rf ${TLRENDER_PYTHON_PACKAGE_DIR}/_tlrender
+    COMMAND ${Python_EXECUTABLE}
+        ${PROJECT_SOURCE_DIR}/etc/Python/make_stub.py
+        --dll-dir $<TARGET_FILE_DIR:tlCore>
+        --dll-dir $<TARGET_FILE_DIR:tlGL>
+        --dll-dir $<TARGET_FILE_DIR:tlIO>
+        --dll-dir $<TARGET_FILE_DIR:tlTimeline>
+        --dll-dir $<TARGET_FILE_DIR:tlUI>
+        # feather-tk's libraries too: built here as a sub-project, or in
+        # the feather_tk package in a wheel build. The namespaced names
+        # are both.
+        --dll-dir $<TARGET_FILE_DIR:ftk::ftkCore>
+        --dll-dir $<TARGET_FILE_DIR:ftk::ftkGL>
+        --dll-dir $<TARGET_FILE_DIR:ftk::ftkUI>
+        --dll-dir ${CMAKE_INSTALL_PREFIX}/bin
+        --dll-dir ${CMAKE_INSTALL_PREFIX}/lib
+        # The dependencies of a wheel build, where OpenTimelineIO's
+        # libraries are in lib rather than bin.
+        --dll-dir ${TLRENDER_FFMPEG_PREFIX}/bin
+        --dll-dir ${TLRENDER_FFMPEG_PREFIX}/lib
+        --
+        ${TLRENDER_STUBGEN}
+        -q
+        -r
+        -m tlrender._tlrender
+        -i ${CMAKE_BINARY_DIR}/python
+        # OpenTimelineIO, which the module imports: the super build
+        # installs its Python package here, and a wheel build has it
+        # in the build environment instead.
+        -i ${CMAKE_INSTALL_PREFIX}/python
+        -O ${TLRENDER_PYTHON_PACKAGE_DIR}
+    # feather-tk's module as well where it is built here rather than
+    # installed: importing this one imports that one, which has to exist
+    # by then.
+    DEPENDS
+        _tlrender
+        $<TARGET_NAME_IF_EXISTS:_feather_tk>
+        ${TLRENDER_STUBGEN}
+        ${PROJECT_SOURCE_DIR}/etc/Python/make_stub.py
+    COMMENT "Generating the tlrender type stubs")
+add_custom_target(_tlrender_stub ALL DEPENDS ${TLRENDER_PYTHON_STUB})
+file(TOUCH ${TLRENDER_PYTHON_PACKAGE_DIR}/py.typed)
+
+# What the stubs could not resolve is a C++ type the bindings never
+# exposed; the build says so rather than leaving it in the files to be
+# found. See etc/Python/check_stub.py.
+add_custom_command(
+    TARGET _tlrender_stub POST_BUILD
+    COMMAND ${Python_EXECUTABLE}
+        ${PROJECT_SOURCE_DIR}/etc/Python/check_stub.py
+        ${TLRENDER_PYTHON_PACKAGE_DIR}/_tlrender/__init__.pyi
+        ${TLRENDER_PYTHON_PACKAGE_DIR}/_tlrender/ui.pyi)
+
 install(TARGETS _tlrender
     LIBRARY DESTINATION ${TLRENDER_PYTHON_INSTALL_DIR}
     RUNTIME DESTINATION ${TLRENDER_PYTHON_INSTALL_DIR})
 install(
-    FILES __init__.py
+    FILES
+        __init__.py
+        ${TLRENDER_PYTHON_PACKAGE_DIR}/py.typed
+    DESTINATION ${TLRENDER_PYTHON_INSTALL_DIR})
+install(
+    DIRECTORY ${TLRENDER_PYTHON_PACKAGE_DIR}/_tlrender
     DESTINATION ${TLRENDER_PYTHON_INSTALL_DIR})
