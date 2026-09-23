@@ -260,10 +260,26 @@ namespace tl
                     const std::string errors = p.pipe->readAllErrors();
                     p.finished = true;
                     p.pipe.reset();
+                    _removeEmpty();
                     throw std::runtime_error(
                         ftk::Format("Cannot write video: {0}").
                         arg(errors.empty() ? std::string("the process exited") : errors));
                 }
+            }
+        }
+
+        void Write::_removeEmpty()
+        {
+            // What the command leaves of a file it could not write is a file
+            // of no bytes, which reads as an export that half happened (DJV
+            // #886). Both ways of finding out that it failed come through
+            // here: the exit code, and the write that found the pipe closed
+            // because the process had already gone (DJV #897).
+            std::error_code ec;
+            const std::filesystem::path path = ftk::toFileSystem(getPath().get());
+            if (0 == std::filesystem::file_size(path, ec) && !ec)
+            {
+                std::filesystem::remove(path, ec);
             }
         }
 
@@ -282,15 +298,7 @@ namespace tl
             {
                 const std::string errors = p.pipe->readAllErrors();
                 p.pipe.reset();
-                // What the command leaves of a file it could not write is
-                // a file of no bytes, which reads as an export that half
-                // happened (DJV #886).
-                std::error_code ec;
-                const std::filesystem::path path = ftk::toFileSystem(getPath().get());
-                if (0 == std::filesystem::file_size(path, ec) && !ec)
-                {
-                    std::filesystem::remove(path, ec);
-                }
+                _removeEmpty();
                 throw std::runtime_error(
                     ftk::Format("The command line exited with {0}: {1}").
                     arg(code).

@@ -162,6 +162,8 @@ namespace tl
             TL_IO_API void finish() override;
 
         private:
+            void _removeEmpty();
+
             FTK_PRIVATE();
         };
 

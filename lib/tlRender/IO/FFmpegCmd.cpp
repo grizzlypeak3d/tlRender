@@ -9,6 +9,7 @@
 
 #include <subprocess.h>
 
+#include <csignal>
 #include <cstdlib>
 #include <filesystem>
 #include <mutex>
@@ -311,6 +312,27 @@ namespace tl
             int r = 0;
             {
                 std::unique_lock<std::mutex> lock(createMutex());
+#if !defined(_WIN32)
+                // A process that exits early leaves its end of the pipe
+                // closed, and writing to a pipe nobody is reading raises
+                // SIGPIPE, whose default is to kill the process where it
+                // stands. DJV died without a word whenever ffmpeg refused
+                // what it was given -- an export at a size the encoder
+                // cannot take, for one (DJV #897).
+                //
+                // Ignored for the process, which is the only place this can
+                // be set: the write then fails instead, and the writers here
+                // already report that with whatever the process said on its
+                // way out. Done beside the creation so it is in force before
+                // there is anything to write to.
+                static std::once_flag sigPipeInit;
+                std::call_once(
+                    sigPipeInit,
+                    []
+                    {
+                        std::signal(SIGPIPE, SIG_IGN);
+                    });
+#endif // _WIN32
                 r = subprocess_create(
                     args.data(),
                     subprocess_option_inherit_environment |
