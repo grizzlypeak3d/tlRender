@@ -174,11 +174,15 @@ namespace tl
                       { "FFmpeg/PixelFormat", "yuv444p10le" } },
                     false,
                     { ".mov", ".mp4" } },
+                // FFV1 to Matroska first of all: both are specified in
+                // their own right (RFC 9043 and RFC 9559) and the pair is
+                // what preservation work is handed, where FFV1 in "mov" is
+                // read by less.
                 { "FFV1 (lossless)",
                     { { "FFmpeg/Codec", "ffv1" },
                       { "FFmpeg/PixelFormat", "best" } },
                     false,
-                    { ".mov", ".mp4" } },
+                    { ".mkv", ".mov", ".mp4" } },
                 { "CineForm",
                     { { "FFmpeg/Codec", "cfhd" } },
                     false,
@@ -187,22 +191,22 @@ namespace tl
                     { { "FFmpeg/Codec", "libsvtav1" },
                       { "FFmpeg/CodecOptions", "crf=35" } },
                     false,
-                    { ".mp4" } },
+                    { ".mp4", ".mkv" } },
                 { "H.264 (ffmpeg command)",
                     { { "FFmpeg/WriteCommandLine", "1" },
                       { "FFmpeg/WritePreset", "H.264" } },
                     true,
-                    { ".mp4", ".mov" } },
+                    { ".mp4", ".mov", ".mkv" } },
                 { "HEVC (ffmpeg command)",
                     { { "FFmpeg/WriteCommandLine", "1" },
                       { "FFmpeg/WritePreset", "H.265" } },
                     true,
-                    { ".mp4", ".mov" } },
+                    { ".mp4", ".mov", ".mkv" } },
                 { "VP9 (ffmpeg command)",
                     { { "FFmpeg/WriteCommandLine", "1" },
                       { "FFmpeg/WritePreset", "VP9" } },
                     true,
-                    { ".mp4" } }
+                    { ".mkv", ".mp4" } }
             };
             return presets;
         }

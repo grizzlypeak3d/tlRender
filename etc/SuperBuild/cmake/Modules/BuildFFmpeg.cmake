@@ -363,6 +363,10 @@ set(FFmpeg_FREE_ARGS
     --enable-muxer=apv
     --enable-muxer=flac
     --enable-muxer=m4v
+    # WebM is Matroska with a shorter list of what it may carry; the two
+    # come from the same source file, so writing .mkv costs the muxer's
+    # table entry and nothing else.
+    --enable-muxer=matroska
     --enable-muxer=mjpeg
     --enable-muxer=mov
     --enable-muxer=mp4
