@@ -3,6 +3,8 @@
 
 #include <tlRender/Core/Audio.h>
 
+#include <cstring>
+
 #include <ftk/Core/Error.h>
 #include <ftk/Core/Format.h>
 #include <ftk/Core/String.h>
@@ -224,12 +226,39 @@ namespace tl
         if (!in.empty())
         {
             const AudioInfo& info = in.front()->getInfo();
-            const size_t sampleCount = in.front()->getSampleCount();
-            out = Audio::create(info, sampleCount);
-            std::vector<const uint8_t*> inP;
-            for (size_t i = 0; i < in.size(); ++i)
+
+            // The same number of samples is read from every input, so they
+            // all have to be that long. Layers do not always come out the
+            // same length -- a clip that ends part way through a second is
+            // padded to it and can land a sample short -- and taking the
+            // count from the first one read past the end of any that were
+            // shorter. What came back was whatever the heap held there, so
+            // the mix changed from run to run.
+            size_t sampleCount = 0;
+            for (const auto& i : in)
             {
-                inP.push_back(in[i]->getData());
+                sampleCount = std::max(sampleCount, i->getSampleCount());
+            }
+            out = Audio::create(info, sampleCount);
+            std::vector<std::shared_ptr<Audio> > padded;
+            for (const auto& i : in)
+            {
+                if (i->getSampleCount() < sampleCount)
+                {
+                    auto tmp = Audio::create(info, sampleCount);
+                    tmp->zero();
+                    std::memcpy(tmp->getData(), i->getData(), i->getByteCount());
+                    padded.push_back(tmp);
+                }
+                else
+                {
+                    padded.push_back(i);
+                }
+            }
+            std::vector<const uint8_t*> inP;
+            for (size_t i = 0; i < padded.size(); ++i)
+            {
+                inP.push_back(padded[i]->getData());
             }
             std::vector<float> channelVolumes;
             for (int i = 0; i < info.channelCount; ++i)

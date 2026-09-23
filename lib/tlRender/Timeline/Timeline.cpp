@@ -3371,8 +3371,16 @@ namespace tl
             silence->zero();
             list.push_back(silence);
         }
-        size_t sampleCount = getSampleCount(list);
+        // Exactly one second, as the name says. The silence either side is
+        // worked out in seconds, and rescaling a fraction of a second to
+        // samples can land just under a whole one -- 0.45s of it came to
+        // 21599 rather than 21600 -- which left the layer a sample short of
+        // the ones it is mixed with. The length comes from the sample rate
+        // rather than from what the pieces happen to add up to, and whatever
+        // they do not fill stays silent.
+        const size_t sampleCount = audio->getInfo().sampleRate;
         auto out = Audio::create(audio->getInfo(), sampleCount);
+        out->zero();
         moveAudio(list, out->getData(), sampleCount);
         return out;
     }
