@@ -264,12 +264,20 @@ namespace tl
                 ftk::sleep(std::chrono::milliseconds(1100));
                 auto request = thumbnailSystem->getThumbnail(path, 16);
                 auto image = request.future.get();
+                // Thumbnails are scaled with FFmpeg; without it every request
+                // is cancelled and there is no thumbnail to be stale.
+#if defined(TLRENDER_FFMPEG)
                 FTK_CHECK(image);
                 values.push_back(image->getData()[0]);
                 _print(ftk::Format("Thumbnail of {0}: {1}").
                     arg(value).arg(values.back()));
+#else // TLRENDER_FFMPEG
+                FTK_CHECK(!image);
+#endif // TLRENDER_FFMPEG
             }
+#if defined(TLRENDER_FFMPEG)
             FTK_CHECK(values[0] != values[1]);
+#endif // TLRENDER_FFMPEG
         }
 
         void ThumbnailSystemTest::_seqFrame()
