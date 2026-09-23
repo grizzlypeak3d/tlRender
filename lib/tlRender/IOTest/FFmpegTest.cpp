@@ -45,6 +45,7 @@ namespace tl
             _audio();
             _audioMerge();
             _split();
+            _findCommand();
             _commandLine();
             _subfileSeek();
             _pixelAspectRatio();
@@ -424,6 +425,29 @@ namespace tl
             _print(ftk::Format("Pixel aspect ratio: {0}").
                 arg(info.video[0].pixelAspectRatio));
             FTK_CHECK(2.0F == info.video[0].pixelAspectRatio);
+        }
+
+        void FFmpegTest::_findCommand()
+        {
+            // What the settings show a person about whether they have the
+            // command at all (DJV #893): where it was found, or nothing.
+            FTK_CHECK(ffmpeg_cmd::findCommand(std::string()).empty());
+            FTK_CHECK(ffmpeg_cmd::findCommand(
+                "tl-no-such-command-9a3f").empty());
+            FTK_CHECK(ffmpeg_cmd::findCommand(
+                ftk::fromFileSystem(_getTempDir() / "no-such-command")).empty());
+
+            // A command the machine has: found, and found somewhere.
+#if defined(_WIN32)
+            const std::string name = "cmd";
+#else // _WIN32
+            const std::string name = "sh";
+#endif // _WIN32
+            const std::string found = ffmpeg_cmd::findCommand(name);
+            _print(ftk::Format("Found \"{0}\": \"{1}\"").arg(name).arg(found));
+            FTK_CHECK(!found.empty());
+            // Given a location of its own, that location is what comes back.
+            FTK_CHECK(found == ffmpeg_cmd::findCommand(found));
         }
 
         void FFmpegTest::_commandLine()

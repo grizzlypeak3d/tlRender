@@ -10,6 +10,7 @@
 #include <subprocess.h>
 
 #include <cstdlib>
+#include <filesystem>
 #include <mutex>
 #include <thread>
 #if !defined(_WIN32)
@@ -154,51 +155,119 @@ namespace tl
             std::string errors;
         };
 
-        namespace
-        {
 #if !defined(_WIN32)
-            // An app launched from the Finder or a desktop gets a PATH
-            // without the package managers' directories, so a bare command
-            // name is also resolved against the usual places. PATH is
-            // searched first so an installation on it keeps precedence, and
-            // a name that already has a directory in it is taken as given.
-            std::string resolveCommand(const std::string& name)
+        // An app launched from the Finder or a desktop gets a PATH without
+        // the package managers' directories, so a bare command name is also
+        // searched for in the usual places. PATH comes first so an
+        // installation on it keeps precedence, and a name that already has a
+        // directory in it is taken as given.
+        std::string findCommand(const std::string& name)
+        {
+            if (name.empty())
             {
-                if (name.find('/') != std::string::npos)
-                {
-                    return name;
-                }
-                std::vector<std::string> dirs;
-                if (const char* env = std::getenv("PATH"))
-                {
-                    dirs = ftk::split(env, ':');
-                }
+                return std::string();
+            }
+            if (name.find('/') != std::string::npos)
+            {
+                return ::access(name.c_str(), X_OK) == 0 ?
+                    name :
+                    std::string();
+            }
+            std::vector<std::string> dirs;
+            if (const char* env = std::getenv("PATH"))
+            {
+                dirs = ftk::split(env, ':');
+            }
 #if defined(__APPLE__)
-                dirs.push_back("/opt/homebrew/bin");
-                dirs.push_back("/opt/local/bin");
+            dirs.push_back("/opt/homebrew/bin");
+            dirs.push_back("/opt/local/bin");
 #endif
-                dirs.push_back("/usr/local/bin");
-                for (const auto& dir : dirs)
+            dirs.push_back("/usr/local/bin");
+            for (const auto& dir : dirs)
+            {
+                if (!dir.empty())
                 {
-                    if (!dir.empty())
+                    const std::string path = dir + '/' + name;
+                    if (::access(path.c_str(), X_OK) == 0)
                     {
-                        const std::string path = dir + '/' + name;
-                        if (::access(path.c_str(), X_OK) == 0)
+                        return path;
+                    }
+                }
+            }
+            return std::string();
+        }
+#else // _WIN32
+        // A Windows GUI app inherits the user's PATH, which the sub-process
+        // search already covers; this is here to answer whether the command
+        // is there at all. What counts as runnable is the extension:
+        // PATHEXT, or the one the name already carries.
+        std::string findCommand(const std::string& name)
+        {
+            if (name.empty())
+            {
+                return std::string();
+            }
+            std::vector<std::string> exts = { std::string() };
+            if (!std::filesystem::path(ftk::toFileSystem(name)).has_extension())
+            {
+                exts.clear();
+                std::string pathExt = ".COM;.EXE;.BAT;.CMD";
+                if (const char* env = std::getenv("PATHEXT"))
+                {
+                    pathExt = env;
+                }
+                exts = ftk::split(pathExt, ';');
+            }
+            const auto exists = [](const std::string& path)
+            {
+                std::error_code ec;
+                return std::filesystem::is_regular_file(
+                    ftk::toFileSystem(path), ec);
+            };
+            if (name.find_first_of("\\/:") != std::string::npos)
+            {
+                for (const auto& ext : exts)
+                {
+                    if (exists(name + ext))
+                    {
+                        return name + ext;
+                    }
+                }
+                return std::string();
+            }
+            std::vector<std::string> dirs;
+            if (const char* env = std::getenv("PATH"))
+            {
+                dirs = ftk::split(env, ';');
+            }
+            for (const auto& dir : dirs)
+            {
+                if (!dir.empty())
+                {
+                    for (const auto& ext : exts)
+                    {
+                        const std::string path = dir + '\\' + name + ext;
+                        if (exists(path))
                         {
                             return path;
                         }
                     }
                 }
-                return name;
             }
-#else // _WIN32
-            // A Windows GUI app inherits the user's PATH, which the
-            // sub-process search already covers.
+            return std::string();
+        }
+#endif // _WIN32
+
+        namespace
+        {
+            // Where it was found, or the name as given: the sub-process
+            // search has rules of its own, and a name it can still run is
+            // better than nothing.
             std::string resolveCommand(const std::string& name)
             {
-                return name;
+                const std::string out = findCommand(name);
+                return out.empty() ? name : out;
             }
-#endif // _WIN32
 
             // Starting a process is serialized.
             //

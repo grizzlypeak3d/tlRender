@@ -23,6 +23,7 @@ namespace tl
             void run() override;
 
         private:
+            void _findCommand();
             void _commandLine();
             void _subfileSeek();
             void _pixelAspectRatio();

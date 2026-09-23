@@ -29,6 +29,13 @@ namespace tl
             bool operator == (const Options&) const = default;
         };
 
+        //! Find a command, the way the sub-processes here do: a name with a
+        //! directory in it is taken as given, and a bare name is searched
+        //! for on the path. Returns where it was found, or an empty string
+        //! when it was not, which is what tells a person whether they have
+        //! the command at all (DJV #893).
+        TL_IO_API std::string findCommand(const std::string&);
+
         //! FFmpeg command line video reader.
         //!
         //! The video and audio readers each run their own ffmpeg process;
