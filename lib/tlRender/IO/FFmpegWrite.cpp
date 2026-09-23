@@ -930,11 +930,21 @@ namespace tl
             // change the pictures it has not encoded yet -- each frame came
             // out as one a few frames later, and the last ones repeated --
             // so the frame gets a buffer of its own whenever the encoder
-            // still has the old one.
-            int r = av_frame_make_writable(p.avFrame);
-            if (r < 0)
+            // still has the old one. An empty buffer rather than
+            // av_frame_make_writable, which copies the picture the encoder
+            // is holding into it: the conversion below writes over every
+            // pixel of it anyway.
+            if (!av_frame_is_writable(p.avFrame))
             {
-                throw std::runtime_error(ftk::Format("{0}: \"{1}\"").arg(getErrorLabel(r)).arg(p.fileName));
+                av_frame_unref(p.avFrame);
+                p.avFrame->format = p.avVideoStream->codecpar->format;
+                p.avFrame->width = p.avVideoStream->codecpar->width;
+                p.avFrame->height = p.avVideoStream->codecpar->height;
+                const int r = av_frame_get_buffer(p.avFrame, 0);
+                if (r < 0)
+                {
+                    throw std::runtime_error(ftk::Format("{0}: \"{1}\"").arg(getErrorLabel(r)).arg(p.fileName));
+                }
             }
             sws_scale(
                 p.swsContext,
