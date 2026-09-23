@@ -198,6 +198,38 @@ namespace tl
         return out;
     }
 
+    VideoData SeqDecode::_readCached(
+        const std::string& name,
+        const ftk::MemFile* mem,
+        const OTIO_NS::RationalTime& time,
+        const IOOptions& options) const
+    {
+        // Only a single file repeats. The options are part of the key because
+        // they choose what is decoded, a layer among several for one.
+        const bool reuse = _path.getNum().empty();
+        if (reuse)
+        {
+            std::unique_lock<std::mutex> lock(_cacheMutex);
+            if (_cacheImage && name == _cacheName && options == _cacheOptions)
+            {
+                // The time is the frame being asked for rather than the one
+                // the image was decoded for: the picture is the same, where
+                // it sits in the timeline is not.
+                return VideoData(time, _cacheLayer, _cacheImage);
+            }
+        }
+        VideoData out = _decode->readVideo(name, mem, time, options);
+        if (reuse && out.image)
+        {
+            std::unique_lock<std::mutex> lock(_cacheMutex);
+            _cacheName = name;
+            _cacheOptions = options;
+            _cacheLayer = out.layer;
+            _cacheImage = out.image;
+        }
+        return out;
+    }
+
     VideoData SeqDecode::readVideo(
         const OTIO_NS::RationalTime& time,
         const IOOptions& options) const
@@ -249,7 +281,7 @@ namespace tl
             // when several frames are read at once.
             ftk::prefetch(mem->p, mem->size);
 
-            VideoData out = _decode->readVideo(
+            VideoData out = _readCached(
                 seq ? _path.getFrame(readFrame, true) : _path.getFileName(true),
                 mem,
                 time,
@@ -264,13 +296,13 @@ namespace tl
 
         if (!seq)
         {
-            return _decode->readVideo(
+            return _readCached(
                 _path.getFileName(true), nullptr, time, merged);
         }
 
         try
         {
-            return _decode->readVideo(
+            return _readCached(
                 _path.getFrame(frame, true), nullptr, time, merged);
         }
         catch (const std::exception&)
@@ -295,7 +327,7 @@ namespace tl
                     }
                     try
                     {
-                        VideoData out = _decode->readVideo(
+                        VideoData out = _readCached(
                             _path.getFrame(prev, true), nullptr, time, merged);
                         // Which frame is being looked at rather than the one
                         // asked for, so it can be said rather than guessed.

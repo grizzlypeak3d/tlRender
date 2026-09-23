@@ -9,6 +9,8 @@
 
 #include <ftk/Core/Path.h>
 
+#include <mutex>
+
 namespace tl
 {
     //! An image sequence, decoded one frame at a time.
@@ -75,10 +77,29 @@ namespace tl
             const OTIO_NS::RationalTime&,
             MissingFrames) const;
 
+        //! Decode one file, reusing the last image when the same one is
+        //! asked for again.
+        VideoData _readCached(
+            const std::string& name,
+            const ftk::MemFile*,
+            const OTIO_NS::RationalTime&,
+            const IOOptions&) const;
+
         ftk::Path _path;
         std::vector<ftk::MemFile> _mem;
         std::shared_ptr<IDecode> _decode;
         IOOptions _options;
+
+        // A still is one file held over many frames, and each of them would
+        // otherwise decode it again. Only a single file is kept: a sequence
+        // asks for a different frame almost every time, so holding one of
+        // its images would cost memory to answer nothing.
+        mutable std::mutex _cacheMutex;
+        mutable std::string _cacheName;
+        mutable IOOptions _cacheOptions;
+        mutable uint16_t _cacheLayer = 0;
+        mutable std::shared_ptr<ftk::Image> _cacheImage;
+
         int64_t _startFrame = 0;
         int64_t _endFrame = 0;
         IOInfo _info;
