@@ -1,5 +1,10 @@
 @PACKAGE_INIT@
 
+# The notices for what tlRender brings into a build, for a project that
+# gathers them into its own (etc/Legal/CMakeLists.txt). Set before anything
+# below finds feather-tk, whose own config sets PACKAGE_PREFIX_DIR again.
+set(tlRender_LEGAL_DIR "${PACKAGE_PREFIX_DIR}/share/tlRender/Legal")
+
 # \todo Is this the correct way to locate the custom Find*.cmake files?
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_LIST_DIR})
 
