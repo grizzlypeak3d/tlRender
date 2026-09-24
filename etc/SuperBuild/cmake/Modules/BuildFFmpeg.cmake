@@ -501,6 +501,15 @@ if(TLRENDER_OPENAPV)
         --enable-liboapv
         --enable-encoder=liboapv)
 endif()
+# Last among the components: FFmpeg's configure takes the options in order,
+# so a --disable here wins over the --enable of the same component above.
+foreach(component ${TLRENDER_FFMPEG_DISABLE})
+    if(NOT component MATCHES "^(decoder|encoder|demuxer|muxer|parser|protocol|hwaccel|bsf|filter)=[a-z0-9_]+$")
+        message(FATAL_ERROR
+            "TLRENDER_FFMPEG_DISABLE: \"${component}\" is not \"<kind>=<name>\"")
+    endif()
+    list(APPEND FFmpeg_CONFIGURE_ARGS --disable-${component})
+endforeach()
 if(TLRENDER_NASM)
     list(APPEND FFmpeg_CONFIGURE_ARGS
         --x86asmexe=${CMAKE_INSTALL_PREFIX}/bin/nasm)

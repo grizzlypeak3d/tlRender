@@ -27,6 +27,14 @@ set(TLRENDER_SVTAV1 ON CACHE BOOL "Build SVT-AV1")
 set(TLRENDER_OPENAPV ON CACHE BOOL "Build OpenAPV, for writing APV")
 set(TLRENDER_FFMPEG ON CACHE BOOL "Build FFmpeg (required for audio, see the README for building FFmpeg on Windows)")
 set(TLRENDER_FFMPEG_MINIMAL OFF CACHE BOOL "Enable a minimal set of FFmpeg codecs")
+# Components to leave out of whatever the build would otherwise enable, as
+# FFmpeg's configure names them: "encoder=prores_ks;demuxer=ac3". For a
+# product that ships a codec set of its own choosing, which says what it
+# removes in its own configuration rather than in an option here per codec.
+# Configure also drops, without a word, anything that requires a component
+# listed here -- the mov and mp4 muxers require the ac3 parser -- so check
+# what was built, not only what was asked for.
+set(TLRENDER_FFMPEG_DISABLE "" CACHE STRING "FFmpeg components to leave out, e.g. encoder=prores_ks")
 set(TLRENDER_SUBPROCESS ON CACHE BOOL "Build subprocess")
 if((TLRENDER_AOM OR TLRENDER_SVTAV1 OR TLRENDER_JPEG OR
     TLRENDER_FFMPEG) AND NOT WIN32 AND NOT BSD)
