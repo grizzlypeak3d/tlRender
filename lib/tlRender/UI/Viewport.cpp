@@ -365,6 +365,12 @@ namespace tl
             p.fps->setIfChanged(0.0);
             p.fpsData.reset();
             p.droppedFrames->setIfChanged(0);
+            // The sample belongs to what was on screen. Left as it was, the
+            // color and the pixel under the pointer are reported for a file
+            // that has closed, or for the one before this (DJV #900). The
+            // next sample fills them in again.
+            p.pick->setIfChanged(std::nullopt);
+            p.colorSample->setIfChanged(std::nullopt);
             p.playbackObserver.reset();
             p.videoFrameObserver.reset();
             p.droppedFramesObserver.reset();
