@@ -118,6 +118,19 @@ namespace tl
             std::function<void(Loop)> callback;
         };
 
+        bool PlaybackLoopWidget::isSegment() const
+        {
+            return true;
+        }
+
+        void PlaybackLoopWidget::setSegment(
+            ftk::ColorRole background,
+            const std::array<bool, 4>& roundedCorners)
+        {
+            // The button is the whole of the widget, so it takes the place.
+            _p->button->setSegment(background, roundedCorners);
+        }
+
         void PlaybackLoopWidget::_init(
             const std::shared_ptr<ftk::Context>& context,
             const std::shared_ptr<IWidget>& parent)

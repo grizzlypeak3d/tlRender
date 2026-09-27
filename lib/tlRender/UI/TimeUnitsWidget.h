@@ -35,6 +35,8 @@ namespace tl
                 const std::shared_ptr<TimeUnitsModel>&,
                 const std::shared_ptr<IWidget>& parent = nullptr);
 
+            TL_UI_API bool isSegment() const override;
+            TL_UI_API void setSegment(ftk::ColorRole, const std::array<bool, 4>&) override;
 
         private:
             FTK_PRIVATE();

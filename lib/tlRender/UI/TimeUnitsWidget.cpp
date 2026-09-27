@@ -102,6 +102,16 @@ namespace tl
             return out;
         }
 
+        bool TimeUnitsWidget::isSegment() const
+        {
+            return true;
+        }
+
+        void TimeUnitsWidget::setSegment(ftk::ColorRole background, const std::array<bool, 4>& value)
+        {
+            _p->button->setSegment(background, value);
+        }
+
         
 
         

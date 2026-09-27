@@ -5,6 +5,7 @@
 
 #include <tlRender/Timeline/TimeUnits.h>
 
+#include <ftk/UI/DrawUtil.h>
 #include <ftk/UI/LayoutUtil.h>
 
 #include <optional>
@@ -21,11 +22,14 @@ namespace tl
             std::string format;
             ftk::SizeRole marginRole = ftk::SizeRole::None;
             ftk::FontType font = ftk::FontType::Mono;
+            ftk::ColorRole segmentRole = ftk::ColorRole::None;
+            std::array<bool, 4> roundedCorners = { true, true, true, true };
 
             struct SizeData
             {
                 bool init = true;
                 int margin = 0;
+                int cornerRadius = 0;
                 ftk::FontInfo fontInfo;
                 ftk::FontMetrics fontMetrics;
                 ftk::Size2I textSize;
@@ -126,6 +130,24 @@ namespace tl
             setDrawUpdate();
         }
         
+        bool TimeLabel::isSegment() const
+        {
+            return true;
+        }
+
+        void TimeLabel::setSegment(ftk::ColorRole background, const std::array<bool, 4>& value)
+        {
+            FTK_P();
+            if (background == p.segmentRole && value == p.roundedCorners)
+                return;
+            p.segmentRole = background;
+            p.roundedCorners = value;
+            // The background spans the row like its neighbors; the text is
+            // centered in it below.
+            setVAlign(ftk::VAlign::Fill);
+            setDrawUpdate();
+        }
+
         ftk::Size2I TimeLabel::getSizeHint() const
         {
             FTK_P();
@@ -157,6 +179,7 @@ namespace tl
             {
                 p.size.init = false;
                 p.size.margin = event.style->getSizeRole(p.marginRole, event.displayScale);
+                p.size.cornerRadius = event.style->getSizeRole(ftk::SizeRole::CornerRadius, event.displayScale);
                 p.size.fontInfo = event.style->getFont(p.font, event.displayScale);
                 p.size.fontMetrics = event.fontSystem->getMetrics(p.size.fontInfo);
                 p.size.textSize = event.fontSystem->getSize(p.text, p.size.fontInfo);
@@ -187,11 +210,28 @@ namespace tl
                 p.draw = Private::DrawData();
             }
 
+            if (p.segmentRole != ftk::ColorRole::None)
+            {
+                const int r = p.size.cornerRadius;
+                event.render->drawMesh(
+                    ftk::rect(
+                        getGeometry(),
+                        {
+                            p.roundedCorners[0] ? r : 0,
+                            p.roundedCorners[1] ? r : 0,
+                            p.roundedCorners[2] ? r : 0,
+                            p.roundedCorners[3] ? r : 0
+                        }),
+                    event.style->getColorRole(p.segmentRole));
+            }
+
             const ftk::Box2I g = ftk::margin(
                 align(
                     getGeometry(),
                     getSizeHint(),
                     getHAlign(),
+                    p.segmentRole != ftk::ColorRole::None ?
+                    ftk::VAlign::Center :
                     getVAlign()),
                 -p.size.margin);
 
