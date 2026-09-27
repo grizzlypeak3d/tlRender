@@ -20,6 +20,8 @@
 
 #include <ctime>
 #include <filesystem>
+#include <map>
+#include <set>
 
 namespace tl
 {
@@ -27,19 +29,65 @@ namespace tl
         const std::shared_ptr<ftk::Context>& context,
         int types)
     {
-        std::vector<std::string> out;
+        // Sorted, and each once: more than one plugin can read an
+        // extension.
+        std::set<std::string> exts;
         if (types & static_cast<int>(FileType::Media))
         {
-            out.push_back(".otio");
-            out.push_back(".otioz");
+            exts.insert(".otio");
+            exts.insert(".otioz");
         }
         if (auto ioSystem = context->getSystem<ReadSystem>())
         {
             for (const auto& plugin : ioSystem->getPlugins())
             {
-                const auto& exts = plugin->getExts(types);
-                out.insert(out.end(), exts.begin(), exts.end());
+                const auto& pluginExts = plugin->getExts(types);
+                exts.insert(pluginExts.begin(), pluginExts.end());
             }
+        }
+        return std::vector<std::string>(exts.begin(), exts.end());
+    }
+
+    std::vector<ExtGroup> getExtGroups(const std::shared_ptr<ftk::Context>& context)
+    {
+        std::vector<ExtGroup> out;
+        const auto add = [&out](const std::string& label, const std::set<std::string>& exts)
+        {
+            if (!exts.empty())
+            {
+                out.push_back({ label, std::vector<std::string>(exts.begin(), exts.end()) });
+            }
+        };
+
+        const std::vector<std::string> all = getExts(context);
+        add("All Supported Files", std::set<std::string>(all.begin(), all.end()));
+        add("Timelines", { ".otio", ".otioz" });
+        std::set<std::string> images;
+        std::set<std::string> movies;
+        std::set<std::string> audio;
+        std::map<std::string, std::set<std::string> > named;
+        if (auto ioSystem = context->getSystem<ReadSystem>())
+        {
+            for (const auto& plugin : ioSystem->getPlugins())
+            {
+                const auto seq = plugin->getExts(static_cast<int>(FileType::Seq));
+                images.insert(seq.begin(), seq.end());
+                const auto media = plugin->getExts(static_cast<int>(FileType::Media));
+                movies.insert(media.begin(), media.end());
+                const auto sound = plugin->getExts(static_cast<int>(FileType::Audio));
+                audio.insert(sound.begin(), sound.end());
+                for (const auto& group : plugin->getExtGroups())
+                {
+                    named[group.first].insert(group.second.begin(), group.second.end());
+                }
+            }
+        }
+        add("Images", images);
+        add("Movies", movies);
+        add("Audio", audio);
+        for (const auto& group : named)
+        {
+            add(group.first, group.second);
         }
         return out;
     }

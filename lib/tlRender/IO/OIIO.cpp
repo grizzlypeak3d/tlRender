@@ -17,12 +17,20 @@ namespace tl
             std::map<std::string, FileType> exts;
             for (const auto& i : OIIO::get_extension_map())
             {
-                // Filter out FFmpeg extensions.
-                if (i.first != "ffmpeg")
+                // Not FFmpeg's, which the FFmpeg plugin reads, and not the
+                // formats that are not files to open: "null" makes a blank
+                // image and "term" only writes to a terminal.
+                if (i.first != "ffmpeg" &&
+                    i.first != "null" &&
+                    i.first != "term")
                 {
                     for (const auto& ext : i.second)
                     {
                         exts["." + ext] = FileType::Seq;
+                        if ("raw" == i.first)
+                        {
+                            _rawExts.insert("." + ext);
+                        }
                     }
                 }
             }
@@ -58,6 +66,16 @@ namespace tl
         std::string ReadPlugin::getPluginInfo(const IOOptions&) const
         {
             return OIIO_VERSION_STRING;
+        }
+
+        std::map<std::string, std::set<std::string> > ReadPlugin::getExtGroups() const
+        {
+            std::map<std::string, std::set<std::string> > out;
+            if (!_rawExts.empty())
+            {
+                out["Camera Raw"] = _rawExts;
+            }
+            return out;
         }
 
         void WritePlugin::_init(const std::shared_ptr<ftk::LogSystem>& logSystem)

@@ -38,6 +38,18 @@ namespace tl
                     static_cast<int>(FileType::Seq) |
                     static_cast<int>(FileType::Audio));
 
+            nb::class_<ExtGroup>(m, "ExtGroup")
+                .def(nb::init<>())
+                .def_rw("label", &ExtGroup::label)
+                .def_rw("exts", &ExtGroup::exts)
+                .def(nb::self == nb::self)
+                .def(nb::self != nb::self);
+
+            m.def(
+                "getExtGroups",
+                &getExtGroups,
+                nb::arg("context"));
+
             m.def(
                 "getPaths",
                 &getPaths,

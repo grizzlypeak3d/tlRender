@@ -186,6 +186,14 @@ namespace tl
             // Initialize the file browser.
             auto fileBrowserSystem = _context->getSystem<ftk::FileBrowserSystem>();
             fileBrowserSystem->getModel()->setExts(getExts(_context));
+            // Offered by kind: one at a time there are too many to choose
+            // from.
+            std::vector<ftk::FileBrowserExtGroup> extGroups;
+            for (const auto& group : getExtGroups(_context))
+            {
+                extGroups.push_back({ group.label, group.exts });
+            }
+            fileBrowserSystem->getModel()->setExtGroups(extGroups);
             ftk::FileBrowserOptions fileBrowserOptions;
             fileBrowserOptions.dirList.seqExts = tl::getExts(_context, static_cast<int>(tl::FileType::Seq));
             fileBrowserSystem->getModel()->setOptions(fileBrowserOptions);

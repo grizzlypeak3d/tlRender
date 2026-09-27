@@ -10,6 +10,7 @@
 #include <ftk/Core/Path.h>
 
 #include <future>
+#include <map>
 #include <set>
 
 namespace ftk
@@ -75,6 +76,10 @@ namespace tl
             static_cast<int>(FileType::Media) |
             static_cast<int>(FileType::Seq) |
             static_cast<int>(FileType::Audio)) const;
+
+        //! Get named groups among the supported file extensions, for formats
+        //! the plugin knows to belong together, e.g. "Camera Raw".
+        TL_IO_API virtual std::map<std::string, std::set<std::string> > getExtGroups() const;
 
     protected:
         std::weak_ptr<ftk::LogSystem> _logSystem;

@@ -22,6 +22,21 @@ namespace tl
             static_cast<int>(FileType::Seq) |
             static_cast<int>(FileType::Audio));
 
+    //! A named group of timeline file extensions, e.g. "Images".
+    struct TL_TIMELINE_API_TYPE ExtGroup
+    {
+        std::string label;
+        std::vector<std::string> exts;
+
+        bool operator == (const ExtGroup&) const = default;
+    };
+
+    //! Get the timeline file extensions by kind: all of them, the
+    //! timelines, images, movies, and audio, and the groups the plugins
+    //! name, e.g. camera raw. Empty groups are left out.
+    TL_TIMELINE_API std::vector<ExtGroup> getExtGroups(
+        const std::shared_ptr<ftk::Context>&);
+
     //! Convert frames to ranges.
     TL_TIMELINE_API std::vector<OTIO_NS::TimeRange> toRanges(std::vector<OTIO_NS::RationalTime>);
 

@@ -81,6 +81,11 @@ namespace tl
 
             TL_IO_API std::string getPluginInfo(
                 const IOOptions& = IOOptions()) const override;
+
+            TL_IO_API std::map<std::string, std::set<std::string> > getExtGroups() const override;
+
+        private:
+            std::set<std::string> _rawExts;
         };
 
         //! OpenImageIO write plugin.

@@ -76,6 +76,11 @@ namespace tl
         return std::string();
     }
 
+    std::map<std::string, std::set<std::string> > IIOPlugin::getExtGroups() const
+    {
+        return {};
+    }
+
     std::set<std::string> IIOPlugin::getExts(int types) const
     {
         std::set<std::string> out;
