@@ -82,15 +82,17 @@ namespace tl
             FTK_CHECK(viewPosZoom == viewport->getViewPosAndZoom());
             viewport->setInputEnabled(true);
 
-            // The first finger's press is let go when the second comes
-            // down: the drag it started does not go on with the gesture.
+            // The first finger's press is cancelled when the second comes
+            // down: the pan it started is undone, and does not go on with
+            // the gesture.
             viewport->setViewPosAndZoom(ftk::V2I(0, 0), 1.0);
             viewport->setPanBinding(ftk::MouseButton::Left, ftk::KeyModifier::None);
             window->drag({ focus, ftk::V2I(focus.x + 10, focus.y) }, 0, false);
             FTK_CHECK(ftk::V2I(10, 0) == viewport->getViewPosAndZoom().first);
             window->gesture(focus, ftk::V2F(), 1.F);
+            FTK_CHECK(ftk::V2I(0, 0) == viewport->getViewPosAndZoom().first);
             window->hover(ftk::V2I(focus.x + 50, focus.y));
-            FTK_CHECK(ftk::V2I(10, 0) == viewport->getViewPosAndZoom().first);
+            FTK_CHECK(ftk::V2I(0, 0) == viewport->getViewPosAndZoom().first);
         }
 
         void GestureTest::_timeline(const std::shared_ptr<ftk::App>& app)

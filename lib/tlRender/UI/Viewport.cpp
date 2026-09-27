@@ -1395,6 +1395,11 @@ namespace tl
         {
             FTK_P();
             event.accept = true;
+            if (Private::MouseMode::View == p.mouse.mode && event.cancel)
+            {
+                // The first finger of a gesture was not panning.
+                setViewPosAndZoom(p.mouse.viewPos, p.zoom->get());
+            }
             p.mouse.mode = Private::MouseMode::None;
         }
 

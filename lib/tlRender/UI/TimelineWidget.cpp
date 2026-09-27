@@ -805,6 +805,11 @@ namespace tl
         {
             FTK_P();
             event.accept = true;
+            if (Private::MouseMode::Scroll == p.mouse.mode && event.cancel)
+            {
+                // The first finger of a gesture was not scrolling.
+                p.scrollWidget->setScrollPos(p.mouse.scrollPos);
+            }
             p.mouse.mode = Private::MouseMode::None;
         }
 
