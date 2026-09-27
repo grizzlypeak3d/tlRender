@@ -12,7 +12,6 @@ namespace tl
         std::string vertexSource()
         {
             return
-                "#version 410\n"
                 "\n"
                 "in vec3 vPos;\n"
                 "in vec2 vTexture;\n"
@@ -35,7 +34,6 @@ namespace tl
         std::string meshFragmentSource()
         {
             return
-                "#version 410\n"
                 "\n"
                 "out vec4 outColor;\n"
                 "\n"
@@ -51,7 +49,6 @@ namespace tl
         std::string textureFragmentSource()
         {
             return
-                "#version 410\n"
                 "\n"
                 "in vec2 fTexture;\n"
                 "out vec4 outColor;\n"
@@ -70,7 +67,6 @@ namespace tl
             const std::string& toLinear)
         {
             return ftk::Format(
-                "#version 410\n"
                 "\n"
                 "in vec2 fTexture;\n"
                 "out vec4 outColor;\n"
@@ -123,17 +119,16 @@ namespace tl
             args.push_back(before);
             args.push_back(after);
             return ftk::Format(
-                "#version 410\n"
                 "\n"
                 "in vec2 fTexture;\n"
                 "out vec4 outColor;\n"
                 "\n"
                 "// enum tl::ftk::ChannelDisplay\n"
-                "const uint Channels_Color = 0;\n"
-                "const uint Channels_Red   = 1;\n"
-                "const uint Channels_Green = 2;\n"
-                "const uint Channels_Blue  = 3;\n"
-                "const uint Channels_Alpha = 4;\n"
+                "const int Channels_Color = 0;\n"
+                "const int Channels_Red   = 1;\n"
+                "const int Channels_Green = 2;\n"
+                "const int Channels_Blue  = 3;\n"
+                "const int Channels_Alpha = 4;\n"
                 "\n"
                 "struct Levels\n"
                 "{\n"
@@ -146,7 +141,9 @@ namespace tl
                 "\n"
                 "uniform sampler2D textureSampler;\n"
                 "uniform vec2      magnifyAxes;\n"
-                "uniform vec2      textureSize;\n"
+                // Not "textureSize", which is a built in function: desktop
+                // GLSL lets a uniform hide it, OpenGL ES does not.
+                "uniform vec2      sourceSize;\n"
                 "\n"
                 "// Mitchell-Netravali with B = C = 1/3, the kernel the two\n"
                 "// pass resample enlarges with. Sixteen taps evaluated here\n"
@@ -297,7 +294,7 @@ namespace tl
                 "    }\n"
                 "\n"
                 "    outColor = any(greaterThan(magnifyAxes, vec2(0.5))) ?\n"
-                "        sampleMitchell(textureSampler, t, textureSize, magnifyAxes) :\n"
+                "        sampleMitchell(textureSampler, t, sourceSize, magnifyAxes) :\n"
                 "        texture(textureSampler, t);\n"
                 "\n"
                 "    if (negative)\n"
@@ -365,7 +362,6 @@ namespace tl
         std::string dissolveFragmentSource()
         {
             return
-                "#version 410\n"
                 "\n"
                 "in vec2 fTexture;\n"
                 "out vec4 outColor;\n"
@@ -389,7 +385,6 @@ namespace tl
         std::string clippingWarningFragmentSource()
         {
             return
-                "#version 410\n"
                 "\n"
                 "in vec2 fTexture;\n"
                 "out vec4 outColor;\n"
@@ -436,7 +431,6 @@ namespace tl
         std::string butterflyFragmentSource()
         {
             return
-                "#version 410\n"
                 "\n"
                 "in vec2 fTexture;\n"
                 "out vec4 outColor;\n"
@@ -464,7 +458,6 @@ namespace tl
         std::string differenceFragmentSource()
         {
             return
-                "#version 410\n"
                 "\n"
                 "in vec2 fTexture;\n"
                 "out vec4 outColor;\n"

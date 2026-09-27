@@ -51,9 +51,9 @@ namespace tl
 
             // Create the viewport.
             _viewport = ui::Viewport::create(context);
-            // The most precision the API can render into: floating point on
-            // desktop OpenGL, eight bits on GLES 2, which cannot use a float
-            // buffer as a render target at all.
+            // The most precision there is to render into: floating point,
+            // or on OpenGL ES without the extensions for it the closest the
+            // driver can (see ftk::gl::getRenderableType()).
             _viewport->setColorBuffer(ftk::gl::offscreenColorDefault);
 
             // Create the timeline.

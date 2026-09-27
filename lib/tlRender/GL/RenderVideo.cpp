@@ -1083,7 +1083,6 @@ namespace tl
                     static_cast<int>(std::round(std::fabs(b.y - a.y))));
             }
 
-#if !defined(FTK_API_GLES_3)
             // The picture has been drawn at its own size; the view's zoom is
             // applied by the draw below. When that is a large reduction the
             // four texels a linear fetch reads miss most of it, so reduce the
@@ -1131,8 +1130,6 @@ namespace tl
                 }
             }
 
-#endif // FTK_API_GLES_3
-
             if (p.buffers["video"])
             {
                 glBlendFuncSeparate(GL_ONE, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
@@ -1153,9 +1150,6 @@ namespace tl
                 // Enlarging is sampled here rather than resampled into a
                 // buffer first, so this is where the view's magnify setting
                 // is answered.
-#if !defined(FTK_API_GLES_3)
-                // The GLES 2 display shader has no kernel to answer this with;
-                // see ftk's drawTextureScaled().
                 const ftk::Size2I displaySize = videoID == videoScaledID ?
                     scaledBufferSize :
                     offscreenBufferSize;
@@ -1173,9 +1167,8 @@ namespace tl
                         magnify && onScreen.w > displaySize.w ? 1.F : 0.F,
                         magnify && onScreen.h > displaySize.h ? 1.F : 0.F));
                 displayShader->setUniform(
-                    "textureSize",
+                    "sourceSize",
                     ftk::V2F(displaySize.w, displaySize.h));
-#endif // FTK_API_GLES_3
                 displayShader->setUniform("channels", static_cast<int>(displayOptions.channels));
                 displayShader->setUniform("negative", displayOptions.negative);
                 displayShader->setUniform("mirrorX", displayOptions.mirror.x);
