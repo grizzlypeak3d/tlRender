@@ -3,6 +3,7 @@
 
 #include "tl-test.h"
 
+#include <tlRender/UITest/GestureTest.h>
 #include <tlRender/UITest/ThumbnailSystemTest.h>
 
 #include <tlRender/TimelineTest/AudioSystemTest.h>
@@ -152,6 +153,9 @@ namespace tl
             if (gl)
             {
                 p.tests.push_back(ui_tests::ThumbnailSystemTest::create(context));
+                // Last: destroying an app shuts the context's systems down,
+                // and the thumbnail system's threads with them.
+                p.tests.push_back(ui_tests::GestureTest::create(context));
             }
         }
 
@@ -168,6 +172,7 @@ namespace tl
             {
                 for (const std::string& glName : {
                     "gl_test::RenderTest",
+                    "ui_tests::GestureTest",
                     "ui_tests::ThumbnailSystemTest" })
                 {
                     if (ftk::contains(glName, name, ftk::CaseCompare::Insensitive))

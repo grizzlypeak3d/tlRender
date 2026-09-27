@@ -1,7 +1,9 @@
 set(HEADERS
+    GestureTest.h
     ThumbnailSystemTest.h)
 
 set(SOURCE
+    GestureTest.cpp
     ThumbnailSystemTest.cpp)
 
 # Static, for the reason in ftk's TestLib.

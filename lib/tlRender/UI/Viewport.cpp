@@ -62,6 +62,8 @@ namespace tl
             std::shared_ptr<ftk::Observable<ftk::V2I> > viewPos;
             std::shared_ptr<ftk::Observable<double> > zoom;
             ftk::RangeD zoomRange = ftk::RangeD(0.01, 512.0);
+            ftk::V2F gestureRemainder;
+            ftk::V2I gestureViewPos;
             std::shared_ptr<ftk::Observable<std::pair<ftk::V2I, double> > > viewPosZoom;
             std::shared_ptr<ftk::Observable<bool> > frameView;
             std::shared_ptr<ftk::Observable<bool> > framed;
@@ -1440,6 +1442,41 @@ namespace tl
                         p.player->seek(t + OTIO_NS::RationalTime(delta, t.rate()));
                     }
                 }
+            }
+        }
+
+        void Viewport::gestureEvent(ftk::GestureEvent& event)
+        {
+            FTK_P();
+            if (p.inputEnabled)
+            {
+                event.accept = true;
+
+                // Two fingers drag the view and pinch the zoom around the
+                // point between them. Worked in fractions of a pixel, with
+                // what is left over from rounding carried to the next event,
+                // or fingers moving slowly would move nothing.
+                const ftk::V2I& viewPos = p.viewPos->get();
+                if (viewPos != p.gestureViewPos)
+                {
+                    // The view was moved some other way since: what was
+                    // left over belongs to a position it is no longer at.
+                    p.gestureRemainder = ftk::V2F();
+                }
+                const double zoom = p.zoom->get();
+                const double zoomNew = ftk::clamp(
+                    zoom * event.zoom,
+                    p.zoomRange.min(),
+                    p.zoomRange.max());
+                const double s = zoomNew / zoom;
+                const ftk::V2I focus = toViewportPos(event.pos);
+                const ftk::V2F pos(
+                    focus.x + (viewPos.x + p.gestureRemainder.x + event.pan.x - focus.x) * s,
+                    focus.y + (viewPos.y + p.gestureRemainder.y + event.pan.y - focus.y) * s);
+                const ftk::V2I posI(std::round(pos.x), std::round(pos.y));
+                p.gestureRemainder = ftk::V2F(pos.x - posI.x, pos.y - posI.y);
+                p.gestureViewPos = posI;
+                setViewPosAndZoom(posI, zoomNew);
             }
         }
 

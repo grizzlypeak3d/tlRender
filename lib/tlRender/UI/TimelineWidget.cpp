@@ -74,6 +74,7 @@ namespace tl
             //! compared against.
             std::shared_ptr<TimelineRuler> ruler;
             std::shared_ptr<ftk::ScrollWidget> scrollWidget;
+            ftk::V2F gesturePan;
             std::shared_ptr<ftk::VerticalLayout> layout;
             std::vector<std::shared_ptr<TimelineItem> > timelineItems;
 
@@ -818,6 +819,36 @@ namespace tl
                     p.scale * p.mouseWheelScale :
                     p.scale / p.mouseWheelScale;
                 setViewZoom(newZoom, event.pos);
+            }
+        }
+
+        void TimelineWidget::gestureEvent(ftk::GestureEvent& event)
+        {
+            FTK_P();
+            if (p.itemOptions->get().inputEnabled)
+            {
+                event.accept = true;
+
+                // Two fingers drag the time and the tracks, with what is
+                // left over from rounding carried to the next event, or
+                // fingers moving slowly would move nothing.
+                p.gesturePan = p.gesturePan + event.pan;
+                const ftk::V2I pan(p.gesturePan.x, p.gesturePan.y);
+                p.gesturePan = p.gesturePan - ftk::V2F(pan.x, pan.y);
+                if (pan.x != 0 || pan.y != 0)
+                {
+                    p.scrollWidget->setScrollPos(p.scrollWidget->getScrollPos() - pan);
+                    setFrameView(false);
+                }
+
+                // Pinching zooms the time around the point between them.
+                if (event.zoom != 1.F)
+                {
+                    const ftk::Box2I vp = p.scrollWidget->getScrollInfo().viewport;
+                    setViewZoom(
+                        p.scale * event.zoom,
+                        ftk::V2I(event.pos.x - vp.min.x, event.pos.y - vp.min.y));
+                }
             }
         }
 

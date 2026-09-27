@@ -234,6 +234,7 @@ namespace tl
             TL_UI_API void mousePressEvent(ftk::MouseClickEvent&) override;
             TL_UI_API void mouseReleaseEvent(ftk::MouseClickEvent&) override;
             TL_UI_API void scrollEvent(ftk::ScrollEvent&) override;
+            TL_UI_API void gestureEvent(ftk::GestureEvent&) override;
             TL_UI_API void keyPressEvent(ftk::KeyEvent&) override;
             TL_UI_API void keyReleaseEvent(ftk::KeyEvent&) override;
 
