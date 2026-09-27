@@ -18,6 +18,7 @@
 #endif // FTK_SDL3
 
 #include <atomic>
+#include <chrono>
 #include <mutex>
 #include <optional>
 #include <thread>
@@ -250,9 +251,34 @@ namespace tl
             // main thread reads a position instead of correcting one.
             int64_t position = 0;
             int64_t loops = 0;
+
+            // The clock only moves when the callback runs, which is once
+            // per block of audio the device takes: tens of milliseconds on
+            // some systems, more than a frame. So the callback also says
+            // when it ran, how long its block lasts, and how fast the
+            // position moves, and the main thread moves the clock on in
+            // between. The generation counts the resets, so a jump that
+            // was asked for is not mistaken for jitter.
+            std::chrono::steady_clock::time_point positionTime;
+            double positionDuration = 0.0;
+            double positionRate = 0.0;
+            int64_t generation = 0;
+
             std::mutex mutex;
         };
         AudioMutex audioMutex;
+
+        // The last clock read from the audio, owned by the main thread. The
+        // estimate between callbacks can run ahead of where the next one
+        // lands, when the blocks vary in size, and the clock holds rather
+        // than stepping back a frame.
+        struct AudioClock
+        {
+            int64_t position = 0;
+            int64_t loops = 0;
+            int64_t generation = -1;
+        };
+        AudioClock audioClock;
 
         // Owned by the audio callback thread; no locking. The resampler, output
         // buffer, and sample counters that only the callback touches.

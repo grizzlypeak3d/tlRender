@@ -249,6 +249,8 @@ namespace tl
             audioMutex.reset = true;
             audioMutex.position = toAudioSamples(currentTime->get());
             audioMutex.loops = 0;
+            audioMutex.positionDuration = 0.0;
+            ++audioMutex.generation;
             audioThread.info = audioInfo;
             audioThread.resample.reset();
 
@@ -323,6 +325,8 @@ namespace tl
         audioMutex.reset = true;
         audioMutex.position = toAudioSamples(time);
         audioMutex.loops = 0;
+        audioMutex.positionDuration = 0.0;
+        ++audioMutex.generation;
     }
 
 #if defined(FTK_SDL2) || defined(FTK_SDL3)
@@ -532,11 +536,25 @@ namespace tl
                 moveAudio(audioThread.buffer, outputBuffer, outputSamples);
             }
 
-            // Publish the playback clock.
+            // Publish the playback clock, and what the main thread needs
+            // to move it on until the next callback: the block just handed
+            // over plays for its length, and the position moves through the
+            // source at the playback speed.
+            const double rate = timeRange.duration().rate();
+            const double speedRatio = rate > 0.0 && state.speed > 0.0 ?
+                (state.speed / rate) :
+                1.0;
             {
                 std::unique_lock<std::mutex> lock(audioMutex.mutex);
                 audioMutex.position = audioThread.position;
                 audioMutex.loops += loops;
+                audioMutex.positionTime = std::chrono::steady_clock::now();
+                audioMutex.positionDuration = outputInfo.sampleRate > 0 ?
+                    (outputSamples / static_cast<double>(outputInfo.sampleRate)) :
+                    0.0;
+                audioMutex.positionRate =
+                    inputInfo.sampleRate * speedRatio *
+                    (Playback::Forward == state.playback ? 1.0 : -1.0);
             }
         }
     }

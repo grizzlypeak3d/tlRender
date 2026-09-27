@@ -12,6 +12,8 @@
 #include <ftk/Core/String.h>
 #include <ftk/Core/Time.h>
 
+#include <algorithm>
+
 namespace tl
 {
 
@@ -997,10 +999,38 @@ namespace tl
             if (p.hasAudio())
             {
                 // The audio callback keeps the read position, so the clock
-                // is read rather than composed from an anchor and a count.
-                std::unique_lock<std::mutex> lock(p.audioMutex.mutex);
+                // is read rather than composed from an anchor and a count,
+                // and moved on from when the callback last ran, up to the
+                // length of the block it handed over.
+                int64_t position = 0;
+                int64_t loops = 0;
+                int64_t generation = 0;
+                {
+                    std::unique_lock<std::mutex> lock(p.audioMutex.mutex);
+                    position = p.audioMutex.position;
+                    loops = p.audioMutex.loops;
+                    generation = p.audioMutex.generation;
+                    if (p.audioMutex.positionDuration > 0.0)
+                    {
+                        const std::chrono::duration<double> elapsed =
+                            std::chrono::steady_clock::now() - p.audioMutex.positionTime;
+                        position += static_cast<int64_t>(
+                            std::clamp(elapsed.count(), 0.0, p.audioMutex.positionDuration) *
+                            p.audioMutex.positionRate);
+                    }
+                }
+                if (generation == p.audioClock.generation &&
+                    loops == p.audioClock.loops)
+                {
+                    position = Playback::Reverse == playback ?
+                        std::min(position, p.audioClock.position) :
+                        std::max(position, p.audioClock.position);
+                }
+                p.audioClock.position = position;
+                p.audioClock.loops = loops;
+                p.audioClock.generation = generation;
                 start = OTIO_NS::RationalTime(
-                    p.audioMutex.position,
+                    position,
                     p.sourceAudioInfo.sampleRate).
                     rescaled_to(timelineSpeed).floor();
             }
