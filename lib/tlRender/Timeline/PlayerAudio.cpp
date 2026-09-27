@@ -8,6 +8,9 @@
 #include <ftk/Core/Context.h>
 #include <ftk/Core/Format.h>
 
+#include <algorithm>
+#include <cmath>
+
 namespace tl
 {
     const AudioDeviceID& Player::getAudioDevice() const
@@ -365,11 +368,24 @@ namespace tl
                 audioThread.buffer.clear();
             }
 
-            // Create the audio resampler.
-            if (!audioThread.resample ||
-                (audioThread.resample && audioThread.resample->getInputInfo() != inputInfo))
+            // Create the audio resampler. Playing at another speed plays
+            // the audio faster or slower, pitch and all, which is a change
+            // of sample rate: the resampler takes the source as running at
+            // its rate times the speed. It filters, and it carries its state
+            // from one buffer to the next, where changing the speed of each
+            // buffer on its own crackled -- a nearest sample repeated or
+            // skipped every few samples, and a step at every buffer's end.
+            AudioInfo resampleInfo = inputInfo;
+            const double timelineRate = timeRange.duration().rate();
+            if (state.speed > 0.0 && timelineRate > 0.0 && state.speed != timelineRate)
             {
-                audioThread.resample = AudioResample::create(inputInfo, outputInfo);
+                resampleInfo.sampleRate = std::max(1, static_cast<int>(std::lround(
+                    inputInfo.sampleRate * state.speed / timelineRate)));
+            }
+            if (!audioThread.resample ||
+                (audioThread.resample && audioThread.resample->getInputInfo() != resampleInfo))
+            {
+                audioThread.resample = AudioResample::create(resampleInfo, outputInfo);
             }
 
             // The in/out range in source samples. Only Loop::Loop wraps
@@ -486,13 +502,8 @@ namespace tl
                         audio = reverseAudio(audio);
                     }
 
-                    // Change the audio speed.
-                    if (state.speed != timeRange.duration().rate() && state.speed > 0.0)
-                    {
-                        audio = changeAudioSpeed(audio, timeRange.duration().rate() / state.speed);
-                    }
-
-                    // Resample the audio and add it to the buffer.
+                    // Resample the audio, to the device's rate and the
+                    // playback speed, and add it to the buffer.
                     audioThread.buffer.push_back(audioThread.resample->process(audio));
 
                     // Advance the read position.
