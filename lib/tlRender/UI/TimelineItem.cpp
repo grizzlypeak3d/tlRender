@@ -1460,10 +1460,13 @@ namespace tl
                 }
                 wanted.insert(mediaTime);
 
-                // The tiles share the one image and the one request; the last
-                // may run into the next frame's place, and the next frame
-                // draws over it, an overlap of the same kind the rounded step
-                // already makes.
+                // The tiles share the one image and the one request. Each is
+                // cut where the next frame's place starts: the rounded step
+                // can put the next thumbnail closer than one is wide, by as
+                // much as a third of one, and drawn whole the next covered
+                // this one's end -- but only once it had loaded, so the strip
+                // seemed to clip itself as the thumbnails came in. Cut from
+                // the start, the strip looks as it will when they all have.
                 for (int tileX = x;;)
                 {
                     const ftk::Box2I box(
@@ -1476,6 +1479,7 @@ namespace tl
                         Item::Media media;
                         media.x = tileX;
                         media.w = thumbnailWidth;
+                        media.visibleW = std::max(1, std::min(thumbnailWidth, xNext - tileX));
                         media.image = image;
                         item.media.push_back(std::move(media));
                     }
@@ -1810,9 +1814,15 @@ namespace tl
                         }
 
                         // A thumbnail at the end of an item runs past it, so
-                        // the item masks its own thumbnails.
+                        // the item masks its own thumbnails, and each is cut
+                        // where the next starts; see requestThumbnails().
+                        const ftk::Box2I visibleBox(
+                            box.min.x,
+                            box.min.y,
+                            media.visibleW > 0 ? media.visibleW : media.w,
+                            box.h());
                         render->setClipRect(ftk::intersect(
-                            mediaGeom,
+                            ftk::intersect(mediaGeom, visibleBox),
                             ftk::intersect(clipRectState->getClipRect(), drawRect)));
 
                         render->drawImage(

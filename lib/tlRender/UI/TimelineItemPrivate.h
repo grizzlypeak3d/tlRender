@@ -117,6 +117,11 @@ namespace tl
                 {
                     int x = 0;
                     int w = 0;
+
+                    //! How much of it shows: a thumbnail is cut where the
+                    //! next one starts.
+                    int visibleW = 0;
+
                     std::shared_ptr<ftk::Image> image;
                     std::shared_ptr<ftk::TriMesh2F> mesh;
                 };
