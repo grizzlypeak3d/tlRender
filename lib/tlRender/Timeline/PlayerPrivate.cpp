@@ -714,11 +714,17 @@ namespace tl
             ++droppedShownCount;
         }
 
-        // Only meaningful at real-time or slower playback. Faster speeds (the
-        // accelerate feature or a custom fast speed) skip source frames by
-        // design, which is not the same as the engine failing to keep up.
-        const double effectiveRate = speed->get() * speedMult->get();
-        if (effectiveRate <= timelineSpeed * 1.001)
+        // Not while accelerating: the speed multiplier skips source frames
+        // by design, which is not the same as the engine failing to keep up.
+        // Any playback speed counts, though, faster than the timeline's
+        // included: playing at 60 asks for every frame at 60, and a frame it
+        // misses is a dropped frame. The count starts again when the
+        // acceleration ends, or what it skipped would be counted then.
+        if (speedMult->get() > 1.001)
+        {
+            droppedFramesReset = true;
+        }
+        else
         {
             const double dir = (Playback::Reverse == playback) ? -1.0 : 1.0;
             const int64_t clockAdvance = static_cast<int64_t>(std::llround(
