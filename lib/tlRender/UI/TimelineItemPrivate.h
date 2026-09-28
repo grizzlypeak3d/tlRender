@@ -221,6 +221,12 @@ namespace tl
             };
             MouseMode mouseMode = MouseMode::None;
 
+            // Where the press found the player, for a press that is
+            // cancelled: the first finger of a touch gesture is not
+            // scrubbing, and puts back what it changed.
+            std::optional<OTIO_NS::RationalTime> pressTime;
+            Playback pressPlayback = Playback::Stop;
+
             std::shared_ptr<ThumbnailSystem> thumbnailSystem;
 
             std::shared_ptr<ftk::Observer<OTIO_NS::RationalTime> > currentTimeObserver;

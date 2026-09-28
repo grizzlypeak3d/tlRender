@@ -127,6 +127,18 @@ namespace tl
             _print(ftk::Format("Pinch out: {0}").arg(timelineWidget->getViewZoom()));
             FTK_CHECK(std::abs(timelineWidget->getViewZoom() - zoom) < 1e-6);
             FTK_CHECK(timelineWidget->hasFrameView());
+
+            // The first finger's press sets the current time; cancelled by
+            // the second, the time goes back.
+            const OTIO_NS::RationalTime timePrev = player->getCurrentTime();
+            const ftk::V2I ruler(center.x, g.min.y + 4);
+            window->drag({ ruler, ruler }, 0, false);
+            app->tick();
+            _print(ftk::Format("Pressed time: {0}").arg(player->getCurrentTime().value()));
+            FTK_CHECK(player->getCurrentTime() != timePrev);
+            window->gesture(ruler, ftk::V2F(), 1.F);
+            app->tick();
+            FTK_CHECK(player->getCurrentTime() == timePrev);
         }
     }
 }

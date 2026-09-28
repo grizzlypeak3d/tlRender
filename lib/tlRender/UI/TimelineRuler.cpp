@@ -69,6 +69,12 @@ namespace tl
             };
             MouseMode mouseMode = MouseMode::None;
 
+            // Where the press found the player, for a press that is
+            // cancelled: the first finger of a touch gesture is not
+            // scrubbing, and puts back what it changed.
+            std::optional<OTIO_NS::RationalTime> pressTime;
+            Playback pressPlayback = Playback::Stop;
+
             std::optional<OTIO_NS::RationalTime> currentTime;
             std::optional<OTIO_NS::TimeRange> inOutRange;
             PlayerCacheInfo cacheInfo;
@@ -300,6 +306,8 @@ namespace tl
             {
                 p.mouseMode = Private::MouseMode::CurrentTime;
                 p.timeHover->setIfChanged(std::nullopt);
+                p.pressTime = p.player->getCurrentTime();
+                p.pressPlayback = p.player->getPlayback();
                 if (p.stopOnScrub)
                 {
                     p.player->stop();
@@ -317,7 +325,19 @@ namespace tl
             FTK_P();
             if (Private::MouseMode::CurrentTime == p.mouseMode)
             {
-                p.hoverSuppress = p.timeScrub->get();
+                if (event.cancel && p.player)
+                {
+                    // Back to the frame, and playing if it was.
+                    if (p.pressTime.has_value())
+                    {
+                        p.player->seek(p.pressTime.value());
+                    }
+                    p.player->setPlayback(p.pressPlayback);
+                }
+                else
+                {
+                    p.hoverSuppress = p.timeScrub->get();
+                }
             }
             p.scrub->setIfChanged(false);
             p.mouseMode = Private::MouseMode::None;
