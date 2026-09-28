@@ -53,8 +53,6 @@ namespace tl
             //! Set the font 
             TL_UI_API void setFont(ftk::FontType);
 
-            TL_UI_API bool isSegment() const override;
-            TL_UI_API void setSegment(ftk::ColorRole, const std::array<bool, 4>&) override;
             TL_UI_API ftk::Size2I getSizeHint() const override;
             TL_UI_API void styleEvent(const ftk::StyleEvent&) override;
             TL_UI_API void sizeHintEvent(const ftk::SizeHintEvent&) override;

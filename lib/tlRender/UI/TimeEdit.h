@@ -83,8 +83,6 @@ namespace tl
             //! Set the well color role.
             TL_UI_API void setWellRole(ftk::ColorRole);
 
-            TL_UI_API bool isSegment() const override;
-            TL_UI_API void setSegment(ftk::ColorRole, const std::array<bool, 4>&) override;
             TL_UI_API void takeKeyFocus() override;
             TL_UI_API void keyPressEvent(ftk::KeyEvent&) override;
             TL_UI_API void keyReleaseEvent(ftk::KeyEvent&) override;

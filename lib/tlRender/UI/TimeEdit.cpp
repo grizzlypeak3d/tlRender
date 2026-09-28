@@ -176,22 +176,6 @@ namespace tl
 
         
 
-        bool TimeEdit::isSegment() const
-        {
-            return true;
-        }
-
-        void TimeEdit::setSegment(ftk::ColorRole background, const std::array<bool, 4>& value)
-        {
-            // The field meets the step buttons on its right, so its right
-            // side is always square and there is no gap between them; the
-            // step buttons take the background.
-            FTK_P();
-            p.layout->setSpacingRole(ftk::SizeRole::None);
-            p.lineEdit->setSegment(background, { value[0], false, false, value[3] });
-            p.incButtons->setSegment(background, { false, value[1], value[2], false });
-        }
-
         void TimeEdit::takeKeyFocus()
         {
             _p->lineEdit->takeKeyFocus();

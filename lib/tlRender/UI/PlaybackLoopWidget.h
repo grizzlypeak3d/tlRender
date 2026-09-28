@@ -42,8 +42,6 @@ namespace tl
             //! Set the callback.
             TL_UI_API void setCallback(const std::function<void(Loop)>&);
 
-            TL_UI_API bool isSegment() const override;
-            TL_UI_API void setSegment(ftk::ColorRole, const std::array<bool, 4>&) override;
 
         private:
             void _widgetUpdate();
