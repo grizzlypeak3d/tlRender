@@ -1151,13 +1151,19 @@ namespace tl
                         std::unique_lock<std::mutex> lock(p.mutex.mutex);
                         p.mutex.currentVideoFrame.clear();
                     }
+                    // Not with audio: the audio is the clock, so resetting
+                    // it to the current time holds nothing back, and it only
+                    // muted the sound and threw away what the device had
+                    // buffered -- every half second while the cache could
+                    // not keep up, which sounded as popping and the audio
+                    // shifting. The sound plays through; the picture shows
+                    // what the cache has.
                     const auto now = std::chrono::steady_clock::now();
-                    if (now > p.audioMutex.state.muteTimeout)
+                    if (!p.hasAudio() && now > p.audioMutex.state.muteTimeout)
                     {
                         {
                             std::unique_lock<std::mutex> lock(p.audioMutex.mutex);
                             p.audioMutex.state.muteTimeout = now + p.playerOptions.muteTimeout;
-                            p.audioReset(p.currentTime->get());
                         }
                         p.playbackReset(p.currentTime->get());
                     }
