@@ -308,6 +308,15 @@ namespace tl
             audioThread.resample.reset();
             audioThread.fifoByteCount = 0;
             audioThread.lastFrame.clear();
+            audioThread.priority = false;
+
+            // Real time rather than only a raised priority, for the thread
+            // the callback runs on; see sdlCallback(). Left alone when it has
+            // been set already, from the environment say.
+            if (!SDL_GetHint(SDL_HINT_THREAD_FORCE_REALTIME_TIME_CRITICAL))
+            {
+                SDL_SetHint(SDL_HINT_THREAD_FORCE_REALTIME_TIME_CRITICAL, "1");
+            }
 
             SDL_AudioSpec spec;
             spec.freq = audioInfo.sampleRate;
@@ -550,6 +559,21 @@ namespace tl
         uint8_t* outputBuffer,
         int len)
     {
+        // Raise the priority of the thread the device calls this on. Not
+        // every backend does: with PipeWire the callback runs on a thread of
+        // ordinary priority, and with every core busy reading frames it was
+        // left waiting for a CPU for over a hundred milliseconds, longer
+        // than the device's buffer.
+        if (!audioThread.priority)
+        {
+            audioThread.priority = true;
+#if defined(FTK_SDL2)
+            SDL_SetThreadPriority(SDL_THREAD_PRIORITY_TIME_CRITICAL);
+#elif defined(FTK_SDL3)
+            SDL_SetCurrentThreadPriority(SDL_THREAD_PRIORITY_TIME_CRITICAL);
+#endif // FTK_SDL2
+        }
+
         // Get mutex protected values.
         AudioState& state = audioThread.state;
         bool reset = false;

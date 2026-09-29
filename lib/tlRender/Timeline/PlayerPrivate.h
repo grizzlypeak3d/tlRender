@@ -321,6 +321,10 @@ namespace tl
             // The SDL 3 stream is given audio from here.
             std::vector<uint8_t> sdlBuffer;
 
+            // Whether the priority of the thread the callback runs on has
+            // been raised.
+            bool priority = false;
+
             // Declicking. A seek moves the read position from one place in
             // the waveform to another, and a stop or an empty buffer drops
             // it to silence; either is a step between one sample and the
