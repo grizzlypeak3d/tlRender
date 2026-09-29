@@ -90,3 +90,45 @@ index 08e9176..2a2fa7c 100644
  #    define OTIO_API_TEMPLATE_CLASS(...)
  #    define OTIO_API_TEMPLATE_STRUCT(...)
  #    define OTIO_LOCAL
+diff --git a/src/py-opentimelineio/opentime-bindings/CMakeLists.txt b/src/py-opentimelineio/opentime-bindings/CMakeLists.txt
+index ab62c3e..c6dc3a7 100644
+--- a/src/py-opentimelineio/opentime-bindings/CMakeLists.txt
++++ b/src/py-opentimelineio/opentime-bindings/CMakeLists.txt
+@@ -36,8 +36,15 @@ if(APPLE)
+         INSTALL_NAME_DIR "@loader_path"
+         MACOSX_RPATH ON)
+ elseif(UNIX)
++    # Beside the module for OTIO's own libraries, and wherever the caller's
++    # CMAKE_INSTALL_RPATH says as well. The module links the dependencies of
++    # those libraries directly -- Imath -- and on Linux it looks for them
++    # with its own rpath: with "$ORIGIN" alone it finds them only when
++    # something has loaded them already, or they are on LD_LIBRARY_PATH.
++    set(opentime_INSTALL_RPATH "$ORIGIN" ${CMAKE_INSTALL_RPATH})
++    list(REMOVE_DUPLICATES opentime_INSTALL_RPATH)
+     set_target_properties(_opentime PROPERTIES 
+-        INSTALL_RPATH "$ORIGIN"
++        INSTALL_RPATH "${opentime_INSTALL_RPATH}"
+         INSTALL_RPATH_USE_LINK_PATH OFF)
+ endif()
+ 
+diff --git a/src/py-opentimelineio/opentimelineio-bindings/CMakeLists.txt b/src/py-opentimelineio/opentimelineio-bindings/CMakeLists.txt
+index 5362e62..f697387 100644
+--- a/src/py-opentimelineio/opentimelineio-bindings/CMakeLists.txt
++++ b/src/py-opentimelineio/opentimelineio-bindings/CMakeLists.txt
+@@ -47,8 +47,15 @@ if(APPLE)
+         INSTALL_NAME_DIR "@loader_path"
+         MACOSX_RPATH ON)
+ elseif(UNIX)
++    # Beside the module for OTIO's own libraries, and wherever the caller's
++    # CMAKE_INSTALL_RPATH says as well. The module links the dependencies of
++    # those libraries directly -- Imath -- and on Linux it looks for them
++    # with its own rpath: with "$ORIGIN" alone it finds them only when
++    # something has loaded them already, or they are on LD_LIBRARY_PATH.
++    set(otio_INSTALL_RPATH "$ORIGIN" ${CMAKE_INSTALL_RPATH})
++    list(REMOVE_DUPLICATES otio_INSTALL_RPATH)
+     set_target_properties(_otio PROPERTIES 
+-        INSTALL_RPATH "$ORIGIN"
++        INSTALL_RPATH "${otio_INSTALL_RPATH}"
+         INSTALL_RPATH_USE_LINK_PATH OFF)
+ endif()
+ 

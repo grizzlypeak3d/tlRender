@@ -54,13 +54,14 @@ set(OTIO_ARGS
 # A program linking the library has loaded those itself already, which is why
 # only the import fails. The second entry reaches the prefix's lib from the
 # Python package; the first is the library alone in lib. Relative, so the
-# install stays relocatable. macOS resolves with the loading module's rpaths
-# and is handled in OTIOInstallNames.cmake.
+# install stays relocatable. The Python modules are given the same, by the
+# patch below. macOS resolves with the loading module's rpaths and is handled
+# in OTIOInstallNames.cmake.
 if(UNIX AND NOT APPLE)
     list(APPEND OTIO_ARGS "-DCMAKE_INSTALL_RPATH=$ORIGIN|$ORIGIN/../../lib")
 endif()
 
-# OTIO is patched, with three changes; see the notes in the patch itself.
+# OTIO is patched, with four changes; see the notes in the patch itself.
 #
 # The first drops the "_d" debug postfix, which hides the Python modules from
 # the release interpreter that runs the tests.
@@ -72,6 +73,15 @@ endif()
 # otherwise, and this build asks for default visibility: the marking covers
 # the types OTIO names, and a cast here of a type it does not name -- a
 # template, an optional -- still fails against a hidden build.
+#
+# The fourth gives the Python modules the CMAKE_INSTALL_RPATH below as well
+# as "$ORIGIN", which upstream sets on them in its place. The modules link
+# Imath directly, and with "$ORIGIN" alone importing them found it only when
+# something had loaded it already: a Debug build with Python on Rocky Linux,
+# whose linker keeps a library it links whether or not it is used, stopped
+# generating the tlRender stubs with
+#
+#     ImportError: libImath-3_2_d.so.30: cannot open shared object file
 #
 # A patch rather than whole file copies: it is smaller, it reads as the change
 # it makes, and moving OTIO_GIT_TAG stops the build instead of silently
