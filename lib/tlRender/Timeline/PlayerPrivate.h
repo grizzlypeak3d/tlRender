@@ -50,6 +50,7 @@ namespace tl
         void audioInit(const std::shared_ptr<ftk::Context>&);
         int64_t toAudioSamples(const OTIO_NS::RationalTime&) const;
         void audioReset(const OTIO_NS::RationalTime&);
+        void declick(uint8_t*, size_t sampleCount, const AudioInfo&, bool audio);
 #if defined(FTK_SDL2) || defined(FTK_SDL3)
         void sdlCallback(uint8_t* stream, int len);
 #if defined(FTK_SDL2)
@@ -289,6 +290,19 @@ namespace tl
             std::shared_ptr<AudioResample> resample;
             std::list<std::shared_ptr<Audio> > buffer;
             std::shared_ptr<Audio> silence;
+
+            // Declicking. A seek moves the read position from one place in
+            // the waveform to another, and a stop or an empty buffer drops
+            // it to silence; either is a step between one sample and the
+            // next, which is heard as a click. The step is taken from the
+            // last frame handed to the device, and an offset starting at it
+            // ramps down to nothing over a few milliseconds.
+            std::vector<double> lastFrame;
+            std::vector<double> declickStep;
+            size_t declickPos = 0;
+            size_t declickLength = 0;
+            bool declickPending = false;
+            bool silent = true;
         };
         AudioThread audioThread;
 

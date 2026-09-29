@@ -142,6 +142,45 @@ namespace tl
 
     namespace
     {
+        // One sample of the device's format, as a value from -1 to 1.
+        double getSample(const uint8_t* p, AudioType type)
+        {
+            double out = 0.0;
+            switch (type)
+            {
+            case AudioType::S8: out = *reinterpret_cast<const int8_t*>(p) / 128.0; break;
+            case AudioType::S16: out = *reinterpret_cast<const int16_t*>(p) / 32768.0; break;
+            case AudioType::S32: out = *reinterpret_cast<const int32_t*>(p) / 2147483648.0; break;
+            case AudioType::F32: out = *reinterpret_cast<const float*>(p); break;
+            case AudioType::F64: out = *reinterpret_cast<const double*>(p); break;
+            default: break;
+            }
+            return out;
+        }
+
+        void setSample(uint8_t* p, AudioType type, double value)
+        {
+            const double v = std::clamp(value, -1.0, 1.0);
+            switch (type)
+            {
+            case AudioType::S8:
+                *reinterpret_cast<int8_t*>(p) = static_cast<int8_t>(
+                    std::clamp(std::lround(v * 128.0), -128L, 127L));
+                break;
+            case AudioType::S16:
+                *reinterpret_cast<int16_t*>(p) = static_cast<int16_t>(
+                    std::clamp(std::lround(v * 32768.0), -32768L, 32767L));
+                break;
+            case AudioType::S32:
+                *reinterpret_cast<int32_t*>(p) = static_cast<int32_t>(
+                    std::clamp(std::llround(v * 2147483648.0), -2147483648LL, 2147483647LL));
+                break;
+            case AudioType::F32: *reinterpret_cast<float*>(p) = static_cast<float>(v); break;
+            case AudioType::F64: *reinterpret_cast<double*>(p) = v; break;
+            default: break;
+            }
+        }
+
 #if defined(FTK_SDL2)
         SDL_AudioFormat toSDL(AudioType value)
         {
@@ -256,6 +295,7 @@ namespace tl
             ++audioMutex.generation;
             audioThread.info = audioInfo;
             audioThread.resample.reset();
+            audioThread.lastFrame.clear();
 
             SDL_AudioSpec spec;
             spec.freq = audioInfo.sampleRate;
@@ -332,6 +372,75 @@ namespace tl
         ++audioMutex.generation;
     }
 
+    // Smooth over a step in what the device is given. Called with every
+    // block, whether it holds audio or silence: a block of silence after
+    // audio ramps down from where the audio left off, and the first block
+    // of audio after a reset or a silence ramps from where the device is.
+    void Player::Private::declick(
+        uint8_t* data,
+        size_t sampleCount,
+        const AudioInfo& info,
+        bool audio)
+    {
+        auto& thread = audioThread;
+        const size_t channelCount = info.channelCount;
+        const size_t sampleByteCount = getByteCount(info.type);
+        const size_t frameByteCount = channelCount * sampleByteCount;
+        if (0 == sampleCount || 0 == frameByteCount)
+        {
+            return;
+        }
+        if (thread.lastFrame.size() != channelCount)
+        {
+            thread.lastFrame.assign(channelCount, 0.0);
+            thread.declickStep.assign(channelCount, 0.0);
+            thread.declickPos = thread.declickLength = 0;
+        }
+
+        if (!audio || thread.declickPending || thread.silent)
+        {
+            // Starting over from wherever an earlier ramp had got to is
+            // still continuous: the step is taken from what the device
+            // was last given, ramp included.
+            bool step = false;
+            for (size_t c = 0; c < channelCount; ++c)
+            {
+                thread.declickStep[c] =
+                    thread.lastFrame[c] - getSample(data + c * sampleByteCount, info.type);
+                step |= thread.declickStep[c] != 0.0;
+            }
+            if (step)
+            {
+                thread.declickPos = 0;
+                thread.declickLength = std::max(
+                    static_cast<size_t>(info.sampleRate * .005), static_cast<size_t>(1));
+            }
+            if (audio)
+            {
+                thread.declickPending = false;
+            }
+        }
+        thread.silent = !audio;
+
+        for (size_t i = 0;
+            i < sampleCount && thread.declickPos < thread.declickLength;
+            ++i, ++thread.declickPos)
+        {
+            const double k = 1.0 - thread.declickPos / static_cast<double>(thread.declickLength);
+            for (size_t c = 0; c < channelCount; ++c)
+            {
+                uint8_t* p = data + i * frameByteCount + c * sampleByteCount;
+                setSample(p, info.type, getSample(p, info.type) + thread.declickStep[c] * k);
+            }
+        }
+
+        const uint8_t* last = data + (sampleCount - 1) * frameByteCount;
+        for (size_t c = 0; c < channelCount; ++c)
+        {
+            thread.lastFrame[c] = getSample(last + c * sampleByteCount, info.type);
+        }
+    }
+
 #if defined(FTK_SDL2) || defined(FTK_SDL3)
     void Player::Private::sdlCallback(
         uint8_t* outputBuffer,
@@ -355,11 +464,13 @@ namespace tl
         std::memset(outputBuffer, 0, outputSamples * outputInfo.getByteCount());
 
         const AudioInfo& inputInfo = sourceAudioInfo;
+        bool audio = false;
         if (state.playback != Playback::Stop && inputInfo.sampleRate > 0)
         {
             // Initialize on reset.
             if (reset)
             {
+                audioThread.declickPending = true;
                 audioThread.position = position;
                 if (audioThread.resample)
                 {
@@ -545,6 +656,7 @@ namespace tl
             if (outputSamples <= bufferSampleCount)
             {
                 moveAudio(audioThread.buffer, outputBuffer, outputSamples);
+                audio = true;
             }
 
             // Publish the playback clock, and what the main thread needs
@@ -568,6 +680,8 @@ namespace tl
                     (Playback::Forward == state.playback ? 1.0 : -1.0);
             }
         }
+
+        declick(outputBuffer, outputSamples, outputInfo, audio);
     }
 
 #if defined(FTK_SDL2)
