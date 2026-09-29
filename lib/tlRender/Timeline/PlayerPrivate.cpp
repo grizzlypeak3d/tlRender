@@ -9,10 +9,28 @@
 #include <ftk/Core/Format.h>
 #include <ftk/Core/String.h>
 
+#include <algorithm>
 #include <cmath>
 
 namespace tl
 {
+    namespace
+    {
+        // How much faster than playback the video cache fills. Asked for as
+        // fast as the readers can go, a cache of 4K EXRs filled at a couple of
+        // gigabytes a second, and on Windows that was several hundred thousand
+        // page faults a second: the kernel took most of the machine, the
+        // mouse stuttered, and the audio callback went without the processor
+        // for tens of milliseconds at a time and the sound broke up. A little
+        // faster than playback still gets ahead of it.
+        const double fillRateMult = 1.5;
+
+        // How much of a second the fill can ask for at once: enough for the
+        // first frames after opening or seeking to come quickly, not so much
+        // that a pause adds up to a burst.
+        const double fillBurst = .25;
+    }
+
     OTIO_NS::RationalTime Player::Private::loopPlayback(const OTIO_NS::RationalTime& time, bool& looped)
     {
         OTIO_NS::RationalTime out = time;
@@ -401,9 +419,29 @@ namespace tl
             }
         }
 
-        // Fill the video cache.
+        // Fill the video cache. While playing, no faster than fillRateMult
+        // times the playback speed; the speed is the one the audio plays at,
+        // which includes the acceleration, so playing faster fills faster.
+        // Stopped, as fast as it can: nothing is playing to break up, and
+        // filling the cache before playing is what stopping is often for.
+        thread.fillLimited = false;
         if (hasVideo())
         {
+            const bool fillLimit = thread.state.playback != Playback::Stop;
+            const double timelineRate = timeRange.duration().rate();
+            double speed = 0.0;
+            {
+                std::unique_lock<std::mutex> lock(audioMutex.mutex);
+                speed = audioMutex.state.speed;
+            }
+            thread.fillRate = fillRateMult * std::max(std::abs(speed), timelineRate);
+            const auto now = std::chrono::steady_clock::now();
+            const std::chrono::duration<double> elapsed = now - thread.fillTime;
+            thread.fillTime = now;
+            thread.fillFrames = std::min(
+                thread.fillFrames + std::max(elapsed.count(), 0.0) * thread.fillRate,
+                std::max(thread.fillRate * fillBurst, 1.0));
+
             const OTIO_NS::RationalTime inc(1.0, thread.state.currentTime.rate());
             for (OTIO_NS::RationalTime time = videoCacheRange.start_time();
                 time <= videoCacheRange.end_time_inclusive() &&
@@ -417,6 +455,15 @@ namespace tl
                     const auto k = thread.videoRequests.find(timeLooped);
                     if (k == thread.videoRequests.end())
                     {
+                        if (fillLimit)
+                        {
+                            if (thread.fillFrames < 1.0)
+                            {
+                                thread.fillLimited = true;
+                                break;
+                            }
+                            thread.fillFrames -= 1.0;
+                        }
                         auto& requests = thread.videoRequests[timeLooped];
                         IOOptions ioOptions2 = thread.state.ioOptions;
                         ioOptions2["Layer"] = ftk::Format("{0}").arg(thread.state.videoLayer);
@@ -508,11 +555,20 @@ namespace tl
             std::unique_lock<std::mutex> lock(audioMutex.mutex);
             audioCacheSize = audioMutex.cache.size();
         }
+        // A fill that stopped at its rate has more to ask for once another
+        // frame is due, which nothing in the key says; without this a
+        // stopped player would sit on a half filled cache.
+        const bool fillDue =
+            thread.fillLimited &&
+            thread.fillFrames + std::chrono::duration<double>(
+                std::chrono::steady_clock::now() - thread.fillTime).count() *
+                thread.fillRate >= 1.0;
         // Compared in place rather than into a key: holding the state costs
         // a copy of its options and layers, which is not worth paying on a
         // tick that turns out to have nothing to do.
         const bool changed =
             !thread.cacheKeyValid ||
+            fillDue ||
             thread.cacheKey.cacheDir != thread.cacheDir ||
             thread.cacheKey.videoCacheSize != thread.videoCache.size() ||
             thread.cacheKey.audioCacheSize != audioCacheSize ||
