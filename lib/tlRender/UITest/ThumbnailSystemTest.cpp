@@ -15,6 +15,8 @@
 #include <ftk/Core/Assert.h>
 #include <ftk/Core/Context.h>
 #include <ftk/Core/Format.h>
+#include <ftk/Core/LogSystem.h>
+#include <ftk/Core/ObservableList.h>
 #include <ftk/Core/Time.h>
 #include <algorithm>
 #include <chrono>
@@ -46,6 +48,7 @@ namespace tl
             _overwritten();
             _separateAudio();
             _timelineCache();
+            _clipRequests();
             auto thumbnailSystem = _context->getSystem<ui::ThumbnailSystem>();
             const std::vector<ftk::Path> paths =
             {
@@ -228,6 +231,103 @@ namespace tl
             FTK_CHECK(open <= count + 1);
             thumbnailSystem->getThumbnail(b, 16).future.get();
             FTK_CHECK(open == settle(open));
+        }
+
+        void ThumbnailSystemTest::_clipRequests()
+        {
+            // The timeline widget asks about each clip of a timeline, with
+            // the clip's name as the USD camera. All of them are answered
+            // from one open timeline: each used to open it again, which for
+            // a large bundle is seconds apiece.
+            const ftk::Path path(TLRENDER_SAMPLE_DATA, "SingleClipSeq.otioz");
+            std::vector<ftk::Path> mediaPaths;
+            try
+            {
+                // The video clips: those are what the camera is set for.
+                auto timeline = Timeline::create(_context, path);
+                for (const auto& track : timeline->getOTIOTimeline()->video_tracks())
+                {
+                    for (const auto& clip : track->find_clips())
+                    {
+                        mediaPaths.push_back(getPath(
+                            clip->media_reference(),
+                            timeline->getPath().getDir(),
+                            ftk::PathOptions()));
+                    }
+                }
+            }
+            catch (const std::exception& e)
+            {
+                _error(e.what());
+                return;
+            }
+            FTK_CHECK(!mediaPaths.empty());
+            if (mediaPaths.empty() ||
+                !_context->getSystem<ReadSystem>()->getPlugin(mediaPaths[0]))
+            {
+                return;
+            }
+
+            // Count the opens by what the timeline logs when it is created.
+            auto logSystem = _context->getLogSystem();
+            size_t opens = 0;
+            auto logObserver = ftk::ListObserver<ftk::LogItem>::create(
+                logSystem->observeLogItems(),
+                [&opens, &path](const std::vector<ftk::LogItem>& value)
+                {
+                    for (const auto& item : value)
+                    {
+                        if ("tl::Timeline::_init" == item.prefix &&
+                            path.get() == item.message)
+                        {
+                            ++opens;
+                        }
+                    }
+                });
+            logSystem->tick();
+            opens = 0;
+
+            // In the order the timeline widget asks: the information first,
+            // and the thumbnails once it has come back. Asked for at once,
+            // two threads can both find nothing open and both open it, which
+            // is allowed.
+            auto thumbnailSystem = _context->getSystem<ui::ThumbnailSystem>();
+            const std::vector<std::string> cameras = { "A", "B", "C" };
+            std::vector<ui::InfoRequest> infoRequests;
+            for (const auto& mediaPath : mediaPaths)
+            {
+                for (const auto& camera : cameras)
+                {
+                    IOOptions options;
+                    options["USD/CameraName"] = camera;
+                    infoRequests.push_back(thumbnailSystem->getInfo(
+                        path, mediaPath, options));
+                }
+            }
+            for (auto& request : infoRequests)
+            {
+                FTK_CHECK(!request.future.get().video.empty());
+            }
+            std::vector<ui::ThumbnailRequest> thumbnailRequests;
+            for (const auto& mediaPath : mediaPaths)
+            {
+                for (const auto& camera : cameras)
+                {
+                    IOOptions options;
+                    options["USD/CameraName"] = camera;
+                    thumbnailRequests.push_back(thumbnailSystem->getThumbnail(
+                        path, mediaPath, 16, std::nullopt, options));
+                }
+            }
+            for (auto& request : thumbnailRequests)
+            {
+                request.future.get();
+            }
+            logSystem->tick();
+            _print(ftk::Format("Timeline opens for {0} requests: {1}").
+                arg(infoRequests.size() + thumbnailRequests.size()).
+                arg(opens));
+            FTK_CHECK(1 == opens);
         }
 
         void ThumbnailSystemTest::_overwritten()

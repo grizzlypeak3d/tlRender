@@ -20,6 +20,7 @@ namespace tl
             void run() override;
 
         private:
+            void _clipRequests();
             void _gapSeq();
             void _overwritten();
             void _seqFrame();

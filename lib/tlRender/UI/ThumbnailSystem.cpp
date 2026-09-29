@@ -149,7 +149,15 @@ namespace tl
                 // seconds, so opening it three times is three times too
                 // many. The timeline has no thread of its own and guards its
                 // caches, so the threads can read it at once.
-                const std::string key = getTimelineKey(path, audioPath, ioOptions);
+                //
+                // The USD camera is an option of a read, not of the timeline:
+                // the timeline item asks with each clip's name, and the
+                // timeline sets it for each clip when it reads. Left in the
+                // key, every clip was a different timeline, and with one kept
+                // the bundle was opened again for every clip.
+                IOOptions timelineOptions = ioOptions;
+                timelineOptions.erase("USD/CameraName");
+                const std::string key = getTimelineKey(path, audioPath, timelineOptions);
                 std::shared_ptr<Timeline> out;
                 {
                     std::unique_lock<std::mutex> lock(mutex);
@@ -172,7 +180,7 @@ namespace tl
                 // without them falls back to bare names, which a bundle
                 // cannot find: an application started from the Finder gets
                 // the launch daemon's PATH, not a shell's.
-                options.ioOptions = ioOptions;
+                options.ioOptions = timelineOptions;
                 // With the audio file chosen alongside it: nothing in the
                 // video file says there is one, so a timeline opened from the
                 // path alone would have no audio to draw.
@@ -842,13 +850,22 @@ namespace tl
                     try
                     {
                         auto context = p.context.lock();
-                        // Uses the open timeline when there is one, but does
-                        // not keep one: information is asked for once per
-                        // file, and keeping it would push out the timeline
-                        // the thumbnails are reading from.
+                        // Uses the open timeline when there is one. A file on
+                        // its own is asked about once, and keeping its
+                        // timeline would push out the one the thumbnails are
+                        // reading from. Media inside a timeline is different:
+                        // the timeline widget asks about every clip, all in
+                        // the same timeline, and the thumbnails that follow
+                        // read from it too. Not keeping it opened the whole
+                        // timeline again for each clip -- a bundle of 25,000
+                        // entries a couple of hundred times over while it
+                        // loaded, and on Windows each open and close maps and
+                        // unmaps the bundle, which stalls every page fault in
+                        // the process, the audio callback's included.
+                        const bool keep = request->mediaPath.get() != request->path.get();
                         if (auto timeline = getTimeline(
                             context, p.ioCache, p.ioCacheMutex, request->path,
-                            request->audioPath, request->options, false))
+                            request->audioPath, request->options, keep))
                         {
                             timeline->getMediaInfo(
                                 request->mediaPath, info, request->options);
