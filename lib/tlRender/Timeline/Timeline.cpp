@@ -1376,6 +1376,9 @@ namespace tl
             // reach the same range through the bundle file.
             memFile.path = ftk::fromFileSystem(fileIO->getPath());
             memFile.offset = entry->offset;
+            // A read-only mapping of the bundle, which the decoders may let
+            // go of once a frame is read.
+            memFile.mapped = true;
             (*out)[mediaFileName.first] = memFile;
             ++found;
         }

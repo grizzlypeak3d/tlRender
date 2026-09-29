@@ -281,6 +281,28 @@ namespace tl
             // when several frames are read at once.
             ftk::prefetch(mem->p, mem->size);
 
+            // And let go of it once the frame is read. The image is a copy,
+            // and a bundle of large frames played through otherwise keeps
+            // every frame it has read mapped: tens of gigabytes that memory
+            // reclaim will not take, so the player's own memory, the audio
+            // with it, was swapped out instead, and the audio stalled
+            // waiting for it to come back.
+            //
+            // Only a mapping of the file, which reading again brings back:
+            // memory handed in by the caller is its own, and releasing that
+            // throws it away.
+            struct Release
+            {
+                const ftk::MemFile* mem;
+                ~Release()
+                {
+                    if (mem->mapped)
+                    {
+                        ftk::release(mem->p, mem->size);
+                    }
+                }
+            } release{ mem };
+
             VideoData out = _readCached(
                 seq ? _path.getFrame(readFrame, true) : _path.getFileName(true),
                 mem,
