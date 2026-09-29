@@ -50,6 +50,9 @@ namespace tl
         void audioInit(const std::shared_ptr<ftk::Context>&);
         int64_t toAudioSamples(const OTIO_NS::RationalTime&) const;
         void audioReset(const OTIO_NS::RationalTime&);
+        //! Copy audio from the cache into audioThread.layers, and return how
+        //! many samples, or -1 when the cache does not have it.
+        int64_t audioRead(const AudioInfo&, Playback, int64_t frame, int64_t size);
         void declick(uint8_t*, size_t sampleCount, const AudioInfo&, bool audio);
 #if defined(FTK_SDL2) || defined(FTK_SDL3)
         void sdlCallback(uint8_t* stream, int len);
@@ -283,13 +286,40 @@ namespace tl
 
         // Owned by the audio callback thread; no locking. The resampler, output
         // buffer, and sample counters that only the callback touches.
+        //
+        // Nothing here is allocated by the callback once it is running. A
+        // thread that allocates or frees can page fault, and a page fault
+        // waits for the process's memory map, which the video threads hold
+        // while they map and unmap frames tens of megabytes at a time: the
+        // callback stalled for up to half a second, and the device ran dry.
+        // So the buffers only grow, when a larger block than any before is
+        // asked for, and the samples are copied out of the cache rather
+        // than holding on to it, or letting go of the last hold on a second
+        // of audio would free it here.
         struct AudioThread
         {
             AudioInfo info;
             int64_t position = 0;
             std::shared_ptr<AudioResample> resample;
-            std::list<std::shared_ptr<Audio> > buffer;
-            std::shared_ptr<Audio> silence;
+
+            // A copy of AudioMutex::state, kept so that copying into it
+            // reuses its storage.
+            AudioState state;
+
+            // The source audio for one read: a buffer for each layer, then
+            // the layers mixed, then reversed when playing backwards.
+            std::vector<std::vector<uint8_t> > layers;
+            std::vector<const uint8_t*> layerData;
+            std::vector<float> channelVolumes;
+            std::vector<uint8_t> mix;
+            std::vector<uint8_t> reverse;
+
+            // Resampled audio waiting for the device, in its format.
+            std::vector<uint8_t> fifo;
+            size_t fifoByteCount = 0;
+
+            // The SDL 3 stream is given audio from here.
+            std::vector<uint8_t> sdlBuffer;
 
             // Declicking. A seek moves the read position from one place in
             // the waveform to another, and a stop or an empty buffer drops

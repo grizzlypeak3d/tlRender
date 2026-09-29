@@ -146,8 +146,26 @@ namespace tl
         float volume,
         const std::vector<bool>& channelMute = {});
 
+    //! Mix audio sources into a buffer: each input and the output hold
+    //! sampleCount samples, and each channel has its own volume. Nothing is
+    //! allocated, which is what the audio thread needs.
+    TL_CORE_API void mixAudio(
+        const uint8_t* const* in,
+        size_t inCount,
+        uint8_t* out,
+        const float* channelVolumes,
+        const AudioInfo&,
+        size_t sampleCount);
+
     //! Reverse audio.
     TL_CORE_API std::shared_ptr<Audio> reverseAudio(const std::shared_ptr<Audio>&);
+
+    //! Reverse audio into a buffer. Nothing is allocated.
+    TL_CORE_API void reverseAudio(
+        const uint8_t* in,
+        uint8_t* out,
+        const AudioInfo&,
+        size_t sampleCount);
 
     //! Change audio speed.
     TL_CORE_API std::shared_ptr<Audio> changeAudioSpeed(const std::shared_ptr<Audio>&, double);

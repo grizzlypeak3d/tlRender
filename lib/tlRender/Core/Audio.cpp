@@ -166,14 +166,14 @@ namespace tl
     {
         template<typename T, typename TI>
         void mixI(
-            const uint8_t** in,
+            const uint8_t* const* in,
             size_t inCount,
             uint8_t* out,
-            float* volume,
+            const float* volume,
             int channelCount,
             size_t sampleCount)
         {
-            const T** inP = reinterpret_cast<const T**>(in);
+            const T* const* inP = reinterpret_cast<const T* const*>(in);
             T* outP = reinterpret_cast<T*>(out);
             const TI min = static_cast<TI>(std::numeric_limits<T>::min());
             const TI max = static_cast<TI>(std::numeric_limits<T>::max());
@@ -193,14 +193,14 @@ namespace tl
 
         template<typename T>
         void mixF(
-            const uint8_t** in,
+            const uint8_t* const* in,
             size_t inCount,
             uint8_t* out,
-            float* volume,
+            const float* volume,
             int channelCount,
             size_t sampleCount)
         {
-            const T** inP = reinterpret_cast<const T**>(in);
+            const T* const* inP = reinterpret_cast<const T* const*>(in);
             T* outP = reinterpret_cast<T*>(out);
             for (size_t i = 0; i < sampleCount; ++i, outP += channelCount)
             {
@@ -268,57 +268,44 @@ namespace tl
                     0.F :
                     volume);
             }
-            switch (info.type)
-            {
-            case AudioType::S8:
-                mixI<int8_t, int16_t>(
-                    inP.data(),
-                    inP.size(),
-                    out->getData(),
-                    channelVolumes.data(),
-                    info.channelCount,
-                    sampleCount);
-                break;
-            case AudioType::S16:
-                mixI<int16_t, int32_t>(
-                    inP.data(),
-                    inP.size(),
-                    out->getData(),
-                    channelVolumes.data(),
-                    info.channelCount,
-                    sampleCount);
-                break;
-            case AudioType::S32:
-                mixI<int32_t, int64_t>(
-                    inP.data(),
-                    inP.size(),
-                    out->getData(),
-                    channelVolumes.data(),
-                    info.channelCount,
-                    sampleCount);
-                break;
-            case AudioType::F32:
-                mixF<float>(
-                    inP.data(),
-                    inP.size(),
-                    out->getData(),
-                    channelVolumes.data(),
-                    info.channelCount,
-                    sampleCount);
-                break;
-            case AudioType::F64:
-                mixF<double>(
-                    inP.data(),
-                    inP.size(),
-                    out->getData(),
-                    channelVolumes.data(),
-                    info.channelCount,
-                    sampleCount);
-                break;
-            default: break;
-            }
+            mixAudio(
+                inP.data(),
+                inP.size(),
+                out->getData(),
+                channelVolumes.data(),
+                info,
+                sampleCount);
         }
         return out;
+    }
+
+    void mixAudio(
+        const uint8_t* const* in,
+        size_t inCount,
+        uint8_t* out,
+        const float* channelVolumes,
+        const AudioInfo& info,
+        size_t sampleCount)
+    {
+        switch (info.type)
+        {
+        case AudioType::S8:
+            mixI<int8_t, int16_t>(in, inCount, out, channelVolumes, info.channelCount, sampleCount);
+            break;
+        case AudioType::S16:
+            mixI<int16_t, int32_t>(in, inCount, out, channelVolumes, info.channelCount, sampleCount);
+            break;
+        case AudioType::S32:
+            mixI<int32_t, int64_t>(in, inCount, out, channelVolumes, info.channelCount, sampleCount);
+            break;
+        case AudioType::F32:
+            mixF<float>(in, inCount, out, channelVolumes, info.channelCount, sampleCount);
+            break;
+        case AudioType::F64:
+            mixF<double>(in, inCount, out, channelVolumes, info.channelCount, sampleCount);
+            break;
+        default: break;
+        }
     }
 
     namespace
@@ -348,26 +335,39 @@ namespace tl
         const AudioInfo& info = audio->getInfo();
         const size_t sampleCount = audio->getSampleCount();
         auto out = Audio::create(info, sampleCount);
+        reverseAudio(audio->getData(), out->getData(), info, sampleCount);
+        return out;
+    }
+
+    void reverseAudio(
+        const uint8_t* in,
+        uint8_t* out,
+        const AudioInfo& info,
+        size_t sampleCount)
+    {
+        if (0 == sampleCount)
+        {
+            return;
+        }
         switch (info.type)
         {
         case AudioType::S8:
-            reverseT<int8_t>(audio->getData(), out->getData(), sampleCount, info.channelCount);
+            reverseT<int8_t>(in, out, sampleCount, info.channelCount);
             break;
         case AudioType::S16:
-            reverseT<int16_t>(audio->getData(), out->getData(), sampleCount, info.channelCount);
+            reverseT<int16_t>(in, out, sampleCount, info.channelCount);
             break;
         case AudioType::S32:
-            reverseT<int32_t>(audio->getData(), out->getData(), sampleCount, info.channelCount);
+            reverseT<int32_t>(in, out, sampleCount, info.channelCount);
             break;
         case AudioType::F32:
-            reverseT<float>(audio->getData(), out->getData(), sampleCount, info.channelCount);
+            reverseT<float>(in, out, sampleCount, info.channelCount);
             break;
         case AudioType::F64:
-            reverseT<double>(audio->getData(), out->getData(), sampleCount, info.channelCount);
+            reverseT<double>(in, out, sampleCount, info.channelCount);
             break;
         default: break;
         }
-        return out;
     }
 
     namespace

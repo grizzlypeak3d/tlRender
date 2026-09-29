@@ -142,6 +142,17 @@ namespace tl
 
     namespace
     {
+        // Make a buffer at least this big. The audio thread's buffers only
+        // grow, so once they are as big as the blocks it is asked for, it
+        // allocates nothing more.
+        void growBuffer(std::vector<uint8_t>& buffer, size_t size)
+        {
+            if (buffer.size() < size)
+            {
+                buffer.resize(size);
+            }
+        }
+
         // One sample of the device's format, as a value from -1 to 1.
         double getSample(const uint8_t* p, AudioType type)
         {
@@ -295,6 +306,7 @@ namespace tl
             ++audioMutex.generation;
             audioThread.info = audioInfo;
             audioThread.resample.reset();
+            audioThread.fifoByteCount = 0;
             audioThread.lastFrame.clear();
 
             SDL_AudioSpec spec;
@@ -372,6 +384,98 @@ namespace tl
         ++audioMutex.generation;
     }
 
+    int64_t Player::Private::audioRead(
+        const AudioInfo& info,
+        Playback playback,
+        int64_t frame,
+        int64_t size)
+    {
+        // Copied out under the lock rather than by holding on to the cache
+        // entries: the cache thread can drop one at any time, and then the
+        // last hold on it, and the freeing of a second of audio, would be
+        // this thread's.
+        if (Playback::Reverse == playback)
+        {
+            frame -= size;
+        }
+        const int64_t seconds = std::floor(frame / static_cast<double>(info.sampleRate));
+        const int64_t offset = frame - seconds * info.sampleRate;
+        const size_t byteCount = info.getByteCount();
+        std::unique_lock<std::mutex> lock(audioMutex.mutex);
+        const auto first = audioMutex.cache.find(seconds);
+        if (first == audioMutex.cache.end() || first->second.layers.empty())
+        {
+            return -1;
+        }
+        const auto second = audioMutex.cache.find(seconds + 1);
+        const AudioFrame& a = first->second;
+        const AudioFrame* b = second != audioMutex.cache.end() ? &second->second : nullptr;
+
+        // Bound the copy by the samples actually available: what remains in
+        // the first second after the offset, and the next second if it is
+        // there. Only the first layer's lengths are counted, as audioCopy()
+        // does.
+        const int64_t firstCount = a.layers[0].audio ?
+            static_cast<int64_t>(a.layers[0].audio->getSampleCount()) : 0;
+        const int64_t avail0 = std::max<int64_t>(0, firstCount - offset);
+        const int64_t avail1 = b && !b->layers.empty() && b->layers[0].audio ?
+            static_cast<int64_t>(b->layers[0].audio->getSampleCount()) : 0;
+        const int64_t outSize = std::min(size, avail0 + avail1);
+
+        const size_t layerCount = a.layers.size();
+        if (audioThread.layers.size() < layerCount)
+        {
+            audioThread.layers.resize(layerCount);
+        }
+        audioThread.layerData.resize(layerCount);
+        for (size_t i = 0; i < layerCount; ++i)
+        {
+            growBuffer(audioThread.layers[i], std::max<int64_t>(outSize, 1) * byteCount);
+            std::memset(audioThread.layers[i].data(), 0, outSize * byteCount);
+            audioThread.layerData[i] = audioThread.layers[i].data();
+        }
+
+        const int64_t sizeTmp = std::min(outSize, avail0);
+        for (size_t i = 0; i < layerCount; ++i)
+        {
+            const auto& audio = a.layers[i].audio;
+            if (audio && audio->getInfo() == info)
+            {
+                const int64_t n = std::min(
+                    sizeTmp,
+                    static_cast<int64_t>(audio->getSampleCount()) - offset);
+                if (n > 0)
+                {
+                    std::memcpy(
+                        audioThread.layers[i].data(),
+                        audio->getData() + offset * byteCount,
+                        n * byteCount);
+                }
+            }
+        }
+        if (sizeTmp < outSize && b)
+        {
+            for (size_t i = 0; i < layerCount && i < b->layers.size(); ++i)
+            {
+                const auto& audio = b->layers[i].audio;
+                if (audio && audio->getInfo() == info)
+                {
+                    const int64_t n = std::min(
+                        outSize - sizeTmp,
+                        static_cast<int64_t>(audio->getSampleCount()));
+                    if (n > 0)
+                    {
+                        std::memcpy(
+                            audioThread.layers[i].data() + sizeTmp * byteCount,
+                            audio->getData(),
+                            n * byteCount);
+                    }
+                }
+            }
+        }
+        return outSize;
+    }
+
     // Smooth over a step in what the device is given. Called with every
     // block, whether it holds audio or silence: a block of silence after
     // audio ramps down from where the audio left off, and the first block
@@ -447,7 +551,7 @@ namespace tl
         int len)
     {
         // Get mutex protected values.
-        AudioState state;
+        AudioState& state = audioThread.state;
         bool reset = false;
         int64_t position = 0;
         {
@@ -476,7 +580,7 @@ namespace tl
                 {
                     audioThread.resample->flush();
                 }
-                audioThread.buffer.clear();
+                audioThread.fifoByteCount = 0;
             }
 
             // Create the audio resampler. Playing at another speed plays
@@ -536,38 +640,24 @@ namespace tl
             };
 
             // Fill the audio buffer.
+            const size_t outputByteCount = outputInfo.getByteCount();
+            const auto fifoSampleCount = [&]()
+            {
+                return audioThread.fifoByteCount / outputByteCount;
+            };
             const double speedMult = std::max(timeRange.duration().rate() > 0.0 ? (state.speed / timeRange.duration().rate()) : 1.0, 1.0);
             const double bufferMax = outputSamples * 2 * speedMult;
             bool copied = false;
-            while (getSampleCount(audioThread.buffer) < bufferMax)
+            while (fifoSampleCount() < bufferMax)
             {
-                const size_t bufferBefore = getSampleCount(audioThread.buffer);
+                const size_t bufferBefore = fifoSampleCount();
                 wrapPosition();
 
                 // Get audio from the cache.
                 const int64_t t = audioThread.position -
                     OTIO_NS::RationalTime(state.audioOffset, 1.0).rescaled_to(inputInfo.sampleRate).value();
-                std::vector<AudioFrame> audioFrameList;
-                {
-                    const int64_t seconds = std::floor(t / static_cast<double>(inputInfo.sampleRate));
-                    std::unique_lock<std::mutex> lock(audioMutex.mutex);
-                    // Gather the buckets audioCopy may read from. Forward
-                    // playback reads { seconds, seconds + 1 }; reverse reads
-                    // { seconds - 1, seconds }. Supplying all three covers
-                    // either direction (audioCopy ignores buckets it doesn't
-                    // need), and matches the window used when filling the
-                    // current-audio-frame display.
-                    for (int64_t s : { seconds - 1, seconds, seconds + 1 })
-                    {
-                        if (const auto j = audioMutex.cache.find(s);
-                            j != audioMutex.cache.end())
-                        {
-                            audioFrameList.push_back(j->second);
-                        }
-                    }
-                }
                 int64_t copySize = OTIO_NS::RationalTime(
-                    bufferMax - static_cast<double>(getSampleCount(audioThread.buffer)),
+                    bufferMax - static_cast<double>(fifoSampleCount()),
                     outputInfo.sampleRate).
                     rescaled_to(inputInfo.sampleRate).value();
 
@@ -587,38 +677,57 @@ namespace tl
                     }
                 }
 
-                std::vector<std::shared_ptr<Audio> > audioLayers;
-                if (copySize > 0)
-                {
-                    audioLayers = audioCopy(
-                        inputInfo,
-                        audioFrameList,
-                        state.playback,
-                        t,
-                        copySize);
-                }
-                if (!audioLayers.empty())
+                const int64_t frames = copySize > 0 ?
+                    audioRead(inputInfo, state.playback, t, copySize) :
+                    -1;
+                if (frames >= 0)
                 {
                     // Mix the audio layers.
+                    float volume = state.volume;
                     const auto now = std::chrono::steady_clock::now();
                     if (state.mute || now < state.muteTimeout)
                     {
-                        state.volume = 0.F;
+                        volume = 0.F;
                     }
-                    auto audio = mixAudio(audioLayers, state.volume, state.channelMute);
+                    const size_t inputByteCount = inputInfo.getByteCount();
+                    const size_t byteCount = frames * inputByteCount;
+                    growBuffer(audioThread.mix, byteCount);
+                    audioThread.channelVolumes.resize(inputInfo.channelCount);
+                    for (size_t c = 0; c < audioThread.channelVolumes.size(); ++c)
+                    {
+                        audioThread.channelVolumes[c] =
+                            c < state.channelMute.size() && state.channelMute[c] ?
+                            0.F :
+                            volume;
+                    }
+                    mixAudio(
+                        audioThread.layerData.data(),
+                        audioThread.layerData.size(),
+                        audioThread.mix.data(),
+                        audioThread.channelVolumes.data(),
+                        inputInfo,
+                        frames);
+                    const uint8_t* audio = audioThread.mix.data();
 
                     // Reverse the audio.
                     if (Playback::Reverse == state.playback)
                     {
-                        audio = reverseAudio(audio);
+                        growBuffer(audioThread.reverse, byteCount);
+                        reverseAudio(audio, audioThread.reverse.data(), inputInfo, frames);
+                        audio = audioThread.reverse.data();
                     }
 
                     // Resample the audio, to the device's rate and the
                     // playback speed, and add it to the buffer.
-                    audioThread.buffer.push_back(audioThread.resample->process(audio));
+                    const size_t resampleMax = audioThread.resample->getOutputSampleCountMax(frames);
+                    growBuffer(audioThread.fifo, audioThread.fifoByteCount + resampleMax * outputByteCount);
+                    audioThread.fifoByteCount += outputByteCount * audioThread.resample->process(
+                        audio,
+                        frames,
+                        audioThread.fifo.data() + audioThread.fifoByteCount,
+                        resampleMax);
 
                     // Advance the read position.
-                    const int64_t frames = audioLayers[0]->getSampleCount();
                     audioThread.position += Playback::Forward == state.playback ? frames : -frames;
                     copied = true;
                 }
@@ -644,7 +753,7 @@ namespace tl
                 // while the buffer is growing: playing at a speed the audio
                 // has to be stretched to can turn a handful of samples into
                 // none, and asking for the same handful again never ends.
-                if (!cutAtBoundary || getSampleCount(audioThread.buffer) <= bufferBefore)
+                if (!cutAtBoundary || fifoSampleCount() <= bufferBefore)
                 {
                     break;
                 }
@@ -652,10 +761,15 @@ namespace tl
             wrapPosition();
 
             // Send the audio data to the device.
-            const size_t bufferSampleCount = getSampleCount(audioThread.buffer);
-            if (outputSamples <= bufferSampleCount)
+            if (outputSamples <= fifoSampleCount())
             {
-                moveAudio(audioThread.buffer, outputBuffer, outputSamples);
+                const size_t byteCount = outputSamples * outputByteCount;
+                std::memcpy(outputBuffer, audioThread.fifo.data(), byteCount);
+                audioThread.fifoByteCount -= byteCount;
+                std::memmove(
+                    audioThread.fifo.data(),
+                    audioThread.fifo.data() + byteCount,
+                    audioThread.fifoByteCount);
                 audio = true;
             }
 
@@ -710,9 +824,9 @@ namespace tl
             // frame size again fed several times too much audio per
             // callback, which ran the audio clock in leaps and throttled
             // playback to a fraction of the frame rate.
-            std::vector<uint8_t> buf(additional_amount);
-            p->sdlCallback(buf.data(), buf.size());
-            SDL_PutAudioStreamData(stream, buf.data(), buf.size());
+            growBuffer(p->audioThread.sdlBuffer, additional_amount);
+            p->sdlCallback(p->audioThread.sdlBuffer.data(), additional_amount);
+            SDL_PutAudioStreamData(stream, p->audioThread.sdlBuffer.data(), additional_amount);
         }
     }
 #endif // FTK_SDL2

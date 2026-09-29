@@ -24,7 +24,9 @@ namespace tl
                     nb::arg("output"))
                 .def_prop_ro("inputInfo", &AudioResample::getInputInfo, nb::rv_policy::copy)
                 .def_prop_ro("outputInfo", &AudioResample::getOutputInfo, nb::rv_policy::copy)
-                .def("process", &AudioResample::process, nb::arg("audio"))
+                .def("process",
+                    static_cast<std::shared_ptr<Audio>(AudioResample::*)(const std::shared_ptr<Audio>&)>(&AudioResample::process),
+                    nb::arg("audio"))
                 .def("flush", &AudioResample::flush);
         }
     }

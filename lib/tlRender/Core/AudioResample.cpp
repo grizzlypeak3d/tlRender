@@ -3,6 +3,10 @@
 
 #include <tlRender/Core/AudioResample.h>
 
+#include <algorithm>
+#include <cstring>
+#include <vector>
+
 #if defined(TLRENDER_FFMPEG)
 extern "C"
 {
@@ -37,6 +41,7 @@ namespace tl
         AudioInfo outputInfo;
 #if defined(TLRENDER_FFMPEG)
         SwrContext* swrContext = nullptr;
+        std::vector<uint8_t> flushBuffer;
 #endif // TLRENDER_FFMPEG
     };
 
@@ -117,21 +122,54 @@ namespace tl
         if (p.swrContext && value)
         {
             const size_t sampleCount = value->getSampleCount();
-            const int swrOutputSamples = swr_get_out_samples(p.swrContext, sampleCount);
-            auto swrOutputBuffer = Audio::create(p.outputInfo, swrOutputSamples);
-            uint8_t* swrOutputBufferP[] = { swrOutputBuffer->getData() };
-            const uint8_t* swrInputBufferP[] = { value->getData() };
-            const int swrOutputCount = swr_convert(
-                p.swrContext,
-                swrOutputBufferP,
-                swrOutputSamples,
-                swrInputBufferP,
-                sampleCount);
-            out = Audio::create(p.outputInfo, swrOutputCount > 0 ? swrOutputCount : 0);
+            auto swrOutputBuffer = Audio::create(p.outputInfo, getOutputSampleCountMax(sampleCount));
+            const size_t swrOutputCount = process(
+                value->getData(),
+                sampleCount,
+                swrOutputBuffer->getData(),
+                swrOutputBuffer->getSampleCount());
+            out = Audio::create(p.outputInfo, swrOutputCount);
             memcpy(out->getData(), swrOutputBuffer->getData(), out->getByteCount());
         }
 #endif // TLRENDER_FFMPEG
         return out;
+    }
+
+    size_t AudioResample::getOutputSampleCountMax(size_t sampleCount) const
+    {
+        size_t out = 0;
+#if defined(TLRENDER_FFMPEG)
+        if (_p->swrContext)
+        {
+            out = std::max(swr_get_out_samples(_p->swrContext, sampleCount), 0);
+        }
+#endif // TLRENDER_FFMPEG
+        return out;
+    }
+
+    size_t AudioResample::process(
+        const uint8_t* in,
+        size_t sampleCount,
+        uint8_t* out,
+        size_t outSampleCountMax)
+    {
+        size_t outCount = 0;
+#if defined(TLRENDER_FFMPEG)
+        FTK_P();
+        if (p.swrContext)
+        {
+            uint8_t* swrOutputBufferP[] = { out };
+            const uint8_t* swrInputBufferP[] = { in };
+            const int swrOutputCount = swr_convert(
+                p.swrContext,
+                swrOutputBufferP,
+                outSampleCountMax,
+                swrInputBufferP,
+                sampleCount);
+            outCount = swrOutputCount > 0 ? swrOutputCount : 0;
+        }
+#endif // TLRENDER_FFMPEG
+        return outCount;
     }
 
     void AudioResample::flush()
@@ -140,9 +178,16 @@ namespace tl
 #if defined(TLRENDER_FFMPEG)
         if (p.swrContext)
         {
-            const int drain = swr_get_out_samples(p.swrContext, 0);
-            std::vector<uint8_t> tmp(drain * p.outputInfo.getByteCount(), 0);
-            uint8_t* tmpP[] = { tmp.data() };
+            // Into a buffer kept from one flush to the next, which the audio
+            // thread calls this from: allocating there can wait on the
+            // memory map.
+            const int drain = std::max(swr_get_out_samples(p.swrContext, 0), 0);
+            const size_t size = drain * p.outputInfo.getByteCount();
+            if (p.flushBuffer.size() < size)
+            {
+                p.flushBuffer.resize(size);
+            }
+            uint8_t* tmpP[] = { p.flushBuffer.data() };
             swr_convert(
                 p.swrContext,
                 tmpP,
