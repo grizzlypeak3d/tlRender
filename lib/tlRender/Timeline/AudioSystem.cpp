@@ -27,6 +27,35 @@ namespace tl
     namespace
     {
         const std::chrono::seconds timeout(3);
+
+#if defined(FTK_SDL3)
+        // Open the stream that keeps the default device open. It is the
+        // first thing to open the device, and SDL opens the device in the
+        // format it asks for and keeps that for as long as it is open, so
+        // it asks for floating point, which the players are given too;
+        // left to SDL, the device was opened in the format it reports,
+        // which for every PipeWire device is 16 bit, and all the audio
+        // went through PipeWire as 16 bit on the way to a 32 bit device.
+        SDL_AudioStream* openKeepalive()
+        {
+            SDL_AudioSpec spec;
+            int sampleFrames = 0;
+            if (SDL_GetAudioDeviceFormat(SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, &spec, &sampleFrames))
+            {
+                spec.format = SDL_AUDIO_F32;
+                return SDL_OpenAudioDeviceStream(
+                    SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK,
+                    &spec,
+                    nullptr,
+                    nullptr);
+            }
+            return SDL_OpenAudioDeviceStream(
+                SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK,
+                nullptr,
+                nullptr,
+                nullptr);
+        }
+#endif // FTK_SDL3
     }
 
     struct AudioSystem::Private
@@ -108,11 +137,7 @@ namespace tl
             // close (~130ms each way on macOS) -- the logical devices are
             // only free while one of them stays open. Never resumed; an
             // open paused stream is enough to keep the count above zero.
-            p.keepalive = SDL_OpenAudioDeviceStream(
-                SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK,
-                nullptr,
-                nullptr,
-                nullptr);
+            p.keepalive = openKeepalive();
         }
 #endif // FTK_SDL3
 
@@ -378,11 +403,7 @@ namespace tl
             // close (~130ms each way on macOS) -- the logical devices are
             // only free while one of them stays open. Never resumed; an
             // open paused stream is enough to keep the count above zero.
-            p.keepalive = SDL_OpenAudioDeviceStream(
-                SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK,
-                nullptr,
-                nullptr,
-                nullptr);
+            p.keepalive = openKeepalive();
         }
 #endif // FTK_SDL3
 

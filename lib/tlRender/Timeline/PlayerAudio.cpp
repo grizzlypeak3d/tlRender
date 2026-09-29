@@ -286,6 +286,17 @@ namespace tl
             });
         audioDevices = !devices.empty();
         audioInfo = i != devices.end() ? i->info : audioSystem->getDefaultDevice().info;
+#if defined(FTK_SDL3)
+        // Floating point whatever the device says, which is the format the
+        // audio system opens the device in (see openKeepalive() there), so
+        // SDL has nothing to convert. What the device says is not always
+        // so: SDL reports every PipeWire device as 16 bit, having set that
+        // as a fallback before the real format arrives and then keeping it.
+        if (audioInfo.isValid())
+        {
+            audioInfo.type = AudioType::F32;
+        }
+#endif // FTK_SDL3
         if (audioInfo.isValid())
         {
             {
