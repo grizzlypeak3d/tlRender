@@ -214,14 +214,6 @@ namespace tl
             std::map<int64_t, AudioRequest> audioRequests;
             std::chrono::steady_clock::time_point cacheTimer;
             std::chrono::steady_clock::time_point logTimer;
-            // How fast the video cache fills; see cacheEvictAndFill(). The
-            // frames it may ask for now, the rate they come back at, when
-            // that was last worked out, and whether the last fill stopped
-            // for want of them.
-            double fillFrames = 0.0;
-            double fillRate = 0.0;
-            std::chrono::steady_clock::time_point fillTime;
-            bool fillLimited = false;
             std::thread thread;
         };
         Thread thread;
