@@ -218,7 +218,7 @@ Requirements:
 
 Install system packages:
 ```
-sudo apt-get install build-essential git cmake xorg-dev libglu1-mesa-dev mesa-common-dev mesa-utils libasound2-dev libpulse-dev libva-dev libdrm-dev libwayland-dev wayland-protocols libxkbcommon-dev libegl1-mesa-dev libdecor-0-dev
+sudo apt-get install build-essential git cmake xorg-dev libglu1-mesa-dev mesa-common-dev mesa-utils libasound2-dev libpulse-dev libpipewire-0.3-dev libva-dev libdrm-dev libwayland-dev wayland-protocols libxkbcommon-dev libegl1-mesa-dev libdecor-0-dev
 ```
 The Wayland packages are optional; without them SDL is built with X11 only and runs through XWayland on a Wayland desktop.
 

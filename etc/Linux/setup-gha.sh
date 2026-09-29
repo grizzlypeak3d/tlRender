@@ -14,7 +14,7 @@ sudo apt-get update
 # OpenGL, ALSA and PulseAudio are needed whatever is being built.
 sudo apt-get install xorg-dev libglu1-mesa-dev mesa-common-dev mesa-utils xvfb libwayland-dev wayland-protocols libxkbcommon-dev libegl1-mesa-dev libdecor-0-dev
 xvfb-run glxinfo
-sudo apt-get install libasound2-dev libpulse-dev
+sudo apt-get install libasound2-dev libpulse-dev libpipewire-0.3-dev
 
 for EXTRA in "$@"; do
     case $EXTRA in
