@@ -27,7 +27,6 @@
 #include <ImfVecAttribute.h>
 
 #include <array>
-#include <thread>
 
 namespace tl
 {
@@ -35,11 +34,17 @@ namespace tl
     {
         namespace
         {
-            //! Set the number of threads OpenEXR uses within a single file,
-            //! frames are also read in parallel (see SeqOptions::threadCount).
+            //! OpenEXR uses no threads of its own: frames are read in
+            //! parallel already, by the timeline's read threads. OpenEXR's
+            //! pool takes the newest task first, and the frames being read
+            //! at once all share it, so the frames asked for first -- the
+            //! ones nearest the playhead -- waited behind every frame asked
+            //! for after them: reading a sequence from its start, the first
+            //! frames were among the last to be ready, seconds after the
+            //! rest.
             void setThreadCount()
             {
-                Imf::setGlobalThreadCount(std::thread::hardware_concurrency());
+                Imf::setGlobalThreadCount(0);
             }
         }
 
