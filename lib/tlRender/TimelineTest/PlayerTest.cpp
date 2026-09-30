@@ -8,6 +8,8 @@
 
 #include <tlRender/IO/System.h>
 
+#include <ftk/Core/Context.h>
+#include <ftk/Core/Memory.h>
 #include <ftk/Core/Assert.h>
 #include <ftk/Core/Format.h>
 #include <ftk/Core/Time.h>
@@ -59,6 +61,7 @@ namespace tl
             _seqAndAudio();
             _compare();
             _compareMediaReferences();
+            _readBehind();
         }
 
         void PlayerTest::_enums()
@@ -599,6 +602,49 @@ namespace tl
             {
                 _error(e.what());
             }
+        }
+
+        void PlayerTest::_readBehind()
+        {
+            // Stopped at the start, with a cache that holds less than the
+            // timeline, the frames from the start on are read, and the read
+            // behind does not wrap around to read the end of the timeline.
+            auto timeline = Timeline::create(
+                _context,
+                ftk::expandSeq(ftk::Path(TLRENDER_SAMPLE_DATA, "Seq/BART_2021-02-07.0001.jpg")));
+            auto player = Player::create(_context, timeline);
+            const IOInfo& ioInfo = player->getIOInfo();
+            FTK_ASSERT(!ioInfo.video.empty());
+            PlayerCacheOptions cacheOptions;
+            cacheOptions.videoGB = 24.F * ioInfo.video[0].getByteCount() / ftk::gigabyte;
+            cacheOptions.readBehind = .5F;
+            player->setCacheOptions(cacheOptions);
+            const OTIO_NS::TimeRange& timeRange = player->getTimeRange();
+            const double rate = timeRange.duration().rate();
+            FTK_ASSERT(timeRange.duration().value() > 24 + 2 * rate * cacheOptions.readBehind);
+
+            const auto t = std::chrono::steady_clock::now();
+            while (std::chrono::steady_clock::now() - t < std::chrono::seconds(2))
+            {
+                _context->tick();
+                ftk::sleep(std::chrono::milliseconds(10));
+            }
+
+            const auto& cached = player->observeCacheInfo()->get().video;
+            bool startCached = false;
+            bool endCached = false;
+            const OTIO_NS::RationalTime endStart =
+                timeRange.end_time_inclusive() -
+                OTIO_NS::RationalTime(rate * cacheOptions.readBehind, rate);
+            for (const auto& range : cached)
+            {
+                startCached |= range.contains(timeRange.start_time());
+                endCached |= range.end_time_inclusive() >= endStart;
+                _print(ftk::Format("Read behind: cached {0}").arg(range));
+            }
+            FTK_ASSERT(!cached.empty());
+            FTK_ASSERT(startCached);
+            FTK_ASSERT(!endCached);
         }
     }
 }

@@ -28,6 +28,7 @@ namespace tl
             void _seqAndAudio();
             void _compare();
             void _compareMediaReferences();
+            void _readBehind();
         };
     }
 }

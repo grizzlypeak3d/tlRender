@@ -39,6 +39,8 @@ namespace tl
             void _separateAudio();
             void _spatial();
             void _mediaReferences();
+            void _requestPriority();
+            void _requestPriority(bool reverse);
         };
     }
 }
