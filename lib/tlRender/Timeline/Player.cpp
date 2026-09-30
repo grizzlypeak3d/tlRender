@@ -9,6 +9,8 @@
 #include <ftk/Core/Context.h>
 #include <ftk/Core/Error.h>
 #include <ftk/Core/Format.h>
+#include <ftk/Core/Image.h>
+#include <ftk/Core/Memory.h>
 #include <ftk/Core/String.h>
 #include <ftk/Core/Time.h>
 
@@ -131,6 +133,10 @@ namespace tl
         p.audioOffset = ftk::Observable<double>::create(0.0);
         p.currentAudioFrame = ftk::ObservableList<AudioFrame>::create();
         p.cacheOptions = ftk::Observable<PlayerCacheOptions>::create(playerOptions.cache);
+        // The image buffer pool keeps the room the video cache gives up, for
+        // the cache to fill again, rather than freeing and allocating it:
+        // after a seek the whole cache goes at once.
+        ftk::Image::setBufferPoolMax(static_cast<size_t>(playerOptions.cache.videoGB * ftk::gigabyte));
         p.cacheInfo = ftk::Observable<PlayerCacheInfo>::create();
         p.droppedFrames = ftk::Observable<size_t>::create(0);
 
@@ -213,6 +219,11 @@ namespace tl
         {
             p.thread.thread.join();
         }
+
+        // Free the cache here rather than into the image buffer pool, where
+        // it would stay: nothing is going to fill it again.
+        p.thread.videoCache.clear();
+        ftk::Image::clearBufferPool();
 
 #if defined(FTK_SDL2)
         if (p.sdlID > 0)
@@ -951,6 +962,7 @@ namespace tl
         FTK_P();
         if (p.cacheOptions->setIfChanged(value))
         {
+            ftk::Image::setBufferPoolMax(static_cast<size_t>(value.videoGB * ftk::gigabyte));
             std::unique_lock<std::mutex> lock(p.mutex.mutex);
             p.mutex.state.cacheOptions = value;
         }
