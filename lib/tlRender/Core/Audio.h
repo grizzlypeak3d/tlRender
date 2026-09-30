@@ -157,6 +157,19 @@ namespace tl
         const AudioInfo&,
         size_t sampleCount);
 
+    //! Mix audio sources into a buffer, with each channel's volume moving
+    //! from its start to its end value across the samples. A volume that
+    //! changes all at once is a step in the waveform, heard as a click; a
+    //! volume changed a buffer at a time crackles.
+    TL_CORE_API void mixAudio(
+        const uint8_t* const* in,
+        size_t inCount,
+        uint8_t* out,
+        const float* channelVolumesStart,
+        const float* channelVolumesEnd,
+        const AudioInfo&,
+        size_t sampleCount);
+
     //! Reverse audio.
     TL_CORE_API std::shared_ptr<Audio> reverseAudio(const std::shared_ptr<Audio>&);
 

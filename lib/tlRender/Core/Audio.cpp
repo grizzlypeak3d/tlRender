@@ -169,7 +169,8 @@ namespace tl
             const uint8_t* const* in,
             size_t inCount,
             uint8_t* out,
-            const float* volume,
+            const float* volumeStart,
+            const float* volumeEnd,
             int channelCount,
             size_t sampleCount)
         {
@@ -179,12 +180,14 @@ namespace tl
             const TI max = static_cast<TI>(std::numeric_limits<T>::max());
             for (size_t i = 0; i < sampleCount; ++i, outP += channelCount)
             {
+                const float t = static_cast<float>(i + 1) / sampleCount;
                 for (int j = 0; j < channelCount; ++j)
                 {
+                    const float volume = volumeStart[j] + (volumeEnd[j] - volumeStart[j]) * t;
                     TI v = 0;
                     for (size_t k = 0; k < inCount; ++k)
                     {
-                        v += ftk::clamp(static_cast<TI>(inP[k][i * channelCount + j] * volume[j]), min, max);
+                        v += ftk::clamp(static_cast<TI>(inP[k][i * channelCount + j] * volume), min, max);
                     }
                     outP[j] = static_cast<T>(ftk::clamp(v, min, max));
                 }
@@ -196,7 +199,8 @@ namespace tl
             const uint8_t* const* in,
             size_t inCount,
             uint8_t* out,
-            const float* volume,
+            const float* volumeStart,
+            const float* volumeEnd,
             int channelCount,
             size_t sampleCount)
         {
@@ -204,12 +208,14 @@ namespace tl
             T* outP = reinterpret_cast<T*>(out);
             for (size_t i = 0; i < sampleCount; ++i, outP += channelCount)
             {
+                const float t = static_cast<float>(i + 1) / sampleCount;
                 for (int j = 0; j < channelCount; ++j)
                 {
+                    const T volume = volumeStart[j] + (volumeEnd[j] - volumeStart[j]) * t;
                     T v = static_cast<T>(0);
                     for (size_t k = 0; k < inCount; ++k)
                     {
-                        v += inP[k][i * channelCount + j] * volume[j];
+                        v += inP[k][i * channelCount + j] * volume;
                     }
                     outP[j] = v;
                 }
@@ -287,22 +293,34 @@ namespace tl
         const AudioInfo& info,
         size_t sampleCount)
     {
+        mixAudio(in, inCount, out, channelVolumes, channelVolumes, info, sampleCount);
+    }
+
+    void mixAudio(
+        const uint8_t* const* in,
+        size_t inCount,
+        uint8_t* out,
+        const float* channelVolumesStart,
+        const float* channelVolumesEnd,
+        const AudioInfo& info,
+        size_t sampleCount)
+    {
         switch (info.type)
         {
         case AudioType::S8:
-            mixI<int8_t, int16_t>(in, inCount, out, channelVolumes, info.channelCount, sampleCount);
+            mixI<int8_t, int16_t>(in, inCount, out, channelVolumesStart, channelVolumesEnd, info.channelCount, sampleCount);
             break;
         case AudioType::S16:
-            mixI<int16_t, int32_t>(in, inCount, out, channelVolumes, info.channelCount, sampleCount);
+            mixI<int16_t, int32_t>(in, inCount, out, channelVolumesStart, channelVolumesEnd, info.channelCount, sampleCount);
             break;
         case AudioType::S32:
-            mixI<int32_t, int64_t>(in, inCount, out, channelVolumes, info.channelCount, sampleCount);
+            mixI<int32_t, int64_t>(in, inCount, out, channelVolumesStart, channelVolumesEnd, info.channelCount, sampleCount);
             break;
         case AudioType::F32:
-            mixF<float>(in, inCount, out, channelVolumes, info.channelCount, sampleCount);
+            mixF<float>(in, inCount, out, channelVolumesStart, channelVolumesEnd, info.channelCount, sampleCount);
             break;
         case AudioType::F64:
-            mixF<double>(in, inCount, out, channelVolumes, info.channelCount, sampleCount);
+            mixF<double>(in, inCount, out, channelVolumesStart, channelVolumesEnd, info.channelCount, sampleCount);
             break;
         default: break;
         }

@@ -221,6 +221,40 @@ namespace tl
                 FTK_CHECK(0 == outP[6]); FTK_CHECK(0 == outP[7]);
                 FTK_CHECK(0 == outP[8]); FTK_CHECK(0 == outP[9]);
             }
+            {
+                // The volume moves from its start to its end value across
+                // the samples, each channel on its own, and lands on the end
+                // value at the last sample.
+                const AudioInfo info(2, AudioType::F32, 48000);
+                std::vector<float> in(8, 1.F);
+                const uint8_t* inP[] = { reinterpret_cast<const uint8_t*>(in.data()) };
+                std::vector<float> out(8, 0.F);
+                const float start[] = { 0.F, 1.F };
+                const float end[] = { 1.F, 1.F };
+                mixAudio(inP, 1, reinterpret_cast<uint8_t*>(out.data()), start, end, info, 4);
+                FTK_CHECK(0.25F == out[0]); FTK_CHECK(1.F == out[1]);
+                FTK_CHECK(0.5F == out[2]); FTK_CHECK(1.F == out[3]);
+                FTK_CHECK(0.75F == out[4]); FTK_CHECK(1.F == out[5]);
+                FTK_CHECK(1.F == out[6]); FTK_CHECK(1.F == out[7]);
+
+                std::vector<int16_t> inI(4, 1000);
+                const uint8_t* inIP[] = { reinterpret_cast<const uint8_t*>(inI.data()) };
+                std::vector<int16_t> outI(4, 0);
+                const float startI[] = { 1.F };
+                const float endI[] = { 0.F };
+                mixAudio(
+                    inIP,
+                    1,
+                    reinterpret_cast<uint8_t*>(outI.data()),
+                    startI,
+                    endI,
+                    AudioInfo(1, AudioType::S16, 48000),
+                    4);
+                FTK_CHECK(750 == outI[0]);
+                FTK_CHECK(500 == outI[1]);
+                FTK_CHECK(250 == outI[2]);
+                FTK_CHECK(0 == outI[3]);
+            }
         }
 
         void AudioTest::_reverse()

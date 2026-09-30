@@ -320,6 +320,7 @@ namespace tl
             audioThread.fifoByteCount = 0;
             audioThread.sourceDeclick.lastFrame.clear();
             audioThread.outputDeclick.lastFrame.clear();
+            audioThread.channelVolumesPrev.clear();
             audioThread.priority = false;
 
             // Real time rather than only a raised priority, for the thread
@@ -737,17 +738,36 @@ namespace tl
                             0.F :
                             volume;
                     }
+                    // Move from the volume the last read ended on to this
+                    // one across the read: dragging the volume slider
+                    // stepped it once a read, and a tone crackled. Played
+                    // backwards the read is reversed after the mix, so the
+                    // move is mixed the other way round.
+                    if (audioThread.channelVolumesPrev.size() != audioThread.channelVolumes.size())
+                    {
+                        audioThread.channelVolumesPrev = audioThread.channelVolumes;
+                    }
+                    const bool reverse = Playback::Reverse == state.playback;
                     mixAudio(
                         audioThread.layerData.data(),
                         audioThread.layerData.size(),
                         audioThread.mix.data(),
-                        audioThread.channelVolumes.data(),
+                        reverse ?
+                            audioThread.channelVolumes.data() :
+                            audioThread.channelVolumesPrev.data(),
+                        reverse ?
+                            audioThread.channelVolumesPrev.data() :
+                            audioThread.channelVolumes.data(),
                         inputInfo,
                         frames);
+                    std::copy(
+                        audioThread.channelVolumes.begin(),
+                        audioThread.channelVolumes.end(),
+                        audioThread.channelVolumesPrev.begin());
                     uint8_t* audio = audioThread.mix.data();
 
                     // Reverse the audio.
-                    if (Playback::Reverse == state.playback)
+                    if (reverse)
                     {
                         growBuffer(audioThread.reverse, byteCount);
                         reverseAudio(audio, audioThread.reverse.data(), inputInfo, frames);
