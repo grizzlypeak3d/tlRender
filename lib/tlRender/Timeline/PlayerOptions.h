@@ -59,6 +59,11 @@ namespace tl
         //! Timeout to sleep each tick.
         std::chrono::milliseconds sleepTimeout = std::chrono::milliseconds(5);
 
+        //! Timeout to sleep each tick when there is nothing to do: playback
+        //! stopped, nothing being read, and nothing new. A change waits at
+        //! most this long to be seen.
+        std::chrono::milliseconds idleTimeout = std::chrono::milliseconds(20);
+
         //! Current time to start at. Unset starts at the beginning.
         std::optional<OTIO_NS::RationalTime> currentTime;
 

@@ -537,7 +537,7 @@ namespace tl
         }
     }
 
-    void Player::Private::cacheUpdate()
+    bool Player::Private::cacheUpdate()
     {
 
         // Stopped on a filled cache this decides, two hundred times a
@@ -562,6 +562,7 @@ namespace tl
             thread.cacheKey.videoRequestsSize != thread.videoRequests.size() ||
             thread.cacheKey.audioRequestsSize != thread.audioRequests.size() ||
             thread.cacheKey.state != thread.state;
+        bool out = changed;
         if (changed)
         {
             cacheEvictAndFill();
@@ -618,6 +619,7 @@ namespace tl
                 }
                 thread.videoCache[time] = videoFrameList;
                 videoRequestsIt = thread.videoRequests.erase(videoRequestsIt);
+                out = true;
             }
             else
             {
@@ -640,6 +642,7 @@ namespace tl
                     audioMutex.cache[audioRequestsIt->first] = audioFrame;
                 }
                 audioRequestsIt = thread.audioRequests.erase(audioRequestsIt);
+                out = true;
             }
             else
             {
@@ -699,6 +702,8 @@ namespace tl
                 mutex.cacheInfo.audio = audioCacheRanges;
             }
         }
+
+        return out;
     }
 
     void Player::Private::playbackReset(const OTIO_NS::RationalTime& time)

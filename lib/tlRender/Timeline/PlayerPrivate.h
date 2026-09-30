@@ -36,7 +36,8 @@ namespace tl
         OTIO_NS::TimeRange getVideoCacheRange(size_t max) const;
         ftk::Range<int64_t> getAudioSecondsRange() const;
         ftk::Range<int64_t> getAudioCacheRange(size_t max) const;
-        void cacheUpdate();
+        //! Returns whether there was anything to do.
+        bool cacheUpdate();
         void cacheEvictAndFill();
 
         bool hasVideo() const;

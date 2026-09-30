@@ -1167,7 +1167,7 @@ namespace tl
             }
 
             // Update the cache.
-            p.cacheUpdate();
+            const bool cacheWork = p.cacheUpdate();
 
             // Update the current video frame.
             if (p.hasVideo())
@@ -1249,8 +1249,19 @@ namespace tl
                 t1 = std::chrono::steady_clock::now();
             }
 
-            // Sleep for a bit.
-            ftk::sleep(p.playerOptions.sleepTimeout, t0, t1);
+            // Sleep for a bit; longer with nothing to do -- stopped, nothing
+            // being read, nothing new -- which is most of the time a player
+            // is open. Looking every few milliseconds then woke the thread
+            // two hundred times a second for nothing.
+            const bool idle =
+                Playback::Stop == p.thread.state.playback &&
+                !cacheWork &&
+                p.thread.videoRequests.empty() &&
+                p.thread.audioRequests.empty();
+            ftk::sleep(
+                idle ? p.playerOptions.idleTimeout : p.playerOptions.sleepTimeout,
+                t0,
+                t1);
         }
 
         // Finished.
