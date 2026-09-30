@@ -295,6 +295,14 @@ namespace tl
         //! Cancel requests.
         TL_TIMELINE_API void cancelRequests(const std::vector<uint64_t>&);
 
+        //! Set the time requests are served nearest to. Video requests at
+        //! and ahead of it, in the direction given, are served first, nearest
+        //! first; those behind it after, in order of time. Without it they
+        //! are served in the order they were made.
+        TL_TIMELINE_API void setRequestPriority(
+            const OTIO_NS::RationalTime&,
+            bool reverse = false);
+
         //! Close the readers, which hold the decoders and what they have
         //! decoded. The next read opens them again, while the timeline
         //! itself stays open.

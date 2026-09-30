@@ -35,6 +35,28 @@ namespace tl
 {
     namespace
     {
+        // The order a request is served in, given where the playhead is:
+        // lowest first. At and ahead of it in the direction of playback,
+        // nearest first; then those behind it, in order of time, so that a
+        // movie reader, which starts its decoder again whenever a time is
+        // not the next, reads them in one run; then those with no time.
+        double getRequestKey(
+            const OTIO_NS::RationalTime* priorityTime,
+            bool reverse,
+            const std::optional<OTIO_NS::RationalTime>& time)
+        {
+            constexpr double behind = 1.0e12;
+            if (!priorityTime || !time.has_value())
+            {
+                return 2.0 * behind;
+            }
+            const double d =
+                time->rescaled_to(priorityTime->rate()).value() -
+                priorityTime->value();
+            const double ahead = reverse ? -d : d;
+            return ahead >= 0.0 ? ahead : (behind + d);
+        }
+
         //! An absolute form of a file name, or the name unchanged when the
         //! working directory cannot be had.
         std::string absoluteFileName(const std::string& fileName)
@@ -2113,6 +2135,22 @@ namespace tl
         return out;
     }
 
+    void Timeline::setRequestPriority(
+        const OTIO_NS::RationalTime& time,
+        bool reverse)
+    {
+        FTK_P();
+        const Private::RequestPriority priority{ time, reverse };
+        {
+            std::unique_lock<std::mutex> lock(p.mutex.mutex);
+            p.mutex.requestPriority = priority;
+        }
+        {
+            std::unique_lock<std::mutex> lock(p.readPool.mutex);
+            p.readPool.priority = priority;
+        }
+    }
+
     void Timeline::cancelRequests(const std::vector<uint64_t>& ids)
     {
         FTK_P();
@@ -2465,7 +2503,8 @@ namespace tl
                     [seq, mediaTime, optionsMerged]
                     {
                         return seq->readVideo(mediaTime, optionsMerged);
-                    }) :
+                    },
+                    time + p.timeRange.start_time()) :
                 read->readVideo(mediaTime, optionsMerged);
         }
         return out;
@@ -2773,6 +2812,24 @@ namespace tl
                         !_p->mutex.audioRequests.empty() ||
                         !_p->thread.audioRequestsInProgress.empty();
                 });
+            // Nearest the playhead first, when there is one to be near: the
+            // oldest request is not the most urgent once the playhead has
+            // moved on from it. A stable sort, so that requests the same
+            // distance away keep their order.
+            if (p.mutex.requestPriority.has_value() && p.mutex.videoRequests.size() > 1)
+            {
+                const OTIO_NS::RationalTime priorityTime = p.mutex.requestPriority->time;
+                const bool reverse = p.mutex.requestPriority->reverse;
+                p.mutex.videoRequests.sort(
+                    [&priorityTime, reverse](
+                        const std::shared_ptr<Private::PendingVideoRequest>& a,
+                        const std::shared_ptr<Private::PendingVideoRequest>& b)
+                    {
+                        return
+                            getRequestKey(&priorityTime, reverse, a->time) <
+                            getRequestKey(&priorityTime, reverse, b->time);
+                    });
+            }
             while (!p.mutex.videoRequests.empty() &&
                 (p.thread.videoRequestsInProgress.size() + newVideoRequests.size()) <
                     getVideoRequestMax())
@@ -3072,8 +3129,28 @@ namespace tl
                                 // Stopped and drained.
                                 return;
                             }
-                            task = std::move(readPool.tasks.front());
-                            readPool.tasks.pop_front();
+                            // The one nearest the playhead, reckoned now rather
+                            // than when it was queued: after a seek the frames
+                            // at the new time are wanted before those queued
+                            // ahead of them. The first, when all are equal.
+                            auto next = readPool.tasks.begin();
+                            if (readPool.priority.has_value())
+                            {
+                                const OTIO_NS::RationalTime* priorityTime = &readPool.priority->time;
+                                const bool reverse = readPool.priority->reverse;
+                                double nextKey = getRequestKey(priorityTime, reverse, next->time);
+                                for (auto i = std::next(next); i != readPool.tasks.end(); ++i)
+                                {
+                                    const double key = getRequestKey(priorityTime, reverse, i->time);
+                                    if (key < nextKey)
+                                    {
+                                        next = i;
+                                        nextKey = key;
+                                    }
+                                }
+                            }
+                            task = std::move(*next);
+                            readPool.tasks.erase(next);
                         }
                         try
                         {
@@ -3120,10 +3197,12 @@ namespace tl
     }
 
     std::future<VideoData> Timeline::Private::submitRead(
-        std::function<VideoData()> f)
+        std::function<VideoData()> f,
+        const std::optional<OTIO_NS::RationalTime>& time)
     {
         ReadPool::Task task;
         task.f = std::move(f);
+        task.time = time;
         auto out = task.promise.get_future();
         if (readPool.threads.empty())
         {

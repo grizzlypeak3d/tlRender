@@ -218,6 +218,10 @@ namespace tl
             std::map<int64_t, AudioRequest> audioRequests;
             std::chrono::steady_clock::time_point cacheTimer;
             std::chrono::steady_clock::time_point logTimer;
+            // What the timelines were last told about the playhead; see
+            // Timeline::setRequestPriority().
+            std::optional<OTIO_NS::RationalTime> requestPriorityTime;
+            CacheDir requestPriorityDir = CacheDir::Forward;
             std::thread thread;
         };
         Thread thread;

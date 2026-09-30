@@ -231,8 +231,17 @@ namespace tl
         // thread (getVideo/getAudio, cancelRequests) and drained by the
         // request thread (_requests). stopped is set by the request thread at
         // shutdown and read by the main thread to reject late requests.
+        //! Where requests are served from; see setRequestPriority().
+        struct RequestPriority
+        {
+            OTIO_NS::RationalTime time;
+            bool reverse = false;
+        };
+
         struct Mutex
         {
+            //! Where the pending video requests are served from.
+            std::optional<RequestPriority> requestPriority;
             std::list<std::shared_ptr<PendingVideoRequest> > videoRequests;
             std::list<std::shared_ptr<PendingAudioRequest> > audioRequests;
             bool stopped = false;
@@ -280,12 +289,16 @@ namespace tl
             {
                 std::function<VideoData()> f;
                 std::promise<VideoData> promise;
+                //! The timeline time of the frame, for the priority.
+                std::optional<OTIO_NS::RationalTime> time;
             };
             std::vector<std::thread> threads;
             std::list<Task> tasks;
             std::condition_variable cv;
             std::mutex mutex;
             bool stopped = false;
+            //! A copy of the request priority, guarded by the pool's mutex.
+            std::optional<RequestPriority> priority;
         };
         ReadPool readPool;
 
@@ -294,7 +307,9 @@ namespace tl
         void stopReadPool();
         // Decode on the pool. The future carries an empty VideoData if the
         // decode throws, which is what a reader did with a failed frame.
-        std::future<VideoData> submitRead(std::function<VideoData()>);
+        std::future<VideoData> submitRead(
+            std::function<VideoData()>,
+            const std::optional<OTIO_NS::RationalTime>& time = std::nullopt);
 
         // Give up on a request that has not resolved, so that a caller
         // waiting on its future is not left waiting forever. The frame comes

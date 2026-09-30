@@ -1132,6 +1132,28 @@ namespace tl
             p.thread.state = state;
             p.thread.cacheDir = cacheDir;
 
+            // Tell the timelines where the playhead is, so that they serve
+            // the frames it reaches first.
+            if (!p.thread.requestPriorityTime.has_value() ||
+                !p.thread.requestPriorityTime->strictly_equal(state.currentTime) ||
+                p.thread.requestPriorityDir != cacheDir)
+            {
+                p.thread.requestPriorityTime = state.currentTime;
+                p.thread.requestPriorityDir = cacheDir;
+                const bool reverse = CacheDir::Reverse == cacheDir;
+                p.timeline->setRequestPriority(state.currentTime, reverse);
+                for (const auto& compare : state.compare)
+                {
+                    compare->setRequestPriority(
+                        tl::getCompareTime(
+                            state.currentTime,
+                            p.timeRange,
+                            compare->getTimeRange(),
+                            state.compareTime),
+                        reverse);
+                }
+            }
+
             // Clear requests.
             if (clearRequests)
             {
