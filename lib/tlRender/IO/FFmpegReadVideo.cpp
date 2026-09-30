@@ -109,6 +109,17 @@ namespace tl
                 //    av_dump_format(_avFormatContext, i, fileName.c_str(), 0);
                 _avStream = findStream(_avFormatContext, AVMEDIA_TYPE_VIDEO);
                 const std::string timecode = getTimecode(_avFormatContext);
+                // Only the video stream is read: the demuxer then skips the
+                // others' data rather than handing it over to be thrown away.
+                // The timecode and the other streams' parameters are
+                // metadata, found already.
+                for (unsigned int i = 0; i < _avFormatContext->nb_streams; ++i)
+                {
+                    if (static_cast<int>(i) != _avStream)
+                    {
+                        _avFormatContext->streams[i]->discard = AVDISCARD_ALL;
+                    }
+                }
                 if (_avStream != -1)
                 {
                     //av_dump_format(_avFormatContext, _avStream, fileName.c_str(), 0);

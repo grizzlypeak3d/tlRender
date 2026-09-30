@@ -115,6 +115,20 @@ namespace tl
                 }
 
                 const std::string timecode = getTimecode(_avFormatContext);
+
+                // Only the audio streams are read: the demuxer then skips the
+                // others' data rather than handing it over to be thrown away.
+                // In a movie the audio is interleaved with the video, and
+                // reading a second of an 8K DNxHR movie's sound read the 700
+                // MB of pictures around it. The timecode and the video rate
+                // are metadata, found already.
+                for (unsigned int i = 0; i < _avFormatContext->nb_streams; ++i)
+                {
+                    if (std::find(_avStreams.begin(), _avStreams.end(), static_cast<int>(i)) == _avStreams.end())
+                    {
+                        _avFormatContext->streams[i]->discard = AVDISCARD_ALL;
+                    }
+                }
                 if (_avStream != -1)
                 {
                     //av_dump_format(_avFormatContext, _avStream, fileName.c_str(), 0);
