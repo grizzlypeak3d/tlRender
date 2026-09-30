@@ -7,6 +7,8 @@
 #include <tlRender/Timeline/Player.h>
 #include <tlRender/Timeline/Timeline.h>
 
+#include <tlRender/IO/System.h>
+
 #include <ftk/Core/Context.h>
 #include <ftk/Core/Format.h>
 #include <ftk/Core/Time.h>
@@ -99,10 +101,25 @@ namespace tl
             FTK_CHECK(channels > 0 && rate > 0);
 
             const std::filesystem::path wav = _getTempDir() / "PlayerAudioTest.wav";
+            const ftk::Path wavPath(wav.string());
+            if (!_context->getSystem<ReadSystem>()->getPlugin(wavPath))
+            {
+                _print("Skipped: no WAV reader");
+                return;
+            }
             writeTone(wav);
-            auto timeline = Timeline::create(_context, ftk::Path(wav.string()));
+            auto timeline = Timeline::create(_context, wavPath);
             auto player = Player::create(_context, timeline);
             FTK_CHECK(player->getIOInfo().audio.isValid());
+
+            // The size of the output so far. Windows only updates the size the
+            // file system reports when the file is closed, so it is asked of
+            // an open handle instead.
+            const auto outputSize = [&output]
+            {
+                std::ifstream f(output, std::ios::binary | std::ios::ate);
+                return static_cast<size_t>(f.tellg());
+            };
 
             const auto wait = [this](double seconds)
             {
@@ -132,7 +149,7 @@ namespace tl
             }
 
             // Play with seeks to whole seconds, then stop.
-            const size_t begin = std::filesystem::file_size(output);
+            const size_t begin = outputSize();
             player->forward();
             wait(1.5);
             player->seek(timeRange.start_time() + OTIO_NS::RationalTime(5.0, 1.0));
@@ -142,7 +159,7 @@ namespace tl
             player->stop();
             wait(.5);
             const size_t seekCount = 2;
-            const size_t end = std::filesystem::file_size(output);
+            const size_t end = outputSize();
 
             // What the device was given, the first channel.
             const size_t frameBytes = channels * sizeof(float);

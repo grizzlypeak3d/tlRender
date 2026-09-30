@@ -609,9 +609,13 @@ namespace tl
             // Stopped at the start, with a cache that holds less than the
             // timeline, the frames from the start on are read, and the read
             // behind does not wrap around to read the end of the timeline.
-            auto timeline = Timeline::create(
-                _context,
-                ftk::expandSeq(ftk::Path(TLRENDER_SAMPLE_DATA, "Seq/BART_2021-02-07.0001.jpg")));
+            const ftk::Path path = ftk::expandSeq(
+                ftk::Path(TLRENDER_SAMPLE_DATA, "Seq/BART_2021-02-07.0001.jpg"));
+            if (!_context->getSystem<ReadSystem>()->getPlugin(path))
+            {
+                return;
+            }
+            auto timeline = Timeline::create(_context, path);
             auto player = Player::create(_context, timeline);
             const IOInfo& ioInfo = player->getIOInfo();
             FTK_ASSERT(!ioInfo.video.empty());

@@ -1708,6 +1708,10 @@ namespace tl
             // One thread, so the frames are read one at a time and the order
             // they are served in shows. Every frame of the sequence is asked
             // for, in order of time, with the priority set first.
+            if (!canRead(_context, "Seq/BART_2021-02-07.0001.jpg"))
+            {
+                return;
+            }
             Options options;
             options.readThreadCount = 1;
             auto timeline = Timeline::create(
