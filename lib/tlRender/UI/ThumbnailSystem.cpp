@@ -48,6 +48,13 @@ namespace tl
             // takes seconds to open, and dropping it between two thumbnails
             // means most of the time goes into opening it again.
             const std::chrono::seconds ioCacheTimeout(60);
+
+            // How long an idle thread waits before it looks again. A request
+            // wakes it at once; the wait is only for the upkeep between them,
+            // which is on the scale of the timeout above. Waiting a few
+            // milliseconds woke each of the three threads two hundred times a
+            // second with nothing to do.
+            const std::chrono::milliseconds idleTimeout(100);
             const size_t infoCacheMax = 1000;
 
             // When the file was last written, for a cache key. A file that
@@ -495,9 +502,24 @@ namespace tl
         void ThumbnailSystem::shutdown()
         {
             FTK_P();
-            p.infoThread.running = false;
-            p.thumbnailThread.running = false;
-            p.waveformThread.running = false;
+            // Under each thread's lock and then woken, so that a thread
+            // waiting for a request stops now rather than when its wait
+            // times out.
+            {
+                std::unique_lock<std::mutex> lock(p.infoMutex.mutex);
+                p.infoThread.running = false;
+            }
+            p.infoThread.cv.notify_one();
+            {
+                std::unique_lock<std::mutex> lock(p.thumbnailMutex.mutex);
+                p.thumbnailThread.running = false;
+            }
+            p.thumbnailThread.cv.notify_one();
+            {
+                std::unique_lock<std::mutex> lock(p.waveformMutex.mutex);
+                p.waveformThread.running = false;
+            }
+            p.waveformThread.cv.notify_one();
             if (p.infoThread.thread.joinable())
             {
                 p.infoThread.thread.join();
@@ -833,11 +855,15 @@ namespace tl
                     std::unique_lock<std::mutex> lock(p.infoMutex.mutex);
                     if (p.infoThread.cv.wait_for(
                         lock,
-                        std::chrono::milliseconds(5),
+                        idleTimeout,
                         [this]
                         {
-                            return !_p->infoMutex.requests.empty();
-                        }))
+                            return
+                                !_p->infoThread.running ||
+                                _p->infoThread.ioCacheClear ||
+                                !_p->infoMutex.requests.empty();
+                        }) &&
+                        !p.infoMutex.requests.empty())
                     {
                         request = p.infoMutex.requests.front();
                         p.infoMutex.requests.pop_front();
@@ -935,11 +961,15 @@ namespace tl
                     std::unique_lock<std::mutex> lock(p.thumbnailMutex.mutex);
                     if (p.thumbnailThread.cv.wait_for(
                         lock,
-                        std::chrono::milliseconds(5),
+                        idleTimeout,
                         [this]
                         {
-                            return !_p->thumbnailMutex.requests.empty();
-                        }))
+                            return
+                                !_p->thumbnailThread.running ||
+                                _p->thumbnailThread.ioCacheClear ||
+                                !_p->thumbnailMutex.requests.empty();
+                        }) &&
+                        !p.thumbnailMutex.requests.empty())
                     {
                         request = p.thumbnailMutex.requests.front();
                         p.thumbnailMutex.requests.pop_front();
@@ -1193,11 +1223,15 @@ namespace tl
                     std::unique_lock<std::mutex> lock(p.waveformMutex.mutex);
                     if (p.waveformThread.cv.wait_for(
                         lock,
-                        std::chrono::milliseconds(5),
+                        idleTimeout,
                         [this]
                         {
-                            return !_p->waveformMutex.requests.empty();
-                        }))
+                            return
+                                !_p->waveformThread.running ||
+                                _p->waveformThread.ioCacheClear ||
+                                !_p->waveformMutex.requests.empty();
+                        }) &&
+                        !p.waveformMutex.requests.empty())
                     {
                         request = p.waveformMutex.requests.front();
                         p.waveformMutex.requests.pop_front();
