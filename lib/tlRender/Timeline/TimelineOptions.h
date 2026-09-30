@@ -42,7 +42,8 @@ namespace tl
     };
     FTK_ENUM(TL_TIMELINE_API, Spatial);
 
-    //! Get the default number of sequence decoding threads.
+    //! Get the default number of sequence decoding threads: one for each
+    //! core, up to eight.
     TL_TIMELINE_API size_t getDefaultReadThreadCount();
 
     //! Timeline options.

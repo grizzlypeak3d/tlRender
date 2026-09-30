@@ -26,7 +26,14 @@ namespace tl
 
     size_t getDefaultReadThreadCount()
     {
-        return std::max(1u, std::thread::hardware_concurrency());
+        // Not one for every core. Reading is mostly waiting on the disk, and
+        // every read in flight shares it: reading 4K EXRs, thirty-two threads
+        // read no more frames a second than eight, and each frame took several
+        // times as long, up to seconds for the last of them, so the frame the
+        // playhead needed waited behind the others and was dropped. A format
+        // that is expensive to decode can use more, and the setting is there
+        // for it.
+        return std::clamp(std::thread::hardware_concurrency(), 1u, 8u);
     }
 
 }
