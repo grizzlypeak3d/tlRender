@@ -84,6 +84,12 @@ namespace tl
 
         void PlayerAudioTest::_tone()
         {
+#if defined(_WIN32)
+            // SDL opens the output file on Windows without sharing it, and the
+            // audio system keeps the device open, so it cannot be read here.
+            _print("Skipped: the output cannot be read while SDL has it open");
+            return;
+#endif // _WIN32
             auto audioSystem = _context->getSystem<AudioSystem>();
             const char* outputEnv = std::getenv("SDL_AUDIO_DISK_OUTPUT_FILE");
             if (!audioSystem || audioSystem->getCurrentDriver() != "disk" || !outputEnv)
@@ -111,15 +117,6 @@ namespace tl
             auto timeline = Timeline::create(_context, wavPath);
             auto player = Player::create(_context, timeline);
             FTK_CHECK(player->getIOInfo().audio.isValid());
-
-            // The size of the output so far. Windows only updates the size the
-            // file system reports when the file is closed, so it is asked of
-            // an open handle instead.
-            const auto outputSize = [&output]
-            {
-                std::ifstream f(output, std::ios::binary | std::ios::ate);
-                return static_cast<size_t>(f.tellg());
-            };
 
             const auto wait = [this](double seconds)
             {
@@ -149,7 +146,7 @@ namespace tl
             }
 
             // Play with seeks to whole seconds, then stop.
-            const size_t begin = outputSize();
+            const size_t begin = std::filesystem::file_size(output);
             player->forward();
             wait(1.5);
             player->seek(timeRange.start_time() + OTIO_NS::RationalTime(5.0, 1.0));
@@ -159,7 +156,7 @@ namespace tl
             player->stop();
             wait(.5);
             const size_t seekCount = 2;
-            const size_t end = outputSize();
+            const size_t end = std::filesystem::file_size(output);
 
             // What the device was given, the first channel.
             const size_t frameBytes = channels * sizeof(float);
