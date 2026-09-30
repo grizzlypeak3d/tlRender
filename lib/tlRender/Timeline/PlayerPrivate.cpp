@@ -404,11 +404,7 @@ namespace tl
         // Fill the video cache.
         if (hasVideo())
         {
-            const OTIO_NS::RationalTime inc(1.0, thread.state.currentTime.rate());
-            for (OTIO_NS::RationalTime time = videoCacheRange.start_time();
-                time <= videoCacheRange.end_time_inclusive() &&
-                thread.videoRequests.size() < playerOptions.videoRequestMax;
-                time += inc)
+            const auto request = [this](const OTIO_NS::RationalTime& time)
             {
                 const OTIO_NS::RationalTime timeLooped = tl::loop(time, thread.state.inOutRange);
                 const auto j = thread.videoCache.find(timeLooped);
@@ -459,6 +455,53 @@ namespace tl
                             }
                         }
                     }
+                }
+            };
+
+            // The frames the playhead reaches first are asked for first, and
+            // the read behind after them: asked for first, the read behind
+            // put a second of frames the playhead has passed ahead of the
+            // one it needs. In order, a block at a time, because the movie
+            // readers decode in the order they are asked and start again
+            // whenever a time is not the next.
+            //
+            // The read behind stops at the in point rather than wrapping to
+            // the end of the range: from the start of a movie it asked for
+            // the last half second of it first, a seek to the end and back.
+            const OTIO_NS::RationalTime inc(1.0, thread.state.currentTime.rate());
+            const auto full = [this]
+            {
+                return thread.videoRequests.size() >= playerOptions.videoRequestMax;
+            };
+            const OTIO_NS::RationalTime& current = thread.state.currentTime;
+            if (CacheDir::Forward == thread.cacheDir)
+            {
+                for (OTIO_NS::RationalTime time = std::max(current, videoCacheRange.start_time());
+                    time <= videoCacheRange.end_time_inclusive() && !full();
+                    time += inc)
+                {
+                    request(time);
+                }
+                for (OTIO_NS::RationalTime time = std::max(
+                        videoCacheRange.start_time(),
+                        thread.state.inOutRange.start_time());
+                    time < current && !full();
+                    time += inc)
+                {
+                    request(time);
+                }
+            }
+            else
+            {
+                for (OTIO_NS::RationalTime time = videoCacheRange.start_time();
+                    time <= videoCacheRange.end_time_inclusive() && !full();
+                    time += inc)
+                {
+                    if (time > current && time > thread.state.inOutRange.end_time_inclusive())
+                    {
+                        break;
+                    }
+                    request(time);
                 }
             }
         }
