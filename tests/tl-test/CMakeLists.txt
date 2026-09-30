@@ -40,3 +40,15 @@ endif()
 # libraries were turned on to avoid.
 set_tests_properties(tl-test PROPERTIES ENVIRONMENT_MODIFICATION
     "PATH=path_list_prepend:${CMAKE_INSTALL_PREFIX}/python/opentimelineio")
+
+# The player's audio, checked sample by sample, on its own: SDL's disk audio
+# driver writes what the device is given to a file rather than to hardware,
+# so this runs without a sound card, and the driver is chosen for the whole
+# process when SDL starts. Run with the rest of the suite it says it is
+# skipped.
+add_test(
+    NAME tl-test-audio
+    COMMAND tl-test -log -noGL timeline_tests::PlayerAudioTest)
+set_tests_properties(tl-test-audio PROPERTIES
+    ENVIRONMENT "SDL_AUDIO_DRIVER=disk;SDL_AUDIO_DISK_OUTPUT_FILE=${CMAKE_CURRENT_BINARY_DIR}/tl-test-audio.raw"
+    ENVIRONMENT_MODIFICATION "PATH=path_list_prepend:${CMAKE_INSTALL_PREFIX}/python/opentimelineio")

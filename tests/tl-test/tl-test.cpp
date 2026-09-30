@@ -13,6 +13,7 @@
 #include <tlRender/TimelineTest/DisplayOptionsTest.h>
 #include <tlRender/TimelineTest/ForegroundOptionsTest.h>
 #include <tlRender/TimelineTest/PlayerOptionsTest.h>
+#include <tlRender/TimelineTest/PlayerAudioTest.h>
 #include <tlRender/TimelineTest/PlayerTest.h>
 #include <tlRender/TimelineTest/TimeUnitsTest.h>
 #include <tlRender/TimelineTest/TimelineTest.h>
@@ -51,10 +52,14 @@
 #include <ftk/Core/Time.h>
 
 #include <algorithm>
-#include <iostream>
-
-#if defined(_MSC_VER) && defined(_DEBUG)
-#include <crtdbg.h>
+#include <iostream>
+
+
+
+#if defined(_MSC_VER) && defined(_DEBUG)
+
+#include <crtdbg.h>
+
 #endif // _MSC_VER
 
 using namespace tl;
@@ -144,6 +149,7 @@ namespace tl
             p.tests.push_back(timeline_tests::DisplayOptionsTest::create(context));
             p.tests.push_back(timeline_tests::ForegroundOptionsTest::create(context));
             p.tests.push_back(timeline_tests::PlayerOptionsTest::create(context));
+            p.tests.push_back(timeline_tests::PlayerAudioTest::create(context));
             p.tests.push_back(timeline_tests::PlayerTest::create(context));
             p.tests.push_back(timeline_tests::TimeUnitsTest::create(context));
             p.tests.push_back(timeline_tests::TimelineTest::create(context));

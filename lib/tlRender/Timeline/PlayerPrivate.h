@@ -54,7 +54,8 @@ namespace tl
         //! Copy audio from the cache into audioThread.layers, and return how
         //! many samples, or -1 when the cache does not have it.
         int64_t audioRead(const AudioInfo&, Playback, int64_t frame, int64_t size);
-        void declick(uint8_t*, size_t sampleCount, const AudioInfo&, bool audio);
+        struct Declick;
+        void declick(Declick&, uint8_t*, size_t sampleCount, const AudioInfo&, bool audio);
 #if defined(FTK_SDL2) || defined(FTK_SDL3)
         void sdlCallback(uint8_t* stream, int len);
 #if defined(FTK_SDL2)
@@ -301,6 +302,17 @@ namespace tl
         // asked for, and the samples are copied out of the cache rather
         // than holding on to it, or letting go of the last hold on a second
         // of audio would free it here.
+        //! The state of a declick; see AudioThread.
+        struct Declick
+        {
+            std::vector<double> lastFrame;
+            std::vector<double> step;
+            size_t pos = 0;
+            size_t length = 0;
+            bool pending = false;
+            bool silent = true;
+        };
+
         struct AudioThread
         {
             AudioInfo info;
@@ -334,14 +346,17 @@ namespace tl
             // the waveform to another, and a stop or an empty buffer drops
             // it to silence; either is a step between one sample and the
             // next, which is heard as a click. The step is taken from the
-            // last frame handed to the device, and an offset starting at it
-            // ramps down to nothing over a few milliseconds.
-            std::vector<double> lastFrame;
-            std::vector<double> declickStep;
-            size_t declickPos = 0;
-            size_t declickLength = 0;
-            bool declickPending = false;
-            bool silent = true;
+            // last frame given on, and an offset starting at it ramps down
+            // to nothing over a few milliseconds.
+            //
+            // Done twice. Before the resampler, so that what it is given
+            // does not jump: a filter given a step rings, for longer than
+            // the ramp after it, and a seek played at another rate than the
+            // media's still clicked. And after it, on what the device is
+            // given, for the silences and the buffered audio a seek throws
+            // away.
+            Declick sourceDeclick;
+            Declick outputDeclick;
         };
         AudioThread audioThread;
 

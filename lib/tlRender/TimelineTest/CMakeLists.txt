@@ -6,6 +6,7 @@ set(HEADERS
     DisplayOptionsTest.h
     ForegroundOptionsTest.h
     PlayerOptionsTest.h
+    PlayerAudioTest.h
     PlayerTest.h
     TimeUnitsTest.h
     TimelineTest.h
@@ -19,6 +20,7 @@ set(SOURCE
     DisplayOptionsTest.cpp
     ForegroundOptionsTest.cpp
     PlayerOptionsTest.cpp
+    PlayerAudioTest.cpp
     PlayerTest.cpp
     TimeUnitsTest.cpp
     TimelineTest.cpp

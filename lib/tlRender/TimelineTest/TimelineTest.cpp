@@ -27,7 +27,9 @@
 #include <opentimelineio/timeline.h>
 
 #include <algorithm>
+#include <chrono>
 #include <filesystem>
+#include <limits>
 #include <sstream>
 #include <thread>
 
@@ -76,6 +78,7 @@ namespace tl
             _separateAudio();
             _spatial();
             _mediaReferences();
+            _requestPriority();
         }
 
         void TimelineTest::_spatial()
@@ -1693,5 +1696,88 @@ namespace tl
 
             _print("named media read from a bundle");
         }
+
+        void TimelineTest::_requestPriority()
+        {
+            _requestPriority(false);
+            _requestPriority(true);
+        }
+
+        void TimelineTest::_requestPriority(bool reverse)
+        {
+            // One thread, so the frames are read one at a time and the order
+            // they are served in shows. Every frame of the sequence is asked
+            // for, in order of time, with the priority set first.
+            Options options;
+            options.readThreadCount = 1;
+            auto timeline = Timeline::create(
+                _context,
+                ftk::expandSeq(ftk::Path(TLRENDER_SAMPLE_DATA, "Seq/BART_2021-02-07.0001.jpg")),
+                options);
+            const OTIO_NS::TimeRange& timeRange = timeline->getTimeRange();
+            const int count = static_cast<int>(timeRange.duration().value());
+            FTK_ASSERT(count >= 30);
+            const int priority = reverse ? count / 3 : count * 2 / 3;
+            const double rate = timeRange.duration().rate();
+            timeline->setRequestPriority(
+                timeRange.start_time() + OTIO_NS::RationalTime(priority, rate),
+                reverse);
+            std::vector<VideoRequest> requests;
+            for (int i = 0; i < count; ++i)
+            {
+                requests.push_back(timeline->getVideo(
+                    timeRange.start_time() + OTIO_NS::RationalTime(i, rate)));
+            }
+
+            // Which pass of looking each one was seen done in; those done
+            // between two looks tie.
+            std::vector<int> done(count, -1);
+            int remaining = count;
+            const auto start = std::chrono::steady_clock::now();
+            for (int pass = 0;
+                remaining > 0 &&
+                std::chrono::steady_clock::now() - start < std::chrono::seconds(30);
+                ++pass)
+            {
+                for (int i = 0; i < count; ++i)
+                {
+                    if (done[i] < 0 &&
+                        requests[i].future.wait_for(std::chrono::seconds(0)) == std::future_status::ready)
+                    {
+                        done[i] = pass;
+                        --remaining;
+                    }
+                }
+                std::this_thread::sleep_for(std::chrono::microseconds(100));
+            }
+            FTK_ASSERT(0 == remaining);
+
+            // Those the playhead reaches first are all done before any of the
+            // others. The first two asked for can be taken before the rest
+            // are asked for, and are left out.
+            const auto first = [&](int i)
+            {
+                return reverse ? i <= priority : i >= priority;
+            };
+            int firstDone = -1;
+            int othersDone = std::numeric_limits<int>::max();
+            for (int i = 2; i < count; ++i)
+            {
+                if (first(i))
+                {
+                    firstDone = std::max(firstDone, done[i]);
+                }
+                else
+                {
+                    othersDone = std::min(othersDone, done[i]);
+                }
+            }
+            _print(ftk::Format("Request priority {0}: first done by pass {1}, the others from pass {2}").
+                arg(reverse ? "reverse" : "forward").
+                arg(firstDone).
+                arg(othersDone));
+            FTK_ASSERT(firstDone <= othersDone);
+        }
+
 }
 }
