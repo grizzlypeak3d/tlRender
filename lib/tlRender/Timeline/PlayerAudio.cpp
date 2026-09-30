@@ -318,7 +318,8 @@ namespace tl
             audioThread.info = audioInfo;
             audioThread.resample.reset();
             audioThread.fifoByteCount = 0;
-            audioThread.lastFrame.clear();
+            audioThread.sourceDeclick.lastFrame.clear();
+            audioThread.outputDeclick.lastFrame.clear();
             audioThread.priority = false;
 
             // Real time rather than only a raised priority, for the thread
@@ -501,12 +502,12 @@ namespace tl
     // audio ramps down from where the audio left off, and the first block
     // of audio after a reset or a silence ramps from where the device is.
     void Player::Private::declick(
+        Declick& state,
         uint8_t* data,
         size_t sampleCount,
         const AudioInfo& info,
         bool audio)
     {
-        auto& thread = audioThread;
         const size_t channelCount = info.channelCount;
         const size_t sampleByteCount = getByteCount(info.type);
         const size_t frameByteCount = channelCount * sampleByteCount;
@@ -514,14 +515,14 @@ namespace tl
         {
             return;
         }
-        if (thread.lastFrame.size() != channelCount)
+        if (state.lastFrame.size() != channelCount)
         {
-            thread.lastFrame.assign(channelCount, 0.0);
-            thread.declickStep.assign(channelCount, 0.0);
-            thread.declickPos = thread.declickLength = 0;
+            state.lastFrame.assign(channelCount, 0.0);
+            state.step.assign(channelCount, 0.0);
+            state.pos = state.length = 0;
         }
 
-        if (!audio || thread.declickPending || thread.silent)
+        if (!audio || state.pending || state.silent)
         {
             // Starting over from wherever an earlier ramp had got to is
             // still continuous: the step is taken from what the device
@@ -529,39 +530,39 @@ namespace tl
             bool step = false;
             for (size_t c = 0; c < channelCount; ++c)
             {
-                thread.declickStep[c] =
-                    thread.lastFrame[c] - getSample(data + c * sampleByteCount, info.type);
-                step |= thread.declickStep[c] != 0.0;
+                state.step[c] =
+                    state.lastFrame[c] - getSample(data + c * sampleByteCount, info.type);
+                step |= state.step[c] != 0.0;
             }
             if (step)
             {
-                thread.declickPos = 0;
-                thread.declickLength = std::max(
+                state.pos = 0;
+                state.length = std::max(
                     static_cast<size_t>(info.sampleRate * .005), static_cast<size_t>(1));
             }
             if (audio)
             {
-                thread.declickPending = false;
+                state.pending = false;
             }
         }
-        thread.silent = !audio;
+        state.silent = !audio;
 
         for (size_t i = 0;
-            i < sampleCount && thread.declickPos < thread.declickLength;
-            ++i, ++thread.declickPos)
+            i < sampleCount && state.pos < state.length;
+            ++i, ++state.pos)
         {
-            const double k = 1.0 - thread.declickPos / static_cast<double>(thread.declickLength);
+            const double k = 1.0 - state.pos / static_cast<double>(state.length);
             for (size_t c = 0; c < channelCount; ++c)
             {
                 uint8_t* p = data + i * frameByteCount + c * sampleByteCount;
-                setSample(p, info.type, getSample(p, info.type) + thread.declickStep[c] * k);
+                setSample(p, info.type, getSample(p, info.type) + state.step[c] * k);
             }
         }
 
         const uint8_t* last = data + (sampleCount - 1) * frameByteCount;
         for (size_t c = 0; c < channelCount; ++c)
         {
-            thread.lastFrame[c] = getSample(last + c * sampleByteCount, info.type);
+            state.lastFrame[c] = getSample(last + c * sampleByteCount, info.type);
         }
     }
 
@@ -609,12 +610,13 @@ namespace tl
             // Initialize on reset.
             if (reset)
             {
-                audioThread.declickPending = true;
+                // The resampler is not flushed: what it holds of the audio
+                // before the seek leads into what comes after it, which the
+                // declick joins on. Flushed, it started again from nothing,
+                // and the new audio was a step to it.
+                audioThread.sourceDeclick.pending = true;
+                audioThread.outputDeclick.pending = true;
                 audioThread.position = position;
-                if (audioThread.resample)
-                {
-                    audioThread.resample->flush();
-                }
                 audioThread.fifoByteCount = 0;
             }
 
@@ -742,7 +744,7 @@ namespace tl
                         audioThread.channelVolumes.data(),
                         inputInfo,
                         frames);
-                    const uint8_t* audio = audioThread.mix.data();
+                    uint8_t* audio = audioThread.mix.data();
 
                     // Reverse the audio.
                     if (Playback::Reverse == state.playback)
@@ -751,6 +753,9 @@ namespace tl
                         reverseAudio(audio, audioThread.reverse.data(), inputInfo, frames);
                         audio = audioThread.reverse.data();
                     }
+
+                    // Join it to what the resampler was given before.
+                    declick(audioThread.sourceDeclick, audio, frames, inputInfo, true);
 
                     // Resample the audio, to the device's rate and the
                     // playback speed, and add it to the buffer.
@@ -830,7 +835,7 @@ namespace tl
             }
         }
 
-        declick(outputBuffer, outputSamples, outputInfo, audio);
+        declick(audioThread.outputDeclick, outputBuffer, outputSamples, outputInfo, audio);
     }
 
 #if defined(FTK_SDL2)
