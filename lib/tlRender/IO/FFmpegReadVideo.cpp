@@ -879,7 +879,21 @@ namespace tl
                     arg(_fileName));
             }
             _avCodecContext[_avStream]->thread_count = _options.threadCount;
-            _avCodecContext[_avStream]->thread_type = FF_THREAD_FRAME;
+            // Frames of an intra only codec -- DNxHR, ProRes, MJPEG -- are
+            // decoded across the threads a slice at a time rather than a
+            // frame to a thread. Frame threading keeps a frame in flight for
+            // every thread, and a seek throws them away and waits for them
+            // again: a reader behind the playhead seeks on every request,
+            // and an 8K DNxHR 444 movie decoded at ten frames a second
+            // rather than twenty. Slices have nothing in flight, and scale
+            // further: decoding that movie from memory, 67 frames a second
+            // on 32 threads, where frames peaked at 47 on 16.
+            const AVCodecDescriptor* descriptor = avcodec_descriptor_get(codec->id);
+            const bool intraOnly = descriptor && (descriptor->props & AV_CODEC_PROP_INTRA_ONLY);
+            const bool sliceThreads = codec->capabilities & AV_CODEC_CAP_SLICE_THREADS;
+            _avCodecContext[_avStream]->thread_type = intraOnly && sliceThreads ?
+                FF_THREAD_SLICE :
+                FF_THREAD_FRAME;
             if (hwAccel)
             {
                 // Attempt hardware decode. On any failure this is a no-op
