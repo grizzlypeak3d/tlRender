@@ -328,6 +328,9 @@ namespace tl
             std::vector<std::vector<uint8_t> > layers;
             std::vector<const uint8_t*> layerData;
             std::vector<float> channelVolumes;
+            // The volume each channel ended the last read on: the next read
+            // moves from it to the new volume rather than stepping to it.
+            std::vector<float> channelVolumesPrev;
             std::vector<uint8_t> mix;
             std::vector<uint8_t> reverse;
 
