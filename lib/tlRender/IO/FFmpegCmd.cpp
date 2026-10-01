@@ -343,7 +343,7 @@ namespace tl
             }
             if (r != 0)
             {
-                throw std::runtime_error(ftk::Format("Cannot run command: \"{0}\"").
+                throw CommandError(ftk::Format("Cannot run command: \"{0}\"").
                     arg(ftk::join(cmd, ' ')));
             }
 
@@ -529,11 +529,12 @@ namespace tl
             }
             catch (const std::exception& e)
             {
-                // No ffmpeg to ask, which is not an error in itself: it is
+                // No ffmpeg to ask, which is not an error in itself, nor
+                // worth a warning each time the application starts: it is
                 // only wanted for what the library cannot decode.
                 if (logSystem)
                 {
-                    logSystem->print("tl::ffmpeg_cmd", e.what(), ftk::LogType::Warning);
+                    logSystem->print("tl::ffmpeg_cmd", e.what());
                 }
             }
             return out;

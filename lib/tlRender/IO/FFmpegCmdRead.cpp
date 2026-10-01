@@ -39,6 +39,7 @@ namespace tl
             {
                 std::list<std::shared_ptr<InfoRequest> > infoRequests;
                 std::list<std::shared_ptr<VideoRequest> > videoRequests;
+                std::string error;
                 std::mutex mutex;
             };
             Mutex mutex;
@@ -77,6 +78,7 @@ namespace tl
             {
                 std::list<std::shared_ptr<InfoRequest> > infoRequests;
                 std::list<std::shared_ptr<AudioRequest> > audioRequests;
+                std::string error;
                 std::mutex mutex;
             };
             Mutex mutex;
@@ -105,7 +107,12 @@ namespace tl
                 [this, path, options]
                 {
                     FTK_P();
-                    p.info = getIOInfo(path, options, _logSystem.lock());
+                    std::string error;
+                    p.info = getIOInfo(path, options, _logSystem.lock(), nullptr, &error);
+                    {
+                        std::unique_lock<std::mutex> lock(p.mutex.mutex);
+                        p.mutex.error = error;
+                    }
                     p.infoValid = true;
                     _run();
                 });
@@ -192,6 +199,13 @@ namespace tl
             return request->promise.get_future();
         }
 
+        std::string VideoRead::getError() const
+        {
+            FTK_P();
+            std::unique_lock<std::mutex> lock(p.mutex.mutex);
+            return p.mutex.error;
+        }
+
         void VideoRead::cancelRequests()
         {
             FTK_P();
@@ -225,7 +239,12 @@ namespace tl
                 [this, path, options]
                 {
                     FTK_P();
-                    p.info = getIOInfo(path, options, _logSystem.lock(), &p.audioStreams);
+                    std::string error;
+                    p.info = getIOInfo(path, options, _logSystem.lock(), &p.audioStreams, &error);
+                    {
+                        std::unique_lock<std::mutex> lock(p.mutex.mutex);
+                        p.mutex.error = error;
+                    }
                     p.infoValid = true;
                     _run();
                 });
@@ -312,6 +331,13 @@ namespace tl
             return request->promise.get_future();
         }
 
+        std::string AudioRead::getError() const
+        {
+            FTK_P();
+            std::unique_lock<std::mutex> lock(p.mutex.mutex);
+            return p.mutex.error;
+        }
+
         void AudioRead::cancelRequests()
         {
             FTK_P();
@@ -336,7 +362,8 @@ namespace tl
             const ftk::Path& path,
             const IOOptions& ioOptions,
             const std::shared_ptr<ftk::LogSystem>& logSystem,
-            std::vector<int>* audioStreams)
+            std::vector<int>* audioStreams,
+            std::string* error)
         {
             IOInfo out;
             try
@@ -714,6 +741,20 @@ namespace tl
                     }
                 }
             }
+            catch (const CommandError&)
+            {
+                // No ffprobe to run. The file is one the library cannot
+                // decode, or it would not have been handed here, so what
+                // helps is saying what would read it.
+                if (error)
+                {
+                    *error = ftk::Format(
+                        "FFmpeg is needed to read \"{0}\": it has a codec that "
+                        "is not built in. Install FFmpeg, or set where it is "
+                        "in the settings.").
+                        arg(path.get());
+                }
+            }
             catch (const std::exception& e)
             {
                 if (logSystem)
@@ -722,6 +763,10 @@ namespace tl
                         "tl::ffmpeg_cmd::getIOInfo",
                         e.what(),
                         ftk::LogType::Error);
+                }
+                if (error)
+                {
+                    *error = e.what();
                 }
             }
             return out;

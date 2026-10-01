@@ -25,6 +25,7 @@ namespace tl
         private:
             void _findCommand();
             void _commandLine();
+            void _commandMissing();
             void _subfileSeek();
             void _pixelAspectRatio();
             void _presets();

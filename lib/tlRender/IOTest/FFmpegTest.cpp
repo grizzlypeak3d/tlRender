@@ -47,6 +47,7 @@ namespace tl
             _split();
             _findCommand();
             _commandLine();
+            _commandMissing();
             _subfileSeek();
             _pixelAspectRatio();
             _presets();
@@ -397,6 +398,44 @@ namespace tl
             }
             std::filesystem::remove(bigPath);
 #endif
+        }
+
+        void FFmpegTest::_commandMissing()
+        {
+            // A file the library cannot decode is handed to the command line,
+            // and with no FFmpeg installed there is none. The reader then
+            // has nothing to give but says why, for whoever opened the file
+            // to report; it logged an error itself before, for every movie a
+            // file browser made a thumbnail of.
+            const ftk::Path path(TLRENDER_SAMPLE_DATA, "Anamorphic.mov");
+            auto readSystem = _context->getSystem<ReadSystem>();
+            auto plugin = readSystem->getPlugin(path);
+            if (!plugin)
+            {
+                _print("Skipped: no plugin reads the fixture");
+                return;
+            }
+            IOOptions options;
+            options["FFmpeg/CommandLine"] = "Always";
+            options["FFmpeg/FFmpegPath"] = "tlRender-no-such-ffmpeg";
+            options["FFmpeg/FFprobePath"] = "tlRender-no-such-ffprobe";
+            {
+                auto read = plugin->videoRead(path, options);
+                FTK_CHECK(std::dynamic_pointer_cast<ffmpeg_cmd::VideoRead>(read));
+                const IOInfo info = read->getInfo().get();
+                FTK_CHECK(info.video.empty());
+                const std::string error = read->getError();
+                _print(error);
+                FTK_CHECK(error.find("FFmpeg is needed to read") != std::string::npos);
+                FTK_CHECK(error.find("Anamorphic.mov") != std::string::npos);
+            }
+            {
+                auto read = plugin->audioRead(path, options);
+                FTK_CHECK(std::dynamic_pointer_cast<ffmpeg_cmd::AudioRead>(read));
+                const IOInfo info = read->getInfo().get();
+                FTK_CHECK(!info.audio.isValid());
+                FTK_CHECK(read->getError().find("FFmpeg is needed to read") != std::string::npos);
+            }
         }
 
         void FFmpegTest::_pixelAspectRatio()

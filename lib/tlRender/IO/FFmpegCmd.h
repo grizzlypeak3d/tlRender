@@ -71,6 +71,7 @@ namespace tl
             TL_IO_API std::future<VideoData> readVideo(
                 const OTIO_NS::RationalTime&,
                 const IOOptions& = IOOptions()) override;
+            TL_IO_API std::string getError() const override;
             TL_IO_API void cancelRequests() override;
 
         private:
@@ -111,6 +112,7 @@ namespace tl
             TL_IO_API std::future<AudioData> readAudio(
                 const OTIO_NS::TimeRange&,
                 const IOOptions& = IOOptions()) override;
+            TL_IO_API std::string getError() const override;
             TL_IO_API void cancelRequests() override;
 
         private:
