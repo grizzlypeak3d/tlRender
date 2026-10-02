@@ -144,7 +144,10 @@ range reads.
 The Python bindings are one wheel per platform for CPython 3.12 and later,
 built on the [feather-tk](https://pypi.org/project/feather-tk/) wheel, which
 pip installs with them, and
-[OpenTimelineIO](https://pypi.org/project/opentimelineio/):
+[OpenTimelineIO](https://pypi.org/project/opentimelineio/). Python 3.12 or
+3.13 is the easy choice for now: OpenTimelineIO has no prebuilt wheels yet
+for Python 3.14, or for Intel macOS, and there pip builds it from source,
+which needs a C++ compiler and the Python development files.
 
 ```python
 import opentimelineio as otio
