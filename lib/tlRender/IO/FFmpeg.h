@@ -146,6 +146,11 @@ namespace tl
             //! write -- and what a container will hold is not the same
             //! question as what to put in it.
             std::vector<std::string> exts;
+
+            //! Whether what the preset writes can hold audio. A GIF cannot.
+            //! The command line presets write video only whatever the
+            //! container; "command" says that.
+            bool audio = true;
         };
 
         //! Get the movie export presets.
