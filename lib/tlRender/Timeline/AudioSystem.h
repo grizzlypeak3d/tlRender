@@ -62,6 +62,16 @@ namespace tl
         //! Observe the default audio device.
         TL_TIMELINE_API std::shared_ptr<ftk::IObservable<AudioDeviceInfo> > observeDefaultDevice() const;
 
+        //! Get the size of the buffer the audio device is asked for, in
+        //! sample frames. Zero is the device's own default.
+        TL_TIMELINE_API size_t getBufferFrameCount() const;
+
+        //! Set the size of the buffer the audio device is asked for. A
+        //! device already open keeps the size it was opened with, and it
+        //! stays open for as long as a player has it; the new size is used
+        //! the next time it is opened, which with no players is at once.
+        TL_TIMELINE_API void setBufferFrameCount(size_t);
+
         TL_TIMELINE_API void tick() override;
         TL_TIMELINE_API std::chrono::milliseconds getTickTime() const override;
 

@@ -55,6 +55,7 @@ namespace tl
                     nb::arg("context"))
                 .def_prop_ro("drivers", &AudioSystem::getDrivers)
                 .def_prop_ro("currentDriver", &AudioSystem::getCurrentDriver)
+                .def_prop_rw("bufferFrameCount", &AudioSystem::getBufferFrameCount, &AudioSystem::setBufferFrameCount)
                 .def_prop_ro("devices", &AudioSystem::getDevices)
                 .def_prop_ro("observeDevices", &AudioSystem::observeDevices)
                 .def_prop_ro("defaultDevice", &AudioSystem::getDefaultDevice)

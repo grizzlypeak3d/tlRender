@@ -84,6 +84,8 @@ namespace tl
         };
         Thread thread;
 
+        size_t bufferFrameCount = 0;
+
 #if defined(FTK_SDL3)
         SDL_AudioStream* keepalive = nullptr;
 #endif // FTK_SDL3
@@ -257,6 +259,54 @@ namespace tl
         return _p->defaultDevice;
     }
 
+    size_t AudioSystem::getBufferFrameCount() const
+    {
+        return _p->bufferFrameCount;
+    }
+
+    void AudioSystem::setBufferFrameCount(size_t value)
+    {
+        FTK_P();
+        if (value == p.bufferFrameCount)
+            return;
+        p.bufferFrameCount = value;
+#if defined(FTK_SDL3)
+        // SDL takes the size from a hint when it opens the device, and the
+        // stream that keeps the device open is what opens it, so the hint
+        // is set and that stream opened again. Not at a higher priority:
+        // the environment variable of the same name still has the last word.
+        if (value > 0)
+        {
+            SDL_SetHint(
+                SDL_HINT_AUDIO_DEVICE_SAMPLE_FRAMES,
+                ftk::Format("{0}").arg(value).str().c_str());
+        }
+        else
+        {
+            SDL_ResetHint(SDL_HINT_AUDIO_DEVICE_SAMPLE_FRAMES);
+        }
+        if (p.init)
+        {
+            if (p.keepalive)
+            {
+                SDL_DestroyAudioStream(p.keepalive);
+                p.keepalive = nullptr;
+            }
+            p.keepalive = openKeepalive();
+            int sampleFrames = 0;
+            SDL_AudioSpec spec;
+            if (p.keepalive &&
+                SDL_GetAudioDeviceFormat(
+                    SDL_GetAudioStreamDevice(p.keepalive), &spec, &sampleFrames))
+            {
+                _log(ftk::Format("Audio device buffer: {0} frames asked for, {1} in use").
+                    arg(value).
+                    arg(sampleFrames));
+            }
+        }
+#endif // FTK_SDL3
+    }
+
     void AudioSystem::tick()
     {
         FTK_P();
@@ -393,19 +443,6 @@ namespace tl
     {
         FTK_P();
 #if defined(FTK_SDL2) || defined(FTK_SDL3)
-
-#if defined(FTK_SDL3)
-        if (p.init)
-        {
-            // Held for the life of the system: SDL stops the physical
-            // device when the last logical device closes, so without this
-            // a single player pays the physical start on open and stop on
-            // close (~130ms each way on macOS) -- the logical devices are
-            // only free while one of them stays open. Never resumed; an
-            // open paused stream is enough to keep the count above zero.
-            p.keepalive = openKeepalive();
-        }
-#endif // FTK_SDL3
 
         const std::vector<AudioDeviceInfo> devices = _getDevices();
         const AudioDeviceInfo defaultDevice = _getDefaultDevice();
