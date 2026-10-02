@@ -6,6 +6,7 @@ set(HEADERS
     HDR.h
     HDRInline.h
     ImageScale.h
+    Quantize.h
     Time.h
     TimeInline.h
     URL.h
@@ -17,6 +18,7 @@ set(SOURCE
     AudioResample.cpp
     HDR.cpp
     ImageScale.cpp
+    Quantize.cpp
     Time.cpp
     URL.cpp)
 

@@ -40,6 +40,7 @@
 #include <tlRender/CoreTest/AudioTest.h>
 #include <tlRender/CoreTest/HDRTest.h>
 #include <tlRender/CoreTest/TimeTest.h>
+#include <tlRender/CoreTest/QuantizeTest.h>
 #include <tlRender/CoreTest/URLTest.h>
 
 #include <tlRender/UI/Init.h>
@@ -115,6 +116,7 @@ namespace tl
             // Core tests.
             p.tests.push_back(core_tests::AudioTest::create(context));
             p.tests.push_back(core_tests::HDRTest::create(context));
+            p.tests.push_back(core_tests::QuantizeTest::create(context));
             p.tests.push_back(core_tests::TimeTest::create(context));
             p.tests.push_back(core_tests::URLTest::create(context));
 
