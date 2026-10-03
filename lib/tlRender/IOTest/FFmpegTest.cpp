@@ -191,6 +191,15 @@ namespace tl
             {
                 const auto data = read->readVideo(OTIO_NS::RationalTime(i, 24.0)).get();
                 FTK_CHECK(data.image);
+                if (!data.image)
+                {
+                    // A check does not stop the test, and the level below
+                    // would be read through a null pointer: say what the
+                    // reader has to say for itself instead.
+                    _print(ftk::Format("Frame {0}: no image: {1}").
+                        arg(i).arg(read->getError()));
+                    continue;
+                }
                 const int level = data.image->getData()[0];
                 if (level != i * 10)
                 {
