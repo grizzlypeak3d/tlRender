@@ -26,6 +26,7 @@ namespace tl
             void _findCommand();
             void _commandLine();
             void _commandMissing();
+            void _gif();
             void _subfileSeek();
             void _pixelAspectRatio();
             void _presets();

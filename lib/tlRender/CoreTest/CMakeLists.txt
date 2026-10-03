@@ -1,12 +1,14 @@
 set(HEADERS
     AudioTest.h
     HDRTest.h
+    QuantizeTest.h
     TimeTest.h
     URLTest.h)
 
 set(SOURCE
     AudioTest.cpp
     HDRTest.cpp
+    QuantizeTest.cpp
     TimeTest.cpp
     URLTest.cpp)
 

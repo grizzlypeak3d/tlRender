@@ -3,12 +3,16 @@
 
 #include <tlRender/IO/FFmpegPrivate.h>
 
+#include <tlRender/Core/Quantize.h>
+
 #include <ftk/Core/Format.h>
 #include <ftk/Core/Path.h>
 #include <ftk/Core/String.h>
 #include <ftk/Core/LogSystem.h>
 
 #include <algorithm>
+#include <array>
+#include <cstring>
 #include <filesystem>
 
 extern "C"
@@ -37,6 +41,14 @@ namespace tl
             AVPixelFormat avPixelFormatIn = AV_PIX_FMT_NONE;
             AVFrame* avFrame2 = nullptr;
             SwsContext* swsContext = nullptr;
+            //! Whether the frames are reduced to a palette here: for an
+            //! encoder that takes paletted frames, which is GIF. The scaler
+            //! would do it with one fixed palette for every picture; this
+            //! chooses the palette from what is in the picture, and keeps it
+            //! from frame to frame while it fits.
+            bool quantize = false;
+            std::vector<uint8_t> quantizeRGB;
+            Quantizer quantizer;
 
             AVCodecContext* avAudioCodecContext = nullptr;
             AVStream* avAudioStream = nullptr;
@@ -192,6 +204,14 @@ namespace tl
                       { "FFmpeg/CodecOptions", "crf=35" } },
                     false,
                     { ".mp4", ".mkv" } },
+                // For where a movie cannot go: reference boards, design
+                // tools, chat. 256 colors a frame, chosen for the frame.
+                { "GIF",
+                    { { "FFmpeg/Codec", "gif" },
+                      { "FFmpeg/PixelFormat", "pal8" } },
+                    false,
+                    { ".gif" },
+                    false },
                 { "H.264 (ffmpeg command)",
                     { { "FFmpeg/WriteCommandLine", "1" },
                       { "FFmpeg/WritePreset", "H.264" } },
@@ -722,7 +742,17 @@ namespace tl
             r = av_opt_set_int(p.swsContext, "src_format", p.avPixelFormatIn, AV_OPT_SEARCH_CHILDREN);
             r = av_opt_set_int(p.swsContext, "dstw", videoInfo.size.w, AV_OPT_SEARCH_CHILDREN);
             r = av_opt_set_int(p.swsContext, "dsth", videoInfo.size.h, AV_OPT_SEARCH_CHILDREN);
-            r = av_opt_set_int(p.swsContext, "dst_format", p.avCodecContext->pix_fmt, AV_OPT_SEARCH_CHILDREN);
+            p.quantize = AV_PIX_FMT_PAL8 == p.avCodecContext->pix_fmt;
+            if (p.quantize)
+            {
+                p.quantizeRGB.resize(
+                    static_cast<size_t>(videoInfo.size.w) * 3 * videoInfo.size.h);
+            }
+            r = av_opt_set_int(
+                p.swsContext,
+                "dst_format",
+                p.quantize ? AV_PIX_FMT_RGB24 : p.avCodecContext->pix_fmt,
+                AV_OPT_SEARCH_CHILDREN);
             r = av_opt_set_int(p.swsContext, "sws_flags", swsWriteFlags, AV_OPT_SEARCH_CHILDREN);
             r = av_opt_set_int(p.swsContext, "threads", 0, AV_OPT_SEARCH_CHILDREN);
             r = sws_init_context(p.swsContext, nullptr, nullptr);
@@ -992,14 +1022,44 @@ namespace tl
                     throw std::runtime_error(ftk::Format("{0}: \"{1}\"").arg(getErrorLabel(r)).arg(p.fileName));
                 }
             }
-            sws_scale(
-                p.swsContext,
-                (uint8_t const* const*)p.avFrame2->data,
-                p.avFrame2->linesize,
-                0,
-                p.avVideoStream->codecpar->height,
-                p.avFrame->data,
-                p.avFrame->linesize);
+            if (p.quantize)
+            {
+                const int w = p.avVideoStream->codecpar->width;
+                const int h = p.avVideoStream->codecpar->height;
+                uint8_t* rgbData[4] = { p.quantizeRGB.data(), nullptr, nullptr, nullptr };
+                const int rgbLinesize[4] = { w * 3, 0, 0, 0 };
+                sws_scale(
+                    p.swsContext,
+                    (uint8_t const* const*)p.avFrame2->data,
+                    p.avFrame2->linesize,
+                    0,
+                    h,
+                    rgbData,
+                    rgbLinesize);
+                // The palette is the frame's second plane: 256 colors of 32
+                // bits each, in the byte order of the machine.
+                QuantizePalette palette;
+                p.quantizer.quantize(
+                    p.quantizeRGB.data(),
+                    w * 3,
+                    w,
+                    h,
+                    p.avFrame->data[0],
+                    p.avFrame->linesize[0],
+                    palette);
+                memcpy(p.avFrame->data[1], palette.data(), palette.size() * sizeof(uint32_t));
+            }
+            else
+            {
+                sws_scale(
+                    p.swsContext,
+                    (uint8_t const* const*)p.avFrame2->data,
+                    p.avFrame2->linesize,
+                    0,
+                    p.avVideoStream->codecpar->height,
+                    p.avFrame->data,
+                    p.avFrame->linesize);
+            }
 
             const auto timeRational = toRational(time.rate());
             p.avFrame->pts = av_rescale_q(

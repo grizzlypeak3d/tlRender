@@ -54,7 +54,7 @@ namespace tl
             // The most precision there is to render into: floating point,
             // or on OpenGL ES without the extensions for it the closest the
             // driver can (see ftk::gl::getRenderableType()).
-            _viewport->setColorBuffer(ftk::gl::offscreenColorDefault);
+            _viewport->setColorBuffer(ftk::gl::getOffscreenColorDefault());
 
             // Create the timeline.
             _timelineWidget = ui::TimelineWidget::create(

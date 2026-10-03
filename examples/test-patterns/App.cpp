@@ -9,6 +9,7 @@
 
 #include <tlRender/IO/System.h>
 
+#include <ftk/GL/Init.h>
 #include <ftk/GL/GL.h>
 #include <ftk/GL/OffscreenBuffer.h>
 #include <ftk/GL/Util.h>
@@ -143,9 +144,10 @@ namespace tl
 
                             // Write the image.
                             glPixelStorei(GL_PACK_ALIGNMENT, info.layout.alignment);
-#if defined(FTK_API_GL_4_1)
-                            glPixelStorei(GL_PACK_SWAP_BYTES, info.layout.endian != ftk::getEndian());
-#endif // FTK_API_GL_4_1
+                            if (!ftk::gl::isGLES())
+                            {
+                                glPixelStorei(GL_PACK_SWAP_BYTES, info.layout.endian != ftk::getEndian());
+                            }
                             const GLenum format = ftk::gl::getReadPixelsFormat(info.type);
                             const GLenum type = ftk::gl::getReadPixelsType(info.type);
                             if (GL_NONE == format || GL_NONE == type)

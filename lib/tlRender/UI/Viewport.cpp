@@ -6,6 +6,7 @@
 #include <tlRender/Timeline/IRender.h>
 
 #include <ftk/UI/DrawUtil.h>
+#include <ftk/GL/Init.h>
 #include <ftk/GL/GL.h>
 #include <ftk/GL/OffscreenBuffer.h>
 #include <ftk/GL/Util.h>
@@ -147,7 +148,7 @@ namespace tl
             p.fgOptions = ftk::Observable<ForegroundOptions>::create();
             p.compareOptions = ftk::Observable<CompareOptions>::create();
             p.colorBuffer = ftk::Observable<ftk::gl::TextureType>::create(
-                ftk::gl::offscreenColorDefault);
+                ftk::gl::getOffscreenColorDefault());
             p.viewPos = ftk::Observable<ftk::V2I>::create();
             p.zoom = ftk::Observable<double>::create(1.0);
             p.viewPosZoom = ftk::Observable<std::pair<ftk::V2I, double> >::create(
@@ -666,9 +667,10 @@ namespace tl
                 std::vector<float> sample(4);
                 ftk::gl::OffscreenBufferBinding binding(p.buffer);
                 glPixelStorei(GL_PACK_ALIGNMENT, 1);
-#if defined(FTK_API_GL_4_1)
-                glClampColor(GL_CLAMP_READ_COLOR, GL_FALSE);
-#endif // FTK_API_GL_4_1
+                if (!ftk::gl::isGLES())
+                {
+                    glClampColor(GL_CLAMP_READ_COLOR, GL_FALSE);
+                }
                 glReadPixels(
                     value.x,
                     g.h() - 1 - value.y,

@@ -12,6 +12,7 @@
 #include <tlRender/Timeline/ForegroundOptions.h>
 #include <tlRender/Timeline/Transition.h>
 
+#include <ftk/GL/Init.h>
 #include <ftk/GL/GL.h>
 #include <ftk/GL/OffscreenBuffer.h>
 #include <ftk/GL/Texture.h>
@@ -116,7 +117,7 @@ namespace tl
 
             auto buffer = ftk::gl::OffscreenBuffer::create(
                 imageSize,
-                ftk::gl::offscreenColorDefault);
+                ftk::gl::getOffscreenColorDefault());
             ftk::gl::OffscreenBufferBinding bufferBinding(buffer);
             const std::vector<ftk::Box2I> boxes =
             {
@@ -186,7 +187,7 @@ namespace tl
 
             auto buffer = ftk::gl::OffscreenBuffer::create(
                 imageSize,
-                ftk::gl::offscreenColorDefault);
+                ftk::gl::getOffscreenColorDefault());
             ftk::gl::OffscreenBufferBinding bufferBinding(buffer);
             for (const auto& o : options)
             {
@@ -277,7 +278,7 @@ namespace tl
 
             auto buffer = ftk::gl::OffscreenBuffer::create(
                 size,
-                ftk::gl::offscreenColorDefault);
+                ftk::gl::getOffscreenColorDefault());
             ftk::gl::OffscreenBufferBinding bufferBinding(buffer);
             for (auto minify : ftk::getImageFilterEnums())
             {
@@ -336,7 +337,7 @@ namespace tl
             const ftk::Size2I size(8, 4);
             auto buffer = ftk::gl::OffscreenBuffer::create(
                 size,
-                ftk::gl::offscreenColorDefault);
+                ftk::gl::getOffscreenColorDefault());
             ftk::gl::OffscreenBufferBinding bufferBinding(buffer);
 
             struct Level
@@ -356,21 +357,22 @@ namespace tl
                 { ftk::VideoLevels::FullRange, 0, 128, 0 },
                 { ftk::VideoLevels::FullRange, 255, 128, 255 }
             };
-            const std::vector<ftk::ImageType> types =
+            std::vector<ftk::ImageType> types =
             {
                 ftk::ImageType::YUV_420P_U8,
                 ftk::ImageType::YUV_422P_U8,
                 ftk::ImageType::YUV_444P_U8,
-                ftk::ImageType::YUV_420SP_U8,
-#if !defined(FTK_API_GLES_3)
+                ftk::ImageType::YUV_420SP_U8
+            };
+            if (!ftk::gl::isGLES())
+            {
                 // ES 3.0 has no 16-bit normalized textures, so feather-tk
                 // does not support the U16 types there.
-                ftk::ImageType::YUV_420P_U16,
-                ftk::ImageType::YUV_422P_U16,
-                ftk::ImageType::YUV_444P_U16,
-                ftk::ImageType::YUV_420SP_U16
-#endif // FTK_API_GLES_3
-            };
+                types.push_back(ftk::ImageType::YUV_420P_U16);
+                types.push_back(ftk::ImageType::YUV_422P_U16);
+                types.push_back(ftk::ImageType::YUV_444P_U16);
+                types.push_back(ftk::ImageType::YUV_420SP_U16);
+            }
             for (const auto type : types)
             {
                 const bool u16 =
@@ -450,7 +452,7 @@ namespace tl
 
             auto buffer = ftk::gl::OffscreenBuffer::create(
                 imageSize,
-                ftk::gl::offscreenColorDefault);
+                ftk::gl::getOffscreenColorDefault());
             ftk::gl::OffscreenBufferBinding bufferBinding(buffer);
             render->begin(imageSize);
 
@@ -528,7 +530,7 @@ namespace tl
 
                 auto buffer = ftk::gl::OffscreenBuffer::create(
                     renderSize,
-                    ftk::gl::offscreenColorDefault);
+                    ftk::gl::getOffscreenColorDefault());
                 ftk::gl::OffscreenBufferBinding bufferBinding(buffer);
 
                 render->begin(renderSize);
@@ -564,7 +566,7 @@ namespace tl
                 }
                 auto buffer = ftk::gl::OffscreenBuffer::create(
                     renderSize,
-                    ftk::gl::offscreenColorDefault);
+                    ftk::gl::getOffscreenColorDefault());
                 ftk::gl::OffscreenBufferBinding bufferBinding(buffer);
                 render->begin(renderSize);
                 render->drawVideo(
@@ -580,7 +582,7 @@ namespace tl
             {
                 auto buffer = ftk::gl::OffscreenBuffer::create(
                     imageSize,
-                    ftk::gl::offscreenColorDefault);
+                    ftk::gl::getOffscreenColorDefault());
                 ftk::gl::OffscreenBufferBinding bufferBinding(buffer);
                 render->begin(imageSize);
                 render->drawVideo({}, {});
@@ -597,7 +599,7 @@ namespace tl
 
             auto buffer = ftk::gl::OffscreenBuffer::create(
                 imageSize,
-                ftk::gl::offscreenColorDefault);
+                ftk::gl::getOffscreenColorDefault());
             ftk::gl::OffscreenBufferBinding bufferBinding(buffer);
             const std::vector<ftk::Box2I> boxes =
             {
@@ -627,7 +629,7 @@ namespace tl
 
             auto buffer = ftk::gl::OffscreenBuffer::create(
                 imageSize,
-                ftk::gl::offscreenColorDefault);
+                ftk::gl::getOffscreenColorDefault());
             ftk::gl::OffscreenBufferBinding bufferBinding(buffer);
             const std::vector<ftk::Box2I> boxes =
             {
@@ -670,7 +672,7 @@ namespace tl
             {
                 auto video = ftk::gl::OffscreenBuffer::create(
                     imageSize,
-                    ftk::gl::offscreenColorDefault);
+                    ftk::gl::getOffscreenColorDefault());
                 ClippingWarning options;
                 options.enabled = true;
                 options.low = .1F;
@@ -704,7 +706,7 @@ namespace tl
             };
             auto buffer = ftk::gl::OffscreenBuffer::create(
                 imageSize,
-                ftk::gl::offscreenColorDefault);
+                ftk::gl::getOffscreenColorDefault());
             ftk::gl::OffscreenBufferBinding bufferBinding(buffer);
 
             try

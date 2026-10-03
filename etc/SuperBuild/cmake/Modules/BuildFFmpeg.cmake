@@ -218,6 +218,7 @@ set(FFmpeg_FREE_ARGS
     --enable-decoder=qtrle
     --enable-decoder=png
     --enable-decoder=apng
+    --enable-decoder=gif
     # Audio. AAC is deliberately absent (see above), so these are what a
     # minimal build has: Opus and Vorbis for lossy, the rest lossless.
     --enable-decoder=opus
@@ -288,6 +289,7 @@ set(FFmpeg_FREE_ARGS
     --enable-encoder=qtrle
     --enable-encoder=png
     --enable-encoder=apng
+    --enable-encoder=gif
     --enable-encoder=opus
     --enable-encoder=vorbis
     --enable-encoder=alac
@@ -347,6 +349,7 @@ set(FFmpeg_FREE_ARGS
     --enable-demuxer=avi
     --enable-demuxer=nut
     --enable-demuxer=apng
+    --enable-demuxer=gif
     --enable-demuxer=pcm_alaw
     --enable-demuxer=pcm_f32be
     --enable-demuxer=pcm_f32le
@@ -391,6 +394,7 @@ set(FFmpeg_FREE_ARGS
     --enable-muxer=nut
     --enable-muxer=webm
     --enable-muxer=apng
+    --enable-muxer=gif
     --enable-muxer=pcm_alaw
     --enable-muxer=pcm_f32be
     --enable-muxer=pcm_f32le
@@ -427,6 +431,7 @@ set(FFmpeg_FREE_ARGS
     --enable-parser=opus
     --enable-parser=vorbis
     --enable-parser=dirac
+    --enable-parser=gif
     --enable-parser=png
     --enable-protocol=file
     # For reading a byte range of a file in place -- media stored in

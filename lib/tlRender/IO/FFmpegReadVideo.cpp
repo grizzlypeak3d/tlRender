@@ -339,6 +339,17 @@ namespace tl
                         _avOutputPixelFormat = AV_PIX_FMT_RGB24;
                         _info.type = ftk::ImageType::RGB_U8;
                         break;
+                    case AV_PIX_FMT_BGRA:
+                    case AV_PIX_FMT_ARGB:
+                    case AV_PIX_FMT_ABGR:
+                    case AV_PIX_FMT_PAL8:
+                        // RGB with alpha in another layout, or through a
+                        // palette, as a GIF is decoded: likewise converted
+                        // to what it is rather than taken for YUV, which
+                        // halved the color's resolution.
+                        _avOutputPixelFormat = AV_PIX_FMT_RGBA;
+                        _info.type = ftk::ImageType::RGBA_U8;
+                        break;
                     case AV_PIX_FMT_GBRP9BE:
                     case AV_PIX_FMT_GBRP9LE:
                     case AV_PIX_FMT_GBRP10BE:

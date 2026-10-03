@@ -54,7 +54,7 @@ namespace tl
             const std::vector<ftk::ImageOptions>& = {},
             const std::vector<DisplayOptions>& = {},
             const CompareOptions& = CompareOptions(),
-            ftk::gl::TextureType colorBuffer = ftk::gl::offscreenColorDefault) = 0;
+            ftk::gl::TextureType colorBuffer = ftk::gl::getOffscreenColorDefault()) = 0;
 
         //! Draw the foreground.
         TL_TIMELINE_API virtual void drawForeground(

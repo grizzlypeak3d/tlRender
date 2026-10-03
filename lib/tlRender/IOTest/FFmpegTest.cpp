@@ -48,6 +48,7 @@ namespace tl
             _findCommand();
             _commandLine();
             _commandMissing();
+            _gif();
             _subfileSeek();
             _pixelAspectRatio();
             _presets();
@@ -190,6 +191,15 @@ namespace tl
             {
                 const auto data = read->readVideo(OTIO_NS::RationalTime(i, 24.0)).get();
                 FTK_CHECK(data.image);
+                if (!data.image)
+                {
+                    // A check does not stop the test, and the level below
+                    // would be read through a null pointer: say what the
+                    // reader has to say for itself instead.
+                    _print(ftk::Format("Frame {0}: no image: {1}").
+                        arg(i).arg(read->getError()));
+                    continue;
+                }
                 const int level = data.image->getData()[0];
                 if (level != i * 10)
                 {
@@ -259,6 +269,158 @@ namespace tl
             }
             // MJPEG is in every build, the minimal one included.
             FTK_CHECK(hasName(available, "MJPEG"));
+        }
+
+        void FFmpegTest::_gif()
+        {
+            // A GIF holds 256 colors a frame. The writer chooses them for
+            // each frame from what is in it, so a picture of a few flat
+            // colors comes back as those colors; the scaler's fixed palette
+            // gave the nearest of its own instead.
+            auto readSystem = _context->getSystem<ReadSystem>();
+            auto writePlugin = _context->getSystem<WriteSystem>()->getPlugin<ffmpeg::WritePlugin>();
+            IOOptions options;
+            bool available = false;
+            for (const auto& preset : writePlugin->getWritePresets())
+            {
+                if ("GIF" == preset.name)
+                {
+                    options = preset.options;
+                    available = true;
+                    FTK_CHECK(!preset.audio);
+                    FTK_CHECK(!preset.command);
+                }
+            }
+            if (!available)
+            {
+                _print("Skipped: no GIF encoder in this build");
+                return;
+            }
+
+            const ftk::Path path(
+                ftk::fromFileSystem(_getTempDir() / "FFmpegGIFTest.gif"));
+            const ftk::ImageInfo imageInfo(64, 48, ftk::ImageType::RGB_U8);
+            const int frameCount = 6;
+            IOInfo info;
+            info.video.push_back(imageInfo);
+            info.videoTime = OTIO_NS::TimeRange(
+                OTIO_NS::RationalTime(0.0, 25.0),
+                OTIO_NS::RationalTime(frameCount, 25.0));
+            const auto color = [](int frame, int x, int y, uint8_t* out)
+            {
+                const uint8_t colors[4][3] =
+                {
+                    { static_cast<uint8_t>(40 * frame), 0, 0 },
+                    { 0, static_cast<uint8_t>(255 - 40 * frame), 0 },
+                    { 0, 0, 255 },
+                    { 200, 180, 30 }
+                };
+                const uint8_t* c = colors[(x >= 32 ? 1 : 0) + (y >= 24 ? 2 : 0)];
+                out[0] = c[0];
+                out[1] = c[1];
+                out[2] = c[2];
+            };
+            {
+                auto write = writePlugin->write(path, info, options);
+                for (int i = 0; i < frameCount; ++i)
+                {
+                    auto image = ftk::Image::create(imageInfo);
+                    for (int y = 0; y < imageInfo.size.h; ++y)
+                    {
+                        // The images are stored bottom row first.
+                        uint8_t* p = image->getData() +
+                            (imageInfo.size.h - 1 - y) * imageInfo.size.w * 3;
+                        for (int x = 0; x < imageInfo.size.w; ++x)
+                        {
+                            color(i, x, y, p + x * 3);
+                        }
+                    }
+                    write->writeVideo(OTIO_NS::RationalTime(i, 25.0), image);
+                }
+            }
+
+            // The file itself: a GIF of the size written, that repeats.
+            {
+                std::vector<uint8_t> data;
+                if (FILE* f = fopen(ftk::fromFileSystem(_getTempDir() / "FFmpegGIFTest.gif").c_str(), "rb"))
+                {
+                    data.resize(4096);
+                    data.resize(fread(data.data(), 1, data.size(), f));
+                    fclose(f);
+                }
+                FTK_CHECK(data.size() > 13);
+                if (data.size() > 13)
+                {
+                    FTK_CHECK(0 == memcmp(data.data(), "GIF89a", 6));
+                    FTK_CHECK(imageInfo.size.w == data[6] + data[7] * 256);
+                    FTK_CHECK(imageInfo.size.h == data[8] + data[9] * 256);
+                    const std::string text(data.begin(), data.end());
+                    FTK_CHECK(text.find("NETSCAPE2.0") != std::string::npos);
+                }
+            }
+
+            // And read back, where this build reads GIFs: every frame, with
+            // the colors that were written.
+            auto readPlugin = readSystem->getPlugin(path);
+            if (!readPlugin)
+            {
+                _print("Skipped reading: no plugin reads the fixture");
+                std::filesystem::remove(ftk::toFileSystem(path.get()));
+                return;
+            }
+            {
+                IOOptions readOptions;
+                readOptions["FFmpeg/CommandLine"] = "Never";
+                auto read = readPlugin->videoRead(path, readOptions);
+                const IOInfo readInfo = read->getInfo().get();
+                if (readInfo.video.empty())
+                {
+                    _print("Skipped reading: no GIF decoder in this build");
+                }
+                else
+                {
+                    FTK_CHECK(readInfo.video[0].size == imageInfo.size);
+                    FTK_CHECK(ftk::ImageType::RGBA_U8 == readInfo.video[0].type);
+                    FTK_CHECK(readInfo.videoTime.has_value());
+                    if (readInfo.videoTime.has_value())
+                    {
+                        const double rate = readInfo.videoTime->duration().rate();
+                        const double frames = readInfo.videoTime->duration().value();
+                        _print(ftk::Format("GIF read back: {0} frames at {1}").arg(frames).arg(rate));
+                        FTK_CHECK(std::abs(frames / rate - frameCount / 25.0) < 0.05);
+                        bool same = true;
+                        for (int i = 0; i < frameCount; ++i)
+                        {
+                            const auto video = read->readVideo(
+                                readInfo.videoTime->start_time() +
+                                OTIO_NS::RationalTime(i * rate / 25.0, rate)).get();
+                            FTK_CHECK(video.image);
+                            if (!video.image)
+                                continue;
+                            const auto& readImageInfo = video.image->getInfo();
+                            const int points[4][2] = { { 8, 8 }, { 50, 8 }, { 8, 40 }, { 50, 40 } };
+                            for (const auto& point : points)
+                            {
+                                uint8_t expected[3];
+                                color(i, point[0], point[1], expected);
+                                // The reader says which way up it gives
+                                // the rows.
+                                const int row = readImageInfo.layout.mirror.y ?
+                                    point[1] :
+                                    (readImageInfo.size.h - 1 - point[1]);
+                                const uint8_t* p = video.image->getData() +
+                                    (row * readImageInfo.size.w + point[0]) * 4;
+                                same &=
+                                    p[0] == expected[0] &&
+                                    p[1] == expected[1] &&
+                                    p[2] == expected[2];
+                            }
+                        }
+                        FTK_CHECK(same);
+                    }
+                }
+            }
+            std::filesystem::remove(ftk::toFileSystem(path.get()));
         }
 
         void FFmpegTest::_subfileSeek()
