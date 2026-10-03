@@ -15,6 +15,7 @@
 
 #include <tlRender/Core/Time.h>
 
+#include <ftk/GL/Init.h>
 #include <ftk/GL/GL.h>
 #include <ftk/GL/Util.h>
 #include <ftk/GL/Window.h>
@@ -339,7 +340,7 @@ namespace tl
                 _context->getSystem<ftk::FontSystem>());
             _buffer = ftk::gl::OffscreenBuffer::create(
                 _renderSize,
-                ftk::gl::offscreenColorDefault);
+                ftk::gl::getOffscreenColorDefault());
 
             // Set options. Before the writer: what the output's color
             // description says depends on whether the render goes through
@@ -617,9 +618,10 @@ namespace tl
 
             // Write the frame.
             glPixelStorei(GL_PACK_ALIGNMENT, _outputInfo.layout.alignment);
-#if defined(FTK_API_GL_4_1)
-            glPixelStorei(GL_PACK_SWAP_BYTES, _outputInfo.layout.endian != ftk::getEndian());
-#endif // FTK_API_GL_4_1
+            if (!ftk::gl::isGLES())
+            {
+                glPixelStorei(GL_PACK_SWAP_BYTES, _outputInfo.layout.endian != ftk::getEndian());
+            }
             const GLenum format = ftk::gl::getReadPixelsFormat(_outputInfo.type);
             const GLenum type = ftk::gl::getReadPixelsType(_outputInfo.type);
             if (GL_NONE == format || GL_NONE == type)
