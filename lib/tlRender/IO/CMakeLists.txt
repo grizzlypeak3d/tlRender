@@ -89,6 +89,12 @@ endif()
 if(TLRENDER_FFMPEG_PLUGIN)
     target_compile_definitions(tlIO PUBLIC TLRENDER_FFMPEG_PLUGIN)
     target_link_libraries(tlIO PRIVATE FFmpeg::FFmpeg)
+    if(APPLE)
+        # Asked whether the machine has a hardware decoder for a codec.
+        target_link_libraries(tlIO PRIVATE
+            "-framework VideoToolbox"
+            "-framework CoreMedia")
+    endif()
     target_include_directories(tlIO PRIVATE ${subprocess_INCLUDE_DIR})
 endif()
 if(TLRENDER_OIIO)

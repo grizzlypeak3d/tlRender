@@ -15,6 +15,10 @@ extern "C"
 
 } // extern "C"
 
+#if defined(__APPLE__)
+#include <VideoToolbox/VideoToolbox.h>
+#endif // __APPLE__
+
 namespace tl
 {
     namespace ffmpeg
@@ -667,6 +671,35 @@ namespace tl
             return formats[0];
         }
 
+        namespace
+        {
+#if defined(__APPLE__)
+            //! Whether this machine has a hardware decoder for a codec.
+            //!
+            //! VideoToolbox does not refuse a codec it has no hardware for:
+            //! it decodes in software and hands the frames back the same
+            //! way, which is slower than FFmpeg's own decoder on every core
+            //! -- an Intel Mac without an HEVC decoder played 1080p at two
+            //! thirds speed through it. A codec not listed here is not
+            //! asked about, and is left to VideoToolbox as before.
+            bool hasVideoToolboxDecoder(AVCodecID id)
+            {
+                CMVideoCodecType type = 0;
+                switch (id)
+                {
+                case AV_CODEC_ID_H264: type = kCMVideoCodecType_H264; break;
+                case AV_CODEC_ID_HEVC: type = kCMVideoCodecType_HEVC; break;
+                // The four character codes themselves, since the names for
+                // these are newer than the oldest system supported.
+                case AV_CODEC_ID_VP9: type = 'vp09'; break;
+                case AV_CODEC_ID_AV1: type = 'av01'; break;
+                default: return true;
+                }
+                return VTIsHardwareDecodeSupported(type);
+            }
+#endif // __APPLE__
+        }
+
         void ReadVideo::_initHwAccel(const AVCodec* codec)
         {
             // The hardware path outputs limited-range YUV, so full-range
@@ -698,6 +731,16 @@ namespace tl
                     ftk::LogType::Warning);
                 return;
             }
+#if defined(__APPLE__)
+            if (!hasVideoToolboxDecoder(codec->id))
+            {
+                _log(
+                    ftk::Format("This machine has no hardware decoder for the codec \"{0}\"; using software decoding").
+                    arg(codec->name ? codec->name : "?"),
+                    ftk::LogType::Warning);
+                return;
+            }
+#endif // __APPLE__
             // The platform's native API is preferred, but the machine
             // decides: every configuration the codec offers is tried
             // until a device actually creates. A fixed choice broke on
