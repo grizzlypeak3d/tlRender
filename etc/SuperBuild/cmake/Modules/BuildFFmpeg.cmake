@@ -89,6 +89,20 @@ else()
     # library -- fewer dollars give "RIGIN".
     list(APPEND FFmpeg_LDFLAGS "--extra-ldflags=-Wl,-rpath,'\\$\\$\\$\\$ORIGIN'")
 endif()
+# Building for the other macOS architecture. configure works out the
+# architecture by running what it compiles, so it has to be told, and told
+# that it cannot run the result.
+if(APPLE AND CMAKE_OSX_ARCHITECTURES AND
+    NOT CMAKE_OSX_ARCHITECTURES STREQUAL CMAKE_HOST_SYSTEM_PROCESSOR)
+    set(FFmpeg_CROSS_ARGS
+        --enable-cross-compile
+        --target-os=darwin
+        --arch=${CMAKE_OSX_ARCHITECTURES})
+    list(APPEND FFmpeg_CFLAGS "--extra-cflags=-arch ${CMAKE_OSX_ARCHITECTURES}")
+    list(APPEND FFmpeg_CXXFLAGS "--extra-cxxflags=-arch ${CMAKE_OSX_ARCHITECTURES}")
+    list(APPEND FFmpeg_OBJCFLAGS "--extra-objcflags=-arch ${CMAKE_OSX_ARCHITECTURES}")
+    list(APPEND FFmpeg_LDFLAGS "--extra-ldflags=-arch ${CMAKE_OSX_ARCHITECTURES}")
+endif()
 if(APPLE AND CMAKE_OSX_DEPLOYMENT_TARGET)
     list(APPEND FFmpeg_CFLAGS "--extra-cflags=-mmacosx-version-min=${CMAKE_OSX_DEPLOYMENT_TARGET}")
     list(APPEND FFmpeg_CXXFLAGS "--extra-cxxflags=-mmacosx-version-min=${CMAKE_OSX_DEPLOYMENT_TARGET}")
@@ -477,6 +491,7 @@ set(FFmpeg_LICENSED_ARGS
     --enable-parser=dvaudio)
 
 list(APPEND FFmpeg_CONFIGURE_ARGS ${FFmpeg_FREE_ARGS})
+list(APPEND FFmpeg_CONFIGURE_ARGS ${FFmpeg_CROSS_ARGS})
 if(TLRENDER_FFMPEG_MINIMAL)
     # The blanket --enable-hwaccels above cannot survive here: enabling a
     # hardware decoder pulls in the software decoder it depends on, which

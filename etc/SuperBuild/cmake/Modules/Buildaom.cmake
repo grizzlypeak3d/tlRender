@@ -17,6 +17,11 @@ set(aom_ARGS
 if(TLRENDER_NASM)
     list(APPEND aom_ARGS -DCMAKE_ASM_NASM_COMPILER=${CMAKE_INSTALL_PREFIX}/bin/nasm)
 endif()
+# Building for the other macOS architecture: aom chooses its assembly from
+# the processor CMake reports, which is the one doing the building.
+if(APPLE AND CMAKE_OSX_ARCHITECTURES)
+    list(APPEND aom_ARGS -DAOM_TARGET_CPU=${CMAKE_OSX_ARCHITECTURES})
+endif()
 
 ExternalProject_Add(
     aom

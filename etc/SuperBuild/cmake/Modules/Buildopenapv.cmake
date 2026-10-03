@@ -24,6 +24,16 @@ set(openapv_ARGS
     -DCMAKE_INSTALL_SYSTEM_RUNTIME_LIBS_SKIP=TRUE
     -DCMAKE_POSITION_INDEPENDENT_CODE=ON)
 
+# Building for the other macOS architecture: OpenAPV chooses its SIMD sources
+# from CMAKE_SYSTEM_PROCESSOR, which is the processor doing the building
+# unless the system is named as well.
+if(APPLE AND CMAKE_OSX_ARCHITECTURES AND
+    NOT CMAKE_OSX_ARCHITECTURES STREQUAL CMAKE_HOST_SYSTEM_PROCESSOR)
+    list(APPEND openapv_ARGS
+        -DCMAKE_SYSTEM_NAME=Darwin
+        -DCMAKE_SYSTEM_PROCESSOR=${CMAKE_OSX_ARCHITECTURES})
+endif()
+
 # To send upstream; drop it once a release carries the fix.
 #
 # An MSVC build compiles and runs, but installs no pkg-config file, which
