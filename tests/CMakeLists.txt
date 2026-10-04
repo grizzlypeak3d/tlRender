@@ -38,3 +38,6 @@ if(TLRENDER_PYTHON)
     set_tests_properties(tlrender-test PROPERTIES
         ENVIRONMENT_MODIFICATION "${PYTHON_TEST_ENV}")
 endif()
+if(TLRENDER_GPU AND TLRENDER_OCIO)
+    add_subdirectory(tl-gpu-ocio-test)
+endif()

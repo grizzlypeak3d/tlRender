@@ -59,6 +59,9 @@ set(TLRENDER_FTK_PACKAGE OFF CACHE BOOL "Use an installed feather-tk rather than
 set(TLRENDER_FFMPEG_PREFIX "${CMAKE_INSTALL_PREFIX}" CACHE PATH "FFmpeg install prefix")
 set(TLRENDER_PROGRAMS ON CACHE BOOL "Build programs")
 set(TLRENDER_EXAMPLES ON CACHE BOOL "Build examples")
+# A spike: OpenColorIO's shaders through SDL's GPU API. See
+# tests/tl-gpu-ocio-test.
+set(TLRENDER_GPU OFF CACHE BOOL "Build the SDL GPU tests (experimental)")
 set(TLRENDER_TESTS ON CACHE BOOL "Build tests")
 set(TLRENDER_TESTS_NO_GL OFF CACHE BOOL "Run only the tests that do not need OpenGL")
 if(APPLE)
