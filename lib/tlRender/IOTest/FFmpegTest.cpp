@@ -54,6 +54,136 @@ namespace tl
             _presets();
             _frameOrder();
             _conversionEdges();
+            _writeType();
+            _conversionDepth();
+        }
+
+        void FFmpegTest::_conversionDepth()
+        {
+            // Sixteen bit RGB is written as the same YUV that eight bit RGB
+            // of the same values is. The scaler took sixteen bit white for
+            // 65280, so a picture written from sixteen bits came out 0.39%
+            // high and its white above the top of the legal range, where
+            // one written from eight bits was exact. The planes are read as
+            // they are, with no conversion back, so what is compared is
+            // what the writer wrote.
+            auto writePlugin = _context->getSystem<WriteSystem>()->getPlugin<ffmpeg::WritePlugin>();
+            const auto& codecs = writePlugin->getCodecs();
+            if (std::find(codecs.begin(), codecs.end(), "ffv1") == codecs.end())
+            {
+                _print("Skipped: no FFV1 encoder");
+                return;
+            }
+            const ftk::Size2I size(256, 16);
+            std::vector<std::vector<int> > luma;
+            for (const ftk::ImageType type :
+                {
+                    ftk::ImageType::RGB_U8,
+                    ftk::ImageType::RGB_U16,
+                    ftk::ImageType::RGBA_U16
+                })
+            {
+                // A grey ramp, every eight bit level, and the same levels
+                // in sixteen bits.
+                const ftk::ImageInfo imageInfo(size, type);
+                auto image = ftk::Image::create(imageInfo);
+                const int channels = ftk::getChannelCount(type);
+                for (int y = 0; y < size.h; ++y)
+                {
+                    for (int x = 0; x < size.w; ++x)
+                    {
+                        for (int c = 0; c < channels; ++c)
+                        {
+                            const size_t i = (static_cast<size_t>(y) * size.w + x) * channels + c;
+                            if (ftk::ImageType::RGB_U8 == type)
+                            {
+                                image->getData()[i] = static_cast<uint8_t>(x);
+                            }
+                            else
+                            {
+                                reinterpret_cast<uint16_t*>(image->getData())[i] =
+                                    static_cast<uint16_t>(3 == c ? 65535 : x * 257);
+                            }
+                        }
+                    }
+                }
+                std::stringstream ss;
+                ss << "FFmpegConversionDepthTest-" << static_cast<int>(type) << ".mov";
+                const ftk::Path path(ftk::fromFileSystem(_getTempDir() / ss.str()));
+                {
+                    IOInfo info;
+                    info.video.push_back(imageInfo);
+                    info.videoTime = OTIO_NS::TimeRange(
+                        OTIO_NS::RationalTime(0.0, 24.0),
+                        OTIO_NS::RationalTime(1.0, 24.0));
+                    IOOptions options;
+                    options["FFmpeg/Codec"] = "ffv1";
+                    options["FFmpeg/PixelFormat"] = "yuv444p10le";
+                    auto write = writePlugin->write(path, info, options);
+                    write->writeVideo(OTIO_NS::RationalTime(0.0, 24.0), image);
+                    write->finish();
+                }
+                IOOptions options;
+                options["FFmpeg/YUVToRGB"] = "0";
+                auto readPlugin = _context->getSystem<ReadSystem>()->getPlugin(path);
+                auto read = readPlugin->videoRead(path, options);
+                FTK_CHECK(read);
+                const auto data = read->readVideo(OTIO_NS::RationalTime(0.0, 24.0)).get();
+                FTK_CHECK(data.image);
+                if (!data.image)
+                {
+                    return;
+                }
+                FTK_CHECK(ftk::ImageType::YUV_444P_U16 == data.image->getInfo().type);
+                // The first plane is the luma, a row from the middle of it.
+                const uint16_t* plane = reinterpret_cast<const uint16_t*>(data.image->getData());
+                std::vector<int> row;
+                for (int x = 0; x < size.w; ++x)
+                {
+                    row.push_back(plane[static_cast<size_t>(size.h / 2) * size.w + x]);
+                }
+                luma.push_back(row);
+                _print(ftk::Format("{0}: luma at 16, 128, 235, 255 of 255: {1} {2} {3} {4}").
+                    arg(type).
+                    arg(row[16]).arg(row[128]).arg(row[235]).arg(row[255]));
+            }
+            if (3 == luma.size())
+            {
+                // Within one ten bit level of each other, at every level:
+                // a level is what white is, over the 940 it should be.
+                const double level = luma[0][255] / 940.0;
+                for (size_t i = 1; i < luma.size(); ++i)
+                {
+                    int max = 0;
+                    for (int x = 0; x < size.w; ++x)
+                    {
+                        max = std::max(max, std::abs(luma[i][x] - luma[0][x]));
+                    }
+                    FTK_CHECK(max <= level * 1.5);
+                }
+            }
+        }
+
+        void FFmpegTest::_writeType()
+        {
+            // A picture the writer does not take as it is is written from
+            // sixteen bits where it has more than eight: every YUV type is
+            // one, and so is anything floating point.
+            auto plugin = _context->getSystem<WriteSystem>()->getPlugin<ffmpeg::WritePlugin>();
+            const auto get = [plugin](ftk::ImageType type)
+            {
+                return plugin->getInfo(ftk::ImageInfo(16, 16, type)).type;
+            };
+            FTK_CHECK(get(ftk::ImageType::RGB_U8) == ftk::ImageType::RGB_U8);
+            FTK_CHECK(get(ftk::ImageType::RGBA_U16) == ftk::ImageType::RGBA_U16);
+            FTK_CHECK(get(ftk::ImageType::YUV_420P_U8) == ftk::ImageType::RGBA_U8);
+            FTK_CHECK(get(ftk::ImageType::YUV_420P_U16) == ftk::ImageType::RGB_U16);
+            FTK_CHECK(get(ftk::ImageType::YUV_444P_U16) == ftk::ImageType::RGB_U16);
+            FTK_CHECK(get(ftk::ImageType::RGB_U10) == ftk::ImageType::RGB_U16);
+            FTK_CHECK(get(ftk::ImageType::RGB_F16) == ftk::ImageType::RGB_U16);
+            FTK_CHECK(get(ftk::ImageType::RGBA_F32) == ftk::ImageType::RGBA_U16);
+            FTK_CHECK(get(ftk::ImageType::L_F32) == ftk::ImageType::L_U16);
+            FTK_CHECK(get(ftk::ImageType::LA_U8) == ftk::ImageType::RGBA_U8);
         }
 
         void FFmpegTest::_conversionEdges()
