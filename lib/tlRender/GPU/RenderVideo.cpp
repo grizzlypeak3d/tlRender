@@ -675,6 +675,36 @@ namespace tl
                     static_cast<int>(std::round(std::fabs(b.y - a.y))));
             }
 
+            // The picture has been drawn at its own size. When the view
+            // reduces it a long way the four texels a linear fetch reads
+            // miss most of it, so the buffer is reduced first, with the
+            // two pass resample, ahead of the display transform; see
+            // tl::gl::Render.
+            auto sampled = video;
+            if (ftk::ImageFilter::HighQuality == filters.minify &&
+                onScreen.isValid() &&
+                (onScreen.w < offscreenBufferSize.w ||
+                    onScreen.h < offscreenBufferSize.h))
+            {
+                const ftk::Size2I scaledSize(
+                    std::min(onScreen.w, offscreenBufferSize.w),
+                    std::min(onScreen.h, offscreenBufferSize.h));
+                if (auto scaled = _buffer("videoScaled", scaledSize, colorBuffer))
+                {
+                    {
+                        TargetScope scope(p.baseRender, scaled);
+                        p.baseRender->setTransform(bufferTransform(scaledSize));
+                        p.baseRender->drawTextureScaled(
+                            video->getID(),
+                            offscreenBufferSize,
+                            bufferBox(scaledSize));
+                    }
+                    p.baseRender->setTransform(previousTransform);
+                    sampled = scaled;
+                }
+            }
+            const ftk::Size2I displaySize = sampled->getSize();
+
             // The buffer through the display shader, into what was being
             // drawn into.
             // When the layers were put together in linear the display picks
@@ -683,10 +713,10 @@ namespace tl
                 perLayer ? std::string("scene_linear") : displayOptions.ocioInput);
             DisplayUniforms uniforms;
             const bool magnify = ftk::ImageFilter::HighQuality == filters.magnify;
-            uniforms.magnifyAxes[0] = magnify && onScreen.w > offscreenBufferSize.w ? 1.F : 0.F;
-            uniforms.magnifyAxes[1] = magnify && onScreen.h > offscreenBufferSize.h ? 1.F : 0.F;
-            uniforms.sourceSize[0] = offscreenBufferSize.w;
-            uniforms.sourceSize[1] = offscreenBufferSize.h;
+            uniforms.magnifyAxes[0] = magnify && onScreen.w > displaySize.w ? 1.F : 0.F;
+            uniforms.magnifyAxes[1] = magnify && onScreen.h > displaySize.h ? 1.F : 0.F;
+            uniforms.sourceSize[0] = displaySize.w;
+            uniforms.sourceSize[1] = displaySize.h;
             uniforms.channels = static_cast<int32_t>(displayOptions.channels);
             uniforms.negative = displayOptions.negative;
             uniforms.mirrorX = displayOptions.mirror.x;
@@ -723,12 +753,12 @@ namespace tl
             // At the one to one size nothing needs filtering, so nothing
             // is; see tl::gl::Render.
             const bool nearest =
-                onScreen == offscreenBufferSize ||
+                onScreen == displaySize ||
                 (ftk::ImageFilter::Nearest == filters.minify &&
                     ftk::ImageFilter::Nearest == filters.magnify);
             std::vector<ftk::gpu::TextureBinding> textures;
             textures.push_back({
-                video->getTexture(),
+                sampled->getTexture(),
                 p.baseRender->getSampler(nearest ? ftk::ImageFilter::Nearest : ftk::ImageFilter::Linear) });
             {
                 const auto& stageTextures = p.displayShaders[shader];

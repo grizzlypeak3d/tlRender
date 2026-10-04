@@ -15,9 +15,7 @@ namespace tl
 {
     //! Timeline rendering with SDL's GPU API.
     //!
-    //! A spike, beside the OpenGL renderer and drawing what it draws. Not
-    //! here yet: the two pass reduction (a reduced picture is sampled
-    //! linearly).
+    //! A spike, beside the OpenGL renderer and drawing what it draws.
     namespace gpu
     {
 #if defined(TLRENDER_OCIO)
