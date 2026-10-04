@@ -7,6 +7,8 @@
 
 #include <tlRender/Timeline/IRender.h>
 
+#include <tlRender/Core/HDR.h>
+
 #include <ftk/GPU/Render.h>
 
 #include <optional>
@@ -49,6 +51,19 @@ namespace tl
             TL_GPU_API const std::shared_ptr<ftk::gpu::Render>& getBaseRender() const;
 
             TL_GPU_API std::shared_ptr<ftk::gpu::Render> getGPURender() override;
+
+            //! Draw a texture that holds a picture display encoded for an
+            //! HDR display -- PQ, with Rec. 2020 primaries -- into a window,
+            //! which holds something else: see ftk::WindowHDR. The white
+            //! level is the luminance that white in the window stands for.
+            //! With any other transfer this is drawTexture().
+            TL_GPU_API void drawTextureHDR(
+                unsigned int,
+                const ftk::Box2I&,
+                bool flipV,
+                ftk::AlphaBlend,
+                HDR_EOTF,
+                float whiteNits);
 
             TL_GPU_API void setOCIOOptions(const OCIOOptions&) override;
             TL_GPU_API void setOCIOInputResolver(

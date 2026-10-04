@@ -10,6 +10,9 @@
 #include <ftk/GL/GL.h>
 #include <ftk/GL/OffscreenBuffer.h>
 #if defined(TLRENDER_GPU)
+#include <tlRender/GPU/Render.h>
+
+#include <ftk/UI/IWindow.h>
 #include <ftk/GPU/OffscreenBuffer.h>
 #include <ftk/GPU/Render.h>
 #include <ftk/GPU/System.h>
@@ -111,6 +114,8 @@ namespace tl
             std::shared_ptr<ftk::gpu::OffscreenBuffer> gpuBgBuffer;
             std::shared_ptr<ftk::gpu::OffscreenBuffer> gpuFgBuffer;
 #endif // TLRENDER_GPU
+            HDR_EOTF hdrTransfer = HDR_EOTF::SDR;
+            float hdrWhite = 203.F;
 
             struct SizeData
             {
@@ -356,6 +361,34 @@ namespace tl
         std::shared_ptr<ftk::IObservable<ftk::gl::TextureType> > Viewport::observeColorBuffer() const
         {
             return _p->colorBuffer;
+        }
+
+        HDR_EOTF Viewport::getHDRTransfer() const
+        {
+            return _p->hdrTransfer;
+        }
+
+        void Viewport::setHDRTransfer(HDR_EOTF value)
+        {
+            FTK_P();
+            if (value == p.hdrTransfer)
+                return;
+            p.hdrTransfer = value;
+            setDrawUpdate();
+        }
+
+        float Viewport::getHDRWhite() const
+        {
+            return _p->hdrWhite;
+        }
+
+        void Viewport::setHDRWhite(float value)
+        {
+            FTK_P();
+            if (value == p.hdrWhite)
+                return;
+            p.hdrWhite = value;
+            setDrawUpdate();
         }
 
         void Viewport::setColorBuffer(ftk::gl::TextureType value)
@@ -1354,12 +1387,39 @@ namespace tl
                 {
                     alphaBlend = p.imageOptions->getItem(0).alphaBlend;
                 }
-                render->drawTexture(
-                    p.gpuBuffer->getID(),
-                    g,
-                    true,
-                    ftk::Color4F(1.F, 1.F, 1.F),
-                    alphaBlend);
+                // A picture encoded for an HDR display is taken into what
+                // the window holds as it is drawn there, so that the buffer
+                // keeps the picture's own values for the color sample. The
+                // window says what its white is where the system says.
+                auto gpuVideoRender = std::dynamic_pointer_cast<gpu::Render>(event.render);
+                if (gpuVideoRender && HDR_EOTF::SDR != p.hdrTransfer)
+                {
+                    float whiteNits = p.hdrWhite;
+                    if (auto window = getWindow())
+                    {
+                        const ftk::WindowHDR hdr = window->getHDR();
+                        if (hdr.whiteNits > 0.F)
+                        {
+                            whiteNits = hdr.whiteNits;
+                        }
+                    }
+                    gpuVideoRender->drawTextureHDR(
+                        p.gpuBuffer->getID(),
+                        g,
+                        true,
+                        alphaBlend,
+                        p.hdrTransfer,
+                        whiteNits);
+                }
+                else
+                {
+                    render->drawTexture(
+                        p.gpuBuffer->getID(),
+                        g,
+                        true,
+                        ftk::Color4F(1.F, 1.F, 1.F),
+                        alphaBlend);
+                }
                 const auto& clippingWarning = p.fgOptions->get().clippingWarning;
                 if (clippingWarning.enabled)
                 {

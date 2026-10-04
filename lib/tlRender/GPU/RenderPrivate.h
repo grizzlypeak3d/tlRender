@@ -57,6 +57,7 @@ namespace tl
         ftk::gpu::ShaderSource clippingWarningFragmentSource();
         ftk::gpu::ShaderSource butterflyFragmentSource();
         ftk::gpu::ShaderSource differenceFragmentSource();
+        ftk::gpu::ShaderSource hdrFragmentSource();
 
         ///@}
 
@@ -104,6 +105,14 @@ namespace tl
             float low = 0.F;
             float high = 1.F;
             float pad = 0.F;
+        };
+
+        struct HDRUniforms
+        {
+            float color[4] = { 1.F, 1.F, 1.F, 1.F };
+            int32_t eotf = 0;
+            float whiteNits = 203.F;
+            float pad[2] = { 0.F, 0.F };
         };
 
         struct DifferenceUniforms

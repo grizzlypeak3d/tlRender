@@ -1137,5 +1137,42 @@ namespace tl
                     { { texture, p.baseRender->getSampler(ftk::ImageFilter::Linear) } });
             }
         }
+
+        void Render::drawTextureHDR(
+            unsigned int id,
+            const ftk::Box2I& rect,
+            bool flipV,
+            ftk::AlphaBlend alphaBlend,
+            HDR_EOTF eotf,
+            float whiteNits)
+        {
+            FTK_P();
+            SDL_GPUTexture* texture = p.system->getTexture(id);
+            if (HDR_EOTF::ST2084 != eotf || !texture || whiteNits <= 0.F)
+            {
+                drawTexture(id, rect, flipV, ftk::Color4F(1.F, 1.F, 1.F), alphaBlend);
+                return;
+            }
+            HDRUniforms uniforms;
+            uniforms.eotf = static_cast<int32_t>(eotf);
+            uniforms.whiteNits = whiteNits;
+            ftk::gpu::Blend blend = ftk::gpu::Blend::Default;
+            switch (alphaBlend)
+            {
+            case ftk::AlphaBlend::Straight: blend = ftk::gpu::Blend::Straight; break;
+            case ftk::AlphaBlend::Premultiplied: blend = ftk::gpu::Blend::Premultiplied; break;
+            default: break;
+            }
+            // The callers say whether to turn the texture over with
+            // OpenGL's buffers in mind; see drawClippingWarning().
+            p.baseRender->drawShader(
+                "tl:hdr",
+                blend,
+                ftk::mesh(rect, !flipV),
+                getTransform(),
+                &uniforms,
+                sizeof(uniforms),
+                { { texture, p.baseRender->getSampler(ftk::ImageFilter::Linear) } });
+        }
     }
 }

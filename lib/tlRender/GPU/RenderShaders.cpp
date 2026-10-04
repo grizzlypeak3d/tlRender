@@ -402,6 +402,70 @@ namespace tl
 
         namespace
         {
+            // A picture that is display encoded for an HDR display, into
+            // what a window holds: sRGB encoded, with one as white and more
+            // than one brighter by the same curve. The picture's code
+            // values are taken to light, to Rec. 709 -- where what is
+            // outside it is negative, and kept -- and divided by the
+            // luminance of white.
+            std::string hdrFragmentSourceMSL()
+            {
+                return header +
+                    "struct Uniforms\n"
+                    "{\n"
+                    "    float4 color;\n"
+                    "    int eotf;\n"
+                    "    float whiteNits;\n"
+                    "};\n"
+                    "\n"
+                    "// enum tl::HDR_EOTF\n"
+                    "constant int HDR_EOTF_ST2084 = 2;\n"
+                    "\n"
+                    "// SMPTE ST 2084, to nits.\n"
+                    "float3 fromPQ(float3 v)\n"
+                    "{\n"
+                    "    const float m1 = 0.1593017578125;\n"
+                    "    const float m2 = 78.84375;\n"
+                    "    const float c1 = 0.8359375;\n"
+                    "    const float c2 = 18.8515625;\n"
+                    "    const float c3 = 18.6875;\n"
+                    "    float3 p = pow(clamp(v, 0.0, 1.0), float3(1.0 / m2));\n"
+                    "    return 10000.0 * pow(max(p - c1, 0.0) / (c2 - c3 * p), float3(1.0 / m1));\n"
+                    "}\n"
+                    "\n"
+                    "// The sRGB curve, carried on past one and mirrored below zero.\n"
+                    "float3 fromLinear(float3 v)\n"
+                    "{\n"
+                    "    float3 a = abs(v);\n"
+                    "    float3 lo = a * 12.92;\n"
+                    "    float3 hi = 1.055 * pow(a, float3(1.0 / 2.4)) - 0.055;\n"
+                    "    return sign(v) * select(hi, lo, a <= float3(0.0031308));\n"
+                    "}\n"
+                    "\n"
+                    "fragment float4 fragmentMain(\n"
+                    "    VertexOut in [[stage_in]],\n"
+                    "    constant Uniforms& u [[buffer(0)]],\n"
+                    "    texture2d<float> t0 [[texture(0)]],\n"
+                    "    sampler s0 [[sampler(0)]])\n"
+                    "{\n"
+                    "    float4 c = t0.sample(s0, in.uv);\n"
+                    "    if (HDR_EOTF_ST2084 == u.eotf)\n"
+                    "    {\n"
+                    "        // Rec. 2020 primaries to Rec. 709, by row.\n"
+                    "        float3 l = fromPQ(c.rgb) / u.whiteNits;\n"
+                    "        float3 r709 = float3(\n"
+                    "            dot(l, float3(1.660491, -0.587641, -0.072850)),\n"
+                    "            dot(l, float3(-0.124550, 1.132900, -0.008349)),\n"
+                    "            dot(l, float3(-0.018151, -0.100579, 1.118730)));\n"
+                    "        c.rgb = fromLinear(r709);\n"
+                    "    }\n"
+                    "    return c * u.color;\n"
+                    "}\n";
+            }
+        }
+
+        namespace
+        {
             const std::string headerGLSL =
                 "#version 450\n"
                 "\n"
@@ -758,6 +822,67 @@ namespace tl
                     "    outColor.a = max(c.a, cB.a);\n"
                     "}\n";
             }
+        }
+
+        namespace
+        {
+            std::string hdrFragmentSourceGLSL()
+            {
+                return headerGLSL +
+                    "layout(set = 2, binding = 0) uniform sampler2D s0;\n"
+                    "\n"
+                    "layout(set = 3, binding = 0) uniform Uniforms\n"
+                    "{\n"
+                    "    vec4 color;\n"
+                    "    int eotf;\n"
+                    "    float whiteNits;\n"
+                    "} u;\n"
+                    "\n"
+                    "// enum tl::HDR_EOTF\n"
+                    "const int HDR_EOTF_ST2084 = 2;\n"
+                    "\n"
+                    "// SMPTE ST 2084, to nits.\n"
+                    "vec3 fromPQ(vec3 v)\n"
+                    "{\n"
+                    "    const float m1 = 0.1593017578125;\n"
+                    "    const float m2 = 78.84375;\n"
+                    "    const float c1 = 0.8359375;\n"
+                    "    const float c2 = 18.8515625;\n"
+                    "    const float c3 = 18.6875;\n"
+                    "    vec3 p = pow(clamp(v, 0.0, 1.0), vec3(1.0 / m2));\n"
+                    "    return 10000.0 * pow(max(p - c1, 0.0) / (c2 - c3 * p), vec3(1.0 / m1));\n"
+                    "}\n"
+                    "\n"
+                    "// The sRGB curve, carried on past one and mirrored below zero.\n"
+                    "vec3 fromLinear(vec3 v)\n"
+                    "{\n"
+                    "    vec3 a = abs(v);\n"
+                    "    vec3 lo = a * 12.92;\n"
+                    "    vec3 hi = 1.055 * pow(a, vec3(1.0 / 2.4)) - 0.055;\n"
+                    "    return sign(v) * mix(hi, lo, lessThanEqual(a, vec3(0.0031308)));\n"
+                    "}\n"
+                    "\n"
+                    "void main()\n"
+                    "{\n"
+                    "    vec4 c = texture(s0, fTexture);\n"
+                    "    if (HDR_EOTF_ST2084 == u.eotf)\n"
+                    "    {\n"
+                    "        // Rec. 2020 primaries to Rec. 709, by row.\n"
+                    "        vec3 l = fromPQ(c.rgb) / u.whiteNits;\n"
+                    "        vec3 r709 = vec3(\n"
+                    "            dot(l, vec3(1.660491, -0.587641, -0.072850)),\n"
+                    "            dot(l, vec3(-0.124550, 1.132900, -0.008349)),\n"
+                    "            dot(l, vec3(-0.018151, -0.100579, 1.118730)));\n"
+                    "        c.rgb = fromLinear(r709);\n"
+                    "    }\n"
+                    "    outColor = c * u.color;\n"
+                    "}\n";
+            }
+        }
+
+        ftk::gpu::ShaderSource hdrFragmentSource()
+        {
+            return { hdrFragmentSourceMSL(), hdrFragmentSourceGLSL() };
         }
 
         ftk::gpu::ShaderSource textureFragmentSource()

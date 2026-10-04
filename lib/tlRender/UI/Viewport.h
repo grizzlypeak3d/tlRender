@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include <tlRender/Core/HDR.h>
 #include <tlRender/UI/Export.h>
 #include <tlRender/Timeline/BackgroundOptions.h>
 #include <tlRender/Timeline/ColorOptions.h>
@@ -111,6 +112,25 @@ namespace tl
             TL_UI_API ftk::gl::TextureType getColorBuffer() const;
             TL_UI_API std::shared_ptr<ftk::IObservable<ftk::gl::TextureType> > observeColorBuffer() const;
             TL_UI_API void setColorBuffer(ftk::gl::TextureType);
+
+            //! Get what the picture is display encoded for.
+            TL_UI_API HDR_EOTF getHDRTransfer() const;
+
+            //! Set what the picture is display encoded for: SDR, or PQ
+            //! with Rec. 2020 primaries, which is what an OpenColorIO
+            //! display for HDR gives. Nothing says so but the person who
+            //! chose the display, so it is said here. It is drawn as HDR
+            //! where the window is HDR, which only the GPU renderer's are.
+            TL_UI_API void setHDRTransfer(HDR_EOTF);
+
+            //! Get the luminance that white in the window stands for.
+            TL_UI_API float getHDRWhite() const;
+
+            //! Set the luminance, in nits, that white in the window stands
+            //! for when an HDR picture is drawn into it, where the window
+            //! does not say: a picture's 203 nits, the reference white for
+            //! HDR, is then as bright as the user interface's white.
+            TL_UI_API void setHDRWhite(float);
 
             ///@}
 

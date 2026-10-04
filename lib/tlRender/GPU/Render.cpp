@@ -536,6 +536,7 @@ namespace tl
             p.baseRender->setShader("tl:clippingWarning", clippingWarningFragmentSource(), 1);
             p.baseRender->setShader("tl:butterfly", butterflyFragmentSource(), 2);
             p.baseRender->setShader("tl:difference", differenceFragmentSource(), 2);
+            p.baseRender->setShader("tl:hdr", hdrFragmentSource(), 1);
 #if defined(TLRENDER_OCIO)
             p.ocioKey = ocioOptionsKey(p.ocioOptions);
             p.ocioKeys.push_front(p.ocioKey);
