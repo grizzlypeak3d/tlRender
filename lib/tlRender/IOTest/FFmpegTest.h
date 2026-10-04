@@ -26,6 +26,7 @@ namespace tl
             void _findCommand();
             void _writeType();
             void _conversionDepth();
+            void _conversionRead();
             void _commandLine();
             void _commandMissing();
             void _gif();
