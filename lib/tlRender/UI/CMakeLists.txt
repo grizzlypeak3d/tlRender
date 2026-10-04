@@ -49,6 +49,9 @@ target_include_directories(tlUI
         $<INSTALL_INTERFACE:include>)
 
 target_link_libraries(tlUI PUBLIC tlGL ftk::ftkUI)
+if(TARGET tlGPU)
+    target_link_libraries(tlUI PUBLIC tlGPU)
+endif()
 
 set_target_properties(tlUI PROPERTIES FOLDER lib)
 set_target_properties(tlUI PROPERTIES PUBLIC_HEADER "${HEADERS}")

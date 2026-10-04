@@ -59,9 +59,9 @@ set(TLRENDER_FTK_PACKAGE OFF CACHE BOOL "Use an installed feather-tk rather than
 set(TLRENDER_FFMPEG_PREFIX "${CMAKE_INSTALL_PREFIX}" CACHE PATH "FFmpeg install prefix")
 set(TLRENDER_PROGRAMS ON CACHE BOOL "Build programs")
 set(TLRENDER_EXAMPLES ON CACHE BOOL "Build examples")
-# A spike: OpenColorIO's shaders through SDL's GPU API. See
-# tests/tl-gpu-ocio-test.
-set(TLRENDER_GPU OFF CACHE BOOL "Build the SDL GPU tests (experimental)")
+# A spike: a timeline renderer on SDL's GPU API beside the OpenGL one, used
+# when FTK_RENDER is "gpu". It is built on ftk's, so it wants ftk_GPU.
+set(TLRENDER_GPU OFF CACHE BOOL "Enable the SDL GPU renderer (experimental; needs ftk_GPU)")
 set(TLRENDER_TESTS ON CACHE BOOL "Build tests")
 set(TLRENDER_TESTS_NO_GL OFF CACHE BOOL "Run only the tests that do not need OpenGL")
 if(APPLE)
@@ -384,6 +384,9 @@ else()
     add_library(ftk::ftkGL ALIAS ftkGL)
     add_library(ftk::ftkUI ALIAS ftkUI)
     add_library(ftk::ftkTestLib ALIAS ftkTestLib)
+    if(TARGET ftkGPU)
+        add_library(ftk::ftkGPU ALIAS ftkGPU)
+    endif()
 endif()
 
 #-------------------------------------------------------------------------------

@@ -1,5 +1,8 @@
 add_subdirectory(Core)
 add_subdirectory(GL)
+if(TLRENDER_GPU AND TARGET ftk::ftkGPU)
+    add_subdirectory(GPU)
+endif()
 add_subdirectory(IO)
 add_subdirectory(Resource)
 add_subdirectory(Timeline)

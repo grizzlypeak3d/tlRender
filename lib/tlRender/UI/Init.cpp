@@ -7,6 +7,10 @@
 #include <tlRender/UI/ThumbnailSystem.h>
 
 #include <tlRender/GL/Render.h>
+#if defined(TLRENDER_GPU)
+#include <tlRender/GPU/Render.h>
+#include <ftk/GPU/System.h>
+#endif // TLRENDER_GPU
 
 #include <tlRender/Timeline/Init.h>
 
@@ -27,6 +31,12 @@ namespace tl
             ftk::uiInit(context);
             tl::init(context);
             context->getSystem<ftk::gl::System>()->setRenderFactory(std::make_shared<gl::RenderFactory>());
+#if defined(TLRENDER_GPU)
+            if (auto gpuSystem = context->getSystem<ftk::gpu::System>())
+            {
+                gpuSystem->setRenderFactory(std::make_shared<gpu::RenderFactory>(gpuSystem));
+            }
+#endif // TLRENDER_GPU
             ThumbnailSystem::create(context);
 
             // The file browser draws thumbnails of whatever it is handed the

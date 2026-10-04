@@ -316,6 +316,7 @@ namespace tl
             ftk::V2I _getViewportCenter() const;
             void _frameView();
             void _drawMissingIndicators(const ftk::DrawEvent&);
+            void _drawGPU(const ftk::DrawEvent&);
             bool _getSourceBox(ftk::Box2I&, ftk::Size2I&) const;
             std::optional<ftk::V2I> _toSourcePixel(const ftk::V2I&) const;
             ftk::V2I _fromSourcePixel(const ftk::V2I&) const;

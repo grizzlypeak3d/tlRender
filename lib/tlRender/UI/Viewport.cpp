@@ -9,6 +9,11 @@
 #include <ftk/GL/Init.h>
 #include <ftk/GL/GL.h>
 #include <ftk/GL/OffscreenBuffer.h>
+#if defined(TLRENDER_GPU)
+#include <ftk/GPU/OffscreenBuffer.h>
+#include <ftk/GPU/Render.h>
+#include <ftk/GPU/System.h>
+#endif // TLRENDER_GPU
 #include <ftk/GL/Util.h>
 #include <ftk/Core/Context.h>
 #include <ftk/Core/LogSystem.h>
@@ -99,6 +104,13 @@ namespace tl
             std::shared_ptr<ftk::gl::OffscreenBuffer> buffer;
             std::shared_ptr<ftk::gl::OffscreenBuffer> bgBuffer;
             std::shared_ptr<ftk::gl::OffscreenBuffer> fgBuffer;
+#if defined(TLRENDER_GPU)
+            // What the buffers above are when the window is drawn with the
+            // GPU renderer.
+            std::shared_ptr<ftk::gpu::OffscreenBuffer> gpuBuffer;
+            std::shared_ptr<ftk::gpu::OffscreenBuffer> gpuBgBuffer;
+            std::shared_ptr<ftk::gpu::OffscreenBuffer> gpuFgBuffer;
+#endif // TLRENDER_GPU
 
             struct SizeData
             {
@@ -661,6 +673,21 @@ namespace tl
         {
             FTK_P();
             ftk::Color4F out;
+#if defined(TLRENDER_GPU)
+            if (p.gpuBuffer)
+            {
+                const auto clean = [](float value)
+                {
+                    return std::isnan(value) || std::isinf(value) ? 0.F : value;
+                };
+                const ftk::Color4F sample = p.gpuBuffer->getPixel(value);
+                return ftk::Color4F(
+                    clean(sample.r),
+                    clean(sample.g),
+                    clean(sample.b),
+                    clean(sample.a));
+            }
+#endif // TLRENDER_GPU
             if (p.buffer)
             {
                 const ftk::Box2I& g = getGeometry();
@@ -949,6 +976,14 @@ namespace tl
                 _frameView();
             }
 
+#if defined(TLRENDER_GPU)
+            if (ftk::gpu::getRender(event.render))
+            {
+                _drawGPU(event);
+                return;
+            }
+#endif // TLRENDER_GPU
+
             auto render = std::dynamic_pointer_cast<IRender>(event.render);
             const ftk::Box2I& g = getGeometry();
             render->drawRect(g, ftk::Color4F(0.F, 0.F, 0.F));
@@ -1161,6 +1196,198 @@ namespace tl
                 p.resample = Private::Resample::Read;
             }
         }
+
+#if defined(TLRENDER_GPU)
+        namespace
+        {
+            class TargetScope
+            {
+            public:
+                TargetScope(
+                    const std::shared_ptr<ftk::gpu::Render>& render,
+                    const std::shared_ptr<ftk::gpu::OffscreenBuffer>& buffer) :
+                    _render(render)
+                {
+                    _render->pushTarget(buffer);
+                }
+
+                ~TargetScope()
+                {
+                    _render->popTarget();
+                }
+
+            private:
+                std::shared_ptr<ftk::gpu::Render> _render;
+            };
+        }
+
+        // What drawEvent() does, with the GPU renderer. The buffers are
+        // not bound, they are said: the renderer draws into one for as long
+        // as a scope lasts. And their first row is the top one, so nothing
+        // is turned over on the way to the window; the callers below still
+        // say "mirror", which the renderer takes with OpenGL in mind.
+        void Viewport::_drawGPU(const ftk::DrawEvent& event)
+        {
+            FTK_P();
+            auto render = std::dynamic_pointer_cast<IRender>(event.render);
+            auto gpuRender = ftk::gpu::getRender(event.render);
+            const ftk::Box2I& g = getGeometry();
+            render->drawRect(g, ftk::Color4F(0.F, 0.F, 0.F));
+
+            const auto& bgOptions = p.bgOptions->get();
+            const auto& compareOptions = p.compareOptions->get();
+            const auto& displayOptions = p.displayOptions->get();
+            const auto boxes = getBoxes(
+                compareOptions,
+                !displayOptions.empty() ? displayOptions.front().aspectRatio : AspectRatioOptions(),
+                p.videoFrame);
+            const ftk::V2I& viewPos = p.viewPos->get();
+            const double zoom = p.zoom->get();
+            const ftk::M44F vm =
+                ftk::translate(ftk::V3F(viewPos.x, viewPos.y, 0.F)) *
+                ftk::scale(ftk::V3F(zoom, zoom, 1.F));
+
+            if (p.doRender)
+            {
+                p.doRender = false;
+                try
+                {
+                    const ftk::Size2I size = g.size();
+                    const auto system = gpuRender->getSystem();
+                    const auto& fgOptions = p.fgOptions->get();
+                    const auto update = [&system, &size](
+                        std::shared_ptr<ftk::gpu::OffscreenBuffer>& buffer,
+                        ftk::gpu::BufferType type,
+                        bool wanted)
+                    {
+                        if (!wanted || !size.isValid())
+                        {
+                            buffer.reset();
+                        }
+                        else if (!buffer || buffer->getSize() != size || buffer->getType() != type)
+                        {
+                            buffer = ftk::gpu::OffscreenBuffer::create(system, size, type);
+                        }
+                    };
+                    update(
+                        p.gpuBgBuffer,
+                        ftk::gpu::BufferType::RGBA_U8,
+                        bgOptions.type != tl::Background::Solid || bgOptions.outline.enabled);
+                    update(
+                        p.gpuFgBuffer,
+                        ftk::gpu::BufferType::RGBA_U8,
+                        fgOptions.grid.enabled || fgOptions.centerMarker.enabled);
+                    ftk::gpu::BufferType bufferType = ftk::gpu::BufferType::RGBA_F16;
+                    switch (p.colorBuffer->get())
+                    {
+                    case ftk::gl::TextureType::RGBA_U8: bufferType = ftk::gpu::BufferType::RGBA_U8; break;
+                    case ftk::gl::TextureType::RGBA_F32: bufferType = ftk::gpu::BufferType::RGBA_F32; break;
+                    default: break;
+                    }
+                    update(p.gpuBuffer, bufferType, true);
+
+                    const auto pm = ftk::ortho(
+                        0.F,
+                        static_cast<float>(g.w()),
+                        static_cast<float>(g.h()),
+                        0.F,
+                        -1.F,
+                        1.F);
+
+                    const ftk::TransformState transformState(render);
+                    const ftk::RenderSizeState renderSizeState(render);
+                    render->setRenderSize(size);
+
+                    if (p.gpuBuffer)
+                    {
+                        TargetScope scope(gpuRender, p.gpuBuffer);
+                        render->setOCIOOptions(p.ocioOptions->get());
+                        render->setOCIOInputResolver(p.ocioInputResolver);
+                        render->setLUTOptions(p.lutOptions->get());
+                        render->setTransform(pm * vm);
+                        render->drawVideo(
+                            p.videoFrame,
+                            boxes,
+                            p.imageOptions->get(),
+                            p.displayOptions->get(),
+                            compareOptions,
+                            p.colorBuffer->get());
+                    }
+                    if (p.gpuBgBuffer)
+                    {
+                        TargetScope scope(gpuRender, p.gpuBgBuffer);
+                        render->setTransform(pm);
+                        render->drawBackground(boxes, vm, bgOptions, compareOptions);
+                    }
+                    if (p.gpuFgBuffer)
+                    {
+                        TargetScope scope(gpuRender, p.gpuFgBuffer);
+                        render->setTransform(pm);
+                        ForegroundOptions fgOptionsTmp = fgOptions;
+                        fgOptionsTmp.grid.fontInfo.size *= p.size.displayScale;
+                        fgOptionsTmp.grid.textMargin *= p.size.displayScale;
+                        render->drawForeground(boxes, vm, fgOptionsTmp, compareOptions);
+                    }
+                }
+                catch (const std::exception& e)
+                {
+                    if (auto context = getContext())
+                    {
+                        context->log("tl::ui::Viewport", e.what(), ftk::LogType::Error);
+                    }
+                }
+            }
+
+            if (p.gpuBgBuffer)
+            {
+                render->drawTexture(p.gpuBgBuffer->getID(), g, true);
+            }
+            else if (tl::Background::Solid == bgOptions.type)
+            {
+                render->drawRect(g, bgOptions.solidColor);
+            }
+            if (p.gpuBuffer)
+            {
+                ftk::AlphaBlend alphaBlend = ftk::AlphaBlend::Straight;
+                if (!p.imageOptions->isEmpty() &&
+                    p.imageOptions->getItem(0).alphaBlend != ftk::AlphaBlend::None)
+                {
+                    alphaBlend = p.imageOptions->getItem(0).alphaBlend;
+                }
+                render->drawTexture(
+                    p.gpuBuffer->getID(),
+                    g,
+                    true,
+                    ftk::Color4F(1.F, 1.F, 1.F),
+                    alphaBlend);
+                const auto& clippingWarning = p.fgOptions->get().clippingWarning;
+                if (clippingWarning.enabled)
+                {
+                    render->drawClippingWarning(
+                        p.gpuBuffer->getID(),
+                        g,
+                        true,
+                        boxes,
+                        vm,
+                        clippingWarning);
+                }
+            }
+            if (p.gpuFgBuffer)
+            {
+                render->drawTexture(p.gpuFgBuffer->getID(), g, true);
+            }
+
+            _drawMissingIndicators(event);
+
+            if (Private::Resample::Wait == p.resample)
+            {
+                p.resample = Private::Resample::Read;
+            }
+        }
+#else // TLRENDER_GPU
+        void Viewport::_drawGPU(const ftk::DrawEvent&)
+        {}
+#endif // TLRENDER_GPU
 
         void Viewport::_drawMissingIndicators(const ftk::DrawEvent& event)
         {
