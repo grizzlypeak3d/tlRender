@@ -1380,6 +1380,44 @@ namespace tl
                     AVCOL_SPC_RGB :
                     frame->colorspace;
                 sws_scale_frame(_swsContext, _avFrame2, frame);
+
+                // The scaler takes YUV to sixteen bit RGB with white at
+                // 65280, 255 shifted up, where white is 65535: a ten bit or
+                // deeper picture was read 0.39% low when the conversion was
+                // done here, which is when it is asked for and whenever the
+                // picture has alpha. And it widens alpha by shifting, so
+                // opaque in ten bits was 65472. Both are brought up to
+                // where they belong; see also the writer, which has the
+                // same to undo on the way out.
+                const AVPixFmtDescriptor* frameDesc = av_pix_fmt_desc_get(frameFormat);
+                if (frameDesc &&
+                    !(frameDesc->flags & AV_PIX_FMT_FLAG_RGB) &&
+                    frameDesc->nb_components >= 3 &&
+                    (AV_PIX_FMT_RGB48 == _avOutputPixelFormat ||
+                        AV_PIX_FMT_RGBA64 == _avOutputPixelFormat))
+                {
+                    const bool alpha = AV_PIX_FMT_RGBA64 == _avOutputPixelFormat;
+                    const size_t channels = alpha ? 4 : 3;
+                    const int depth = frameDesc->comp[0].depth;
+                    const uint32_t alphaMax = depth < 16 ?
+                        (((1U << depth) - 1U) << (16 - depth)) :
+                        65535U;
+                    uint16_t* p = reinterpret_cast<uint16_t*>(data);
+                    const size_t count = w * h;
+                    for (size_t i = 0; i < count; ++i, p += channels)
+                    {
+                        for (size_t c = 0; c < 3; ++c)
+                        {
+                            const uint32_t v = (p[c] * 65535U + 32640U) / 65280U;
+                            p[c] = static_cast<uint16_t>(std::min(v, 65535U));
+                        }
+                        if (alpha && alphaMax < 65535U)
+                        {
+                            const uint32_t v = (p[3] * 65535U + alphaMax / 2U) / alphaMax;
+                            p[3] = static_cast<uint16_t>(std::min(v, 65535U));
+                        }
+                    }
+                }
             }
         }
     }

@@ -56,6 +56,103 @@ namespace tl
             _conversionEdges();
             _writeType();
             _conversionDepth();
+            _conversionRead();
+        }
+
+        void FFmpegTest::_conversionRead()
+        {
+            // YUV deeper than eight bits is read as sixteen bit RGB at the
+            // level it was written at, where the reader converts it: asked
+            // to, or because the picture has alpha, which there are no
+            // planes for. The scaler puts sixteen bit white at 65280, so
+            // such a picture was read 0.39% low. Written from eight bit
+            // RGB, which the scaler takes exactly, so what is off is the
+            // reading.
+            auto writePlugin = _context->getSystem<WriteSystem>()->getPlugin<ffmpeg::WritePlugin>();
+            const auto& codecs = writePlugin->getCodecs();
+            if (std::find(codecs.begin(), codecs.end(), "ffv1") == codecs.end())
+            {
+                _print("Skipped: no FFV1 encoder");
+                return;
+            }
+            const ftk::Size2I size(256, 16);
+            const ftk::ImageInfo imageInfo(size, ftk::ImageType::RGBA_U8);
+            auto image = ftk::Image::create(imageInfo);
+            for (int y = 0; y < size.h; ++y)
+            {
+                for (int x = 0; x < size.w; ++x)
+                {
+                    uint8_t* p = image->getData() + (static_cast<size_t>(y) * size.w + x) * 4;
+                    p[0] = p[1] = p[2] = static_cast<uint8_t>(x);
+                    p[3] = 255;
+                }
+            }
+            IOInfo info;
+            info.video.push_back(imageInfo);
+            info.videoTime = OTIO_NS::TimeRange(
+                OTIO_NS::RationalTime(0.0, 24.0),
+                OTIO_NS::RationalTime(1.0, 24.0));
+            for (const std::string pixelFormat :
+                {
+                    "yuv444p10le",
+                    "yuv444p16le",
+                    "yuv422p10le",
+                    "yuva444p10le",
+                    "yuva444p16le"
+                })
+            {
+                const ftk::Path path(ftk::fromFileSystem(
+                    _getTempDir() / ("FFmpegConversionReadTest-" + pixelFormat + ".mov")));
+                {
+                    IOOptions options;
+                    options["FFmpeg/Codec"] = "ffv1";
+                    options["FFmpeg/PixelFormat"] = pixelFormat;
+                    auto write = writePlugin->write(path, info, options);
+                    write->writeVideo(OTIO_NS::RationalTime(0.0, 24.0), image);
+                    write->finish();
+                }
+                IOOptions options;
+                options["FFmpeg/YUVToRGB"] = "1";
+                auto readPlugin = _context->getSystem<ReadSystem>()->getPlugin(path);
+                auto read = readPlugin->videoRead(path, options);
+                FTK_CHECK(read);
+                const auto data = read->readVideo(OTIO_NS::RationalTime(0.0, 24.0)).get();
+                FTK_CHECK(data.image);
+                if (!data.image)
+                {
+                    continue;
+                }
+                const auto& outInfo = data.image->getInfo();
+                FTK_CHECK(16 == ftk::getBitDepth(outInfo.type));
+                const int channels = ftk::getChannelCount(outInfo.type);
+                const uint16_t* p = reinterpret_cast<const uint16_t*>(data.image->getData());
+                const auto px = [&](int x, int c)
+                {
+                    return static_cast<int>(
+                        p[(static_cast<size_t>(size.h / 2) * size.w + x) * channels + c]);
+                };
+                _print(ftk::Format("{0}: {1}, grey at 16, 128, 235, 255 of 255: {2} {3} {4} {5}").
+                    arg(pixelFormat).
+                    arg(outInfo.type).
+                    arg(px(16, 1)).arg(px(128, 1)).arg(px(235, 1)).arg(px(255, 1)));
+                // Within a ten bit level, which is 75, of what was written.
+                int max = 0;
+                for (int x = 0; x < size.w; ++x)
+                {
+                    for (int c = 0; c < 3; ++c)
+                    {
+                        max = std::max(max, std::abs(px(x, c) - x * 257));
+                    }
+                }
+                FTK_CHECK(max <= 80);
+                if (4 == channels)
+                {
+                    // Opaque is opaque, to within what eight bits of it
+                    // come to in sixteen.
+                    _print(ftk::Format("{0}: alpha {1}").arg(pixelFormat).arg(px(128, 3)));
+                    FTK_CHECK(px(128, 3) >= 65530);
+                }
+            }
         }
 
         void FFmpegTest::_conversionDepth()
