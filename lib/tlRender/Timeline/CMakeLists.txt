@@ -22,6 +22,7 @@ set(HEADERS
     Video.h)
 set(PRIVATE_HEADERS
     PlayerPrivate.h
+    RenderPrivate.h
     TimelinePrivate.h
     ZipPrivate.h)
 
@@ -39,6 +40,7 @@ set(SOURCE
     PlayerAudio.cpp
     PlayerOptions.cpp
     PlayerPrivate.cpp
+    RenderPrivate.cpp
     System.cpp
     TimeUnits.cpp
     Timeline.cpp

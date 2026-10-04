@@ -5,6 +5,8 @@
 
 #include <tlRender/GPU/Render.h>
 
+#include <tlRender/Timeline/RenderPrivate.h>
+
 #include <ftk/GPU/OffscreenBuffer.h>
 #include <ftk/GPU/System.h>
 

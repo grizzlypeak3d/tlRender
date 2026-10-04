@@ -15,6 +15,8 @@
 #include <ftk/GL/Texture.h>
 #include <ftk/Core/IRender.h>
 
+#include <functional>
+
 namespace tl
 {
     //! Base class for renderers.
@@ -73,5 +75,30 @@ namespace tl
             const std::vector<ftk::Box2I>& boxes,
             const ftk::M44F& vm,
             const ClippingWarning&) = 0;
+
+    protected:
+        //! \name Shared drawing
+        //! The background and the foreground are the same drawing whatever
+        //! a renderer draws with, since they are drawn through ftk::IRender:
+        //! a renderer's drawBackground() and drawForeground() are these.
+        //! What is given as the blending is done before each part that is
+        //! blended, which only OpenGL has anything to do about.
+        ///@{
+
+        TL_TIMELINE_API void _drawBackground(
+            const std::vector<ftk::Box2I>&,
+            const ftk::M44F& vm,
+            const BackgroundOptions&,
+            const CompareOptions&,
+            const std::function<void()>& blend = nullptr);
+
+        TL_TIMELINE_API void _drawForeground(
+            const std::vector<ftk::Box2I>&,
+            const ftk::M44F& vm,
+            const ForegroundOptions&,
+            const CompareOptions&,
+            const std::function<void()>& blend = nullptr);
+
+        ///@}
     };
 }

@@ -230,175 +230,25 @@ namespace tl
                 }
             }
 
-            // The configuration the options name, read once. Reading one
-            // parses a whole YAML document -- the built in configuration
-            // included -- and OCIO keeps its processor cache on the object,
-            // so building a second one throws that away as well.
-            //
-            // A configuration that comes from a file is remembered with
-            // that file's size and write time, so editing it is still
-            // picked up.
-            struct OCIOConfigKey
-            {
-                OCIOConfig  kind = OCIOConfig::BuiltIn;
-                std::string fileName;
-                uintmax_t   size = 0;
-                int64_t     time = 0;
-
-                bool operator == (const OCIOConfigKey&) const = default;
-            };
-
-            OCIO::ConstConfigRcPtr ocioConfig(const OCIOOptions& options)
-            {
-                OCIOConfigKey key;
-                key.kind = options.config;
-                switch (options.config)
-                {
-                case OCIOConfig::EnvVar:
-                    if (const char* env = std::getenv("OCIO"))
-                    {
-                        key.fileName = env;
-                    }
-                    break;
-                case OCIOConfig::File:
-                    key.fileName = options.fileName;
-                    break;
-                default: break;
-                }
-                if (!key.fileName.empty())
-                {
-                    std::error_code ec;
-                    const std::filesystem::path path(key.fileName);
-                    const auto size = std::filesystem::file_size(path, ec);
-                    if (!ec)
-                    {
-                        key.size = size;
-                    }
-                    const auto time = std::filesystem::last_write_time(path, ec);
-                    if (!ec)
-                    {
-                        key.time = time.time_since_epoch().count();
-                    }
-                }
-
-                // Most recently used first, and bounded: what is in play is
-                // the configuration the viewport draws through and whatever
-                // the timeline items use.
-                static std::mutex mutex;
-                static std::list<
-                    std::pair<OCIOConfigKey, OCIO::ConstConfigRcPtr> > cache;
-                std::unique_lock<std::mutex> lock(mutex);
-                for (auto i = cache.begin(); i != cache.end(); ++i)
-                {
-                    if (i->first == key)
-                    {
-                        cache.splice(cache.begin(), cache, i);
-                        return cache.front().second;
-                    }
-                }
-
-                OCIO::ConstConfigRcPtr out;
-                switch (options.config)
-                {
-                case OCIOConfig::BuiltIn:
-                    out = OCIO::Config::CreateFromFile("ocio://default");
-                    break;
-                case OCIOConfig::EnvVar:
-                    if (hasOCIOEnvVar())
-                    {
-                        out = OCIO::Config::CreateFromEnv();
-                    }
-                    break;
-                case OCIOConfig::File:
-                    if (!options.fileName.empty())
-                    {
-                        out = OCIO::Config::CreateFromFile(options.fileName.c_str());
-                    }
-                    break;
-                default: break;
-                }
-                if (out)
-                {
-                    cache.push_front(std::make_pair(key, out));
-                    while (cache.size() > 4)
-                    {
-                        cache.pop_back();
-                    }
-                }
-                return out;
-            }
-
-            // What the data and shaders built from a set of options are
-            // keyed by, so that two sets can be held at once.
-            std::string ocioOptionsKey(const OCIOOptions& options)
-            {
-                return
-                    std::string(options.enabled ? "1" : "0") + '\n' +
-                    std::to_string(static_cast<int>(options.config)) + '\n' +
-                    options.fileName + '\n' +
-                    options.input + '\n' +
-                    options.display + '\n' +
-                    options.view + '\n' +
-                    options.look;
-            }
-
-            // Load the configuration and build the two stages. The color
-            // corrections apply between the halves of the transform when
-            // the configuration names a scene linear role, so they operate
-            // on linear values (#328); without the role the display stage
-            // carries the whole transform and the corrections stay ahead
-            // of it.
+            // Build the two stages from the configuration's processors.
             void ocioDataInit(OCIOData& data, const OCIOOptions& options)
             {
-                data.config = ocioConfig(options);
-                if (!data.config)
+                // The processors are the same whatever draws with them; see
+                // getOCIOProcessors(). What is made of them here is a
+                // shader function and its textures.
+                const OCIOProcessors processors = getOCIOProcessors(options);
+                data.config = processors.config;
+                data.transform = processors.transform;
+                data.lvp = processors.lvp;
+                if (processors.toLinear)
                 {
-                    throw std::runtime_error("Cannot get OCIO configuration");
-                }
-
-                std::string displaySrc = options.input;
-                if (data.config->hasRole(OCIO::ROLE_SCENE_LINEAR))
-                {
-                    data.toLinear.processor =
-                        data.config->getProcessor(
-                            options.input.c_str(),
-                            OCIO::ROLE_SCENE_LINEAR);
-                    if (!data.toLinear.processor)
-                    {
-                        throw std::runtime_error("Cannot get OCIO processor");
-                    }
+                    data.toLinear.processor = processors.toLinear;
                     ocioStageInit(
                         data.toLinear,
                         "ocioToLinearFunc",
                         "ocioToLinear");
-                    displaySrc = OCIO::ROLE_SCENE_LINEAR;
                 }
-
-                data.transform = OCIO::DisplayViewTransform::Create();
-                if (!data.transform)
-                {
-                    throw std::runtime_error("Cannot create OCIO transform");
-                }
-                data.transform->setSrc(displaySrc.c_str());
-                data.transform->setDisplay(options.display.c_str());
-                data.transform->setView(options.view.c_str());
-
-                data.lvp = OCIO::LegacyViewingPipeline::Create();
-                if (!data.lvp)
-                {
-                    throw std::runtime_error("Cannot create OCIO viewing pipeline");
-                }
-                data.lvp->setDisplayViewTransform(data.transform);
-                data.lvp->setLooksOverrideEnabled(true);
-                data.lvp->setLooksOverride(options.look.c_str());
-
-                data.display.processor = data.lvp->getProcessor(
-                    data.config,
-                    data.config->getCurrentContext());
-                if (!data.display.processor)
-                {
-                    throw std::runtime_error("Cannot get OCIO processor");
-                }
+                data.display.processor = processors.display;
                 ocioStageInit(data.display, "ocioFunc", "ocio");
             }
         }
@@ -415,7 +265,7 @@ namespace tl
             // The key for the options as they start out, so that anything
             // drawn before the first setOCIOOptions() is keyed the same way
             // as it would be after being set to the same value.
-            p.ocioKey = ocioOptionsKey(p.ocioOptions);
+            p.ocioKey = getOCIOOptionsKey(p.ocioOptions);
             p.ocioKeys.push_front(p.ocioKey);
 #endif // TLRENDER_OCIO
         }
@@ -511,7 +361,7 @@ namespace tl
             // Switch to this set of options rather than throwing away what
             // the last set built: the viewport and the timeline items pass
             // different options every frame, so the two alternate.
-            p.ocioKey = ocioOptionsKey(p.ocioOptions);
+            p.ocioKey = getOCIOOptionsKey(p.ocioOptions);
             auto i = std::find(p.ocioKeys.begin(), p.ocioKeys.end(), p.ocioKey);
             if (i != p.ocioKeys.end())
             {
@@ -593,29 +443,10 @@ namespace tl
                 {
                     auto lutData = std::make_unique<OCIOLUTData>();
 
-                    lutData->config = OCIO::Config::CreateRaw();
-                    if (!lutData->config)
-                    {
-                        throw std::runtime_error("Cannot create OCIO configuration");
-                    }
-
-                    lutData->transform = OCIO::FileTransform::Create();
-                    if (!lutData->transform)
-                    {
-                        throw std::runtime_error("Cannot create OCIO transform");
-                    }
-                    lutData->transform->setSrc(p.lutOptions.fileName.c_str());
-                    lutData->transform->setDirection(
-                        LUTDirection::Inverse == p.lutOptions.direction ?
-                            OCIO::TRANSFORM_DIR_INVERSE :
-                            OCIO::TRANSFORM_DIR_FORWARD);
-                    lutData->transform->validate();
-
-                    lutData->processor = lutData->config->getProcessor(lutData->transform);
-                    if (!lutData->processor)
-                    {
-                        throw std::runtime_error("Cannot get OCIO processor");
-                    }
+                    const OCIOLUTProcessor processor = getOCIOLUTProcessor(p.lutOptions);
+                    lutData->config = processor.config;
+                    lutData->transform = processor.transform;
+                    lutData->processor = processor.processor;
                     lutData->gpuProcessor = lutData->processor->getDefaultGPUProcessor();
                     if (!lutData->gpuProcessor)
                     {

@@ -5,6 +5,8 @@
 
 #include <tlRender/GL/Render.h>
 
+#include <tlRender/Timeline/RenderPrivate.h>
+
 #include <ftk/GL/Mesh.h>
 #include <ftk/GL/OffscreenBuffer.h>
 #include <ftk/GL/Render.h>
