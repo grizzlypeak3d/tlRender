@@ -80,6 +80,14 @@ jobs:
       with:
         submodules: recursive
 
+    # The wheels pyproject.toml pins have to be on PyPI. A tag waits for
+    # them, so the tags of a release can be pushed together; see the script.
+    - uses: actions/setup-python@v6
+      with:
+        python-version: '3.12'
+    - name: Wait for the pinned wheels
+      run: python etc/Python/wait_for_pins.py
+
     # Built again whenever anything that decides what they are changes: the
     # super build, the wheel's configuration, or pyproject.toml, which pins
     # the feather-tk they are built against.
@@ -122,6 +130,14 @@ jobs:
     - uses: actions/checkout@v6
       with:
         submodules: recursive
+
+    # The wheels pyproject.toml pins have to be on PyPI. A tag waits for
+    # them, so the tags of a release can be pushed together; see the script.
+    - uses: actions/setup-python@v6
+      with:
+        python-version: '3.12'
+    - name: Wait for the pinned wheels
+      run: python etc/Python/wait_for_pins.py
 
     - name: Build
       run: pipx run build --sdist
