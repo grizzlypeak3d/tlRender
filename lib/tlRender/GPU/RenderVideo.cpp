@@ -751,11 +751,14 @@ namespace tl
             uniforms.softClip = displayOptions.softClip.enabled ? displayOptions.softClip.value : 0.F;
 
             // At the one to one size nothing needs filtering, so nothing
-            // is; see tl::gl::Render.
+            // is; see tl::gl::Render. Otherwise the filter is the one for
+            // the way the picture is going, enlarged or reduced: OpenGL's
+            // texture has a filter for each and picks between them, and a
+            // sampler here is given the one.
+            const bool enlarged = onScreen.w > displaySize.w || onScreen.h > displaySize.h;
             const bool nearest =
                 onScreen == displaySize ||
-                (ftk::ImageFilter::Nearest == filters.minify &&
-                    ftk::ImageFilter::Nearest == filters.magnify);
+                ftk::ImageFilter::Nearest == (enlarged ? filters.magnify : filters.minify);
             std::vector<ftk::gpu::TextureBinding> textures;
             textures.push_back({
                 sampled->getTexture(),
