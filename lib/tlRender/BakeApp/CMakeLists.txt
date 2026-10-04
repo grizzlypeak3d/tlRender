@@ -21,6 +21,10 @@ target_include_directories(tlBakeApp
         $<INSTALL_INTERFACE:include>)
 
 target_link_libraries(tlBakeApp tlGL)
+# The GPU renderer as well where it is built, which FTK_RENDER=gpu asks for.
+if(TARGET tlGPU)
+    target_link_libraries(tlBakeApp tlGPU)
+endif()
 
 set_target_properties(tlBakeApp PROPERTIES FOLDER lib)
 set_target_properties(tlBakeApp PROPERTIES PUBLIC_HEADER "${HEADERS}")

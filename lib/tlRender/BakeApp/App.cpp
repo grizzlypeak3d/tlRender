@@ -4,6 +4,9 @@
 #include <tlRender/BakeApp/App.h>
 
 #include <tlRender/GL/Render.h>
+#if defined(TLRENDER_GPU)
+#include <tlRender/GPU/Render.h>
+#endif // TLRENDER_GPU
 
 #include <tlRender/Timeline/Util.h>
 
@@ -19,6 +22,10 @@
 #include <ftk/GL/GL.h>
 #include <ftk/GL/Util.h>
 #include <ftk/GL/Window.h>
+#if defined(TLRENDER_GPU)
+#include <ftk/GPU/Render.h>
+#include <ftk/GPU/System.h>
+#endif // TLRENDER_GPU
 #include <ftk/Core/CmdLine.h>
 #include <ftk/Core/Context.h>
 #include <ftk/Core/Format.h>
@@ -274,12 +281,22 @@ namespace tl
         {
             _startTime = std::chrono::steady_clock::now();
 
-            // Create the window.
-            _window = ftk::gl::Window::create(
-                _context,
-                "tlbake",
-                ftk::Size2I(1, 1),
-                static_cast<int>(ftk::gl::WindowOptions::MakeCurrent));
+            // Create the window, which is for its OpenGL context. The GPU
+            // renderer draws without one, when it is asked for the way an
+            // application's windows ask for it.
+#if defined(TLRENDER_GPU)
+            const bool gpu = ftk::gpu::isEnabled();
+#else // TLRENDER_GPU
+            const bool gpu = false;
+#endif // TLRENDER_GPU
+            if (!gpu)
+            {
+                _window = ftk::gl::Window::create(
+                    _context,
+                    "tlbake",
+                    ftk::Size2I(1, 1),
+                    static_cast<int>(ftk::gl::WindowOptions::MakeCurrent));
+            }
 
             // Read the timeline.
             Options options;
@@ -335,12 +352,32 @@ namespace tl
             _print(ftk::Format("Render size: {0}").arg(_renderSize));
 
             // Create the renderer.
-            _render = gl::Render::create(
-                _context->getLogSystem(),
-                _context->getSystem<ftk::FontSystem>());
-            _buffer = ftk::gl::OffscreenBuffer::create(
-                _renderSize,
-                ftk::gl::getOffscreenColorDefault());
+#if defined(TLRENDER_GPU)
+            if (gpu)
+            {
+                ftk::gpu::init(_context);
+                auto gpuSystem = _context->getSystem<ftk::gpu::System>();
+                _print(ftk::Format("GPU driver: {0}").arg(gpuSystem->getDriver()));
+                _render = gpu::Render::create(
+                    gpuSystem,
+                    _context->getLogSystem(),
+                    _context->getSystem<ftk::FontSystem>());
+                // Float, as the OpenGL buffer is.
+                _gpuBuffer = ftk::gpu::OffscreenBuffer::create(
+                    gpuSystem,
+                    _renderSize,
+                    ftk::gpu::BufferType::RGBA_F32);
+            }
+#endif // TLRENDER_GPU
+            if (!_render)
+            {
+                _render = gl::Render::create(
+                    _context->getLogSystem(),
+                    _context->getSystem<ftk::FontSystem>());
+                _buffer = ftk::gl::OffscreenBuffer::create(
+                    _renderSize,
+                    ftk::gl::getOffscreenColorDefault());
+            }
 
             // Set options. Before the writer: what the output's color
             // description says depends on whether the render goes through
@@ -407,6 +444,12 @@ namespace tl
             _print(ftk::Format("Output info: {0} {1}").
                 arg(_outputInfo.size).
                 arg(_outputInfo.type));
+#if defined(TLRENDER_GPU)
+            if (_gpuBuffer && !ftk::gpu::OffscreenBuffer::canRead(_outputInfo.type))
+            {
+                throw std::runtime_error(ftk::Format("Cannot write: \"{0}\"").arg(output));
+            }
+#endif // TLRENDER_GPU
             _outputImage = ftk::Image::create(_outputInfo);
             IOInfo ioInfo;
             ioInfo.video.push_back(_outputInfo);
@@ -606,36 +649,56 @@ namespace tl
             _printProgress();
 
             // Render the video.
-            ftk::gl::OffscreenBufferBinding binding(_buffer);
-            _render->begin(_renderSize);
-            _render->setOCIOOptions(_ocioOptions);
-            _render->setLUTOptions(_lutOptions);
             const auto videoData = _timeline->getVideo(_inputTime).future.get();
-            _render->drawVideo(
-                { videoData },
-                { ftk::Box2I(0, 0, _renderSize.w, _renderSize.h) });
-            _render->end();
+#if defined(TLRENDER_GPU)
+            if (_gpuBuffer)
+            {
+                ftk::gpu::getRender(_render)->setTarget(_gpuBuffer);
+                _render->begin(_renderSize);
+                _render->setOCIOOptions(_ocioOptions);
+                _render->setLUTOptions(_lutOptions);
+                _render->drawVideo(
+                    { videoData },
+                    { ftk::Box2I(0, 0, _renderSize.w, _renderSize.h) });
+                _render->end();
 
-            // Write the frame.
-            glPixelStorei(GL_PACK_ALIGNMENT, _outputInfo.layout.alignment);
-            if (!ftk::gl::isGLES())
-            {
-                glPixelStorei(GL_PACK_SWAP_BYTES, _outputInfo.layout.endian != ftk::getEndian());
+                // Read back as the writer wants it, which is what
+                // glReadPixels does below.
+                _outputImage = _gpuBuffer->read(_outputInfo);
             }
-            const GLenum format = ftk::gl::getReadPixelsFormat(_outputInfo.type);
-            const GLenum type = ftk::gl::getReadPixelsType(_outputInfo.type);
-            if (GL_NONE == format || GL_NONE == type)
+            else
+#endif // TLRENDER_GPU
             {
-                throw std::runtime_error(ftk::Format("Cannot write: \"{0}\"").arg(_cmdLine.output->getValue()));
+                ftk::gl::OffscreenBufferBinding binding(_buffer);
+                _render->begin(_renderSize);
+                _render->setOCIOOptions(_ocioOptions);
+                _render->setLUTOptions(_lutOptions);
+                _render->drawVideo(
+                    { videoData },
+                    { ftk::Box2I(0, 0, _renderSize.w, _renderSize.h) });
+                _render->end();
+
+                // Write the frame.
+                glPixelStorei(GL_PACK_ALIGNMENT, _outputInfo.layout.alignment);
+                if (!ftk::gl::isGLES())
+                {
+                    glPixelStorei(GL_PACK_SWAP_BYTES, _outputInfo.layout.endian != ftk::getEndian());
+                }
+                const GLenum format = ftk::gl::getReadPixelsFormat(_outputInfo.type);
+                const GLenum type = ftk::gl::getReadPixelsType(_outputInfo.type);
+                if (GL_NONE == format || GL_NONE == type)
+                {
+                    throw std::runtime_error(ftk::Format("Cannot write: \"{0}\"").arg(_cmdLine.output->getValue()));
+                }
+                glReadPixels(
+                    0,
+                    0,
+                    _outputInfo.size.w,
+                    _outputInfo.size.h,
+                    format,
+                    type,
+                    _outputImage->getData());
             }
-            glReadPixels(
-                0,
-                0,
-                _outputInfo.size.w,
-                _outputInfo.size.h,
-                format,
-                type,
-                _outputImage->getData());
             // The time of the frame in the timeline, which is what
             // ioInfo.videoTime above describes. A sequence writer names each
             // file from it, so those keep the frame numbers of the timeline.
