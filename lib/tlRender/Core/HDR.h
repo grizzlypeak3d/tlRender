@@ -61,6 +61,17 @@ namespace tl
         bool operator == (const HDRData&) const = default;
     };
 
+    //! \name SMPTE ST 2084
+    ///@{
+
+    //! Get the luminance, in nits, that a PQ code value stands for.
+    TL_CORE_API float fromPQ(float);
+
+    //! Get the PQ code value that stands for a luminance in nits.
+    TL_CORE_API float toPQ(float);
+
+    ///@}
+
     //! \name Serialize
     ///@{
 

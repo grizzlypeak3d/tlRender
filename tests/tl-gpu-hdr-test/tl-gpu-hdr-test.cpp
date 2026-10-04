@@ -27,20 +27,6 @@
 
 using namespace tl;
 
-namespace
-{
-    float fromPQ(float v)
-    {
-        const float m1 = .1593017578125F;
-        const float m2 = 78.84375F;
-        const float c1 = .8359375F;
-        const float c2 = 18.8515625F;
-        const float c3 = 18.6875F;
-        const float p = std::pow(v, 1.F / m2);
-        return 10000.F * std::pow(std::max(p - c1, 0.F) / (c2 - c3 * p), 1.F / m1);
-    }
-}
-
 int main(int, char**)
 {
     int r = 1;

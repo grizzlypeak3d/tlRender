@@ -30,6 +30,38 @@ namespace tl
     {
         namespace
         {
+            // The luminance the window's white stands for: what the window
+            // says where the system says, and the setting where it does not.
+            float getWhiteNits(const std::shared_ptr<ftk::IWindow>& window, float hdrWhite)
+            {
+                float out = hdrWhite;
+                if (window)
+                {
+                    const ftk::WindowHDR hdr = window->getHDR();
+                    if (hdr.whiteNits > 0.F)
+                    {
+                        out = hdr.whiteNits;
+                    }
+                }
+                return out;
+            }
+
+            // The sRGB curve, carried on past one and mirrored below zero,
+            // as the shaders have it.
+            float toLinear(float value)
+            {
+                const float a = std::fabs(value);
+                const float out = a <= .04045F ? a / 12.92F : std::pow((a + .055F) / 1.055F, 2.4F);
+                return value < 0.F ? -out : out;
+            }
+
+            float fromLinear(float value)
+            {
+                const float a = std::fabs(value);
+                const float out = a <= .0031308F ? a * 12.92F : 1.055F * std::pow(a, 1.F / 2.4F) - .055F;
+                return value < 0.F ? -out : out;
+            }
+
             // A position inside a box, in the coordinates of what the box
             // holds. Clamped because a box and its contents are different
             // sizes whenever the image is scaled, and the far edge rounds up
@@ -905,6 +937,54 @@ namespace tl
             return out;
         }
 
+        ftk::Color4F Viewport::getColorSampleDisplay(const ftk::Color4F& value)
+        {
+            FTK_P();
+            ftk::Color4F out = value;
+#if defined(TLRENDER_GPU)
+            if (p.gpuBuffer && HDR_EOTF::ST2084 == p.hdrTransfer)
+            {
+                // What the "tl:hdr" shader does; see
+                // tl::gpu::Render::drawTextureHDR().
+                const float whiteNits = getWhiteNits(getWindow(), p.hdrWhite);
+                const float r = fromPQ(value.r) / whiteNits;
+                const float g = fromPQ(value.g) / whiteNits;
+                const float b = fromPQ(value.b) / whiteNits;
+                // Rec. 2020 primaries to Rec. 709, by row.
+                out.r = fromLinear(1.660491F * r - .587641F * g - .072850F * b);
+                out.g = fromLinear(-.124550F * r + 1.132900F * g - .008349F * b);
+                out.b = fromLinear(-.018151F * r - .100579F * g + 1.118730F * b);
+            }
+#endif // TLRENDER_GPU
+            return out;
+        }
+
+        std::optional<float> Viewport::getColorSampleNits(const ftk::Color4F& value)
+        {
+            FTK_P();
+            std::optional<float> out;
+            if (HDR_EOTF::ST2084 == p.hdrTransfer)
+            {
+                // Rec. 2020's luminance.
+                out =
+                    .2627F * fromPQ(value.r) +
+                    .6780F * fromPQ(value.g) +
+                    .0593F * fromPQ(value.b);
+            }
+            else if (auto window = getWindow())
+            {
+                if (window->getHDR().enabled)
+                {
+                    // Rec. 709's luminance, where one is the window's white.
+                    out = getWhiteNits(window, p.hdrWhite) * (
+                        .2126F * toLinear(value.r) +
+                        .7152F * toLinear(value.g) +
+                        .0722F * toLinear(value.b));
+                }
+            }
+            return out;
+        }
+
         void Viewport::_sampleUpdate()
         {
             FTK_P();
@@ -1394,15 +1474,7 @@ namespace tl
                 auto gpuVideoRender = std::dynamic_pointer_cast<gpu::Render>(event.render);
                 if (gpuVideoRender && HDR_EOTF::SDR != p.hdrTransfer)
                 {
-                    float whiteNits = p.hdrWhite;
-                    if (auto window = getWindow())
-                    {
-                        const ftk::WindowHDR hdr = window->getHDR();
-                        if (hdr.whiteNits > 0.F)
-                        {
-                            whiteNits = hdr.whiteNits;
-                        }
-                    }
+                    const float whiteNits = getWhiteNits(getWindow(), p.hdrWhite);
                     gpuVideoRender->drawTextureHDR(
                         p.gpuBuffer->getID(),
                         g,

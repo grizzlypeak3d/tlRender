@@ -22,6 +22,7 @@ namespace tl
         private:
             void _enums();
             void _operators();
+            void _pq();
             void _serialize();
         };
     }

@@ -282,6 +282,18 @@ namespace tl
             //! action would.
             TL_UI_API void pick(const ftk::V2I& imagePos);
 
+            //! Get the color a sample is shown as in the window. It is the
+            //! sample itself but for a PQ picture drawn with the GPU
+            //! renderer, which is taken into what the window holds as it is
+            //! drawn there.
+            TL_UI_API ftk::Color4F getColorSampleDisplay(const ftk::Color4F&);
+
+            //! Get the luminance, in nits, that a sample stands for: what a
+            //! PQ picture's code values say, or what an HDR window makes of
+            //! an SDR picture. Unset where nothing says, which is an SDR
+            //! picture in an SDR window.
+            TL_UI_API std::optional<float> getColorSampleNits(const ftk::Color4F&);
+
             ///@}
 
             //! \name Input

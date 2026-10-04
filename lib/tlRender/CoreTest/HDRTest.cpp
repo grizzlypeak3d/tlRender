@@ -25,6 +25,7 @@ namespace tl
         {
             _enums();
             _operators();
+            _pq();
             _serialize();
         }
 
@@ -42,6 +43,20 @@ namespace tl
                 FTK_CHECK(a == b);
                 a.eotf = HDR_EOTF::ST2084;
                 FTK_CHECK(a != b);
+            }
+        }
+
+        void HDRTest::_pq()
+        {
+            // The ends of the curve, and the code values ITU-R BT.2408
+            // gives for the reference white and for 1000 nits.
+            FTK_CHECK(0.F == fromPQ(0.F));
+            FTK_CHECK(std::fabs(fromPQ(1.F) - 10000.F) < 1.F);
+            FTK_CHECK(std::fabs(toPQ(203.F) - .5807F) < .0005F);
+            FTK_CHECK(std::fabs(toPQ(1000.F) - .7518F) < .0005F);
+            for (const float nits : { .005F, 1.F, 100.F, 203.F, 1000.F, 4000.F, 10000.F })
+            {
+                FTK_CHECK(std::fabs(fromPQ(toPQ(nits)) - nits) < nits * .001F);
             }
         }
 

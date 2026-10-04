@@ -6,6 +6,8 @@
 #include <ftk/Core/Error.h>
 #include <ftk/Core/String.h>
 
+#include <algorithm>
+#include <cmath>
 #include <sstream>
 
 namespace tl
@@ -22,6 +24,27 @@ namespace tl
         "Green",
         "Blue",
         "White");
+
+    namespace
+    {
+        const float pqM1 = .1593017578125F;
+        const float pqM2 = 78.84375F;
+        const float pqC1 = .8359375F;
+        const float pqC2 = 18.8515625F;
+        const float pqC3 = 18.6875F;
+    }
+
+    float fromPQ(float value)
+    {
+        const float p = std::pow(std::clamp(value, 0.F, 1.F), 1.F / pqM2);
+        return 10000.F * std::pow(std::max(p - pqC1, 0.F) / (pqC2 - pqC3 * p), 1.F / pqM1);
+    }
+
+    float toPQ(float value)
+    {
+        const float y = std::pow(std::clamp(value / 10000.F, 0.F, 1.F), pqM1);
+        return std::pow((pqC1 + pqC2 * y) / (1.F + pqC3 * y), pqM2);
+    }
 
     void to_json(nlohmann::json& json, const HDRData& value)
     {
