@@ -82,4 +82,13 @@ namespace tl
     private:
         FTK_PRIVATE();
     };
+
+    //! Get the type of image a picture is written from when the writer
+    //! does not take the picture's own, which for a writer of integers is
+    //! any YUV, ten bit, or floating point one. Eight bit RGBA where the
+    //! picture has eight bits, and sixteen bits where it has more, so that
+    //! what the file could hold is not thrown away on the way to it.
+    //! Sixteen bits have the picture's channels, without alpha where it
+    //! has none.
+    TL_IO_API ftk::ImageType getWriteType(ftk::ImageType);
 }

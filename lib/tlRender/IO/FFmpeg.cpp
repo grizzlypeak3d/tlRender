@@ -813,21 +813,8 @@ namespace tl
                 break;
             default:
                 // A picture that is not written as it is, which is any YUV,
-                // ten bit, or floating point one: from eight bits where it
-                // has eight, and from sixteen where it has more, so that
-                // what the codec could hold is not thrown away on the way
-                // to it. Sixteen bits have the picture's channels, without
-                // alpha where it has none.
-                out.type = ftk::ImageType::RGBA_U8;
-                if (ftk::getBitDepth(info.type) > 8)
-                {
-                    switch (ftk::getChannelCount(info.type))
-                    {
-                    case 1: out.type = ftk::ImageType::L_U16; break;
-                    case 3: out.type = ftk::ImageType::RGB_U16; break;
-                    default: out.type = ftk::ImageType::RGBA_U16; break;
-                    }
-                }
+                // ten bit, or floating point one.
+                out.type = getWriteType(info.type);
                 break;
             }
             return out;

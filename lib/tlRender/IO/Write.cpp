@@ -55,4 +55,19 @@ namespace tl
     {
         return info.type != ftk::ImageType::None && info == getInfo(info, options);
     }
+
+    ftk::ImageType getWriteType(ftk::ImageType value)
+    {
+        ftk::ImageType out = ftk::ImageType::RGBA_U8;
+        if (ftk::getBitDepth(value) > 8)
+        {
+            switch (ftk::getChannelCount(value))
+            {
+            case 1: out = ftk::ImageType::L_U16; break;
+            case 3: out = ftk::ImageType::RGB_U16; break;
+            default: out = ftk::ImageType::RGBA_U16; break;
+            }
+        }
+        return out;
+    }
 }

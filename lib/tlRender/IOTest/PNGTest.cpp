@@ -13,6 +13,8 @@
 #include <ftk/Core/Path.h>
 
 #include <cstring>
+#include <utility>
+#include <vector>
 
 namespace tl
 {
@@ -157,16 +159,21 @@ namespace tl
                 getPlugin<png::WritePlugin>();
 
             // Floating point and the wider integers are not PNG; the writer
-            // offers what it can store instead of refusing.
-            for (const ftk::ImageType type : {
-                ftk::ImageType::L_F32,
-                ftk::ImageType::RGB_U32,
-                ftk::ImageType::RGBA_F16,
-                ftk::ImageType::YUV_420P_U8 })
+            // offers what it can store instead of refusing, which is
+            // sixteen bits for a picture with more than eight, with the
+            // picture's channels.
+            for (const auto& i : std::vector<std::pair<ftk::ImageType, ftk::ImageType> >(
+                {
+                    { ftk::ImageType::L_F32, ftk::ImageType::L_U16 },
+                    { ftk::ImageType::RGB_U32, ftk::ImageType::RGB_U16 },
+                    { ftk::ImageType::RGBA_F16, ftk::ImageType::RGBA_U16 },
+                    { ftk::ImageType::YUV_444P_U16, ftk::ImageType::RGB_U16 },
+                    { ftk::ImageType::YUV_420P_U8, ftk::ImageType::RGBA_U8 }
+                }))
             {
                 const ftk::ImageInfo out =
-                    writePlugin->getInfo(ftk::ImageInfo(size, type));
-                FTK_CHECK(out.type == ftk::ImageType::RGBA_U8);
+                    writePlugin->getInfo(ftk::ImageInfo(size, i.first));
+                FTK_CHECK(out.type == i.second);
                 FTK_CHECK(out.size == size);
             }
         }
