@@ -87,7 +87,7 @@ namespace tl
                 out.type = info.type;
                 break;
             default:
-                out.type = ftk::ImageType::RGBA_U8;
+                out.type = getWriteType(info.type);
                 break;
             }
             return out;
