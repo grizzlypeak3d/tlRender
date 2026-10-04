@@ -7,9 +7,13 @@
 // OpenColorIO emits Metal Shading Language as a function that takes its
 // textures and samplers as arguments. The fragment entry point is written
 // here from that signature, and each texture is bound at one of SDL GPU's
-// slots. Metal compiles the source itself; Vulkan wants SPIR-V, which is
-// what glslang makes of the GLSL OpenColorIO emits for it, and is not done
-// here.
+// slots. Metal compiles the source itself.
+//
+// Vulkan wants SPIR-V, which is what glslang makes of the GLSL OpenColorIO
+// emits for it. That GLSL declares its samplers itself, in the set and from
+// the binding asked for, so each texture is bound where the description
+// says it was put.
+#include <ftk/GPU/Shader.h>
 #include <OpenColorIO/OpenColorIO.h>
 #include <SDL3/SDL.h>
 #include <algorithm>
@@ -89,19 +93,32 @@ namespace
 
     bool run(SDL_GPUDevice* device, const char* label, OCIO::ConstProcessorRcPtr processor)
     {
+        const bool msl = SDL_GetGPUShaderFormats(device) & SDL_GPU_SHADERFORMAT_MSL;
         auto gpu = processor->getDefaultGPUProcessor();
         auto desc = OCIO::GpuShaderDesc::CreateShaderDesc();
-        desc->setLanguage(OCIO::GPU_LANGUAGE_MSL_2_0);
+        desc->setLanguage(msl ? OCIO::GPU_LANGUAGE_MSL_2_0 : OCIO::GPU_LANGUAGE_GLSL_VK_4_6);
         desc->setFunctionName("ocioDisplay");
         desc->setResourcePrefix("ocio");
         desc->setAllowTexture1D(false);
+        if (!msl)
+        {
+            // The set a fragment stage's samplers are in, after the image.
+            desc->setDescriptorSetIndex(2, 1);
+        }
         gpu->extractGpuShaderInfo(desc);
         const std::string ocio = desc->getShaderText();
 
-        // The textures, by the name of their sampler. Slot zero is the image.
+        // The textures, by name. Slot zero is the image. Metal's are given
+        // slots in the order they come; the GLSL has chosen its own.
         struct Tex { SDL_GPUTexture* texture; SDL_GPUSampler* sampler; uint32_t slot; };
         std::map<std::string, Tex> textures;
         uint32_t slot = 1;
+        const auto place = [msl, &slot](unsigned binding)
+        {
+            const uint32_t out = msl ? slot : binding;
+            slot = std::max(slot, out + 1);
+            return out;
+        };
         const auto sampler = [device](OCIO::Interpolation interp)
         {
             SDL_GPUSamplerCreateInfo info = {};
@@ -119,7 +136,8 @@ namespace
             desc->get3DTextureValues(i, values);
             const auto rgba = toRGBA(values, edge * edge * edge);
             textures[textureName] = { upload(device, SDL_GPU_TEXTURETYPE_3D, SDL_GPU_TEXTUREFORMAT_R32G32B32A32_FLOAT,
-                edge, edge, edge, rgba.data(), rgba.size() * sizeof(float)), sampler(interp), slot++ };
+                edge, edge, edge, rgba.data(), rgba.size() * sizeof(float)), sampler(interp),
+                place(desc->get3DTextureShaderBindingIndex(i)) };
         }
         for (unsigned i = 0; i < desc->getNumTextures(); ++i)
         {
@@ -135,36 +153,59 @@ namespace
             if (OCIO::GpuShaderDesc::TEXTURE_RED_CHANNEL == channel)
             {
                 textures[textureName] = { upload(device, SDL_GPU_TEXTURETYPE_2D, SDL_GPU_TEXTUREFORMAT_R32_FLOAT,
-                    w, h, 1, values, w * h * sizeof(float)), sampler(interp), slot++ };
+                    w, h, 1, values, w * h * sizeof(float)), sampler(interp),
+                    place(desc->getTextureShaderBindingIndex(i)) };
             }
             else
             {
                 const auto rgba = toRGBA(values, w * h);
                 textures[textureName] = { upload(device, SDL_GPU_TEXTURETYPE_2D, SDL_GPU_TEXTUREFORMAT_R32G32B32A32_FLOAT,
-                    w, h, 1, rgba.data(), rgba.size() * sizeof(float)), sampler(interp), slot++ };
+                    w, h, 1, rgba.data(), rgba.size() * sizeof(float)), sampler(interp),
+                    place(desc->getTextureShaderBindingIndex(i)) };
             }
         }
 
-        // The fragment entry point, from the signature OCIO emitted.
-        const auto params = getParams(ocio, "ocioDisplay");
         std::stringstream fs;
-        fs << "#include <metal_stdlib>\nusing namespace metal;\n" << ocio << "\n";
-        fs << "struct VertexOut { float4 position [[position]]; float2 uv; };\n";
-        fs << "fragment float4 fragmentMain(VertexOut in [[stage_in]],\n";
-        fs << "    texture2d<float> image [[texture(0)]], sampler imageSampler [[sampler(0)]]";
-        std::stringstream call;
-        for (const auto& p : params)
+        if (msl)
         {
-            if ("inPixel" == p.name) continue;
-            const bool isSampler = "sampler" == p.type;
-            const std::string textureName = isSampler ? p.name.substr(0, p.name.size() - 7) : p.name;
-            const auto i = textures.find(textureName);
-            if (i == textures.end()) throw std::runtime_error("unbound parameter: " + p.type + " " + p.name);
-            fs << ",\n    " << p.type << " " << p.name << " [[" << (isSampler ? "sampler" : "texture") << "(" << i->second.slot << ")]]";
-            call << p.name << ", ";
+            // The fragment entry point, from the signature OCIO emitted.
+            const auto params = getParams(ocio, "ocioDisplay");
+            fs << "#include <metal_stdlib>\nusing namespace metal;\n" << ocio << "\n";
+            fs << "struct VertexOut { float4 position [[position]]; float2 uv; };\n";
+            fs << "fragment float4 fragmentMain(VertexOut in [[stage_in]],\n";
+            fs << "    texture2d<float> image [[texture(0)]], sampler imageSampler [[sampler(0)]]";
+            std::stringstream call;
+            for (const auto& p : params)
+            {
+                if ("inPixel" == p.name) continue;
+                const bool isSampler = "sampler" == p.type;
+                const std::string textureName = isSampler ? p.name.substr(0, p.name.size() - 7) : p.name;
+                const auto i = textures.find(textureName);
+                if (i == textures.end()) throw std::runtime_error("unbound parameter: " + p.type + " " + p.name);
+                fs << ",\n    " << p.type << " " << p.name << " [[" << (isSampler ? "sampler" : "texture") << "(" << i->second.slot << ")]]";
+                call << p.name << ", ";
+            }
+            fs << ")\n{\n    return ocioDisplay(" << call.str() << "image.sample(imageSampler, in.uv));\n}\n";
         }
-        fs << ")\n{\n    return ocioDisplay(" << call.str() << "image.sample(imageSampler, in.uv));\n}\n";
+        else
+        {
+            fs << "#version 450\n";
+            fs << "layout(location = 0) in vec2 uv;\n";
+            fs << "layout(location = 0) out vec4 outColor;\n";
+            fs << "layout(set = 2, binding = 0) uniform sampler2D image;\n";
+            fs << ocio << "\n";
+            fs << "void main()\n{\n    outColor = ocioDisplay(texture(image, uv));\n}\n";
+        }
         const std::string fsSource = fs.str();
+        const std::string vsSourceGLSL =
+            "#version 450\n"
+            "layout(location = 0) out vec2 uv;\n"
+            "void main()\n"
+            "{\n"
+            "    vec2 p = vec2((gl_VertexIndex << 1) & 2, gl_VertexIndex & 2);\n"
+            "    gl_Position = vec4(p * 2.0 - 1.0, 0.0, 1.0);\n"
+            "    uv = vec2(p.x, 1.0 - p.y);\n"
+            "}\n";
         const std::string vsSource =
             "#include <metal_stdlib>\nusing namespace metal;\n"
             "struct VertexOut { float4 position [[position]]; float2 uv; };\n"
@@ -181,12 +222,23 @@ namespace
         SDL_GPUShaderCreateInfo vsInfo = {};
         vsInfo.code = reinterpret_cast<const Uint8*>(vsSource.c_str()); vsInfo.code_size = vsSource.size() + 1;
         vsInfo.entrypoint = "vertexMain"; vsInfo.format = SDL_GPU_SHADERFORMAT_MSL; vsInfo.stage = SDL_GPU_SHADERSTAGE_VERTEX;
-        SDL_GPUShader* vs = SDL_CreateGPUShader(device, &vsInfo);
-        if (!vs) throw std::runtime_error(std::string("vertex shader: ") + SDL_GetError());
         SDL_GPUShaderCreateInfo fsInfo = {};
         fsInfo.code = reinterpret_cast<const Uint8*>(fsSource.c_str()); fsInfo.code_size = fsSource.size() + 1;
         fsInfo.entrypoint = "fragmentMain"; fsInfo.format = SDL_GPU_SHADERFORMAT_MSL; fsInfo.stage = SDL_GPU_SHADERSTAGE_FRAGMENT;
         fsInfo.num_samplers = slot;
+        std::vector<uint32_t> vsSPIRV;
+        std::vector<uint32_t> fsSPIRV;
+        if (!msl)
+        {
+            vsSPIRV = ftk::gpu::compileGLSL(vsSourceGLSL, ftk::gpu::ShaderStage::Vertex);
+            fsSPIRV = ftk::gpu::compileGLSL(fsSource, ftk::gpu::ShaderStage::Fragment);
+            vsInfo.code = reinterpret_cast<const Uint8*>(vsSPIRV.data()); vsInfo.code_size = vsSPIRV.size() * sizeof(uint32_t);
+            vsInfo.entrypoint = "main"; vsInfo.format = SDL_GPU_SHADERFORMAT_SPIRV;
+            fsInfo.code = reinterpret_cast<const Uint8*>(fsSPIRV.data()); fsInfo.code_size = fsSPIRV.size() * sizeof(uint32_t);
+            fsInfo.entrypoint = "main"; fsInfo.format = SDL_GPU_SHADERFORMAT_SPIRV;
+        }
+        SDL_GPUShader* vs = SDL_CreateGPUShader(device, &vsInfo);
+        if (!vs) throw std::runtime_error(std::string("vertex shader: ") + SDL_GetError());
         SDL_GPUShader* fragment = SDL_CreateGPUShader(device, &fsInfo);
         if (!fragment) throw std::runtime_error(std::string("fragment shader: ") + SDL_GetError());
 
@@ -259,6 +311,21 @@ namespace
         std::memcpy(result.data(), SDL_MapGPUTransferBuffer(device, download, false), result.size() * sizeof(float));
         SDL_UnmapGPUTransferBuffer(device, download);
 
+        // Everything made here, before the device goes: Vulkan's validation
+        // counts what is left.
+        SDL_ReleaseGPUTransferBuffer(device, download);
+        SDL_ReleaseGPUTexture(device, target);
+        SDL_ReleaseGPUTexture(device, imageTexture);
+        SDL_ReleaseGPUSampler(device, imageSampler);
+        for (const auto& i : textures)
+        {
+            SDL_ReleaseGPUTexture(device, i.second.texture);
+            SDL_ReleaseGPUSampler(device, i.second.sampler);
+        }
+        SDL_ReleaseGPUGraphicsPipeline(device, pipeline);
+        SDL_ReleaseGPUShader(device, vs);
+        SDL_ReleaseGPUShader(device, fragment);
+
         // What the CPU makes of the same picture.
         std::vector<float> reference = image;
         auto cpu = processor->getDefaultCPUProcessor();
@@ -288,8 +355,10 @@ int main(int, char**)
     try
     {
         if (!SDL_Init(SDL_INIT_VIDEO)) throw std::runtime_error(SDL_GetError());
-        SDL_GPUDevice* device = SDL_CreateGPUDevice(SDL_GPU_SHADERFORMAT_MSL, true, nullptr);
+        SDL_GPUDevice* device = SDL_CreateGPUDevice(
+            SDL_GPU_SHADERFORMAT_MSL | SDL_GPU_SHADERFORMAT_SPIRV, true, nullptr);
         if (!device) throw std::runtime_error(SDL_GetError());
+        std::printf("GPU driver: %s\n", SDL_GetGPUDeviceDriver(device));
         auto config = OCIO::Config::CreateFromBuiltinConfig("studio-config-latest");
         const std::string display = config->getDefaultDisplay();
         struct Case { std::string display; std::string view; };
