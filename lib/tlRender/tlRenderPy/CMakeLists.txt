@@ -66,6 +66,16 @@ else()
     set(TLRENDER_STUBGEN ${NB_DIR}/stubgen.py)
 endif()
 set(TLRENDER_PYTHON_STUB ${TLRENDER_PYTHON_PACKAGE_DIR}/_tlrender/__init__.pyi)
+# The GPU renderers' libraries as well, where they are built: the UI
+# libraries load them, and the module could not be imported without their
+# being found.
+set(TLRENDER_STUB_GPU_DIRS)
+if(TARGET tlGPU)
+    list(APPEND TLRENDER_STUB_GPU_DIRS --dll-dir $<TARGET_FILE_DIR:tlGPU>)
+endif()
+if(TARGET ftk::ftkGPU)
+    list(APPEND TLRENDER_STUB_GPU_DIRS --dll-dir $<TARGET_FILE_DIR:ftk::ftkGPU>)
+endif()
 add_custom_command(
     OUTPUT ${TLRENDER_PYTHON_STUB}
     COMMAND ${CMAKE_COMMAND} -E rm -rf ${TLRENDER_PYTHON_PACKAGE_DIR}/_tlrender
@@ -82,6 +92,7 @@ add_custom_command(
         --dll-dir $<TARGET_FILE_DIR:ftk::ftkCore>
         --dll-dir $<TARGET_FILE_DIR:ftk::ftkGL>
         --dll-dir $<TARGET_FILE_DIR:ftk::ftkUI>
+        ${TLRENDER_STUB_GPU_DIRS}
         --dll-dir ${CMAKE_INSTALL_PREFIX}/bin
         --dll-dir ${CMAKE_INSTALL_PREFIX}/lib
         # The dependencies of a wheel build, where OpenTimelineIO's
