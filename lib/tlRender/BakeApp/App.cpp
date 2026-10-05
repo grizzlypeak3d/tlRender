@@ -285,6 +285,9 @@ namespace tl
             // renderer draws without one, when it is asked for the way an
             // application's windows ask for it.
 #if defined(TLRENDER_GPU)
+            // Whether it can be is found out as the library is initialized;
+            // where there is no device for it, OpenGL draws.
+            ftk::gpu::init(_context);
             const bool gpu = ftk::gpu::isEnabled();
 #else // TLRENDER_GPU
             const bool gpu = false;
@@ -355,7 +358,6 @@ namespace tl
 #if defined(TLRENDER_GPU)
             if (gpu)
             {
-                ftk::gpu::init(_context);
                 auto gpuSystem = _context->getSystem<ftk::gpu::System>();
                 _print(ftk::Format("GPU driver: {0}").arg(gpuSystem->getDriver()));
                 _render = gpu::Render::create(
