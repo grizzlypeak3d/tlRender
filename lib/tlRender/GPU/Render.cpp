@@ -219,12 +219,13 @@ namespace tl
                             ++s;
                         }
                     }
-                    if (0 == count || decl.array.values.size() != count)
+                    // One that is not read as it was written is left where
+                    // it is: the shader is then as OpenColorIO wrote it,
+                    // which draws, where a table read wrong would not.
+                    if (count > 0 && decl.array.values.size() == count)
                     {
-                        throw std::runtime_error(
-                            ftk::Format("Cannot read the OCIO shader's array \"{0}\"").arg(decl.array.name));
+                        out.push_back(decl);
                     }
-                    out.push_back(decl);
                     pos = decl.end;
                 }
                 return out;
