@@ -53,6 +53,10 @@ namespace tl
             // with every frame.
             // There are no three channel textures, so the RGB tables are
             // given a fourth channel.
+            //
+            // A table is read between its entries, which a device that
+            // does not filter thirty-two bit floats cannot do with them:
+            // it is kept as half floats there, which every device filters.
             SDL_GPUTexture* createTexture(
                 SDL_GPUDevice* device,
                 SDL_GPUTextureType type,
@@ -60,13 +64,23 @@ namespace tl
                 uint32_t h,
                 uint32_t d,
                 const float* values,
-                bool rgb)
+                bool rgb,
+                bool floatFilter)
             {
                 SDL_GPUTextureCreateInfo info = {};
                 info.type = type;
-                info.format = rgb ?
-                    SDL_GPU_TEXTUREFORMAT_R32G32B32A32_FLOAT :
-                    SDL_GPU_TEXTUREFORMAT_R32_FLOAT;
+                if (floatFilter)
+                {
+                    info.format = rgb ?
+                        SDL_GPU_TEXTUREFORMAT_R32G32B32A32_FLOAT :
+                        SDL_GPU_TEXTUREFORMAT_R32_FLOAT;
+                }
+                else
+                {
+                    info.format = rgb ?
+                        SDL_GPU_TEXTUREFORMAT_R16G16B16A16_FLOAT :
+                        SDL_GPU_TEXTUREFORMAT_R16_FLOAT;
+                }
                 info.usage = SDL_GPU_TEXTUREUSAGE_SAMPLER;
                 info.width = w;
                 info.height = h;
@@ -78,25 +92,48 @@ namespace tl
                     throw std::runtime_error(ftk::Format("Cannot create a texture: {0}").arg(SDL_GetError()));
                 }
                 const size_t count = static_cast<size_t>(w) * h * d;
-                const size_t byteCount = count * (rgb ? 4 : 1) * sizeof(float);
+                const size_t channels = rgb ? 4 : 1;
+                const size_t byteCount =
+                    count * channels * (floatFilter ? sizeof(float) : sizeof(uint16_t));
                 SDL_GPUTransferBufferCreateInfo transferInfo = {};
                 transferInfo.usage = SDL_GPU_TRANSFERBUFFERUSAGE_UPLOAD;
                 transferInfo.size = static_cast<Uint32>(byteCount);
                 SDL_GPUTransferBuffer* transfer = SDL_CreateGPUTransferBuffer(device, &transferInfo);
-                float* p = static_cast<float*>(SDL_MapGPUTransferBuffer(device, transfer, false));
-                if (rgb)
+                void* data = SDL_MapGPUTransferBuffer(device, transfer, false);
+                if (floatFilter)
                 {
-                    for (size_t i = 0; i < count; ++i)
+                    float* p = static_cast<float*>(data);
+                    if (rgb)
                     {
-                        p[i * 4 + 0] = values[i * 3 + 0];
-                        p[i * 4 + 1] = values[i * 3 + 1];
-                        p[i * 4 + 2] = values[i * 3 + 2];
-                        p[i * 4 + 3] = 1.F;
+                        for (size_t i = 0; i < count; ++i)
+                        {
+                            p[i * 4 + 0] = values[i * 3 + 0];
+                            p[i * 4 + 1] = values[i * 3 + 1];
+                            p[i * 4 + 2] = values[i * 3 + 2];
+                            p[i * 4 + 3] = 1.F;
+                        }
+                    }
+                    else
+                    {
+                        std::memcpy(p, values, byteCount);
                     }
                 }
                 else
                 {
-                    std::memcpy(p, values, byteCount);
+                    uint16_t* p = static_cast<uint16_t*>(data);
+                    if (rgb)
+                    {
+                        for (size_t i = 0; i < count; ++i)
+                        {
+                            ftk::gpu::floatToHalf(values + i * 3, p + i * 4, 3);
+                            // One, as a half float.
+                            p[i * 4 + 3] = 0x3C00;
+                        }
+                    }
+                    else
+                    {
+                        ftk::gpu::floatToHalf(values, p, count);
+                    }
                 }
                 SDL_UnmapGPUTransferBuffer(device, transfer);
                 SDL_GPUCommandBuffer* cmd = SDL_AcquireGPUCommandBuffer(device);
@@ -164,7 +201,14 @@ namespace tl
                     texture.name = textureName;
                     texture.samplerName = samplerName;
                     texture.texture = createTexture(
-                        stage.device, SDL_GPU_TEXTURETYPE_3D, edgelen, edgelen, edgelen, values, true);
+                        stage.device,
+                        SDL_GPU_TEXTURETYPE_3D,
+                        edgelen,
+                        edgelen,
+                        edgelen,
+                        values,
+                        true,
+                        stage.floatFilter);
                     texture.sampler = createSampler(stage.device, interpolation);
                     stage.textures.push_back(texture);
                 }
@@ -197,7 +241,8 @@ namespace tl
                         std::max(height, 1U),
                         1,
                         values,
-                        OCIO::GpuShaderDesc::TEXTURE_RGB_CHANNEL == channel);
+                        OCIO::GpuShaderDesc::TEXTURE_RGB_CHANNEL == channel,
+                        stage.floatFilter);
                     texture.sampler = createSampler(stage.device, interpolation);
                     stage.textures.push_back(texture);
                 }
@@ -349,10 +394,13 @@ namespace tl
             void ocioDataInit(
                 OCIOData& data,
                 const OCIOOptions& options,
-                SDL_GPUDevice* device)
+                SDL_GPUDevice* device,
+                bool floatFilter)
             {
                 data.toLinear.device = device;
+                data.toLinear.floatFilter = floatFilter;
                 data.display.device = device;
+                data.display.floatFilter = floatFilter;
                 // The processors are the same whatever draws with them; see
                 // getOCIOProcessors(). What is made of them here is a
                 // shader function and its textures.
@@ -504,6 +552,7 @@ namespace tl
                     lutData->config = processor.config;
                     lutData->transform = processor.transform;
                     lutData->stage.device = p.system->getDevice();
+                    lutData->stage.floatFilter = ftk::gpu::hasFloatFilter(p.system);
                     lutData->stage.processor = processor.processor;
                     ocioStageInit(lutData->stage, "lutFunc", "lut");
                     p.lutData = std::move(lutData);
@@ -760,7 +809,11 @@ namespace tl
                 {
                     OCIOOptions options = p.ocioOptions;
                     options.input = input;
-                    ocioDataInit(*data, options, p.system->getDevice());
+                    ocioDataInit(
+                        *data,
+                        options,
+                        p.system->getDevice(),
+                        ftk::gpu::hasFloatFilter(p.system));
                 }
                 catch (const std::exception& e)
                 {

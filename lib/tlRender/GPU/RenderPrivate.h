@@ -9,6 +9,7 @@
 
 #include <ftk/GPU/OffscreenBuffer.h>
 #include <ftk/GPU/System.h>
+#include <ftk/GPU/Texture.h>
 
 #if defined(TLRENDER_OCIO)
 #include <OpenColorIO/OpenColorIO.h>
@@ -141,6 +142,9 @@ namespace tl
             ~OCIOStage();
 
             SDL_GPUDevice* device = nullptr;
+            //! Whether the device filters thirty-two bit float textures,
+            //! which is what the tables are kept as where it does.
+            bool floatFilter = true;
             std::string functionName;
             std::string resourcePrefix;
             OCIO::ConstProcessorRcPtr processor;
