@@ -6,13 +6,13 @@
 #include <tlRender/Timeline/IRender.h>
 
 #include <ftk/UI/DrawUtil.h>
+#include <ftk/UI/IWindow.h>
 #include <ftk/GL/Init.h>
 #include <ftk/GL/GL.h>
 #include <ftk/GL/OffscreenBuffer.h>
 #if defined(TLRENDER_GPU)
 #include <tlRender/GPU/Render.h>
 
-#include <ftk/UI/IWindow.h>
 #include <ftk/GPU/OffscreenBuffer.h>
 #include <ftk/GPU/Render.h>
 #include <ftk/GPU/System.h>
