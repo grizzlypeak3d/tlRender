@@ -24,6 +24,8 @@ namespace tl
 
         private:
             void _findCommand();
+            void _writeType();
+            void _conversionDepth();
             void _commandLine();
             void _commandMissing();
             void _gif();

@@ -48,6 +48,9 @@ namespace tl
             //! from frame to frame while it fits.
             bool quantize = false;
             std::vector<uint8_t> quantizeRGB;
+            //! Sixteen bit RGB on its way to YUV; see writeVideo().
+            bool rescale16 = false;
+            std::vector<uint16_t> rescale16Data;
             Quantizer quantizer;
 
             AVCodecContext* avAudioCodecContext = nullptr;
@@ -743,6 +746,10 @@ namespace tl
             r = av_opt_set_int(p.swsContext, "dstw", videoInfo.size.w, AV_OPT_SEARCH_CHILDREN);
             r = av_opt_set_int(p.swsContext, "dsth", videoInfo.size.h, AV_OPT_SEARCH_CHILDREN);
             p.quantize = AV_PIX_FMT_PAL8 == p.avCodecContext->pix_fmt;
+            p.rescale16 =
+                yuvOutput &&
+                (ftk::ImageType::RGB_U16 == videoInfo.type ||
+                    ftk::ImageType::RGBA_U16 == videoInfo.type);
             if (p.quantize)
             {
                 p.quantizeRGB.resize(
@@ -943,10 +950,45 @@ namespace tl
             FTK_P();
 
             const auto& info = image->getInfo();
+            const uint8_t* imageData = image->getData();
+            if (p.rescale16)
+            {
+                // The scaler takes sixteen bit RGB to YUV as though white
+                // were 65280, 255 shifted up, where it is 65535: everything
+                // came out 0.39% high, and white above where white is.
+                // Eight bit RGB is taken exactly. So the color is brought
+                // down by that much first, and comes out where it should.
+                // Measured in uncompressed v210: a grey ramp's luma was
+                // 119, 285, 505, 726, 874, 943 where it is 119, 284, 504,
+                // 724, 871, 940. Alpha is not scaled by the scaler, and is
+                // not here.
+                const size_t count = image->getByteCount() / sizeof(uint16_t);
+                p.rescale16Data.resize(count);
+                const uint16_t* in = reinterpret_cast<const uint16_t*>(image->getData());
+                uint16_t* out = p.rescale16Data.data();
+                if (ftk::ImageType::RGBA_U16 == info.type)
+                {
+                    for (size_t i = 0; i + 3 < count; i += 4)
+                    {
+                        out[i] = static_cast<uint16_t>((in[i] * 65280U + 32767U) / 65535U);
+                        out[i + 1] = static_cast<uint16_t>((in[i + 1] * 65280U + 32767U) / 65535U);
+                        out[i + 2] = static_cast<uint16_t>((in[i + 2] * 65280U + 32767U) / 65535U);
+                        out[i + 3] = in[i + 3];
+                    }
+                }
+                else
+                {
+                    for (size_t i = 0; i < count; ++i)
+                    {
+                        out[i] = static_cast<uint16_t>((in[i] * 65280U + 32767U) / 65535U);
+                    }
+                }
+                imageData = reinterpret_cast<const uint8_t*>(out);
+            }
             av_image_fill_arrays(
                 p.avFrame2->data,
                 p.avFrame2->linesize,
-                image->getData(),
+                imageData,
                 p.avPixelFormatIn,
                 info.size.w,
                 info.size.h,
