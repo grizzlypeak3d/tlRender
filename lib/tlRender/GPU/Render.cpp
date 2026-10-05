@@ -48,7 +48,9 @@ namespace tl
                 return SDL_CreateGPUSampler(device, &info);
             }
 
-            // A texture of floats, sent in a command buffer of its own.
+            // A texture of floats, sent in a command buffer of its own as
+            // it is made, which is when the color options change and not
+            // with every frame.
             // There are no three channel textures, so the RGB tables are
             // given a fourth channel.
             SDL_GPUTexture* createTexture(
