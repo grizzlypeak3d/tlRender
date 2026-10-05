@@ -180,6 +180,22 @@ namespace tl
                     "observeDroppedFrames",
                     &Viewport::observeDroppedFrames)
                 .def("getColorSample", &Viewport::getColorSample)
+                .def(
+                    "getColorSampleDisplay",
+                    &Viewport::getColorSampleDisplay,
+                    nb::arg("color"))
+                .def(
+                    "getColorSampleNits",
+                    &Viewport::getColorSampleNits,
+                    nb::arg("color"))
+                .def_prop_rw(
+                    "hdrTransfer",
+                    &Viewport::getHDRTransfer,
+                    &Viewport::setHDRTransfer)
+                .def_prop_rw(
+                    "hdrWhite",
+                    &Viewport::getHDRWhite,
+                    &Viewport::setHDRWhite)
                 .def_prop_ro(
                     "observeSamplePos",
                     &Viewport::observeSamplePos)

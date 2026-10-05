@@ -56,10 +56,10 @@ set(TLRENDER_EXAMPLES ON CACHE BOOL "")
 set(TLRENDER_TESTS ON CACHE BOOL "")
 set(TLRENDER_GCOV OFF CACHE BOOL "")
 set(ftk_API "GL_4_1" CACHE STRING "")
-# The renderer on SDL's GPU API, built beside the OpenGL one on this branch
-# wherever it can be: it is SDL3's, which is what is built unless a
-# configuration asks for SDL2, and it is not for OpenGL ES, which is for
-# where there is nothing else to draw with.
+# The renderer on SDL's GPU API, built beside the OpenGL one wherever it
+# can be, and drawing where it is chosen: it is SDL3's, which is what is
+# built unless a configuration asks for SDL2, and it is not for OpenGL ES,
+# which is for where there is nothing else to draw with.
 if(ftk_SDL2 OR ftk_API MATCHES "^GLES")
     set(ftk_GPU OFF CACHE BOOL "")
 else()
