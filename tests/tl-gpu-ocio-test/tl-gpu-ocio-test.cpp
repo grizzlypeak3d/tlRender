@@ -250,6 +250,8 @@ namespace
         pInfo.primitive_type = SDL_GPU_PRIMITIVETYPE_TRIANGLELIST;
         pInfo.rasterizer_state.fill_mode = SDL_GPU_FILLMODE_FILL;
         pInfo.rasterizer_state.cull_mode = SDL_GPU_CULLMODE_NONE;
+        // The device is made without depth clamping.
+        pInfo.rasterizer_state.enable_depth_clip = true;
         pInfo.target_info.color_target_descriptions = &targetDesc;
         pInfo.target_info.num_color_targets = 1;
         SDL_GPUGraphicsPipeline* pipeline = SDL_CreateGPUGraphicsPipeline(device, &pInfo);
