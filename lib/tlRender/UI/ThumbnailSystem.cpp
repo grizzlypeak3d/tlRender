@@ -266,6 +266,14 @@ namespace tl
             uint64_t requestId = 0;
             std::shared_ptr<ftk::Observable<ThumbnailCacheOptions> > cacheOptions;
 
+            // Each request carries the key its answer is cached by, made
+            // as it is asked. The key has the time the file was last
+            // written, and a key made after the answer was given looked at
+            // the file again: one written anew in between, as an export is
+            // by whoever was waiting for the answer, had the old picture
+            // cached under the new file's key, and served from then on
+            // (DJV #884). With the key from before the read, the worst is
+            // an answer newer than its key, which nothing asks for again.
             struct InfoRequest
             {
                 uint64_t id = 0;
@@ -273,6 +281,7 @@ namespace tl
                 ftk::Path mediaPath;
                 ftk::Path audioPath;
                 IOOptions options;
+                std::string key;
                 std::promise<IOInfo> promise;
             };
 
@@ -286,6 +295,7 @@ namespace tl
                 std::optional<OTIO_NS::RationalTime> time;
                 IOOptions options;
                 ThumbnailType type = ThumbnailType::Timeline;
+                std::string key;
                 std::promise<std::shared_ptr<ftk::Image> > promise;
             };
 
@@ -298,6 +308,7 @@ namespace tl
                 ftk::Size2I size;
                 std::optional<OTIO_NS::TimeRange> timeRange;
                 IOOptions options;
+                std::string key;
                 std::promise<std::shared_ptr<ftk::TriMesh2F> > promise;
             };
 
@@ -571,6 +582,7 @@ namespace tl
             request->options = options;
 
             const std::string key = getInfoKey(path, mediaPath, audioPath, options);
+            request->key = key;
             IOInfo info;
             bool notify = false;
             {
@@ -638,6 +650,7 @@ namespace tl
                 height,
                 time,
                 options);
+            request->key = key;
             std::shared_ptr<ftk::Image> thumbnail;
             bool notify = false;
             {
@@ -704,6 +717,7 @@ namespace tl
                 size,
                 timeRange,
                 options);
+            request->key = key;
             std::shared_ptr<ftk::TriMesh2F> mesh;
             bool notify = false;
             {
@@ -901,11 +915,9 @@ namespace tl
                     {}
                     request->promise.set_value(info);
 
-                    const std::string key = getInfoKey(
-                        request->path, request->mediaPath, request->audioPath,
-                        request->options);
+                    // By the key the request was made with; see InfoRequest.
                     std::unique_lock<std::mutex> lock(p.infoMutex.mutex);
-                    p.infoMutex.cache.add(key, info);
+                    p.infoMutex.cache.add(request->key, info);
                 }
             }
         }
@@ -1100,22 +1112,16 @@ namespace tl
                     {}
                     request->promise.set_value(image);
 
-                    const std::string key = getThumbnailKey(
-                        request->path,
-                        request->mediaPath,
-                        request->audioPath,
-                        request->height,
-                        request->time,
-                        request->options);
-                    // An empty answer is not cached: it is a timeout or
-                    // an unreadable file, and a cached nothing would
-                    // answer every retry with the same nothing.
+                    // By the key the request was made with; see
+                    // InfoRequest. An empty answer is not cached: it is a
+                    // timeout or an unreadable file, and a cached nothing
+                    // would answer every retry with the same nothing.
                     if (image)
                     {
                         std::unique_lock<std::mutex> lock(
                             p.thumbnailMutex.mutex);
                         p.thumbnailMutex.cache.add(
-                            key, image, image->getByteCount());
+                            request->key, image, image->getByteCount());
                     }
                 }
                 else if (p.ioCacheCount() > 0 && p.ioCacheIdle(ioCacheTimeout))
@@ -1300,20 +1306,13 @@ namespace tl
                     {}
                     request->promise.set_value(mesh);
 
-                    const std::string key = getWaveformKey(
-                        request->path,
-                        request->mediaPath,
-                        request->audioPath,
-                        request->size,
-                        request->timeRange,
-                        request->options);
                     // See the thumbnail cache above.
                     if (mesh)
                     {
                         std::unique_lock<std::mutex> lock(
                             p.waveformMutex.mutex);
                         p.waveformMutex.cache.add(
-                            key, mesh, mesh->getByteCount());
+                            request->key, mesh, mesh->getByteCount());
                     }
                 }
                 else if (p.ioCacheCount() > 0 && p.ioCacheIdle(ioCacheTimeout))
