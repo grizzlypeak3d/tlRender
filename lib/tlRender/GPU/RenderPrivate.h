@@ -133,6 +133,16 @@ namespace tl
             SDL_GPUSampler* sampler = nullptr;
             std::string name;
             std::string samplerName;
+            //! A table the shader had as a constant array; see
+            //! OCIOStage::arrays.
+            bool array = false;
+        };
+
+        //! A constant array of floats in the GLSL OpenColorIO writes.
+        struct OCIOArray
+        {
+            std::string name;
+            std::vector<float> values;
         };
 
         //! One OCIO processor compiled for the GPU: the shader function
@@ -151,6 +161,15 @@ namespace tl
             OCIO::ConstGPUProcessorRcPtr gpuProcessor;
             OCIO::GpuShaderDescRcPtr shaderDesc;
             std::vector<OCIOTexture> textures;
+            //! The constant arrays in the shader's GLSL, which are taken
+            //! out of it: each is a texture read by index instead, the last
+            //! of the stage's textures where the device takes GLSL. A
+            //! shader that indexes a constant array is as OpenColorIO
+            //! writes the ACES 2 transforms, with a table of 363 hues that
+            //! is searched, and Vulkan on a Raspberry Pi took ten seconds
+            //! to compile it and a second to draw with it, where OpenGL ES
+            //! there, which keeps such an array as a uniform, took none.
+            std::vector<OCIOArray> arrays;
         };
 
         struct OCIOData

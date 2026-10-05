@@ -35,6 +35,12 @@ from before has the option in its cache as OFF:
   its Vulkan GLSL declares them itself, in the set and at the bindings asked
   for. OpenColorIO's one dimensional tables are kept as two dimensional
   textures, there being no one dimensional ones.
+- A constant array in the GLSL OpenColorIO writes is taken out of it and
+  read from a texture by index. The ACES 2 transforms have one, a table of
+  363 hues that is searched for each pixel. Left as it was written, Vulkan
+  on a Raspberry Pi took ten seconds to compile the shader and up to a
+  second to draw with it, where OpenGL ES on the same machine, which keeps
+  such an array as a uniform, drew at speed. Metal's is left as it is.
 - The wipe cuts the picture's rectangle along the line rather than using the
   stencil buffer.
 

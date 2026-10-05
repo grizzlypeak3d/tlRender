@@ -8,6 +8,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cctype>
 #include <cstdlib>
 #include <cstring>
 #include <filesystem>
@@ -152,6 +153,158 @@ namespace tl
                 return out;
             }
 
+            // The constant arrays of floats declared in GLSL, and where
+            // each declaration is: "const float name[N] = float[N](...);".
+            struct ArrayDecl
+            {
+                OCIOArray array;
+                size_t begin = 0;
+                size_t end = 0;
+            };
+            std::vector<ArrayDecl> getConstArrays(const std::string& text)
+            {
+                std::vector<ArrayDecl> out;
+                const std::string keyword = "const float ";
+                size_t pos = 0;
+                while ((pos = text.find(keyword, pos)) != std::string::npos)
+                {
+                    size_t i = pos + keyword.size();
+                    while (i < text.size() && ' ' == text[i])
+                    {
+                        ++i;
+                    }
+                    const size_t nameBegin = i;
+                    while (i < text.size() && (std::isalnum(static_cast<unsigned char>(text[i])) || '_' == text[i]))
+                    {
+                        ++i;
+                    }
+                    const size_t nameEnd = i;
+                    while (i < text.size() && ' ' == text[i])
+                    {
+                        ++i;
+                    }
+                    if (nameEnd == nameBegin || i >= text.size() || text[i] != '[')
+                    {
+                        // A constant that is not an array.
+                        pos = i;
+                        continue;
+                    }
+                    const size_t countEnd = text.find(']', i);
+                    const size_t open = std::string::npos == countEnd ? countEnd : text.find('(', countEnd);
+                    const size_t close = std::string::npos == open ? open : text.find(");", open);
+                    if (std::string::npos == close)
+                    {
+                        break;
+                    }
+                    ArrayDecl decl;
+                    decl.array.name = text.substr(nameBegin, nameEnd - nameBegin);
+                    decl.begin = pos;
+                    decl.end = close + 2;
+                    const size_t count = static_cast<size_t>(
+                        std::strtoul(text.c_str() + i + 1, nullptr, 10));
+                    const char* s = text.c_str() + open + 1;
+                    const char* const sEnd = text.c_str() + close;
+                    while (s < sEnd)
+                    {
+                        char* next = nullptr;
+                        const float value = std::strtof(s, &next);
+                        if (next == s)
+                        {
+                            break;
+                        }
+                        decl.array.values.push_back(value);
+                        s = next;
+                        while (s < sEnd && (',' == *s || ' ' == *s || '\n' == *s))
+                        {
+                            ++s;
+                        }
+                    }
+                    if (0 == count || decl.array.values.size() != count)
+                    {
+                        throw std::runtime_error(
+                            ftk::Format("Cannot read the OCIO shader's array \"{0}\"").arg(decl.array.name));
+                    }
+                    out.push_back(decl);
+                    pos = decl.end;
+                }
+                return out;
+            }
+
+            // The name of the sampler an array is read through.
+            std::string getArraySamplerName(const std::string& name)
+            {
+                return name + "_table";
+            }
+
+            // GLSL with its constant arrays of floats taken out: each is
+            // declared as a sampler, at bindings counted from one given,
+            // and read from it by index.
+            std::string replaceConstArrays(const std::string& text, size_t binding)
+            {
+                std::string out = text;
+                // From the last, so that the places of the ones before it
+                // are still where they were found.
+                const auto decls = getConstArrays(out);
+                for (size_t k = decls.size(); k > 0; --k)
+                {
+                    const ArrayDecl& decl = decls[k - 1];
+                    out.replace(
+                        decl.begin,
+                        decl.end - decl.begin,
+                        ftk::Format("layout(set = 2, binding = {0}) uniform sampler2D {1};").
+                            arg(binding + k - 1).
+                            arg(getArraySamplerName(decl.array.name)).str());
+                }
+                for (const auto& decl : decls)
+                {
+                    const std::string& name = decl.array.name;
+                    size_t pos = 0;
+                    while ((pos = out.find(name, pos)) != std::string::npos)
+                    {
+                        const bool word =
+                            0 == pos ||
+                            !(std::isalnum(static_cast<unsigned char>(out[pos - 1])) || '_' == out[pos - 1]);
+                        size_t i = pos + name.size();
+                        while (i < out.size() && ' ' == out[i])
+                        {
+                            ++i;
+                        }
+                        if (!word || i >= out.size() || out[i] != '[')
+                        {
+                            // Part of another name, the sampler's among
+                            // them.
+                            pos += name.size();
+                            continue;
+                        }
+                        // To the bracket that closes this one.
+                        size_t j = i + 1;
+                        int depth = 1;
+                        while (j < out.size() && depth > 0)
+                        {
+                            if ('[' == out[j])
+                            {
+                                ++depth;
+                            }
+                            else if (']' == out[j])
+                            {
+                                --depth;
+                            }
+                            ++j;
+                        }
+                        if (depth != 0)
+                        {
+                            break;
+                        }
+                        const std::string index = out.substr(i + 1, j - i - 2);
+                        const std::string read =
+                            "texelFetch(" + getArraySamplerName(name) + ", ivec2(" + index + ", 0), 0).r";
+                        out.replace(pos, j - pos, read);
+                        pos += read.size();
+                    }
+                }
+                return out;
+            }
+
             // Compile a processor for the GPU: the shader function under
             // the given names, and the textures it samples. The device is
             // the stage's.
@@ -245,6 +398,36 @@ namespace tl
                         stage.floatFilter);
                     texture.sampler = createSampler(stage.device, interpolation);
                     stage.textures.push_back(texture);
+                }
+
+                // The constant arrays in the GLSL; see OCIOStage::arrays.
+                // Textures are made of them where the device takes GLSL,
+                // after the stage's others: of thirty-two bit floats, which
+                // every device has, read by index and so not filtered.
+                for (const auto& decl : getConstArrays(stage.shaderDesc->getShaderText()))
+                {
+                    stage.arrays.push_back(decl.array);
+                }
+                if (!(SDL_GetGPUShaderFormats(stage.device) & SDL_GPU_SHADERFORMAT_MSL))
+                {
+                    for (const auto& array : stage.arrays)
+                    {
+                        OCIOTexture texture;
+                        texture.name = array.name;
+                        texture.samplerName = getArraySamplerName(array.name);
+                        texture.array = true;
+                        texture.texture = createTexture(
+                            stage.device,
+                            SDL_GPU_TEXTURETYPE_2D,
+                            static_cast<uint32_t>(array.values.size()),
+                            1,
+                            1,
+                            array.values.data(),
+                            false,
+                            true);
+                        texture.sampler = createSampler(stage.device, OCIO::INTERP_NEAREST);
+                        stage.textures.push_back(texture);
+                    }
                 }
             }
 
@@ -348,11 +531,27 @@ namespace tl
                     // The GLSL declares its samplers itself, at the
                     // bindings the description says it gave them.
                     const auto desc = shaderDesc(stage, OCIO::GPU_LANGUAGE_GLSL_VK_4_6, slot);
-                    out.glslDef = desc->getShaderText();
+                    // The constant arrays are read from textures, bound
+                    // after the ones OCIO binds itself.
+                    size_t ocioTextures = 0;
+                    for (const auto& i : stage.textures)
+                    {
+                        ocioTextures += i.array ? 0 : 1;
+                    }
+                    out.glslDef = replaceConstArrays(desc->getShaderText(), slot + ocioTextures);
                     out.glslCall = "outColor = " + stage.functionName + "(outColor);";
                     if (!msl)
                     {
                         out.textures.resize(stage.textures.size());
+                        for (size_t k = 0, array = 0; k < stage.textures.size(); ++k)
+                        {
+                            if (stage.textures[k].array)
+                            {
+                                out.textures[ocioTextures + array] =
+                                    { stage.textures[k].texture, stage.textures[k].sampler };
+                                ++array;
+                            }
+                        }
                         const auto place = [&](const char* samplerName, unsigned binding)
                         {
                             const size_t index = find(samplerName, true);
