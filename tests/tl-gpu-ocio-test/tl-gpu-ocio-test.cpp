@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: BSD-3-Clause
 // Copyright Contributors to the tlRender project.
 
-// A spike: OpenColorIO display transforms through an SDL GPU pipeline,
-// checked against OpenColorIO's own CPU processor.
+// OpenColorIO display transforms through an SDL GPU pipeline, checked
+// against OpenColorIO's own CPU processor.
 //
 // OpenColorIO emits Metal Shading Language as a function that takes its
 // textures and samplers as arguments. The fragment entry point is written

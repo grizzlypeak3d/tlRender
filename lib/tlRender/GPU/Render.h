@@ -15,9 +15,8 @@
 
 namespace tl
 {
-    //! Timeline rendering with SDL's GPU API.
-    //!
-    //! A spike, beside the OpenGL renderer and drawing what it draws.
+    //! Timeline rendering with SDL's GPU API, beside the OpenGL renderer and
+    //! drawing what it draws; see README.md.
     namespace gpu
     {
 #if defined(TLRENDER_OCIO)

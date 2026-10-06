@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BSD-3-Clause
 // Copyright Contributors to the tlRender project.
 
-// A spike: a picture that is PQ, drawn into a window and presented.
+// A picture that is PQ, drawn into a window and presented.
 //
 // The picture's code values are taken into what a window holds as the
 // picture is drawn there (tl::gpu::Render::drawTextureHDR), and the window is
