@@ -134,19 +134,23 @@ elseif(APPLE)
     # rpaths usually cover a library, but not one loaded by itself, and the
     # wheel repair tool checks each library that way.
     set(CMAKE_INSTALL_RPATH "@loader_path/../lib")
+else()
+    set(CMAKE_INSTALL_RPATH "$ORIGIN/../lib")
+endif()
+if(NOT WIN32)
     # The freshly built libraries have to come before the installed
     # copies, or a binary run from the build tree quietly loads the
     # stale install -- so they are gathered into one directory that
     # leads the search path. The install prefix entry cannot simply be
     # dropped: CMake adds it back for the prebuilt dependencies, and
     # after the build tree's own directories only because they are
-    # listed here first.
+    # listed here first. Linux as well as macOS: there the order CMake
+    # makes on its own put the prefix first, and a profile of the build
+    # tree's djv was of the installed GPU library.
     set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
     set(CMAKE_BUILD_RPATH
         "${CMAKE_BINARY_DIR}/lib"
         "${CMAKE_INSTALL_PREFIX}/lib")
-else()
-    set(CMAKE_INSTALL_RPATH "$ORIGIN/../lib")
 endif()
 # The rest of an rpath, relative to <prefix>/lib: a wheel names feather-tk's
 # libraries in the feather_tk package beside it.
