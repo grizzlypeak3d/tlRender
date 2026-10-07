@@ -11,12 +11,22 @@
 #include <tlRender/Timeline/Player.h>
 
 #include <ftk/UI/IWidget.h>
-#include <ftk/GL/Texture.h>
+#include <ftk/Core/Image.h>
+
+#include <vector>
 
 namespace tl
 {
     namespace ui
     {
+        //! The types of buffer a viewport can draw into: what the
+        //! "Color buffer" choice offers. Eight bit, and the float types
+        //! where the renderer has them.
+        TL_UI_API std::vector<ftk::ImageType> getViewportColorBuffers();
+
+        //! The type a viewport draws into unless told otherwise.
+        TL_UI_API ftk::ImageType getViewportColorBufferDefault();
+
         //! Timeline viewport.
         class TL_UI_API_TYPE Viewport : public ftk::IWidget
         {
@@ -108,9 +118,9 @@ namespace tl
             //! \name Color Buffer Type
             ///@{
 
-            TL_UI_API ftk::gl::TextureType getColorBuffer() const;
-            TL_UI_API std::shared_ptr<ftk::IObservable<ftk::gl::TextureType> > observeColorBuffer() const;
-            TL_UI_API void setColorBuffer(ftk::gl::TextureType);
+            TL_UI_API ftk::ImageType getColorBuffer() const;
+            TL_UI_API std::shared_ptr<ftk::IObservable<ftk::ImageType> > observeColorBuffer() const;
+            TL_UI_API void setColorBuffer(ftk::ImageType);
 
             ///@}
 

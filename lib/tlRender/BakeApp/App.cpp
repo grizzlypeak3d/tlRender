@@ -617,25 +617,11 @@ namespace tl
             _render->end();
 
             // Write the frame.
-            glPixelStorei(GL_PACK_ALIGNMENT, _outputInfo.layout.alignment);
-            if (!ftk::gl::isGLES())
-            {
-                glPixelStorei(GL_PACK_SWAP_BYTES, _outputInfo.layout.endian != ftk::getEndian());
-            }
-            const GLenum format = ftk::gl::getReadPixelsFormat(_outputInfo.type);
-            const GLenum type = ftk::gl::getReadPixelsType(_outputInfo.type);
-            if (GL_NONE == format || GL_NONE == type)
+            _outputImage = _buffer->read(_outputInfo);
+            if (!_outputImage)
             {
                 throw std::runtime_error(ftk::Format("Cannot write: \"{0}\"").arg(_cmdLine.output->getValue()));
             }
-            glReadPixels(
-                0,
-                0,
-                _outputInfo.size.w,
-                _outputInfo.size.h,
-                format,
-                type,
-                _outputImage->getData());
             // The time of the frame in the timeline, which is what
             // ioInfo.videoTime above describes. A sequence writer names each
             // file from it, so those keep the frame numbers of the timeline.

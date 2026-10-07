@@ -57,7 +57,7 @@ namespace tl
             std::shared_ptr<ftk::ObservableList<DisplayOptions> > displayOptions;
             std::shared_ptr<ftk::Observable<BackgroundOptions> > bgOptions;
             std::shared_ptr<ftk::Observable<ForegroundOptions> > fgOptions;
-            std::shared_ptr<ftk::Observable<ftk::gl::TextureType> > colorBuffer;
+            std::shared_ptr<ftk::Observable<ftk::ImageType> > colorBuffer;
             std::shared_ptr<Player> player;
             std::vector<VideoFrame> videoFrame;
             std::shared_ptr<ftk::Observable<ftk::V2I> > viewPos;
@@ -147,8 +147,8 @@ namespace tl
             p.bgOptions = ftk::Observable<BackgroundOptions>::create();
             p.fgOptions = ftk::Observable<ForegroundOptions>::create();
             p.compareOptions = ftk::Observable<CompareOptions>::create();
-            p.colorBuffer = ftk::Observable<ftk::gl::TextureType>::create(
-                ftk::gl::getOffscreenColorDefault());
+            p.colorBuffer = ftk::Observable<ftk::ImageType>::create(
+                getViewportColorBufferDefault());
             p.viewPos = ftk::Observable<ftk::V2I>::create();
             p.zoom = ftk::Observable<double>::create(1.0);
             p.viewPosZoom = ftk::Observable<std::pair<ftk::V2I, double> >::create(
@@ -336,17 +336,33 @@ namespace tl
             }
         }
 
-        ftk::gl::TextureType Viewport::getColorBuffer() const
+        std::vector<ftk::ImageType> getViewportColorBuffers()
+        {
+            std::vector<ftk::ImageType> out = { ftk::ImageType::RGBA_U8 };
+            if (!ftk::gl::isGLES())
+            {
+                out.push_back(ftk::ImageType::RGBA_F16);
+                out.push_back(ftk::ImageType::RGBA_F32);
+            }
+            return out;
+        }
+
+        ftk::ImageType getViewportColorBufferDefault()
+        {
+            return ftk::gl::isGLES() ? ftk::ImageType::RGBA_U8 : ftk::ImageType::RGBA_F16;
+        }
+
+        ftk::ImageType Viewport::getColorBuffer() const
         {
             return _p->colorBuffer->get();
         }
 
-        std::shared_ptr<ftk::IObservable<ftk::gl::TextureType> > Viewport::observeColorBuffer() const
+        std::shared_ptr<ftk::IObservable<ftk::ImageType> > Viewport::observeColorBuffer() const
         {
             return _p->colorBuffer;
         }
 
-        void Viewport::setColorBuffer(ftk::gl::TextureType value)
+        void Viewport::setColorBuffer(ftk::ImageType value)
         {
             FTK_P();
             if (p.colorBuffer->setIfChanged(value))
@@ -663,26 +679,7 @@ namespace tl
             ftk::Color4F out;
             if (p.buffer)
             {
-                const ftk::Box2I& g = getGeometry();
-                std::vector<float> sample(4);
-                ftk::gl::OffscreenBufferBinding binding(p.buffer);
-                glPixelStorei(GL_PACK_ALIGNMENT, 1);
-                if (!ftk::gl::isGLES())
-                {
-                    glClampColor(GL_CLAMP_READ_COLOR, GL_FALSE);
-                }
-                glReadPixels(
-                    value.x,
-                    g.h() - 1 - value.y,
-                    1,
-                    1,
-                    GL_RGBA,
-                    GL_FLOAT,
-                    sample.data());
-                out.r = std::isnan(sample[0]) || std::isinf(sample[0]) ? 0.F : sample[0];
-                out.g = std::isnan(sample[1]) || std::isinf(sample[1]) ? 0.F : sample[1];
-                out.b = std::isnan(sample[2]) || std::isinf(sample[2]) ? 0.F : sample[2];
-                out.a = std::isnan(sample[3]) || std::isinf(sample[3]) ? 0.F : sample[3];
+                out = p.buffer->getPixel(value);
             }
             return out;
         }
@@ -1012,15 +1009,17 @@ namespace tl
                     }
                     offscreenBufferOptions.depth = ftk::gl::OffscreenDepth::_24;
                     offscreenBufferOptions.stencil = ftk::gl::OffscreenStencil::_8;
+                    const ftk::gl::TextureType bufferType = ftk::gl::getRenderableType(
+                        ftk::gl::getTextureType(p.colorBuffer->get()));
                     if (ftk::gl::doCreate(
                         p.buffer,
                         size,
-                        p.colorBuffer->get(),
+                        bufferType,
                         offscreenBufferOptions))
                     {
                         p.buffer = ftk::gl::OffscreenBuffer::create(
                             size,
-                            p.colorBuffer->get(),
+                            bufferType,
                             offscreenBufferOptions);
                     }
 
