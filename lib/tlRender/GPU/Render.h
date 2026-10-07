@@ -82,7 +82,7 @@ namespace tl
                 const std::vector<ftk::ImageOptions>& = {},
                 const std::vector<DisplayOptions>& = {},
                 const CompareOptions& = CompareOptions(),
-                ftk::gl::TextureType colorBuffer = ftk::gl::getOffscreenColorDefault()) override;
+                ftk::ImageType colorBuffer = ftk::ImageType::RGBA_F32) override;
             TL_GPU_API void drawForeground(
                 const std::vector<ftk::Box2I>&,
                 const ftk::M44F& vm,
@@ -190,20 +190,20 @@ namespace tl
             std::shared_ptr<ftk::gpu::OffscreenBuffer> _buffer(
                 const std::string& name,
                 const ftk::Size2I&,
-                ftk::gl::TextureType);
+                ftk::ImageType);
 
             bool _drawVideoPair(
                 const std::vector<VideoFrame>&,
                 const std::vector<ftk::Box2I>&,
                 const std::vector<ftk::ImageOptions>&,
                 const std::vector<DisplayOptions>&,
-                ftk::gl::TextureType colorBuffer);
+                ftk::ImageType colorBuffer);
             void _drawVideo(
                 const VideoFrame&,
                 const ftk::Box2I&,
                 const std::shared_ptr<ftk::ImageOptions>&,
                 const DisplayOptions&,
-                ftk::gl::TextureType colorBuffer,
+                ftk::ImageType colorBuffer,
                 const ftk::M44F& mvp,
                 const std::optional<Clip>& = std::nullopt);
 

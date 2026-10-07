@@ -11,9 +11,8 @@
 #include <tlRender/Timeline/ForegroundOptions.h>
 #include <tlRender/Timeline/Video.h>
 
-#include <ftk/GL/OffscreenBuffer.h>
-#include <ftk/GL/Texture.h>
 #include <ftk/Core/IRender.h>
+#include <ftk/Core/Image.h>
 
 #include <functional>
 
@@ -56,7 +55,7 @@ namespace tl
             const std::vector<ftk::ImageOptions>& = {},
             const std::vector<DisplayOptions>& = {},
             const CompareOptions& = CompareOptions(),
-            ftk::gl::TextureType colorBuffer = ftk::gl::getOffscreenColorDefault()) = 0;
+            ftk::ImageType colorBuffer = ftk::ImageType::RGBA_F32) = 0;
 
         //! Draw the foreground.
         TL_TIMELINE_API virtual void drawForeground(

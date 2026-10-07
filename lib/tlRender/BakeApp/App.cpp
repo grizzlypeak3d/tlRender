@@ -663,8 +663,7 @@ namespace tl
                     { ftk::Box2I(0, 0, _renderSize.w, _renderSize.h) });
                 _render->end();
 
-                // Read back as the writer wants it, which is what
-                // glReadPixels does below.
+                // Read back as the writer wants it.
                 _outputImage = _gpuBuffer->read(_outputInfo);
             }
             else
@@ -679,26 +678,12 @@ namespace tl
                     { ftk::Box2I(0, 0, _renderSize.w, _renderSize.h) });
                 _render->end();
 
-                // Write the frame.
-                glPixelStorei(GL_PACK_ALIGNMENT, _outputInfo.layout.alignment);
-                if (!ftk::gl::isGLES())
-                {
-                    glPixelStorei(GL_PACK_SWAP_BYTES, _outputInfo.layout.endian != ftk::getEndian());
-                }
-                const GLenum format = ftk::gl::getReadPixelsFormat(_outputInfo.type);
-                const GLenum type = ftk::gl::getReadPixelsType(_outputInfo.type);
-                if (GL_NONE == format || GL_NONE == type)
-                {
-                    throw std::runtime_error(ftk::Format("Cannot write: \"{0}\"").arg(_cmdLine.output->getValue()));
-                }
-                glReadPixels(
-                    0,
-                    0,
-                    _outputInfo.size.w,
-                    _outputInfo.size.h,
-                    format,
-                    type,
-                    _outputImage->getData());
+                // Read back as the writer wants it.
+                _outputImage = _buffer->read(_outputInfo);
+            }
+            if (!_outputImage)
+            {
+                throw std::runtime_error(ftk::Format("Cannot write: \"{0}\"").arg(_cmdLine.output->getValue()));
             }
             // The time of the frame in the timeline, which is what
             // ioInfo.videoTime above describes. A sequence writer names each

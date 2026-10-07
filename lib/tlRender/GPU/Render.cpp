@@ -1099,14 +1099,14 @@ namespace tl
         std::shared_ptr<ftk::gpu::OffscreenBuffer> Render::_buffer(
             const std::string& name,
             const ftk::Size2I& size,
-            ftk::gl::TextureType type)
+            ftk::ImageType type)
         {
             FTK_P();
             ftk::gpu::BufferType bufferType = ftk::gpu::BufferType::RGBA_F16;
             switch (type)
             {
-            case ftk::gl::TextureType::RGBA_U8: bufferType = ftk::gpu::BufferType::RGBA_U8; break;
-            case ftk::gl::TextureType::RGBA_F32: bufferType = ftk::gpu::BufferType::RGBA_F32; break;
+            case ftk::ImageType::RGBA_U8: bufferType = ftk::gpu::BufferType::RGBA_U8; break;
+            case ftk::ImageType::RGBA_F32: bufferType = ftk::gpu::BufferType::RGBA_F32; break;
             default: break;
             }
             auto& buffer = p.buffers[name];

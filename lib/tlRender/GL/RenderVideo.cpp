@@ -49,8 +49,12 @@ namespace tl
             const std::vector<ftk::ImageOptions>& imageOptions,
             const std::vector<DisplayOptions>& displayOptions,
             const CompareOptions& compareOptions,
-            ftk::gl::TextureType colorBuffer)
+            ftk::ImageType colorBufferType)
         {
+            // The buffers drawn into along the way are of the type the
+            // picture is asked for, as the renderer can make it.
+            const ftk::gl::TextureType colorBuffer = ftk::gl::getRenderableType(
+                ftk::gl::getTextureType(colorBufferType));
             switch (compareOptions.compare)
             {
             case Compare::None:

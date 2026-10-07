@@ -18,8 +18,6 @@
 #include "ViewActions.h"
 #include "WindowActions.h"
 
-#include <ftk/GL/OffscreenBuffer.h>
-
 #include <ftk/UI/Divider.h>
 #include <ftk/UI/IconSystem.h>
 #include <ftk/UI/Menu.h>
@@ -52,9 +50,9 @@ namespace tl
             // Create the viewport.
             _viewport = ui::Viewport::create(context);
             // The most precision there is to render into: floating point,
-            // or on OpenGL ES without the extensions for it the closest the
-            // driver can (see ftk::gl::getRenderableType()).
-            _viewport->setColorBuffer(ftk::gl::getOffscreenColorDefault());
+            // or on OpenGL ES the closest the driver can (see
+            // ui::getViewportColorBufferDefault()).
+            _viewport->setColorBuffer(ui::getViewportColorBufferDefault());
 
             // Create the timeline.
             _timelineWidget = ui::TimelineWidget::create(

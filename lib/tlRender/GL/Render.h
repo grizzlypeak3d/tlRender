@@ -6,6 +6,8 @@
 #include <tlRender/GL/Export.h>
 #include <tlRender/Timeline/IRender.h>
 
+#include <ftk/GL/OffscreenBuffer.h>
+
 #include <ftk/GL/Render.h>
 #include <ftk/Core/LRUCache.h>
 
@@ -56,7 +58,7 @@ namespace tl
                 const std::vector<ftk::ImageOptions>& = {},
                 const std::vector<DisplayOptions>& = {},
                 const CompareOptions& = CompareOptions(),
-                ftk::gl::TextureType colorBuffer = ftk::gl::getOffscreenColorDefault()) override;
+                ftk::ImageType colorBuffer = ftk::ImageType::RGBA_F32) override;
             TL_GL_API void drawForeground(
                 const std::vector<ftk::Box2I>&,
                 const ftk::M44F& vm,

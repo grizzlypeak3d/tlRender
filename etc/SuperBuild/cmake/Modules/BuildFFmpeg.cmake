@@ -577,10 +577,26 @@ if(WIN32)
     # PKG_CONFIG_PATH is exported into a shell that has nothing to read it,
     # and --enable-libaom fails however well the libraries themselves were
     # built.
-    set(FFmpeg_CONFIGURE ${FFmpeg_MSYS2}
-        -c "pacman -S --needed diffutils make nasm pkgconf --noconfirm && \
+    #
+    # From a script rather than on the command line: a command run by the
+    # build is limited to 8191 characters on Windows, and the arguments
+    # alone pass that when the full set of codecs is built with some of them
+    # taken out. Past the limit the step fails at once and says nothing.
+    set(FFmpeg_CONFIGURE_SCRIPT ${CMAKE_CURRENT_BINARY_DIR}/FFmpeg-configure.sh)
+    file(WRITE ${FFmpeg_CONFIGURE_SCRIPT}
+        "pacman -S --needed diffutils make nasm pkgconf --noconfirm && \
         export PKG_CONFIG_PATH=${FFmpeg_PKG_CONFIG} && \
         ./configure ${FFmpeg_CONFIGURE_ARGS_TMP}")
+    # The drive as MSYS2 names it, as for the pkg-config path above.
+    string(SUBSTRING ${FFmpeg_CONFIGURE_SCRIPT} 0 2 FFmpeg_CONFIGURE_SCRIPT_DRIVE)
+    string(SUBSTRING ${FFmpeg_CONFIGURE_SCRIPT} 0 1 FFmpeg_CONFIGURE_SCRIPT_DRIVE_LETTER)
+    string(REPLACE
+        ${FFmpeg_CONFIGURE_SCRIPT_DRIVE}
+        /${FFmpeg_CONFIGURE_SCRIPT_DRIVE_LETTER}
+        FFmpeg_CONFIGURE_SCRIPT_MSYS
+        ${FFmpeg_CONFIGURE_SCRIPT})
+    set(FFmpeg_CONFIGURE ${FFmpeg_MSYS2}
+        -c "sh ${FFmpeg_CONFIGURE_SCRIPT_MSYS}")
     set(FFmpeg_BUILD ${FFmpeg_MSYS2} -c "make -j${FFmpeg_BUILD_JOBS}")
     set(FFmpeg_INSTALL ${FFmpeg_MSYS2} -c "make install"
         COMMAND ${FFmpeg_MSYS2} -c "mv ${CMAKE_INSTALL_PREFIX}/bin/avcodec.lib ${CMAKE_INSTALL_PREFIX}/lib"

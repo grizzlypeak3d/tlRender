@@ -388,8 +388,12 @@ namespace tl
 
     int64_t Player::Private::toAudioSamples(const OTIO_NS::RationalTime& time) const
     {
+        // Rounded up, so the position is in the frame it was made from:
+        // at 44100Hz frame 1 of 24 is sample 1837.5, and sample 1837 is
+        // still frame 0, which at the start of the range loops around to
+        // the last frame.
         return sourceAudioInfo.sampleRate > 0 ?
-            time.rescaled_to(sourceAudioInfo.sampleRate).floor().value() :
+            time.rescaled_to(sourceAudioInfo.sampleRate).ceil().value() :
             0;
     }
 

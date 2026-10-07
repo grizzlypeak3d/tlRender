@@ -136,7 +136,7 @@ namespace tl
             const std::vector<ftk::ImageOptions>& imageOptions,
             const std::vector<DisplayOptions>& displayOptions,
             const CompareOptions& compareOptions,
-            ftk::gl::TextureType colorBuffer)
+            ftk::ImageType colorBuffer)
         {
             FTK_P();
             const auto draw = [&](size_t i, const std::optional<Clip>& clip = std::nullopt)
@@ -266,7 +266,7 @@ namespace tl
             const std::vector<ftk::Box2I>& boxes,
             const std::vector<ftk::ImageOptions>& imageOptions,
             const std::vector<DisplayOptions>& displayOptions,
-            ftk::gl::TextureType colorBuffer)
+            ftk::ImageType colorBuffer)
         {
             FTK_P();
             const ftk::Size2I size(boxes[0].w(), boxes[0].h());
@@ -300,7 +300,7 @@ namespace tl
             const ftk::Box2I& box,
             const std::shared_ptr<ftk::ImageOptions>& imageOptions,
             const DisplayOptions& displayOptions,
-            ftk::gl::TextureType colorBuffer,
+            ftk::ImageType colorBuffer,
             const ftk::M44F& mvp,
             const std::optional<Clip>& clip)
         {
