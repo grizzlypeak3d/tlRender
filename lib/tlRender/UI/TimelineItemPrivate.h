@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: BSD-3-Clause
 // Copyright Contributors to the tlRender project.
 
+#pragma once
+
 #include <tlRender/UI/TimelineItem.h>
 
 #include <tlRender/UI/ThumbnailSystem.h>

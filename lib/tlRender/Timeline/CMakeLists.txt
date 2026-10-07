@@ -42,6 +42,11 @@ set(SOURCE
     System.cpp
     TimeUnits.cpp
     Timeline.cpp
+    TimelineInit.cpp
+    TimelineMedia.cpp
+    TimelineRequests.cpp
+    TimelineRead.cpp
+    TimelineCanvas.cpp
     TimelineOptions.cpp
     Transition.cpp
     Util.cpp

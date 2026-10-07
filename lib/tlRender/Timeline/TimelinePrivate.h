@@ -23,6 +23,38 @@ namespace tl
 {
     class ZipReader;
 
+    //! An absolute form of a file name, for comparing paths.
+    std::string absoluteFileName(const std::string&);
+
+    //! An absolute, normalized form of a media path, used only to compare
+    //! paths that name the same file in different ways.
+    std::string normalMediaPath(const ftk::Path&);
+
+    //! Resolve which media reference a clip should be read from.
+    //!
+    //! A key set for the clip alone takes precedence over the timeline
+    //! wide key. Clips that do not have the requested key fall back to the
+    //! default media key, and then to the media reference OTIO has active.
+    OTIO_NS::MediaReference* resolveMediaReference(
+        const OTIO_NS::Clip* otioClip,
+        const std::string& key,
+        const std::map<const OTIO_NS::Clip*, std::string>& clipKeys);
+
+    //! Get the OTIO spatial coordinates of a media reference. These are
+    //! optional; media without them is laid out from the image size.
+    //! The coordinates are returned as authored, in the OTIO coordinate
+    //! system: unit-less and Y-up.
+    std::optional<ftk::Box2F> getMediaReferenceBounds(
+        const OTIO_NS::MediaReference* otioMediaReference);
+
+    //! Get a clip's box within the timeline canvas.
+    std::optional<ftk::Box2F> getCanvasBox(
+        const std::optional<ftk::Box2F>& clipBounds,
+        Spatial spatial,
+        const ftk::Size2I& normalizeSize,
+        double scale,
+        const ftk::V2F& offset);
+
     struct Timeline::Private
     {
         std::weak_ptr<ftk::Context> context;
