@@ -116,6 +116,7 @@ namespace tl
             }
             cmd.push_back("-i");
             cmd.push_back("pipe:0");
+            const size_t inputEnd = cmd.size();
 
             // The encoding arguments: a preset by name, then whatever extra
             // arguments the caller adds. The tags carry the display colour
@@ -189,6 +190,60 @@ namespace tl
                 }
             }
             cmd.push_back(path.get());
+
+            // Subsampled chroma covers the pixels in pairs (or fours), so the
+            // size has to divide evenly: an odd width or height leaves the
+            // last column or row without it, which some encoders reject and
+            // others fill with black. Refused here, with the size to change,
+            // as the library writer does, rather than left to the encoder's
+            // own message. The output pixel format is the last one named
+            // after the input, by the preset or the extra arguments.
+            {
+                std::string pixFmt;
+                for (size_t i = inputEnd; i + 1 < cmd.size(); ++i)
+                {
+                    if ("-pix_fmt" == cmd[i])
+                    {
+                        pixFmt = cmd[i + 1];
+                    }
+                }
+                int w = 1;
+                int h = 1;
+                if (0 == pixFmt.find("yuv420") || 0 == pixFmt.find("yuvj420") ||
+                    0 == pixFmt.find("nv12") || 0 == pixFmt.find("nv21") ||
+                    0 == pixFmt.find("p010") || 0 == pixFmt.find("p016"))
+                {
+                    w = 2;
+                    h = 2;
+                }
+                else if (0 == pixFmt.find("yuv422") || 0 == pixFmt.find("yuvj422") ||
+                    0 == pixFmt.find("nv16") || 0 == pixFmt.find("uyvy") ||
+                    0 == pixFmt.find("yuyv") || 0 == pixFmt.find("p210") ||
+                    0 == pixFmt.find("p216"))
+                {
+                    w = 2;
+                }
+                else if (0 == pixFmt.find("yuv411"))
+                {
+                    w = 4;
+                }
+                else if (0 == pixFmt.find("yuv440"))
+                {
+                    h = 2;
+                }
+                if (imageInfo.size.w % w || imageInfo.size.h % h)
+                {
+                    throw std::runtime_error(ftk::Format(
+                        "The video size {0}x{1} must be divisible by {2}x{3} "
+                        "for the pixel format \"{4}\": \"{5}\"").
+                        arg(imageInfo.size.w).
+                        arg(imageInfo.size.h).
+                        arg(w).
+                        arg(h).
+                        arg(pixFmt).
+                        arg(path.get()));
+                }
+            }
 
             p.rowByteCount = ftk::ImageInfo(
                 ftk::Size2I(imageInfo.size.w, 1), imageInfo.type).getByteCount();
