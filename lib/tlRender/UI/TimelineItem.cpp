@@ -693,6 +693,24 @@ namespace tl
                     tracksHeight += track.size.h;
                 }
             }
+            if (_displayOptions.minimize)
+            {
+                // The minimized timeline shows the first video track and
+                // the first audio track as strips. A strip's worth of room
+                // is kept for the one a timeline does not have, so the
+                // height does not change between files with and without
+                // audio: the controls below would move by a few pixels on
+                // every switch. Only the strip, not the media it would show,
+                // which is already a choice that changes the height.
+                if (-1 == p.firstVideoTrack)
+                {
+                    tracksHeight += itemHeight;
+                }
+                if (-1 == p.firstAudioTrack)
+                {
+                    tracksHeight += itemHeight;
+                }
+            }
             p.size.sizeHint = ftk::Size2I(
                 (_timeRange.duration().rescaled_to(1.0).value() +
                     _offset.rescaled_to(1.0).value()) * _scale,
