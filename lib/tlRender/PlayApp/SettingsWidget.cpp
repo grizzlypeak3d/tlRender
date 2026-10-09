@@ -6,6 +6,7 @@
 #include "App.h"
 #include "SettingsModel.h"
 
+#include <ftk/UI/FormLayout.h>
 #include <ftk/UI/GroupBox.h>
 
 namespace tl
@@ -166,6 +167,9 @@ namespace tl
             CacheSettingsWidget::create(context, app, groupBox);
             groupBox = ftk::GroupBox::create(context, "File Browser", _layout);
             FileBrowserSettingsWidget::create(context, app, groupBox);
+
+            // The sections' labels share one width.
+            ftk::setFormGroup(_layout, ftk::FormGroup::create());
         }
 
         SettingsWidget::~SettingsWidget()
