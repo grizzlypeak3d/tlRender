@@ -100,7 +100,17 @@ namespace tl
                 transferInfo.usage = SDL_GPU_TRANSFERBUFFERUSAGE_UPLOAD;
                 transferInfo.size = static_cast<Uint32>(byteCount);
                 SDL_GPUTransferBuffer* transfer = SDL_CreateGPUTransferBuffer(device, &transferInfo);
-                void* data = SDL_MapGPUTransferBuffer(device, transfer, false);
+                void* data = transfer ? SDL_MapGPUTransferBuffer(device, transfer, false) : nullptr;
+                if (!data)
+                {
+                    const std::string error = SDL_GetError();
+                    if (transfer)
+                    {
+                        SDL_ReleaseGPUTransferBuffer(device, transfer);
+                    }
+                    SDL_ReleaseGPUTexture(device, out);
+                    throw std::runtime_error(ftk::Format("Cannot create a transfer buffer: {0}").arg(error));
+                }
                 if (floatFilter)
                 {
                     float* p = static_cast<float*>(data);
