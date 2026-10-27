@@ -598,6 +598,7 @@ namespace tl
         void Viewport::center()
         {
             FTK_P();
+            _updateFrameView();
             const ftk::Size2I renderSize = _getRenderSize();
             if (renderSize.isValid())
             {
@@ -614,12 +615,21 @@ namespace tl
         void Viewport::resetZoom()
         {
             FTK_P();
+            _updateFrameView();
+            // Take frame view off even when the framed zoom is already 1:1,
+            // where setting the zoom would change nothing. Not without an
+            // image, or the next file opened would not be framed.
+            if (_getRenderSize().isValid())
+            {
+                setFrameView(false);
+            }
             setZoom(1.F, _getViewportCenter());
         }
 
         void Viewport::zoomIn()
         {
             FTK_P();
+            _updateFrameView();
             setZoom(
                 p.zoom->get() * 2.0,
                 p.mouse.inside ? p.mouse.pos : _getViewportCenter());
@@ -628,6 +638,7 @@ namespace tl
         void Viewport::zoomOut()
         {
             FTK_P();
+            _updateFrameView();
             setZoom(
                 p.zoom->get() / 2.0,
                 p.mouse.inside ? p.mouse.pos : _getViewportCenter());
@@ -1551,6 +1562,20 @@ namespace tl
             {
                 p.viewPos->setIfChanged(viewPos);
                 p.zoom->setIfChanged(zoom);
+            }
+        }
+
+        void Viewport::_updateFrameView()
+        {
+            FTK_P();
+            // The framed position and zoom are worked out when the viewport
+            // draws, so before the first draw with an image (a command run
+            // at startup, for example) they are still the defaults.
+            if (p.frameView->get() &&
+                _getRenderSize().isValid() &&
+                getGeometry().isValid())
+            {
+                _frameView();
             }
         }
 

@@ -27,6 +27,7 @@ namespace tl
         private:
             void _viewport(const std::shared_ptr<ftk::App>&);
             void _timeline(const std::shared_ptr<ftk::App>&);
+            void _viewCommands(const std::shared_ptr<ftk::App>&);
         };
     }
 }
