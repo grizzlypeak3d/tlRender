@@ -488,6 +488,12 @@ namespace tl
                     {
                         _tags[i.first] = i.second;
                     }
+                    // Kept where a stream had it, for whether it is drop
+                    // frame.
+                    if (!timecode.empty())
+                    {
+                        _tags["timecode"] = timecode;
+                    }
 
                     // The stream's color description, for resolving an
                     // input color space from what the file itself says.

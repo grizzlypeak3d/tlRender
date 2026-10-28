@@ -30,9 +30,16 @@ namespace tl
 
     //! Convert a time value to text. An unset time gives the placeholder
     //! text for the units, so a widget with no value still reads as a time.
+    //! Timecode is drop frame only when asked for: 29.97 is not drop frame
+    //! unless the media says so.
     TL_TIMELINE_API std::string timeToText(
         const std::optional<OTIO_NS::RationalTime>&,
-        TimeUnits);
+        TimeUnits,
+        bool dropFrame = false);
+
+    //! Get whether a timecode is drop frame, which the ';' before the
+    //! frames says.
+    TL_TIMELINE_API bool isDropFrame(const std::string& timecode);
 
     //! Convert text to a time value. Unset when the text does not parse.
     TL_TIMELINE_API std::optional<OTIO_NS::RationalTime> textToTime(
@@ -97,6 +104,12 @@ namespace tl
             
         //! Set the time units.
         TL_TIMELINE_API void setTimeUnits(TimeUnits);
+
+        //! Get whether timecode is shown as drop frame.
+        TL_TIMELINE_API bool isDropFrame() const;
+
+        //! Set whether timecode is shown as drop frame, from the media.
+        TL_TIMELINE_API void setDropFrame(bool);
 
         TL_TIMELINE_API std::string getLabel(
             const std::optional<OTIO_NS::RationalTime>&) const override;

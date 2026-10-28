@@ -40,7 +40,7 @@ namespace tl
             };
             std::optional<DrawData> draw;
 
-            std::shared_ptr<ftk::Observer<TimeUnits> > timeUnitsObserver;
+            std::shared_ptr<ftk::Observer<bool> > timeUnitsObserver;
         };
 
         void TimeLabel::_init(
@@ -61,9 +61,10 @@ namespace tl
 
             _textUpdate();
 
-            p.timeUnitsObserver = ftk::Observer<TimeUnits>::create(
-                p.timeUnitsModel->observeTimeUnits(),
-                [this](TimeUnits)
+            // The units or whether timecode is drop frame.
+            p.timeUnitsObserver = ftk::Observer<bool>::create(
+                p.timeUnitsModel->observeTimeUnitsChanged(),
+                [this](bool)
                 {
                     _textUpdate();
                 });
@@ -218,7 +219,10 @@ namespace tl
             if (p.timeUnitsModel)
             {
                 const TimeUnits timeUnits = p.timeUnitsModel->getTimeUnits();
-                p.text = timeToText(p.value, timeUnits);
+                p.text = timeToText(
+                    p.value,
+                    timeUnits,
+                    p.timeUnitsModel->isDropFrame());
                 p.format = formatString(timeUnits);
             }
             p.size.init = true;

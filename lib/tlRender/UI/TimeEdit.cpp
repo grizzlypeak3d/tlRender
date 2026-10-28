@@ -24,7 +24,7 @@ namespace tl
             std::shared_ptr<ftk::IncButtons> incButtons;
             std::shared_ptr<ftk::HorizontalLayout> layout;
 
-            std::shared_ptr<ftk::Observer<TimeUnits> > timeUnitsObserver;
+            std::shared_ptr<ftk::Observer<bool> > timeUnitsObserver;
         };
 
         void TimeEdit::_init(
@@ -91,9 +91,10 @@ namespace tl
                     }
                 });
 
-            p.timeUnitsObserver = ftk::Observer<TimeUnits>::create(
-                p.timeUnitsModel->observeTimeUnits(),
-                [this](TimeUnits)
+            // The units or whether timecode is drop frame.
+            p.timeUnitsObserver = ftk::Observer<bool>::create(
+                p.timeUnitsModel->observeTimeUnitsChanged(),
+                [this](bool)
                 {
                     _textUpdate();
                 });
@@ -286,7 +287,10 @@ namespace tl
             if (p.timeUnitsModel)
             {
                 const TimeUnits timeUnits = p.timeUnitsModel->getTimeUnits();
-                text = timeToText(_mediaValue(), timeUnits);
+                text = timeToText(
+                    _mediaValue(),
+                    timeUnits,
+                    p.timeUnitsModel->isDropFrame());
                 format = formatString(timeUnits);
             }
             p.lineEdit->setText(text);
