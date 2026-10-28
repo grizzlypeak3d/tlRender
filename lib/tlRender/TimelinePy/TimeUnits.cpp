@@ -39,7 +39,10 @@ namespace tl
                 "timeToText",
                 &timeToText,
                 nb::arg("time"),
-                nb::arg("units"));
+                nb::arg("units"),
+                nb::arg("dropFrame") = false);
+
+            m.def("isDropFrame", &isDropFrame, nb::arg("timecode"));
 
             nb::class_<ITimeUnitsModel>(m, "ITimeUnitsModel")
                 .def("getLabel", &ITimeUnitsModel::getLabel, nb::arg("time"));
@@ -47,6 +50,7 @@ namespace tl
             nb::class_<TimeUnitsModel, ITimeUnitsModel>(m, "TimeUnitsModel")
                 .def(nb::new_(&TimeUnitsModel::create), nb::arg("context"))
                 .def_prop_rw("timeUnits", &TimeUnitsModel::getTimeUnits, &TimeUnitsModel::setTimeUnits)
+                .def_prop_rw("dropFrame", &TimeUnitsModel::isDropFrame, &TimeUnitsModel::setDropFrame)
                 .def_prop_ro("observeTimeUnits", &TimeUnitsModel::observeTimeUnits);
         }
     }
