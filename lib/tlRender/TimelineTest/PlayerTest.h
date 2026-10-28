@@ -29,6 +29,7 @@ namespace tl
             void _compare();
             void _compareMediaReferences();
             void _readBehind();
+            void _outsideInOut();
         };
     }
 }

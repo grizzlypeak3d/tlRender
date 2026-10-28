@@ -221,6 +221,16 @@ namespace tl
             0;
     }
 
+    OTIO_NS::TimeRange Player::Private::getVideoLoopRange() const
+    {
+        // The whole timeline while the current time is outside the in/out
+        // range: scrubbing before the in point to set a new one should show
+        // those frames, not the in point's (DJV #928).
+        return thread.state.inOutRange.contains(thread.state.currentTime) ?
+            thread.state.inOutRange :
+            timeRange;
+    }
+
     OTIO_NS::TimeRange Player::Private::getVideoCacheRange(size_t max) const
     {
         OTIO_NS::TimeRange out;
@@ -242,7 +252,7 @@ namespace tl
         const OTIO_NS::RationalTime readBehind(behindFrames, rate);
         const OTIO_NS::RationalTime readAhead = std::min(
             OTIO_NS::RationalTime(aheadFrames, rate),
-            thread.state.inOutRange.duration());
+            getVideoLoopRange().duration());
 
         switch (thread.cacheDir)
         {
@@ -340,13 +350,14 @@ namespace tl
         const size_t videoCacheMax = getVideoCacheMax();
         const size_t audioCacheMax = getAudioCacheMax();
         const OTIO_NS::TimeRange videoCacheRange = getVideoCacheRange(videoCacheMax);
+        const OTIO_NS::TimeRange videoLoopRange = getVideoLoopRange();
         const ftk::Range<int64_t> audioCacheRange = getAudioCacheRange(audioCacheMax);
 
         // Remove frames from the video cache.
         {
             const auto looped = tl::loop(
                 videoCacheRange,
-                thread.state.inOutRange);
+                videoLoopRange);
             auto i = thread.videoCache.begin();
             while (i != thread.videoCache.end())
             {
@@ -404,9 +415,9 @@ namespace tl
         // Fill the video cache.
         if (hasVideo())
         {
-            const auto request = [this](const OTIO_NS::RationalTime& time)
+            const auto request = [this, videoLoopRange](const OTIO_NS::RationalTime& time)
             {
-                const OTIO_NS::RationalTime timeLooped = tl::loop(time, thread.state.inOutRange);
+                const OTIO_NS::RationalTime timeLooped = tl::loop(time, videoLoopRange);
                 const auto j = thread.videoCache.find(timeLooped);
                 if (j == thread.videoCache.end())
                 {
@@ -484,7 +495,7 @@ namespace tl
                 }
                 for (OTIO_NS::RationalTime time = std::max(
                         videoCacheRange.start_time(),
-                        thread.state.inOutRange.start_time());
+                        videoLoopRange.start_time());
                     time < current && !full();
                     time += inc)
                 {
@@ -497,7 +508,7 @@ namespace tl
                     time <= videoCacheRange.end_time_inclusive() && !full();
                     time += inc)
                 {
-                    if (time > current && time > thread.state.inOutRange.end_time_inclusive())
+                    if (time > current && time > videoLoopRange.end_time_inclusive())
                     {
                         break;
                     }

@@ -62,6 +62,7 @@ namespace tl
             _compare();
             _compareMediaReferences();
             _readBehind();
+            _outsideInOut();
         }
 
         void PlayerTest::_enums()
@@ -649,6 +650,54 @@ namespace tl
             FTK_ASSERT(!cached.empty());
             FTK_ASSERT(startCached);
             FTK_ASSERT(!endCached);
+        }
+
+        void PlayerTest::_outsideInOut()
+        {
+            // A time before the in point shows its own frame, not the in
+            // point's: scrubbing there to set a new in point (DJV #928).
+            const ftk::Path path = ftk::expandSeq(
+                ftk::Path(TLRENDER_SAMPLE_DATA, "Seq/BART_2021-02-07.0001.jpg"));
+            if (!_context->getSystem<ReadSystem>()->getPlugin(path))
+            {
+                return;
+            }
+            auto timeline = Timeline::create(_context, path);
+            auto player = Player::create(_context, timeline);
+            const OTIO_NS::TimeRange& timeRange = player->getTimeRange();
+            const double rate = timeRange.duration().rate();
+            const OTIO_NS::RationalTime start = timeRange.start_time();
+            player->setInOutRange(OTIO_NS::TimeRange(
+                start + OTIO_NS::RationalTime(10.0, rate),
+                OTIO_NS::RationalTime(10.0, rate)));
+            const auto shown = [this, player](const OTIO_NS::RationalTime& time)
+            {
+                player->seek(time);
+                const auto t = std::chrono::steady_clock::now();
+                while (std::chrono::steady_clock::now() - t < std::chrono::seconds(2))
+                {
+                    _context->tick();
+                    const auto& video = player->getCurrentVideo();
+                    if (!video.empty() && video.front().time == time)
+                    {
+                        return true;
+                    }
+                    ftk::sleep(std::chrono::milliseconds(10));
+                }
+                return false;
+            };
+            FTK_CHECK(shown(start + OTIO_NS::RationalTime(12.0, rate)));
+            // Long enough for the frames read before the range was set to
+            // leave the cache.
+            const auto t = std::chrono::steady_clock::now();
+            while (std::chrono::steady_clock::now() - t < std::chrono::seconds(1))
+            {
+                _context->tick();
+                ftk::sleep(std::chrono::milliseconds(10));
+            }
+            FTK_CHECK(shown(start + OTIO_NS::RationalTime(3.0, rate)));
+            FTK_CHECK(shown(start + OTIO_NS::RationalTime(25.0, rate)));
+            FTK_CHECK(start + OTIO_NS::RationalTime(25.0, rate) == player->getCurrentTime());
         }
     }
 }
