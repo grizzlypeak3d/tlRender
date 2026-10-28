@@ -223,12 +223,27 @@ namespace tl
 
     OTIO_NS::TimeRange Player::Private::getVideoLoopRange() const
     {
-        // The whole timeline while the current time is outside the in/out
-        // range: scrubbing before the in point to set a new one should show
-        // those frames, not the in point's (DJV #928).
-        return thread.state.inOutRange.contains(thread.state.currentTime) ?
-            thread.state.inOutRange :
-            timeRange;
+        // Past the in/out range while the current time is outside it, as
+        // far as the end of the timeline on that side: scrubbing before the
+        // in point to set a new one should show those frames, not the in
+        // point's (DJV #928). The range itself stays, for going back to it,
+        // and nothing past it on the other side is read.
+        const OTIO_NS::TimeRange& inOut = thread.state.inOutRange;
+        const OTIO_NS::RationalTime& time = thread.state.currentTime;
+        OTIO_NS::TimeRange out = inOut;
+        if (time < inOut.start_time())
+        {
+            out = OTIO_NS::TimeRange::range_from_start_end_time_inclusive(
+                timeRange.start_time(),
+                inOut.end_time_inclusive());
+        }
+        else if (time > inOut.end_time_inclusive())
+        {
+            out = OTIO_NS::TimeRange::range_from_start_end_time_inclusive(
+                inOut.start_time(),
+                timeRange.end_time_inclusive());
+        }
+        return out;
     }
 
     OTIO_NS::TimeRange Player::Private::getVideoCacheRange(size_t max) const
