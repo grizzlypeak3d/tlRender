@@ -196,6 +196,28 @@ namespace tl
             _print(ftk::Format("Zoom in: {0}").arg(viewport->getZoom()));
             FTK_CHECK(!viewport->hasFrameView());
             FTK_CHECK(1.0 == viewport->getZoom());
+
+            // A file of another size, not framed, is centered where the last
+            // one was (DJV #931): the 1920x1080 image is centered at 1:1, so
+            // the 400x300 one is too.
+            FTK_CHECK(ftk::V2I(-480, -270) == viewport->getViewPos());
+            auto player2 = Player::create(
+                _context,
+                Timeline::create(
+                    _context,
+                    ftk::Path(TLRENDER_SAMPLE_DATA, "ColorPattern.png")));
+            viewport->setPlayer(player2);
+            for (int i = 0; i < 200 && player2->getCurrentVideo().empty(); ++i)
+            {
+                app->tick();
+                std::this_thread::sleep_for(std::chrono::milliseconds(10));
+            }
+            _print(ftk::Format("Other size: {0} {1}").
+                arg(viewport->getViewPos()).
+                arg(viewport->getZoom()));
+            FTK_CHECK(!viewport->hasFrameView());
+            FTK_CHECK(1.0 == viewport->getZoom());
+            FTK_CHECK(ftk::V2I(480 - 200, 270 - 150) == viewport->getViewPos());
         }
     }
 }

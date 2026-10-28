@@ -60,6 +60,9 @@ namespace tl
             std::shared_ptr<ftk::Observable<ftk::ImageType> > colorBuffer;
             std::shared_ptr<Player> player;
             std::vector<VideoFrame> videoFrame;
+            // The size of the image last shown, for keeping the next one
+            // where it was.
+            ftk::Size2I renderSize;
             std::shared_ptr<ftk::Observable<ftk::V2I> > viewPos;
             std::shared_ptr<ftk::Observable<double> > zoom;
             ftk::RangeD zoomRange = ftk::RangeD(0.01, 512.0);
@@ -425,6 +428,28 @@ namespace tl
                         FTK_P();
                         p.videoFrame = value;
 
+                        // An image of another size keeps its center where
+                        // the last one's was, when the view is not framed.
+                        // Switching between files of different sizes at 1:1
+                        // otherwise leaves the image off center (DJV #931).
+                        const ftk::Size2I renderSize = _getRenderSize();
+                        if (renderSize.isValid())
+                        {
+                            if (!p.frameView->get() &&
+                                p.renderSize.isValid() &&
+                                renderSize != p.renderSize)
+                            {
+                                const double zoom = p.zoom->get();
+                                const ftk::V2I& pos = p.viewPos->get();
+                                setViewPosAndZoom(
+                                    ftk::V2I(
+                                        pos.x - std::round((renderSize.w - p.renderSize.w) * zoom / 2.0),
+                                        pos.y - std::round((renderSize.h - p.renderSize.h) * zoom / 2.0)),
+                                    zoom);
+                            }
+                            p.renderSize = renderSize;
+                        }
+
                         if (p.resampleOnFrames)
                         {
                             // The frames a comparison had to read to be
@@ -473,6 +498,7 @@ namespace tl
                     p.videoFrame.clear();
                     changed = true;
                 }
+                p.renderSize = ftk::Size2I();
                 if (changed)
                 {
                     p.doRender = true;
