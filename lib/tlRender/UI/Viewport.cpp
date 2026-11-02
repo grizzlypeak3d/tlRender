@@ -100,6 +100,9 @@ namespace tl
             std::shared_ptr<ftk::Observable<ftk::ImageType> > colorBuffer;
             std::shared_ptr<Player> player;
             std::vector<VideoFrame> videoFrame;
+            // The size of the image last shown, for keeping the next one
+            // where it was.
+            ftk::Size2I renderSize;
             std::shared_ptr<ftk::Observable<ftk::V2I> > viewPos;
             std::shared_ptr<ftk::Observable<double> > zoom;
             ftk::RangeD zoomRange = ftk::RangeD(0.01, 512.0);
@@ -502,6 +505,28 @@ namespace tl
                         FTK_P();
                         p.videoFrame = value;
 
+                        // An image of another size keeps its center where
+                        // the last one's was, when the view is not framed.
+                        // Switching between files of different sizes at 1:1
+                        // otherwise leaves the image off center (DJV #931).
+                        const ftk::Size2I renderSize = _getRenderSize();
+                        if (renderSize.isValid())
+                        {
+                            if (!p.frameView->get() &&
+                                p.renderSize.isValid() &&
+                                renderSize != p.renderSize)
+                            {
+                                const double zoom = p.zoom->get();
+                                const ftk::V2I& pos = p.viewPos->get();
+                                setViewPosAndZoom(
+                                    ftk::V2I(
+                                        pos.x - std::round((renderSize.w - p.renderSize.w) * zoom / 2.0),
+                                        pos.y - std::round((renderSize.h - p.renderSize.h) * zoom / 2.0)),
+                                    zoom);
+                            }
+                            p.renderSize = renderSize;
+                        }
+
                         if (p.resampleOnFrames)
                         {
                             // The frames a comparison had to read to be
@@ -550,6 +575,7 @@ namespace tl
                     p.videoFrame.clear();
                     changed = true;
                 }
+                p.renderSize = ftk::Size2I();
                 if (changed)
                 {
                     p.doRender = true;
@@ -675,6 +701,7 @@ namespace tl
         void Viewport::center()
         {
             FTK_P();
+            _updateFrameView();
             const ftk::Size2I renderSize = _getRenderSize();
             if (renderSize.isValid())
             {
@@ -691,12 +718,21 @@ namespace tl
         void Viewport::resetZoom()
         {
             FTK_P();
+            _updateFrameView();
+            // Take frame view off even when the framed zoom is already 1:1,
+            // where setting the zoom would change nothing. Not without an
+            // image, or the next file opened would not be framed.
+            if (_getRenderSize().isValid())
+            {
+                setFrameView(false);
+            }
             setZoom(1.F, _getViewportCenter());
         }
 
         void Viewport::zoomIn()
         {
             FTK_P();
+            _updateFrameView();
             setZoom(
                 p.zoom->get() * 2.0,
                 p.mouse.inside ? p.mouse.pos : _getViewportCenter());
@@ -705,6 +741,7 @@ namespace tl
         void Viewport::zoomOut()
         {
             FTK_P();
+            _updateFrameView();
             setZoom(
                 p.zoom->get() / 2.0,
                 p.mouse.inside ? p.mouse.pos : _getViewportCenter());
@@ -1910,6 +1947,20 @@ namespace tl
             {
                 p.viewPos->setIfChanged(viewPos);
                 p.zoom->setIfChanged(zoom);
+            }
+        }
+
+        void Viewport::_updateFrameView()
+        {
+            FTK_P();
+            // The framed position and zoom are worked out when the viewport
+            // draws, so before the first draw with an image (a command run
+            // at startup, for example) they are still the defaults.
+            if (p.frameView->get() &&
+                _getRenderSize().isValid() &&
+                getGeometry().isValid())
+            {
+                _frameView();
             }
         }
 

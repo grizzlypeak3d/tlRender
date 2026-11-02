@@ -42,6 +42,7 @@ namespace tl
             void _mediaReferences();
             void _requestPriority();
             void _requestPriority(bool reverse);
+            void _markers();
         };
     }
 }

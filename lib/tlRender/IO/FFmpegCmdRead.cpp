@@ -537,6 +537,12 @@ namespace tl
                     {
                         timecode = streamTimecode;
                     }
+                    // Kept where a stream had it, for whether it is drop
+                    // frame.
+                    if (!timecode.empty())
+                    {
+                        out.tags["timecode"] = timecode;
+                    }
 
                     // Find the first video stream.
                     double videoRate = 0;

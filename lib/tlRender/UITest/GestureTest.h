@@ -29,6 +29,7 @@ namespace tl
             void _timeline(const std::shared_ptr<ftk::App>&);
             void _scrubPlayback(const std::shared_ptr<ftk::App>&);
             void _scrubOutrun(const std::shared_ptr<ftk::App>&);
+            void _viewCommands(const std::shared_ptr<ftk::App>&);
         };
     }
 }

@@ -23,7 +23,8 @@ namespace tl
 
     std::string timeToText(
         const std::optional<OTIO_NS::RationalTime>& time,
-        TimeUnits units)
+        TimeUnits units,
+        bool dropFrame)
     {
         std::string out;
         switch (units)
@@ -40,7 +41,13 @@ namespace tl
         {
             if (time.has_value())
             {
-                out = time->to_timecode();
+                // Not inferred from the rate, which makes every 29.97
+                // timecode drop frame (DJV #922).
+                out = time->to_timecode(
+                    time->rate(),
+                    dropFrame ?
+                        opentime::IsDropFrameRate::ForceYes :
+                        opentime::IsDropFrameRate::ForceNo);
                 if (out.empty())
                 {
                     // Timecode counts frames, and only at the rates it has
@@ -68,6 +75,11 @@ namespace tl
         default: break;
         }
         return out;
+    }
+
+    bool isDropFrame(const std::string& timecode)
+    {
+        return timecode.find(';') != std::string::npos;
     }
 
     namespace
@@ -250,6 +262,7 @@ namespace tl
     struct TimeUnitsModel::Private
     {
         std::shared_ptr<ftk::Observable<TimeUnits> > timeUnits;
+        bool dropFrame = false;
     };
 
     void TimeUnitsModel::_init(const std::shared_ptr<ftk::Context>& context)
@@ -292,9 +305,24 @@ namespace tl
         }
     }
 
+    bool TimeUnitsModel::isDropFrame() const
+    {
+        return _p->dropFrame;
+    }
+
+    void TimeUnitsModel::setDropFrame(bool value)
+    {
+        FTK_P();
+        if (value != p.dropFrame)
+        {
+            p.dropFrame = value;
+            _timeUnitsChanged->setAlways(true);
+        }
+    }
+
     std::string TimeUnitsModel::getLabel(
         const std::optional<OTIO_NS::RationalTime>& value) const
     {
-        return timeToText(value, _p->timeUnits->get());
+        return timeToText(value, _p->timeUnits->get(), _p->dropFrame);
     }
 }

@@ -169,7 +169,7 @@ namespace tl
         {
             const auto looped = tl::loop(
                 getVideoCacheRange(getVideoCacheMax()),
-                thread.state.inOutRange);
+                getVideoLoopRange());
             auto i = thread.videoRequests.begin();
             while (i != thread.videoRequests.end())
             {
@@ -295,6 +295,31 @@ namespace tl
             0;
     }
 
+    OTIO_NS::TimeRange Player::Private::getVideoLoopRange() const
+    {
+        // Past the in/out range while the current time is outside it, as
+        // far as the end of the timeline on that side: scrubbing before the
+        // in point to set a new one should show those frames, not the in
+        // point's (DJV #928). The range itself stays, for going back to it,
+        // and nothing past it on the other side is read.
+        const OTIO_NS::TimeRange& inOut = thread.state.inOutRange;
+        const OTIO_NS::RationalTime& time = thread.state.currentTime;
+        OTIO_NS::TimeRange out = inOut;
+        if (time < inOut.start_time())
+        {
+            out = OTIO_NS::TimeRange::range_from_start_end_time_inclusive(
+                timeRange.start_time(),
+                inOut.end_time_inclusive());
+        }
+        else if (time > inOut.end_time_inclusive())
+        {
+            out = OTIO_NS::TimeRange::range_from_start_end_time_inclusive(
+                inOut.start_time(),
+                timeRange.end_time_inclusive());
+        }
+        return out;
+    }
+
     OTIO_NS::TimeRange Player::Private::getVideoCacheRange(size_t max) const
     {
         OTIO_NS::TimeRange out;
@@ -324,7 +349,7 @@ namespace tl
         const OTIO_NS::RationalTime readBehind(behindFrames, rate);
         const OTIO_NS::RationalTime readAhead = std::min(
             OTIO_NS::RationalTime(aheadFrames, rate),
-            thread.state.inOutRange.duration());
+            getVideoLoopRange().duration());
 
         switch (thread.cacheDir)
         {
@@ -423,13 +448,14 @@ namespace tl
         const size_t videoCacheMax = getVideoCacheMax();
         const size_t audioCacheMax = getAudioCacheMax();
         const OTIO_NS::TimeRange videoCacheRange = getVideoCacheRange(videoCacheMax);
+        const OTIO_NS::TimeRange videoLoopRange = getVideoLoopRange();
         const ftk::Range<int64_t> audioCacheRange = getAudioCacheRange(audioCacheMax);
 
         // Remove frames from the video cache.
         {
             const auto looped = tl::loop(
                 videoCacheRange,
-                thread.state.inOutRange);
+                videoLoopRange);
             auto i = thread.videoCache.begin();
             while (i != thread.videoCache.end())
             {
@@ -487,9 +513,9 @@ namespace tl
         // Fill the video cache.
         if (hasVideo())
         {
-            const auto request = [this](const OTIO_NS::RationalTime& time)
+            const auto request = [this, videoLoopRange](const OTIO_NS::RationalTime& time)
             {
-                const OTIO_NS::RationalTime timeLooped = tl::loop(time, thread.state.inOutRange);
+                const OTIO_NS::RationalTime timeLooped = tl::loop(time, videoLoopRange);
                 const auto j = thread.videoCache.find(timeLooped);
                 if (j == thread.videoCache.end())
                 {
@@ -573,7 +599,7 @@ namespace tl
                 {
                     for (OTIO_NS::RationalTime time = std::max(
                             videoCacheRange.start_time(),
-                            thread.state.inOutRange.start_time());
+                            videoLoopRange.start_time());
                         time < current && !full();
                         time += inc)
                     {
@@ -588,7 +614,7 @@ namespace tl
                     time += inc)
                 {
                     if (time > current &&
-                        (thread.state.playing || time > thread.state.inOutRange.end_time_inclusive()))
+                        (thread.state.playing || time > videoLoopRange.end_time_inclusive()))
                     {
                         break;
                     }

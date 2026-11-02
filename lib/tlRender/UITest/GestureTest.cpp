@@ -19,7 +19,9 @@
 #include <ftk/Core/Format.h>
 #include <ftk/Core/Time.h>
 
+#include <chrono>
 #include <cmath>
+#include <thread>
 
 namespace tl
 {
@@ -44,6 +46,7 @@ namespace tl
             _timeline(app);
             _scrubPlayback(app);
             _scrubOutrun(app);
+            _viewCommands(app);
         }
 
         void GestureTest::_viewport(const std::shared_ptr<ftk::App>& app)
@@ -348,6 +351,82 @@ namespace tl
                 window->release(ftk::V2I(x, y));
                 wait(50);
             }
+        }
+
+        void GestureTest::_viewCommands(const std::shared_ptr<ftk::App>& app)
+        {
+            // Here because the suite can make only one app. Offscreen, so
+            // that nothing is shown.
+            auto window = ftk::Window::create(_context, app, "GestureTest");
+            window->setOffscreen(true);
+            auto viewport = ui::Viewport::create(_context, window);
+            auto player = Player::create(
+                _context,
+                Timeline::create(
+                    _context,
+                    ftk::Path(TLRENDER_SAMPLE_DATA, "AudioToneNone.png")));
+            viewport->setPlayer(player);
+            window->show();
+            window->layout(ftk::Size2I(1920, 1080));
+            for (int i = 0; i < 200 && player->getCurrentVideo().empty(); ++i)
+            {
+                app->tick();
+                std::this_thread::sleep_for(std::chrono::milliseconds(10));
+            }
+            const ftk::Box2I& g = viewport->getGeometry();
+            _print(ftk::Format("View commands viewport: {0}").arg(g));
+            FTK_CHECK(!player->getCurrentVideo().empty());
+            FTK_CHECK(ftk::Size2I(1920, 1080) == g.size());
+            FTK_CHECK(viewport->hasFrameView());
+
+            // A framed view is already centered.
+            viewport->center();
+            FTK_CHECK(viewport->hasFrameView());
+
+            // The 1920x1080 image framed in a viewport its size is already
+            // 1:1. Resetting the zoom still takes frame view off; it did
+            // not when the zoom it set was the one there (DJV #944).
+            viewport->resetZoom();
+            _print(ftk::Format("Reset zoom: {0} {1}").
+                arg(viewport->getViewPos()).
+                arg(viewport->getZoom()));
+            FTK_CHECK(!viewport->hasFrameView());
+            FTK_CHECK(1.0 == viewport->getZoom());
+            FTK_CHECK(ftk::V2I(0, 0) == viewport->getViewPos());
+
+            // Zooming in from a framed view starts from the framed zoom,
+            // here 1:2, before a draw has worked it out.
+            viewport->setFrameView(false);
+            viewport->setViewPosAndZoom(ftk::V2I(0, 0), 1.0);
+            window->layout(ftk::Size2I(960, 540));
+            app->tick();
+            viewport->setFrameView(true);
+            viewport->zoomIn();
+            _print(ftk::Format("Zoom in: {0}").arg(viewport->getZoom()));
+            FTK_CHECK(!viewport->hasFrameView());
+            FTK_CHECK(1.0 == viewport->getZoom());
+
+            // A file of another size, not framed, is centered where the last
+            // one was (DJV #931): the 1920x1080 image is centered at 1:1, so
+            // the 400x300 one is too.
+            FTK_CHECK(ftk::V2I(-480, -270) == viewport->getViewPos());
+            auto player2 = Player::create(
+                _context,
+                Timeline::create(
+                    _context,
+                    ftk::Path(TLRENDER_SAMPLE_DATA, "ColorPattern.png")));
+            viewport->setPlayer(player2);
+            for (int i = 0; i < 200 && player2->getCurrentVideo().empty(); ++i)
+            {
+                app->tick();
+                std::this_thread::sleep_for(std::chrono::milliseconds(10));
+            }
+            _print(ftk::Format("Other size: {0} {1}").
+                arg(viewport->getViewPos()).
+                arg(viewport->getZoom()));
+            FTK_CHECK(!viewport->hasFrameView());
+            FTK_CHECK(1.0 == viewport->getZoom());
+            FTK_CHECK(ftk::V2I(480 - 200, 270 - 150) == viewport->getViewPos());
         }
     }
 }

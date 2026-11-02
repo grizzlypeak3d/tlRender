@@ -30,6 +30,7 @@ namespace tl
             void _compareMediaReferences();
             void _readBehind();
             void _preroll();
+            void _outsideInOut();
         };
     }
 }

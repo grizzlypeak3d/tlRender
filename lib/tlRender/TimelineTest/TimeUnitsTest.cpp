@@ -93,6 +93,22 @@ namespace tl
                 FTK_CHECK(time == OTIO_NS::RationalTime::from_timecode("01:00:00;02", 30000.0 / 1001.0));
             }
 
+            // 29.97 timecode is drop frame only when asked for: OTIO's
+            // default makes it drop frame from the rate alone (DJV #922).
+            {
+                const double rate = 30000.0 / 1001.0;
+                const auto ndf = textToTime("01:00:00:00", rate, TimeUnits::Timecode);
+                FTK_CHECK(ndf.has_value());
+                FTK_CHECK("01:00:00:00" == timeToText(ndf, TimeUnits::Timecode));
+                const auto df = textToTime("01:00:00;00", rate, TimeUnits::Timecode);
+                FTK_CHECK(df.has_value());
+                FTK_CHECK(ndf != df);
+                FTK_CHECK("01:00:00;00" == timeToText(df, TimeUnits::Timecode, true));
+                FTK_CHECK(isDropFrame("01:00:00;00"));
+                FTK_CHECK(!isDropFrame("01:00:00:00"));
+                FTK_CHECK(!isDropFrame(""));
+            }
+
             // Timecode of a time with no timecode rate: audio counted in
             // samples has neither frames nor a rate with a name, so the time
             // itself is given rather than nothing.
@@ -128,6 +144,23 @@ namespace tl
 
             FTK_CHECK(!model->getLabel(OTIO_NS::RationalTime(0.0, 24.0)).empty());
             FTK_CHECK(!model->getLabel(std::nullopt).empty());
+
+            // Drop frame is off until the media says so, and changes the
+            // labels.
+            model->setTimeUnits(TimeUnits::Timecode);
+            const OTIO_NS::RationalTime time = OTIO_NS::RationalTime::from_timecode(
+                "01:00:00;00",
+                30000.0 / 1001.0);
+            FTK_CHECK(!model->isDropFrame());
+            FTK_CHECK(!isDropFrame(model->getLabel(time)));
+            changed = false;
+            model->setDropFrame(true);
+            FTK_CHECK(model->isDropFrame());
+            FTK_CHECK(changed);
+            FTK_CHECK("01:00:00;00" == model->getLabel(time));
+            changed = false;
+            model->setDropFrame(true);
+            FTK_CHECK(!changed);
         }
     }
 }

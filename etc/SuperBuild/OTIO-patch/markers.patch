@@ -1,0 +1,20 @@
+diff --git a/src/opentimelineio/typeRegistry.cpp b/src/opentimelineio/typeRegistry.cpp
+index 3950796..bd91a2a 100644
+--- a/src/opentimelineio/typeRegistry.cpp
++++ b/src/opentimelineio/typeRegistry.cpp
+@@ -408,9 +408,14 @@ TypeRegistry::_instance_from_schema(
+     }
+     else if (schema_version < type_record->schema_version)
+     {
++        // The functions are keyed by the version they upgrade to, so the
++        // ones to run are those above the version read: one keyed by the
++        // version read itself was written for the version before it, and
++        // run again it undoes what that version is. A Marker.2 lost its
++        // marked_range to the 1 to 2 upgrade's rename of "range".
+         for (const auto& e: type_record->upgrade_functions)
+         {
+-            if (schema_version <= e.first
++            if (schema_version < e.first
+                 && e.first <= type_record->schema_version)
+             {
+                 e.second(&dict);

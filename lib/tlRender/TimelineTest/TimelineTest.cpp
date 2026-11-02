@@ -24,12 +24,15 @@
 #include <opentimelineio/clip.h>
 #include <opentimelineio/externalReference.h>
 #include <opentimelineio/imageSequenceReference.h>
+#include <opentimelineio/marker.h>
 #include <opentimelineio/timeline.h>
+#include <opentimelineio/track.h>
 
 #include <algorithm>
 #include <chrono>
 #include <filesystem>
 #include <limits>
+#include <map>
 #include <sstream>
 #include <thread>
 
@@ -80,6 +83,53 @@ namespace tl
             _spatial();
             _mediaReferences();
             _requestPriority();
+            _markers();
+        }
+
+        void TimelineTest::_markers()
+        {
+            // Markers as OTIO 0.15 to 0.18 write them, Marker.2. OTIO read
+            // them by running the 1 to 2 upgrade, a rename of "range", as
+            // well as the 2 to 3 one, which left them without a range and
+            // the file unreadable; see etc/SuperBuild/OTIO-patch.
+            try
+            {
+                const ftk::Path path(TLRENDER_SAMPLE_DATA, "Markers.otio");
+                _print(ftk::Format("Path: {0}").arg(path.get()));
+                auto timeline = Timeline::create(_context, path);
+                std::map<std::string, OTIO_NS::TimeRange> ranges;
+                for (const auto& child : timeline->getOTIOTimeline()->tracks()->children())
+                {
+                    auto track = dynamic_cast<OTIO_NS::Track*>(child.value);
+                    if (!track)
+                        continue;
+                    for (const auto& marker : track->markers())
+                    {
+                        ranges[marker->name()] = marker->marked_range();
+                    }
+                    for (const auto& item : track->children())
+                    {
+                        if (auto i = dynamic_cast<OTIO_NS::Item*>(item.value))
+                        {
+                            for (const auto& marker : i->markers())
+                            {
+                                ranges[marker->name()] = marker->marked_range();
+                            }
+                        }
+                    }
+                }
+                FTK_CHECK(8 == ranges.size());
+                FTK_CHECK(ranges["Marker 0"] == OTIO_NS::TimeRange(
+                    OTIO_NS::RationalTime(10.0, 30.0),
+                    OTIO_NS::RationalTime(10.0, 30.0)));
+                FTK_CHECK(ranges["Marker 7"] == OTIO_NS::TimeRange(
+                    OTIO_NS::RationalTime(0.0, 44100.0),
+                    OTIO_NS::RationalTime(132300.0, 44100.0)));
+            }
+            catch (const std::exception& e)
+            {
+                _error(e.what());
+            }
         }
 
         void TimelineTest::_spatial()
