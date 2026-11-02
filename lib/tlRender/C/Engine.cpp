@@ -7,9 +7,11 @@
 #include <tlRender/GPU/Render.h>
 #include <tlRender/Timeline/CompareOptions.h>
 #include <tlRender/Timeline/Init.h>
+#include <tlRender/Timeline/OTIOVersion.h>
 #include <tlRender/Timeline/Player.h>
 #include <tlRender/Timeline/Timeline.h>
 #include <tlRender/UI/Init.h>
+#include <tlRender/UI/ItemOptions.h>
 #include <tlRender/UI/ThumbnailSystem.h>
 #include <tlRender/UI/TimelineWidget.h>
 
@@ -28,6 +30,8 @@
 #include <ftk/Core/LogSystem.h>
 #include <ftk/Core/Matrix.h>
 #include <ftk/Core/OS.h>
+#include <ftk/Core/Path.h>
+#include <ftk/Core/String.h>
 #include <ftk/Core/ObservableList.h>
 
 #include <SDL3/SDL.h>
@@ -42,6 +46,7 @@
 
 #include <opentimelineio/clip.h>
 #include <opentimelineio/externalReference.h>
+#include <opentimelineio/marker.h>
 #include <opentimelineio/stackAlgorithm.h>
 #include <opentimelineio/timeline.h>
 #include <opentimelineio/track.h>
@@ -90,6 +95,22 @@ struct tl_cut
 
 namespace
 {
+    //! The file to open for a path: an .otiod bundle is a folder, and its
+    //! timeline is the content.otio in it, the media beside that.
+    std::string openPath(const char* path)
+    {
+        std::string out(path);
+        while (out.size() > 1 && ('/' == out.back() || '\\' == out.back()))
+        {
+            out.pop_back();
+        }
+        if (ftk::toLower(ftk::Path(out).getExt()) == ".otiod")
+        {
+            out += "/content.otio";
+        }
+        return out;
+    }
+
     //! A waveform to read: a range of the timeline in seconds from its
     //! start, and how many columns.
     struct WaveformJob
@@ -112,6 +133,7 @@ struct tl_player
     int videoTracks = 0;
     std::vector<tl_clip> clips;
     std::vector<tl_shot> shots;
+    std::vector<tl_marker> markers;
     std::map<unsigned long long, std::future<std::shared_ptr<ftk::Image> > > thumbnails;
 
     // The waveforms: read one at a time on a thread of their own.
@@ -329,6 +351,7 @@ struct tl_view
     tl::DisplayOptions displayOptions;
     tl::BackgroundOptions backgroundOptions;
     tl::ForegroundOptions foregroundOptions;
+    tl_guides guides = {};
     //! What the last draw showed, to know when there is something new:
     //! the frames (their time and image), the size, the frames' places.
     std::vector<std::pair<double, const void*> > drawnFrames;
@@ -466,7 +489,7 @@ tl_player* tl_player_create(tl_engine* engine, const char* path)
         {
             timelineOptions.readCacheMax = engine->readCacheMax;
         }
-        out->timeline = tl::Timeline::create(engine->context, ftk::Path(path), timelineOptions);
+        out->timeline = tl::Timeline::create(engine->context, ftk::Path(openPath(path)), timelineOptions);
         tl::PlayerOptions options;
         // A second of cache before the clock runs: the picture moves
         // when it does, rather than standing while the playhead runs
@@ -738,11 +761,86 @@ namespace
     //! the video tracks flattened, as OTIO flattens them, the highest
     //! track's clip winning wherever tracks overlap. A clip that a higher
     //! track's cuts into is more than one shot.
+    //! The markers of the timeline, its enabled tracks and their clips,
+    //! in seconds from the start of the timeline, in time order.
+    void listMarkers(
+        const OTIO_NS::SerializableObject::Retainer<OTIO_NS::Timeline>& timeline,
+        std::vector<tl_marker>& out)
+    {
+        const auto stack = timeline->tracks();
+        if (!stack)
+            return;
+        const double duration = timeline->duration().rescaled_to(1.0).value();
+        const double globalStart = timeline->global_start_time().has_value() ?
+            timeline->global_start_time()->rescaled_to(1.0).value() :
+            0.0;
+        const auto add = [&out, duration, globalStart](
+            const OTIO_NS::Marker* marker,
+            const OTIO_NS::TimeRange& range,
+            bool global)
+        {
+            tl_marker m = {};
+            m.start = range.start_time().rescaled_to(1.0).value();
+            m.duration = range.duration().rescaled_to(1.0).value();
+            // A timeline or track marker written in the timeline's own
+            // clock, which starts at its global start time.
+            if (global && globalStart > 0.0 && m.start >= duration &&
+                m.start - globalStart >= 0.0 && m.start - globalStart <= duration)
+            {
+                m.start -= globalStart;
+            }
+            const ftk::Color4F color = tl::ui::getMarkerColor(marker->color());
+            m.color[0] = color.r;
+            m.color[1] = color.g;
+            m.color[2] = color.b;
+            m.color[3] = color.a;
+            std::snprintf(m.name, sizeof(m.name), "%s", marker->name().c_str());
+            std::snprintf(m.comment, sizeof(m.comment), "%s", marker->comment().c_str());
+            out.push_back(m);
+        };
+        for (const auto& marker : stack->markers())
+        {
+            add(marker, marker->marked_range(), true);
+        }
+        for (const auto& child : stack->children())
+        {
+            auto track = OTIO_NS::dynamic_retainer_cast<OTIO_NS::Track>(child);
+            if (!track || !track->enabled())
+                continue;
+            for (const auto& marker : track->markers())
+            {
+                add(marker, marker->marked_range(), true);
+            }
+            for (const auto& trackChild : track->children())
+            {
+                auto item = OTIO_NS::dynamic_retainer_cast<OTIO_NS::Item>(trackChild);
+                if (!item || !isShown(item))
+                    continue;
+                for (const auto& marker : item->markers())
+                {
+                    // In the clip's own time: moved to the timeline's.
+                    OTIO_NS::ErrorStatus error;
+                    const auto range = item->transformed_time_range(
+                        marker->marked_range(), stack, &error);
+                    if (!OTIO_NS::is_error(error))
+                    {
+                        add(marker, range, false);
+                    }
+                }
+            }
+        }
+        std::stable_sort(
+            out.begin(),
+            out.end(),
+            [](const tl_marker& a, const tl_marker& b) { return a.start < b.start; });
+    }
+
     void listClips(
         const std::shared_ptr<tl::Timeline>& timeline,
         std::vector<tl_clip>& clips,
         std::vector<tl_shot>& shots,
-        int& videoTracks)
+        int& videoTracks,
+        std::vector<tl_marker>* markers)
     {
         const auto& otioTimeline = timeline->getOTIOTimeline();
         if (!otioTimeline)
@@ -785,6 +883,16 @@ namespace
                     }
                 }
                 std::snprintf(out.name, sizeof(out.name), "%s", name.c_str());
+#if TLRENDER_OTIO_ITEM_COLOR
+                if (const auto color = item->color())
+                {
+                    out.color[0] = static_cast<float>(color->r());
+                    out.color[1] = static_cast<float>(color->g());
+                    out.color[2] = static_cast<float>(color->b());
+                    out.color[3] = static_cast<float>(color->a());
+                    out.hasColor = 1;
+                }
+#endif // TLRENDER_OTIO_ITEM_COLOR
                 if (copy && i < copyChildren.size())
                 {
                     if (auto copyItem = dynamic_cast<OTIO_NS::Item*>(copyChildren[i].value))
@@ -803,6 +911,10 @@ namespace
             ++trackIndex;
         }
         videoTracks = trackIndex;
+        if (markers)
+        {
+            listMarkers(otioTimeline, *markers);
+        }
 
         // The shots: the flattened track's clips, by the clip each came
         // from. Pieces of one clip that touch are one shot.
@@ -851,6 +963,8 @@ namespace
             shot.start = start;
             shot.duration = duration;
             std::snprintf(shot.name, sizeof(shot.name), "%s", clip.name);
+            std::copy(clip.color, clip.color + 4, shot.color);
+            shot.hasColor = clip.hasColor;
             shots.push_back(shot);
         }
     }
@@ -860,7 +974,8 @@ namespace
         if (player->clipsRead)
             return;
         player->clipsRead = true;
-        listClips(player->timeline, player->clips, player->shots, player->videoTracks);
+        listClips(
+            player->timeline, player->clips, player->shots, player->videoTracks, &player->markers);
     }
 }
 
@@ -907,6 +1022,25 @@ int tl_player_get_shot(tl_player* player, int index, tl_shot* out)
     if (index < 0 || index >= static_cast<int>(player->shots.size()))
         return 0;
     *out = player->shots[index];
+    return 1;
+}
+
+int tl_player_get_marker_count(tl_player* player)
+{
+    if (!player)
+        return 0;
+    readClips(player);
+    return static_cast<int>(player->markers.size());
+}
+
+int tl_player_get_marker(tl_player* player, int index, tl_marker* out)
+{
+    if (!player || !out)
+        return 0;
+    readClips(player);
+    if (index < 0 || index >= static_cast<int>(player->markers.size()))
+        return 0;
+    *out = player->markers[index];
     return 1;
 }
 
@@ -1188,8 +1322,8 @@ tl_cut* tl_cut_open(tl_engine* engine, const char* path)
     out->engine = engine;
     try
     {
-        out->timeline = tl::Timeline::create(engine->context, ftk::Path(path));
-        listClips(out->timeline, out->clips, out->shots, out->videoTracks);
+        out->timeline = tl::Timeline::create(engine->context, ftk::Path(openPath(path)));
+        listClips(out->timeline, out->clips, out->shots, out->videoTracks, nullptr);
     }
     catch (const std::exception&)
     {
@@ -1533,6 +1667,17 @@ void tl_view_set_view(tl_view* view, float x, float y, float zoom)
     view->dirty = true;
 }
 
+void tl_view_set_guides(tl_view* view, const tl_guides* guides)
+{
+    if (!view || !guides)
+        return;
+    if (std::memcmp(&view->guides, guides, sizeof(tl_guides)) != 0)
+    {
+        view->guides = *guides;
+        view->dirty = true;
+    }
+}
+
 void tl_view_frame_view(tl_view* view)
 {
     if (!view)
@@ -1630,6 +1775,89 @@ void tl_view_set_player(tl_view* view, tl_player* player)
     }
 }
 
+namespace
+{
+    //! The outline of a box, so wide, inside it.
+    void drawOutline(
+        const std::shared_ptr<tl::gpu::Render>& render,
+        const ftk::Box2F& box,
+        float width,
+        const ftk::Color4F& color)
+    {
+        render->drawRects(
+            {
+                ftk::Box2F(box.x(), box.y(), box.w(), width),
+                ftk::Box2F(box.x(), box.y() + box.h() - width, box.w(), width),
+                ftk::Box2F(box.x(), box.y() + width, width, box.h() - width * 2.F),
+                ftk::Box2F(box.x() + box.w() - width, box.y() + width, width, box.h() - width * 2.F)
+            },
+            color);
+    }
+
+    //! The guides over the picture, in view pixels, so that the lines
+    //! stay one width however far the picture is zoomed.
+    void drawGuides(
+        const std::shared_ptr<tl::gpu::Render>& render,
+        const ftk::Box2F& picture,
+        const tl_guides& guides,
+        float displayScale)
+    {
+        if (picture.w() <= 0.F || picture.h() <= 0.F)
+            return;
+        ftk::Box2F frame = picture;
+        if (guides.aspect > 0.F)
+        {
+            const float aspect = picture.w() / picture.h();
+            if (guides.aspect > aspect)
+            {
+                const float h = picture.w() / guides.aspect;
+                frame = ftk::Box2F(picture.x(), picture.y() + (picture.h() - h) / 2.F, picture.w(), h);
+            }
+            else
+            {
+                const float w = picture.h() * guides.aspect;
+                frame = ftk::Box2F(picture.x() + (picture.w() - w) / 2.F, picture.y(), w, picture.h());
+            }
+            const ftk::Color4F mask(0.F, 0.F, 0.F, std::clamp(guides.maskOpacity, 0.F, 1.F));
+            std::vector<ftk::Box2F> boxes;
+            if (frame.y() > picture.y())
+            {
+                boxes.push_back(ftk::Box2F(picture.x(), picture.y(), picture.w(), frame.y() - picture.y()));
+                boxes.push_back(ftk::Box2F(
+                    picture.x(), frame.y() + frame.h(),
+                    picture.w(), picture.y() + picture.h() - frame.y() - frame.h()));
+            }
+            if (frame.x() > picture.x())
+            {
+                boxes.push_back(ftk::Box2F(picture.x(), picture.y(), frame.x() - picture.x(), picture.h()));
+                boxes.push_back(ftk::Box2F(
+                    frame.x() + frame.w(), picture.y(),
+                    picture.x() + picture.w() - frame.x() - frame.w(), picture.h()));
+            }
+            render->drawRects(boxes, mask);
+        }
+        const float width = std::max(1.F, std::round(displayScale));
+        const ftk::Color4F line(1.F, 1.F, 1.F, .5F);
+        if (guides.aspect > 0.F)
+        {
+            drawOutline(render, frame, width, line);
+        }
+        if (guides.safeAreas)
+        {
+            for (const float fraction : { .93F, .9F })
+            {
+                const float w = frame.w() * fraction;
+                const float h = frame.h() * fraction;
+                drawOutline(
+                    render,
+                    ftk::Box2F(frame.x() + (frame.w() - w) / 2.F, frame.y() + (frame.h() - h) / 2.F, w, h),
+                    width,
+                    line);
+            }
+        }
+    }
+}
+
 void tl_view_draw(tl_view* view)
 {
     if (!view || !view->render)
@@ -1713,6 +1941,14 @@ void tl_view_draw(tl_view* view)
             ftk::ImageType::RGBA_F16);
         view->render->setTransform(pm);
         view->render->drawForeground(boxes, vm, view->foregroundOptions, compare);
+        if (renderSize.isValid())
+        {
+            drawGuides(
+                view->render,
+                ftk::Box2F(pos.x, pos.y, renderSize.w * zoom, renderSize.h * zoom),
+                view->guides,
+                view->displayScale);
+        }
         // The widgets over the picture, in the buffer's own coordinates.
         if (view->widgets)
         {

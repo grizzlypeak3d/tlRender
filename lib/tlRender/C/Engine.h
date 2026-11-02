@@ -123,6 +123,9 @@ typedef struct tl_clip
     double start;
     double duration;
     char name[256];
+    //! The color the editor gave the clip, RGBA, if any: hasColor says.
+    float color[4];
+    int hasColor;
 } tl_clip;
 
 //! The clips of the video tracks, track by track, each in time order.
@@ -143,11 +146,31 @@ typedef struct tl_shot
     double start;
     double duration;
     char name[256];
+    //! The clip's color, as tl_clip has it.
+    float color[4];
+    int hasColor;
 } tl_shot;
 
 //! The shots, in time order. Where no track has a clip, none.
 TL_TIMELINE_API int tl_player_get_shot_count(tl_player*);
 TL_TIMELINE_API int tl_player_get_shot(tl_player*, int index, tl_shot*);
+
+//! A marker the editor left: on the timeline, a track, or a clip, in
+//! seconds from the start of the timeline. A duration of zero marks a
+//! point. The color is OTIO's, green when the marker has none.
+typedef struct tl_marker
+{
+    double start;
+    double duration;
+    float color[4];
+    char name[256];
+    char comment[1024];
+} tl_marker;
+
+//! The markers, in time order: the timeline's, and those of the enabled
+//! tracks and their clips.
+TL_TIMELINE_API int tl_player_get_marker_count(tl_player*);
+TL_TIMELINE_API int tl_player_get_marker(tl_player*, int index, tl_marker*);
 
 //! A picture in memory: RGBA, eight bits a channel, the top row first.
 typedef struct tl_image
@@ -174,7 +197,8 @@ TL_TIMELINE_API void tl_player_cancel_thumbnail(tl_player*, unsigned long long i
 //! the rest of this interface it can be used from any thread, one cut
 //! at a time on each, so that a library can read its files in the
 //! background. The file stays open, and a bundle mapped, until it is
-//! closed: close it soon. NULL when it cannot be read.
+//! closed: close it soon. NULL when it cannot be read. An .otiod bundle
+//! is opened by its folder, here and in tl_player_create().
 typedef struct tl_cut tl_cut;
 TL_TIMELINE_API tl_cut* tl_cut_open(tl_engine*, const char* path);
 TL_TIMELINE_API void tl_cut_close(tl_cut*);
@@ -308,6 +332,20 @@ TL_TIMELINE_API void tl_view_touch(tl_view*, tl_touch_phase, int x, int y);
 TL_TIMELINE_API void tl_view_gesture(
     tl_view*, tl_touch_phase, int x, int y, float panX, float panY, float zoom);
 
+//! Guides over the picture: the frame of a narrower or wider aspect
+//! within it, the rest masked, and the action and title safe areas.
+typedef struct tl_guides
+{
+    //! The width over the height of the frame to show, 2.39 say; zero
+    //! for none.
+    float aspect;
+    //! How dark the mask outside it is, zero to one.
+    float maskOpacity;
+    //! The action (93%) and title (90%) safe areas of the frame shown.
+    int safeAreas;
+} tl_guides;
+TL_TIMELINE_API void tl_view_set_guides(tl_view*, const tl_guides*);
+
 //! Draw the player's current frame, fitted to the view, and present it.
 //! Whether the view has something new to draw: a video frame that has
 //! not been drawn, a widget that asked for a redraw, a change of size or
@@ -318,6 +356,44 @@ TL_TIMELINE_API int tl_view_needs_draw(tl_view*);
 //! How many times the view has been drawn, for a readout of draws a second.
 TL_TIMELINE_API size_t tl_view_get_draw_count(tl_view*);
 TL_TIMELINE_API void tl_view_draw(tl_view*);
+
+//! How far writing a bundle has got: minus one now and then while the
+//! media folder is being looked through, then the fraction of the media's
+//! bytes copied, zero to one, when the copying starts and after each
+//! piece of it. Called on the writing thread. Return zero to stop.
+typedef int (*tl_bundle_progress)(double fraction, void* user);
+
+//! What writing a bundle did.
+typedef struct tl_bundle_result
+{
+    //! The media files the cut uses, an image sequence counting as one.
+    int media;
+    //! How many of them were not found. Their references are left as
+    //! they were.
+    int missing;
+    //! The names of the first ones not found, a line each.
+    char missingNames[1024];
+    //! Why the bundle was not written, empty when it was.
+    char error[512];
+} tl_bundle_result;
+
+//! Write a .otio and the media it uses as an .otiod bundle: a folder of
+//! the timeline as content.otio and the media under media/, the media
+//! references rewritten to point there. Each file is looked for where
+//! its reference says, a relative one beside the .otio, and then under
+//! the media folder by name, the file whose folders match the most of
+//! the end of the reference winning: an editor's paths are of its own
+//! machine. An image sequence keeps a folder of its own. The output must
+//! not exist, and is removed again if the bundle cannot be written or is
+//! stopped. Does not need the engine, and can be called from any thread.
+//! One when the bundle was written, whether media was missing or not.
+TL_TIMELINE_API int tl_bundle_write_otiod(
+    const char* otio,
+    const char* mediaFolder,
+    const char* out,
+    tl_bundle_progress,
+    void* progressUser,
+    tl_bundle_result*);
 
 #ifdef __cplusplus
 }

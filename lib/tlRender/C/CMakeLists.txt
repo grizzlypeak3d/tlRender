@@ -2,6 +2,7 @@ set(HEADERS
     Engine.h
     EngineCpp.h)
 set(SOURCE
+    Bundle.cpp
     Engine.cpp)
 
 # The C interface to the engine, for Swift and any other language that
