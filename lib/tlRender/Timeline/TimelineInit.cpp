@@ -31,6 +31,10 @@
 #include <emscripten/fetch.h>
 #endif // __EMSCRIPTEN__
 
+#if defined(__APPLE__)
+#include <TargetConditionals.h>
+#endif // __APPLE__
+
 #include <algorithm>
 
 namespace tl
@@ -599,12 +603,31 @@ namespace tl
                 // movie in the bundle is a window the reader opens through
                 // the file, and an image is read into memory (see
                 // getMemoryFiles()).
+                //
+                // Nor, on iOS, a big one. A mapping costs address space
+                // for the whole file however little of it is read, and
+                // iOS gives an application little: a 2017 iPad Pro mapped
+                // 4 GB and failed at 6, and 48 GB with the extended
+                // virtual addressing entitlement. A bundle is mapped by
+                // each timeline that opens it (the player's, the
+                // thumbnails'), so a 1.6 GB bundle took 4.8 GB, and a
+                // 58 GB one cannot be mapped at all.
+                bool map = !ftk::isNetworkVolume(fileName);
+#if defined(__APPLE__) && TARGET_OS_IOS
+                {
+                    std::error_code ec;
+                    const auto size = std::filesystem::file_size(
+                        std::filesystem::u8path(fileName), ec);
+                    if (!ec && size > 1024ULL * 1024 * 1024)
+                    {
+                        map = false;
+                    }
+                }
+#endif // TARGET_OS_IOS
                 p.fileIO = ftk::FileIO::create(
                     fileName,
                     ftk::FileMode::Read,
-                    ftk::isNetworkVolume(fileName) ?
-                        ftk::FileRead::Normal :
-                        ftk::FileRead::MMap,
+                    map ? ftk::FileRead::MMap : ftk::FileRead::Normal,
                     ftk::FileAccess::Random);
 
                 p.zipReader = std::make_shared<ZipReader>(logSystem);

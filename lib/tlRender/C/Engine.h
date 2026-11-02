@@ -107,8 +107,86 @@ TL_TIMELINE_API void tl_player_reset_in_point(tl_player*);
 TL_TIMELINE_API void tl_player_set_out_point(tl_player*);
 TL_TIMELINE_API void tl_player_reset_out_point(tl_player*);
 TL_TIMELINE_API void tl_player_get_in_out(tl_player*, double* start, double* end);
+//! Set the in/out range, in seconds from the start of the timeline, the
+//! end exclusive.
+TL_TIMELINE_API void tl_player_set_in_out(tl_player*, double start, double end);
 TL_TIMELINE_API int tl_player_get_video_width(tl_player*);
 TL_TIMELINE_API int tl_player_get_video_height(tl_player*);
+
+//! A clip on one of the timeline's video tracks: which track, counting
+//! from the bottom, where it is in seconds from the start of the
+//! timeline, and its name (the media's file name when it has none).
+typedef struct tl_clip
+{
+    int track;
+    double start;
+    double duration;
+    char name[256];
+} tl_clip;
+
+//! The clips of the video tracks, track by track, each in time order.
+TL_TIMELINE_API int tl_player_get_video_track_count(tl_player*);
+TL_TIMELINE_API int tl_player_get_clip_count(tl_player*);
+TL_TIMELINE_API int tl_player_get_clip(tl_player*, int index, tl_clip*);
+
+//! A picture in memory: RGBA, eight bits a channel, the top row first.
+typedef struct tl_image
+{
+    int width;
+    int height;
+    unsigned char* data;
+} tl_image;
+TL_TIMELINE_API void tl_image_free(tl_image*);
+
+//! Ask for a thumbnail of the timeline at a time, in seconds from its
+//! start, so many pixels high. Made in the background: zero when it
+//! cannot be asked for.
+TL_TIMELINE_API unsigned long long tl_player_request_thumbnail(
+    tl_player*, double seconds, int height);
+//! Whether a thumbnail is ready: one with the picture in the image,
+//! which the caller frees; zero while it is being made; minus one when
+//! there is none, and the request is done with.
+TL_TIMELINE_API int tl_player_get_thumbnail(
+    tl_player*, unsigned long long id, tl_image*);
+TL_TIMELINE_API void tl_player_cancel_thumbnail(tl_player*, unsigned long long id);
+
+//! A cut opened for what is in it alone: no player, no cache. Unlike
+//! the rest of this interface it can be used from any thread, one cut
+//! at a time on each, so that a library can read its files in the
+//! background. The file stays open, and a bundle mapped, until it is
+//! closed: close it soon. NULL when it cannot be read.
+typedef struct tl_cut tl_cut;
+TL_TIMELINE_API tl_cut* tl_cut_open(tl_engine*, const char* path);
+TL_TIMELINE_API void tl_cut_close(tl_cut*);
+TL_TIMELINE_API double tl_cut_get_duration(tl_cut*);
+TL_TIMELINE_API double tl_cut_get_rate(tl_cut*);
+TL_TIMELINE_API int tl_cut_get_video_width(tl_cut*);
+TL_TIMELINE_API int tl_cut_get_video_height(tl_cut*);
+TL_TIMELINE_API int tl_cut_get_clip_count(tl_cut*);
+TL_TIMELINE_API int tl_cut_get_clip(tl_cut*, int index, tl_clip*);
+
+//! Ask for a poster of a cut: a thumbnail at a time, in seconds from its
+//! start, so many pixels high. Made in the background, and the file is
+//! not kept open for it once it is made. Collected from the engine, from
+//! any thread, as tl_player_get_thumbnail() says; the cut can be closed
+//! before it is ready.
+TL_TIMELINE_API unsigned long long tl_cut_request_poster(
+    tl_cut*, double seconds, int height);
+TL_TIMELINE_API int tl_engine_get_poster(
+    tl_engine*, unsigned long long id, tl_image*);
+
+//! Ask for how loud the timeline's audio is over a range, in seconds
+//! from its start, as so many columns: each the loudest sample under it,
+//! zero to one, of every audio track together. Read in the background,
+//! one at a time, through the player's timeline: zero when it
+//! cannot be asked for.
+TL_TIMELINE_API unsigned long long tl_player_request_waveform(
+    tl_player*, double start, double duration, int columns);
+//! Whether a waveform is ready: one with the columns copied out, zero
+//! while it is being read, minus one when there is none.
+TL_TIMELINE_API int tl_player_get_waveform(
+    tl_player*, unsigned long long id, float* columns, int count);
+TL_TIMELINE_API void tl_player_cancel_waveform(tl_player*, unsigned long long id);
 
 //! How playback is going, for a readout: whether frames are being
 //! dropped, and whether the cache is keeping ahead of the playhead.

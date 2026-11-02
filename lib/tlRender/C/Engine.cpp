@@ -40,9 +40,28 @@
 #include <TargetConditionals.h>
 #endif // __APPLE__
 
+#include <opentimelineio/clip.h>
+#include <opentimelineio/externalReference.h>
+#include <opentimelineio/timeline.h>
+#include <opentimelineio/track.h>
+
+#include <tlRender/Core/AudioResample.h>
+
 #include <algorithm>
+#include <atomic>
+#include <chrono>
+#include <cmath>
+#include <condition_variable>
 #include <cstdio>
+#include <list>
+#include <mutex>
+#include <thread>
+#include <cstdlib>
+#include <cstring>
+#include <future>
+#include <map>
 #include <string>
+#include <vector>
 
 struct tl_engine
 {
@@ -53,13 +72,84 @@ struct tl_engine
     tl::IOOptions ioOptions;
     float videoGB = 0.F;
     int readCacheMax = 0;
+
+    // Posters of cuts: asked for from any thread.
+    std::mutex posterMutex;
+    std::map<unsigned long long, std::future<std::shared_ptr<ftk::Image> > > posters;
 };
+
+struct tl_cut
+{
+    tl_engine* engine = nullptr;
+    std::shared_ptr<tl::Timeline> timeline;
+    std::vector<tl_clip> clips;
+    int videoTracks = 0;
+};
+
+namespace
+{
+    //! A waveform to read: a range of the timeline in seconds from its
+    //! start, and how many columns.
+    struct WaveformJob
+    {
+        unsigned long long id = 0;
+        double start = 0.0;
+        double duration = 0.0;
+        int columns = 0;
+        std::atomic<bool> cancelled{ false };
+        std::promise<std::vector<float> > promise;
+    };
+}
 
 struct tl_player
 {
     tl_engine* engine = nullptr;
     std::shared_ptr<tl::Timeline> timeline;
     std::shared_ptr<tl::Player> player;
+    bool clipsRead = false;
+    int videoTracks = 0;
+    std::vector<tl_clip> clips;
+    std::map<unsigned long long, std::future<std::shared_ptr<ftk::Image> > > thumbnails;
+
+    // The waveforms: read one at a time on a thread of their own.
+    std::mutex waveformMutex;
+    std::condition_variable waveformCV;
+    std::list<std::shared_ptr<WaveformJob> > waveformQueue;
+    std::map<unsigned long long, std::shared_ptr<WaveformJob> > waveformJobs;
+    std::map<unsigned long long, std::future<std::vector<float> > > waveforms;
+    unsigned long long waveformId = 0;
+    std::atomic<bool> waveformRunning{ false };
+    std::thread waveformThread;
+
+    ~tl_player()
+    {
+        if (waveformThread.joinable())
+        {
+            {
+                std::unique_lock<std::mutex> lock(waveformMutex);
+                waveformRunning = false;
+                for (const auto& job : waveformJobs)
+                {
+                    job.second->cancelled = true;
+                }
+            }
+            waveformCV.notify_one();
+            waveformThread.join();
+        }
+        // The thumbnails not yet made are not wanted.
+        if (!thumbnails.empty() && engine && engine->context)
+        {
+            if (auto system = engine->context->getSystem<tl::ui::ThumbnailSystem>())
+            {
+                std::vector<uint64_t> ids;
+                for (const auto& i : thumbnails)
+                {
+                    ids.push_back(i.first);
+                }
+                system->cancelRequests(ids);
+            }
+        }
+    }
 };
 
 namespace
@@ -612,6 +702,469 @@ void tl_player_get_in_out(tl_player* player, double* start, double* end)
         *start = s;
     if (end)
         *end = e;
+}
+
+void tl_player_set_in_out(tl_player* player, double start, double end)
+{
+    if (!player)
+        return;
+    const auto& range = player->player->getTimeRange();
+    const double rate = range.duration().rate();
+    const auto s = OTIO_NS::RationalTime(start * rate, rate).round();
+    const auto e = OTIO_NS::RationalTime(end * rate, rate).round();
+    player->player->setInOutRange(OTIO_NS::TimeRange::range_from_start_end_time(
+        range.start_time() + s,
+        range.start_time() + e));
+}
+
+namespace
+{
+    //! The clips of the video tracks, read once: the timeline does not
+    //! change while it is open.
+    //! The clips of a timeline's video tracks.
+    void listClips(
+        const std::shared_ptr<tl::Timeline>& timeline,
+        std::vector<tl_clip>& clips,
+        int& videoTracks)
+    {
+        const auto& otioTimeline = timeline->getOTIOTimeline();
+        if (!otioTimeline)
+            return;
+        int trackIndex = 0;
+        for (const auto& track : otioTimeline->video_tracks())
+        {
+            for (const auto& child : track->children())
+            {
+                auto clip = OTIO_NS::dynamic_retainer_cast<OTIO_NS::Clip>(child);
+                if (!clip)
+                    continue;
+                const auto range = clip->trimmed_range_in_parent();
+                if (!range.has_value())
+                    continue;
+                tl_clip out = {};
+                out.track = trackIndex;
+                out.start = range->start_time().rescaled_to(1.0).value();
+                out.duration = range->duration().rescaled_to(1.0).value();
+                std::string name = clip->name();
+                if (name.empty())
+                {
+                    if (auto ref = dynamic_cast<OTIO_NS::ExternalReference*>(
+                        clip->media_reference()))
+                    {
+                        name = ftk::Path(ref->target_url()).getFileName();
+                    }
+                }
+                std::snprintf(out.name, sizeof(out.name), "%s", name.c_str());
+                clips.push_back(out);
+            }
+            ++trackIndex;
+        }
+        videoTracks = trackIndex;
+    }
+
+    void readClips(tl_player* player)
+    {
+        if (player->clipsRead)
+            return;
+        player->clipsRead = true;
+        listClips(player->timeline, player->clips, player->videoTracks);
+    }
+}
+
+int tl_player_get_video_track_count(tl_player* player)
+{
+    if (!player)
+        return 0;
+    readClips(player);
+    return player->videoTracks;
+}
+
+int tl_player_get_clip_count(tl_player* player)
+{
+    if (!player)
+        return 0;
+    readClips(player);
+    return static_cast<int>(player->clips.size());
+}
+
+int tl_player_get_clip(tl_player* player, int index, tl_clip* out)
+{
+    if (!player || !out)
+        return 0;
+    readClips(player);
+    if (index < 0 || index >= static_cast<int>(player->clips.size()))
+        return 0;
+    *out = player->clips[index];
+    return 1;
+}
+
+void tl_image_free(tl_image* image)
+{
+    if (image)
+    {
+        std::free(image->data);
+        image->data = nullptr;
+        image->width = 0;
+        image->height = 0;
+    }
+}
+
+namespace
+{
+    //! A thumbnail into a picture for the caller: RGBA, the top row
+    //! first.
+    bool copyImage(const std::shared_ptr<ftk::Image>& image, tl_image* out)
+    {
+        if (!image || image->getInfo().type != ftk::ImageType::RGBA_U8)
+            return false;
+        const auto& info = image->getInfo();
+        const size_t rowBytes = static_cast<size_t>(info.size.w) * 4;
+        out->width = info.size.w;
+        out->height = info.size.h;
+        out->data = static_cast<unsigned char*>(std::malloc(rowBytes * info.size.h));
+        if (!out->data)
+            return false;
+        // Rows can be padded to the image's alignment, and are stored
+        // from the bottom up, as OpenGL has them, unless mirrored.
+        const size_t stride = info.getByteCount() / info.size.h;
+        for (int y = 0; y < info.size.h; ++y)
+        {
+            const int src = info.layout.mirror.y ? y : info.size.h - 1 - y;
+            std::memcpy(out->data + y * rowBytes, image->getData() + src * stride, rowBytes);
+        }
+        return true;
+    }
+}
+
+unsigned long long tl_player_request_thumbnail(tl_player* player, double seconds, int height)
+{
+    if (!player || height <= 0)
+        return 0;
+    auto thumbnails = player->engine->context->getSystem<tl::ui::ThumbnailSystem>();
+    if (!thumbnails)
+        return 0;
+    const auto& range = player->player->getTimeRange();
+    const double rate = range.duration().rate();
+    auto request = thumbnails->getThumbnail(
+        player->timeline->getPath(),
+        height,
+        range.start_time() + OTIO_NS::RationalTime(seconds * rate, rate).round(),
+        player->timeline->getOptions().ioOptions);
+    const unsigned long long id = request.id;
+    player->thumbnails[id] = std::move(request.future);
+    return id;
+}
+
+int tl_player_get_thumbnail(tl_player* player, unsigned long long id, tl_image* out)
+{
+    if (!player || !out)
+        return -1;
+    const auto i = player->thumbnails.find(id);
+    if (i == player->thumbnails.end())
+        return -1;
+    if (!i->second.valid())
+    {
+        player->thumbnails.erase(i);
+        return -1;
+    }
+    if (i->second.wait_for(std::chrono::seconds(0)) != std::future_status::ready)
+        return 0;
+    std::shared_ptr<ftk::Image> image;
+    try
+    {
+        image = i->second.get();
+    }
+    catch (const std::exception&)
+    {}
+    player->thumbnails.erase(i);
+    return copyImage(image, out) ? 1 : -1;
+}
+
+void tl_player_cancel_thumbnail(tl_player* player, unsigned long long id)
+{
+    if (!player)
+        return;
+    const auto i = player->thumbnails.find(id);
+    if (i == player->thumbnails.end())
+        return;
+    player->thumbnails.erase(i);
+    if (auto thumbnails = player->engine->context->getSystem<tl::ui::ThumbnailSystem>())
+    {
+        thumbnails->cancelRequests({ id });
+    }
+}
+
+namespace
+{
+    //! Read one waveform: the timeline's audio a second at a time, every
+    //! layer, each sample counted in the column its time falls in.
+    std::vector<float> readWaveform(
+        const std::shared_ptr<tl::Timeline>& timeline,
+        const WaveformJob& job)
+    {
+        std::vector<float> out(job.columns, 0.F);
+        const auto& range = timeline->getTimeRange();
+        const double origin = range.start_time().rescaled_to(1.0).value();
+        const double start = origin + job.start;
+        const double end = start + job.duration;
+        std::shared_ptr<tl::AudioResample> resample;
+        for (double second = std::floor(start); second < end && !job.cancelled; second += 1.0)
+        {
+            const auto frame = timeline->getAudio(second).future.get();
+            for (const auto& layer : frame.layers)
+            {
+                if (!layer.audio)
+                    continue;
+                const auto& info = layer.audio->getInfo();
+                const tl::AudioInfo f32(info.channelCount, tl::AudioType::F32, info.sampleRate);
+                if (!resample || resample->getInputInfo() != info)
+                {
+                    resample = tl::AudioResample::create(info, f32);
+                }
+                const auto audio = info.type == tl::AudioType::F32 ?
+                    layer.audio :
+                    resample->process(layer.audio);
+                if (!audio)
+                    continue;
+                const float* data = reinterpret_cast<const float*>(audio->getData());
+                const size_t count = audio->getSampleCount();
+                const int channels = audio->getChannelCount();
+                const double rate = audio->getSampleRate();
+                for (size_t i = 0; i < count; ++i)
+                {
+                    const double t = second + i / rate;
+                    if (t < start || t >= end)
+                        continue;
+                    const int column = std::min(
+                        static_cast<int>((t - start) / job.duration * job.columns),
+                        job.columns - 1);
+                    float peak = out[column];
+                    for (int c = 0; c < channels; ++c)
+                    {
+                        peak = std::max(peak, std::fabs(data[i * channels + c]));
+                    }
+                    out[column] = std::min(peak, 1.F);
+                }
+            }
+        }
+        return out;
+    }
+
+    void waveformRun(tl_player* player)
+    {
+        // Read through the player's own timeline. A timeline of its own
+        // mapped the whole .otioz again, and on an iPad three mappings of
+        // a 1.6 GB bundle (the player's, the thumbnails', this) ran the
+        // process out of address space. The player cancels its requests
+        // by id, so a seek leaves these alone.
+        const std::shared_ptr<tl::Timeline> timeline = player->timeline;
+        while (player->waveformRunning)
+        {
+            std::shared_ptr<WaveformJob> job;
+            {
+                std::unique_lock<std::mutex> lock(player->waveformMutex);
+                player->waveformCV.wait(lock, [player]
+                {
+                    return !player->waveformRunning || !player->waveformQueue.empty();
+                });
+                if (!player->waveformRunning)
+                    break;
+                job = player->waveformQueue.front();
+                player->waveformQueue.pop_front();
+            }
+            std::vector<float> columns;
+            if (timeline && !job->cancelled)
+            {
+                try
+                {
+                    columns = readWaveform(timeline, *job);
+                }
+                catch (const std::exception&)
+                {}
+            }
+            job->promise.set_value(job->cancelled ? std::vector<float>() : columns);
+            std::unique_lock<std::mutex> lock(player->waveformMutex);
+            player->waveformJobs.erase(job->id);
+        }
+        // What is left in the queue is not going to be read.
+        std::unique_lock<std::mutex> lock(player->waveformMutex);
+        for (const auto& job : player->waveformQueue)
+        {
+            job->promise.set_value(std::vector<float>());
+        }
+        player->waveformQueue.clear();
+    }
+}
+
+unsigned long long tl_player_request_waveform(
+    tl_player* player, double start, double duration, int columns)
+{
+    if (!player || duration <= 0.0 || columns <= 0)
+        return 0;
+    if (player->timeline->getIOInfo().audio.sampleRate <= 0)
+        return 0;
+    if (!player->waveformThread.joinable())
+    {
+        player->waveformRunning = true;
+        player->waveformThread = std::thread(waveformRun, player);
+    }
+    auto job = std::make_shared<WaveformJob>();
+    job->start = start;
+    job->duration = duration;
+    job->columns = columns;
+    {
+        std::unique_lock<std::mutex> lock(player->waveformMutex);
+        job->id = ++player->waveformId;
+        player->waveforms[job->id] = job->promise.get_future();
+        player->waveformJobs[job->id] = job;
+        player->waveformQueue.push_back(job);
+    }
+    player->waveformCV.notify_one();
+    return job->id;
+}
+
+int tl_player_get_waveform(tl_player* player, unsigned long long id, float* columns, int count)
+{
+    if (!player || !columns)
+        return -1;
+    const auto i = player->waveforms.find(id);
+    if (i == player->waveforms.end())
+        return -1;
+    if (i->second.wait_for(std::chrono::seconds(0)) != std::future_status::ready)
+        return 0;
+    const auto values = i->second.get();
+    player->waveforms.erase(i);
+    if (values.empty())
+        return -1;
+    for (int c = 0; c < count; ++c)
+    {
+        columns[c] = c < static_cast<int>(values.size()) ? values[c] : 0.F;
+    }
+    return 1;
+}
+
+void tl_player_cancel_waveform(tl_player* player, unsigned long long id)
+{
+    if (!player)
+        return;
+    player->waveforms.erase(id);
+    std::unique_lock<std::mutex> lock(player->waveformMutex);
+    const auto i = player->waveformJobs.find(id);
+    if (i != player->waveformJobs.end())
+    {
+        i->second->cancelled = true;
+    }
+}
+
+tl_cut* tl_cut_open(tl_engine* engine, const char* path)
+{
+    if (!engine || !engine->context || !path)
+        return nullptr;
+    auto out = new tl_cut;
+    out->engine = engine;
+    try
+    {
+        out->timeline = tl::Timeline::create(engine->context, ftk::Path(path));
+        listClips(out->timeline, out->clips, out->videoTracks);
+    }
+    catch (const std::exception&)
+    {
+        delete out;
+        out = nullptr;
+    }
+    return out;
+}
+
+void tl_cut_close(tl_cut* cut)
+{
+    delete cut;
+}
+
+double tl_cut_get_duration(tl_cut* cut)
+{
+    return cut ? cut->timeline->getTimeRange().duration().rescaled_to(1.0).value() : 0.0;
+}
+
+double tl_cut_get_rate(tl_cut* cut)
+{
+    return cut ? cut->timeline->getTimeRange().duration().rate() : 0.0;
+}
+
+int tl_cut_get_video_width(tl_cut* cut)
+{
+    if (!cut)
+        return 0;
+    const auto& info = cut->timeline->getIOInfo();
+    return !info.video.empty() ? info.video.front().size.w : 0;
+}
+
+int tl_cut_get_video_height(tl_cut* cut)
+{
+    if (!cut)
+        return 0;
+    const auto& info = cut->timeline->getIOInfo();
+    return !info.video.empty() ? info.video.front().size.h : 0;
+}
+
+int tl_cut_get_clip_count(tl_cut* cut)
+{
+    return cut ? static_cast<int>(cut->clips.size()) : 0;
+}
+
+int tl_cut_get_clip(tl_cut* cut, int index, tl_clip* out)
+{
+    if (!cut || !out || index < 0 || index >= static_cast<int>(cut->clips.size()))
+        return 0;
+    *out = cut->clips[index];
+    return 1;
+}
+
+unsigned long long tl_cut_request_poster(tl_cut* cut, double seconds, int height)
+{
+    if (!cut || height <= 0)
+        return 0;
+    auto thumbnails = cut->engine->context->getSystem<tl::ui::ThumbnailSystem>();
+    if (!thumbnails)
+        return 0;
+    const auto& range = cut->timeline->getTimeRange();
+    const double rate = range.duration().rate();
+    // The browser's kind: the file is not kept open for the next
+    // request, as the timeline widget's are. A library of bundles kept
+    // open would map every one of them.
+    auto request = thumbnails->getThumbnail(
+        cut->timeline->getPath(),
+        height,
+        range.start_time() + OTIO_NS::RationalTime(seconds * rate, rate).round(),
+        tl::IOOptions(),
+        tl::ui::ThumbnailType::Browser);
+    std::unique_lock<std::mutex> lock(cut->engine->posterMutex);
+    cut->engine->posters[request.id] = std::move(request.future);
+    return request.id;
+}
+
+int tl_engine_get_poster(tl_engine* engine, unsigned long long id, tl_image* out)
+{
+    if (!engine || !out)
+        return -1;
+    std::future<std::shared_ptr<ftk::Image> > future;
+    {
+        std::unique_lock<std::mutex> lock(engine->posterMutex);
+        const auto i = engine->posters.find(id);
+        if (i == engine->posters.end())
+            return -1;
+        if (i->second.wait_for(std::chrono::seconds(0)) != std::future_status::ready)
+            return 0;
+        future = std::move(i->second);
+        engine->posters.erase(i);
+    }
+    std::shared_ptr<ftk::Image> image;
+    try
+    {
+        image = future.get();
+    }
+    catch (const std::exception&)
+    {}
+    return copyImage(image, out) ? 1 : -1;
 }
 
 int tl_player_get_video_width(tl_player* player)
