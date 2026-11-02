@@ -42,6 +42,7 @@
 
 #include <opentimelineio/clip.h>
 #include <opentimelineio/externalReference.h>
+#include <opentimelineio/stackAlgorithm.h>
 #include <opentimelineio/timeline.h>
 #include <opentimelineio/track.h>
 
@@ -83,6 +84,7 @@ struct tl_cut
     tl_engine* engine = nullptr;
     std::shared_ptr<tl::Timeline> timeline;
     std::vector<tl_clip> clips;
+    std::vector<tl_shot> shots;
     int videoTracks = 0;
 };
 
@@ -109,6 +111,7 @@ struct tl_player
     bool clipsRead = false;
     int videoTracks = 0;
     std::vector<tl_clip> clips;
+    std::vector<tl_shot> shots;
     std::map<unsigned long long, std::future<std::shared_ptr<ftk::Image> > > thumbnails;
 
     // The waveforms: read one at a time on a thread of their own.
@@ -719,47 +722,137 @@ void tl_player_set_in_out(tl_player* player, double start, double end)
 
 namespace
 {
-    //! The clips of the video tracks, read once: the timeline does not
-    //! change while it is open.
-    //! The clips of a timeline's video tracks.
+    //! The key, in the metadata of a copy of a clip, of its index in the
+    //! clip list: flattening copies clips, and the copies say which clip
+    //! they came from by it.
+    const std::string clipIndexKey = "tlC_clip";
+
+    //! A clip or a nested stack: what plays on a track, gaps aside.
+    bool isShown(const OTIO_NS::Composable* value)
+    {
+        return dynamic_cast<const OTIO_NS::Clip*>(value) ||
+            dynamic_cast<const OTIO_NS::Stack*>(value);
+    }
+
+    //! The clips of a timeline's video tracks, and the shots as seen:
+    //! the video tracks flattened, as OTIO flattens them, the highest
+    //! track's clip winning wherever tracks overlap. A clip that a higher
+    //! track's cuts into is more than one shot.
     void listClips(
         const std::shared_ptr<tl::Timeline>& timeline,
         std::vector<tl_clip>& clips,
+        std::vector<tl_shot>& shots,
         int& videoTracks)
     {
         const auto& otioTimeline = timeline->getOTIOTimeline();
         if (!otioTimeline)
             return;
+
+        // The clips, and a copy of the tracks with each clip tagged with
+        // its index, to flatten.
+        std::vector<OTIO_NS::SerializableObject::Retainer<OTIO_NS::Track> > copies;
+        std::vector<OTIO_NS::Track*> tracks;
         int trackIndex = 0;
         for (const auto& track : otioTimeline->video_tracks())
         {
-            for (const auto& child : track->children())
+            OTIO_NS::SerializableObject::Retainer<OTIO_NS::Track> copy(
+                dynamic_cast<OTIO_NS::Track*>(track->clone()));
+            const auto& children = track->children();
+            const auto& copyChildren = copy ? copy->children() : children;
+            for (size_t i = 0; i < children.size(); ++i)
             {
-                auto clip = OTIO_NS::dynamic_retainer_cast<OTIO_NS::Clip>(child);
-                if (!clip)
+                const auto& child = children[i];
+                if (!isShown(child))
                     continue;
-                const auto range = clip->trimmed_range_in_parent();
+                auto item = OTIO_NS::dynamic_retainer_cast<OTIO_NS::Item>(child);
+                const auto range = item->trimmed_range_in_parent();
                 if (!range.has_value())
                     continue;
                 tl_clip out = {};
                 out.track = trackIndex;
                 out.start = range->start_time().rescaled_to(1.0).value();
                 out.duration = range->duration().rescaled_to(1.0).value();
-                std::string name = clip->name();
+                std::string name = item->name();
                 if (name.empty())
                 {
-                    if (auto ref = dynamic_cast<OTIO_NS::ExternalReference*>(
-                        clip->media_reference()))
+                    if (auto clip = dynamic_cast<OTIO_NS::Clip*>(item.value))
                     {
-                        name = ftk::Path(ref->target_url()).getFileName();
+                        if (auto ref = dynamic_cast<OTIO_NS::ExternalReference*>(
+                            clip->media_reference()))
+                        {
+                            name = ftk::Path(ref->target_url()).getFileName();
+                        }
                     }
                 }
                 std::snprintf(out.name, sizeof(out.name), "%s", name.c_str());
+                if (copy && i < copyChildren.size())
+                {
+                    if (auto copyItem = dynamic_cast<OTIO_NS::Item*>(copyChildren[i].value))
+                    {
+                        copyItem->metadata()[clipIndexKey] =
+                            static_cast<int64_t>(clips.size());
+                    }
+                }
                 clips.push_back(out);
+            }
+            if (copy && copy->enabled())
+            {
+                tracks.push_back(copy);
+                copies.push_back(copy);
             }
             ++trackIndex;
         }
         videoTracks = trackIndex;
+
+        // The shots: the flattened track's clips, by the clip each came
+        // from. Pieces of one clip that touch are one shot.
+        if (tracks.empty())
+            return;
+        OTIO_NS::ErrorStatus error;
+        OTIO_NS::SerializableObject::Retainer<OTIO_NS::Track> flat(
+            OTIO_NS::flatten_stack(tracks, &error));
+        if (!flat || OTIO_NS::is_error(error))
+            return;
+        for (const auto& child : flat->children())
+        {
+            if (!isShown(child))
+                continue;
+            auto item = OTIO_NS::dynamic_retainer_cast<OTIO_NS::Item>(child);
+            const auto i = item->metadata().find(clipIndexKey);
+            if (i == item->metadata().end() || !i->second.has_value())
+                continue;
+            int64_t index = -1;
+            try
+            {
+                index = std::any_cast<int64_t>(i->second);
+            }
+            catch (const std::bad_any_cast&)
+            {
+                continue;
+            }
+            if (index < 0 || index >= static_cast<int64_t>(clips.size()))
+                continue;
+            const auto range = item->trimmed_range_in_parent();
+            if (!range.has_value() || range->duration().value() <= 0.0)
+                continue;
+            const double start = range->start_time().rescaled_to(1.0).value();
+            const double duration = range->duration().rescaled_to(1.0).value();
+            if (!shots.empty() &&
+                shots.back().clip == index &&
+                std::abs(shots.back().start + shots.back().duration - start) < 1e-6)
+            {
+                shots.back().duration += duration;
+                continue;
+            }
+            const tl_clip& clip = clips[index];
+            tl_shot shot = {};
+            shot.clip = static_cast<int>(index);
+            shot.track = clip.track;
+            shot.start = start;
+            shot.duration = duration;
+            std::snprintf(shot.name, sizeof(shot.name), "%s", clip.name);
+            shots.push_back(shot);
+        }
     }
 
     void readClips(tl_player* player)
@@ -767,7 +860,7 @@ namespace
         if (player->clipsRead)
             return;
         player->clipsRead = true;
-        listClips(player->timeline, player->clips, player->videoTracks);
+        listClips(player->timeline, player->clips, player->shots, player->videoTracks);
     }
 }
 
@@ -795,6 +888,25 @@ int tl_player_get_clip(tl_player* player, int index, tl_clip* out)
     if (index < 0 || index >= static_cast<int>(player->clips.size()))
         return 0;
     *out = player->clips[index];
+    return 1;
+}
+
+int tl_player_get_shot_count(tl_player* player)
+{
+    if (!player)
+        return 0;
+    readClips(player);
+    return static_cast<int>(player->shots.size());
+}
+
+int tl_player_get_shot(tl_player* player, int index, tl_shot* out)
+{
+    if (!player || !out)
+        return 0;
+    readClips(player);
+    if (index < 0 || index >= static_cast<int>(player->shots.size()))
+        return 0;
+    *out = player->shots[index];
     return 1;
 }
 
@@ -897,12 +1009,14 @@ void tl_player_cancel_thumbnail(tl_player* player, unsigned long long id)
 namespace
 {
     //! Read one waveform: the timeline's audio a second at a time, every
-    //! layer, each sample counted in the column its time falls in.
+    //! layer, each sample counted in the column its time falls in. Lowest
+    //! and highest a column, in pairs.
     std::vector<float> readWaveform(
         const std::shared_ptr<tl::Timeline>& timeline,
         const WaveformJob& job)
     {
-        std::vector<float> out(job.columns, 0.F);
+        std::vector<float> out(job.columns * 2, 0.F);
+        std::vector<bool> seen(job.columns, false);
         const auto& range = timeline->getTimeRange();
         const double origin = range.start_time().rescaled_to(1.0).value();
         const double start = origin + job.start;
@@ -938,12 +1052,22 @@ namespace
                     const int column = std::min(
                         static_cast<int>((t - start) / job.duration * job.columns),
                         job.columns - 1);
-                    float peak = out[column];
+                    float& low = out[column * 2];
+                    float& high = out[column * 2 + 1];
                     for (int c = 0; c < channels; ++c)
                     {
-                        peak = std::max(peak, std::fabs(data[i * channels + c]));
+                        const float v = data[i * channels + c];
+                        if (!seen[column])
+                        {
+                            low = high = v;
+                            seen[column] = true;
+                        }
+                        else
+                        {
+                            low = std::min(low, v);
+                            high = std::max(high, v);
+                        }
                     }
-                    out[column] = std::min(peak, 1.F);
                 }
             }
         }
@@ -1036,7 +1160,7 @@ int tl_player_get_waveform(tl_player* player, unsigned long long id, float* colu
     player->waveforms.erase(i);
     if (values.empty())
         return -1;
-    for (int c = 0; c < count; ++c)
+    for (int c = 0; c < count * 2; ++c)
     {
         columns[c] = c < static_cast<int>(values.size()) ? values[c] : 0.F;
     }
@@ -1065,7 +1189,7 @@ tl_cut* tl_cut_open(tl_engine* engine, const char* path)
     try
     {
         out->timeline = tl::Timeline::create(engine->context, ftk::Path(path));
-        listClips(out->timeline, out->clips, out->videoTracks);
+        listClips(out->timeline, out->clips, out->shots, out->videoTracks);
     }
     catch (const std::exception&)
     {
@@ -1116,6 +1240,19 @@ int tl_cut_get_clip(tl_cut* cut, int index, tl_clip* out)
     if (!cut || !out || index < 0 || index >= static_cast<int>(cut->clips.size()))
         return 0;
     *out = cut->clips[index];
+    return 1;
+}
+
+int tl_cut_get_shot_count(tl_cut* cut)
+{
+    return cut ? static_cast<int>(cut->shots.size()) : 0;
+}
+
+int tl_cut_get_shot(tl_cut* cut, int index, tl_shot* out)
+{
+    if (!cut || !out || index < 0 || index >= static_cast<int>(cut->shots.size()))
+        return 0;
+    *out = cut->shots[index];
     return 1;
 }
 

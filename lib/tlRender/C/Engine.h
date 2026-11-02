@@ -115,7 +115,8 @@ TL_TIMELINE_API int tl_player_get_video_height(tl_player*);
 
 //! A clip on one of the timeline's video tracks: which track, counting
 //! from the bottom, where it is in seconds from the start of the
-//! timeline, and its name (the media's file name when it has none).
+//! timeline, and its name (the media's file name when it has none). A
+//! nested stack on a track is listed as a clip too.
 typedef struct tl_clip
 {
     int track;
@@ -128,6 +129,25 @@ typedef struct tl_clip
 TL_TIMELINE_API int tl_player_get_video_track_count(tl_player*);
 TL_TIMELINE_API int tl_player_get_clip_count(tl_player*);
 TL_TIMELINE_API int tl_player_get_clip(tl_player*, int index, tl_clip*);
+
+//! A shot as seen: a stretch of the timeline where the picture comes
+//! from one clip, the one on the highest video track there, as OTIO's
+//! flatten_stack() finds it. Which clip it is, as an index in the clip
+//! list (a clip that a higher track's clip cuts into is more than one
+//! shot), its clip's track and name, and where it is in seconds from
+//! the start of the timeline.
+typedef struct tl_shot
+{
+    int clip;
+    int track;
+    double start;
+    double duration;
+    char name[256];
+} tl_shot;
+
+//! The shots, in time order. Where no track has a clip, none.
+TL_TIMELINE_API int tl_player_get_shot_count(tl_player*);
+TL_TIMELINE_API int tl_player_get_shot(tl_player*, int index, tl_shot*);
 
 //! A picture in memory: RGBA, eight bits a channel, the top row first.
 typedef struct tl_image
@@ -164,6 +184,8 @@ TL_TIMELINE_API int tl_cut_get_video_width(tl_cut*);
 TL_TIMELINE_API int tl_cut_get_video_height(tl_cut*);
 TL_TIMELINE_API int tl_cut_get_clip_count(tl_cut*);
 TL_TIMELINE_API int tl_cut_get_clip(tl_cut*, int index, tl_clip*);
+TL_TIMELINE_API int tl_cut_get_shot_count(tl_cut*);
+TL_TIMELINE_API int tl_cut_get_shot(tl_cut*, int index, tl_shot*);
 
 //! Ask for a poster of a cut: a thumbnail at a time, in seconds from its
 //! start, so many pixels high. Made in the background, and the file is
@@ -175,15 +197,19 @@ TL_TIMELINE_API unsigned long long tl_cut_request_poster(
 TL_TIMELINE_API int tl_engine_get_poster(
     tl_engine*, unsigned long long id, tl_image*);
 
-//! Ask for how loud the timeline's audio is over a range, in seconds
-//! from its start, as so many columns: each the loudest sample under it,
-//! zero to one, of every audio track together. Read in the background,
-//! one at a time, through the player's timeline: zero when it
-//! cannot be asked for.
+//! Ask for the timeline's audio over a range, in seconds from its start,
+//! as so many columns: each the lowest and the highest sample under it,
+//! of every audio track and channel together, as the timeline widget
+//! draws its waveforms. Read in the background, one at a time, through
+//! the player's timeline: zero when it cannot be asked for.
 TL_TIMELINE_API unsigned long long tl_player_request_waveform(
     tl_player*, double start, double duration, int columns);
 //! Whether a waveform is ready: one with the columns copied out, zero
-//! while it is being read, minus one when there is none.
+//! while it is being read, minus one when there is none. The columns are
+//! pairs, lowest then highest, two floats a column: count is the number
+//! of columns, and columns has room for twice as many floats. Full scale
+//! is minus one to one; a sample over full scale is not clipped. A column
+//! with no sample under it is zero.
 TL_TIMELINE_API int tl_player_get_waveform(
     tl_player*, unsigned long long id, float* columns, int count);
 TL_TIMELINE_API void tl_player_cancel_waveform(tl_player*, unsigned long long id);
