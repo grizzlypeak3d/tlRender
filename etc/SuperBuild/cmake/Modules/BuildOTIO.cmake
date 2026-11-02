@@ -96,6 +96,17 @@ endif()
 #
 #     ImportError: libImath-3_2_d.so.30: cannot open shared object file
 #
+# A second patch, markers.patch, fixes reading markers written by OTIO 0.15 to
+# 0.18. The upgrades of an old schema ran the one keyed by the version read as
+# well as those above it, harmless while Marker had one upgrade; since
+# Marker.3 (#2023) the 1 to 2 rename of "range" runs on a Marker.2 and leaves
+# it without a range, and the whole file fails to read:
+#
+#     expected type TimeRange under key 'marked_range': found type None
+#
+# Its own file, so that a build that applied the first patch takes this one
+# without having to be made again.
+#
 # A patch rather than whole file copies: it is smaller, it reads as the change
 # it makes, and moving OTIO_GIT_TAG stops the build instead of silently
 # dropping whatever upstream changed in the files. git is what applies it,
@@ -111,6 +122,11 @@ ExternalProject_Add(
         -DGIT_EXECUTABLE=${GIT_EXECUTABLE}
         -DPATCH_SOURCE_DIR=${CMAKE_CURRENT_BINARY_DIR}/OTIO/src/OTIO
         -DPATCH_FILE=${CMAKE_CURRENT_SOURCE_DIR}/OTIO-patch/otio.patch
+        -P ${CMAKE_CURRENT_LIST_DIR}/ApplyPatch.cmake
+    COMMAND ${CMAKE_COMMAND}
+        -DGIT_EXECUTABLE=${GIT_EXECUTABLE}
+        -DPATCH_SOURCE_DIR=${CMAKE_CURRENT_BINARY_DIR}/OTIO/src/OTIO
+        -DPATCH_FILE=${CMAKE_CURRENT_SOURCE_DIR}/OTIO-patch/markers.patch
         -P ${CMAKE_CURRENT_LIST_DIR}/ApplyPatch.cmake
     LIST_SEPARATOR |
     CMAKE_ARGS ${OTIO_ARGS})
