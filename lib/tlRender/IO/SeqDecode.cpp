@@ -5,6 +5,7 @@
 
 #include <tlRender/IO/SeqIO.h>
 
+#include <ftk/Core/FileIO.h>
 #include <ftk/Core/Format.h>
 #include <ftk/Core/Math.h>
 #include <ftk/Core/Path.h>
@@ -16,6 +17,32 @@
 
 namespace tl
 {
+    namespace
+    {
+        //! A window on a file -- a member of a bundle that is not mapped --
+        //! read into memory for a decoder, which takes memory alone. Memory
+        //! is returned as it is.
+        ftk::MemFile readWindow(const ftk::MemFile& mem)
+        {
+            if (mem.p)
+            {
+                return mem;
+            }
+            auto io = ftk::FileIO::create(
+                mem.path,
+                ftk::FileMode::Read,
+                ftk::FileRead::Normal,
+                ftk::FileAccess::Random);
+            auto buffer = std::make_shared<std::vector<uint8_t> >(mem.size);
+            io->seek(mem.offset, ftk::SeekMode::Set);
+            io->read(buffer->data(), mem.size);
+            ftk::MemFile out(buffer, buffer->data(), mem.size);
+            out.path = mem.path;
+            out.offset = mem.offset;
+            return out;
+        }
+    }
+
     void SeqDecode::_init(
         const ftk::Path& path,
         const std::vector<ftk::MemFile>& mem,
@@ -100,7 +127,13 @@ namespace tl
         {
             // Not a sequence, so there is one file to probe -- and it still
             // comes from the bundle when there is one.
-            return _decode->getInfo(_path.getFileName(true), _memFile(0));
+            const ftk::MemFile* mem = _memFile(0);
+            if (mem && !mem->p)
+            {
+                const ftk::MemFile read = readWindow(*mem);
+                return _decode->getInfo(_path.getFileName(true), &read);
+            }
+            return _decode->getInfo(_path.getFileName(true), mem);
         }
 
         // The first frame that is actually there. Usually that is the frame
@@ -127,6 +160,11 @@ namespace tl
             }
             try
             {
+                if (mem && !mem->p)
+                {
+                    const ftk::MemFile read = readWindow(*mem);
+                    return _decode->getInfo(fileName, &read);
+                }
                 return _decode->getInfo(fileName, mem);
             }
             catch (const std::exception&)
@@ -158,7 +196,8 @@ namespace tl
             i >= 0 && i < static_cast<int64_t>(_mem.size()) ?
             &_mem[i] :
             nullptr;
-        return out && out->p ? out : nullptr;
+        // Memory, or a window on the file to read when the frame is.
+        return out && (out->p || (out->size > 0 && !out->path.empty())) ? out : nullptr;
     }
 
     int64_t SeqDecode::_holdFrame(int64_t frame) const
@@ -274,6 +313,15 @@ namespace tl
                         arg(_path.getFrame(frame, true)).str());
                 }
                 return _missingVideo(time, missingFrames);
+            }
+
+            // A window on a bundle that is not mapped is read now, for this
+            // frame alone.
+            ftk::MemFile window;
+            if (!mem->p)
+            {
+                window = readWindow(*mem);
+                mem = &window;
             }
 
             // Faulting a mapped range in a page at a time costs several times

@@ -11,9 +11,6 @@
 
 #include <tlRender/IO/SeqIO.h>
 #include <tlRender/IO/System.h>
-#if defined(TLRENDER_FFMPEG)
-#include <tlRender/IO/FFmpeg.h>
-#endif // TLRENDER_FFMPEG
 
 #include <tlRender/Core/URL.h>
 
@@ -135,21 +132,15 @@ namespace tl
         size_t found = 0;
         std::string missing;
         size_t missingCount = 0;
-        // A bundle that could not be mapped (a share, on iOS) is read:
-        // a movie becomes a window on the bundle file, its path and
-        // offset and no memory, which the FFmpeg reader opens through
-        // the file; anything else, an image of a sequence, is read into
-        // memory here, since the image readers take memory alone.
+        // A bundle that is not mapped (on a share, or a big one on iOS)
+        // gives each member as a window on the bundle file: its path,
+        // offset and size, and no memory. The FFmpeg reader opens a movie
+        // through the file; an image is read into memory by the sequence
+        // decoder when that frame is decoded (SeqDecode). Reading them
+        // all here, as this once did, read a bundle of 19,517 JPEG frames
+        // whole -- 5 GB -- before the first thumbnail, and iOS killed the
+        // application for it.
         const bool mapped = fileIO->getMemStart() != nullptr;
-        std::shared_ptr<ftk::FileIO> readIO;
-        std::shared_ptr<ReadSystem> readSystem;
-        if (!mapped)
-        {
-            if (auto context = this->context.lock())
-            {
-                readSystem = context->getSystem<ReadSystem>();
-            }
-        }
         for (const auto& mediaFileName : mediaFileNames)
         {
             const auto entry = zipReader->find(mediaFileName.second);
@@ -178,33 +169,7 @@ namespace tl
             }
             else
             {
-                bool window = false;
-#if defined(TLRENDER_FFMPEG)
-                if (readSystem)
-                {
-                    window = std::dynamic_pointer_cast<ffmpeg::ReadPlugin>(
-                        readSystem->getPlugin(ftk::Path(mediaFileName.second))) != nullptr;
-                }
-#endif // TLRENDER_FFMPEG
-                if (window)
-                {
-                    memFile.size = entry->size;
-                }
-                else
-                {
-                    if (!readIO)
-                    {
-                        readIO = ftk::FileIO::create(
-                            fileIO->getPath(),
-                            ftk::FileMode::Read,
-                            ftk::FileRead::Normal,
-                            ftk::FileAccess::Random);
-                    }
-                    auto buffer = std::make_shared<std::vector<uint8_t> >(entry->size);
-                    readIO->seek(entry->offset, ftk::SeekMode::Set);
-                    readIO->read(buffer->data(), entry->size);
-                    memFile = ftk::MemFile(buffer, buffer->data(), entry->size);
-                }
+                memFile.size = entry->size;
             }
             // The disk address too: the bytes are STORED, so a reader
             // that cannot take memory -- the FFmpeg command line, or the
