@@ -409,7 +409,8 @@ tl_engine* tl_engine_create(void)
     catch (const std::exception& e)
     {
         setError(engine, e.what());
-        // Kept, so the caller can read the error; nothing else works.
+        // Kept, so the caller can read the error. Without the renderer
+        // files still open and read; only the views need it.
         engine->gpu.reset();
     }
     return engine;
@@ -445,6 +446,11 @@ void tl_engine_tick(tl_engine* engine)
     }
 }
 
+int tl_engine_has_gpu(tl_engine* engine)
+{
+    return engine && engine->gpu ? 1 : 0;
+}
+
 const char* tl_engine_get_error(tl_engine* engine)
 {
     return engine ? engine->error.c_str() : "";
@@ -452,7 +458,7 @@ const char* tl_engine_get_error(tl_engine* engine)
 
 tl_player* tl_player_create(tl_engine* engine, const char* path)
 {
-    if (!engine || !engine->gpu || !path)
+    if (!engine || !engine->context || !path)
         return nullptr;
     auto out = new tl_player;
     out->engine = engine;
@@ -1139,6 +1145,10 @@ void tl_player_cancel_thumbnail(tl_player* player, unsigned long long id)
     }
 }
 
+// C++ linkage: this part of the file is inside the C interface's
+// extern "C".
+extern "C++"
+{
 namespace
 {
     //! Read one waveform: the timeline's audio a second at a time, every
@@ -1251,6 +1261,7 @@ namespace
         }
         player->waveformQueue.clear();
     }
+}
 }
 
 unsigned long long tl_player_request_waveform(
@@ -1551,6 +1562,10 @@ void tl_view_set_frame(tl_view* view, int x, int y, int w, int h)
     }
 }
 
+// C++ linkage: this part of the file is inside the C interface's
+// extern "C".
+extern "C++"
+{
 namespace
 {
     std::vector<std::pair<double, const void*> > frameSignature(const std::vector<tl::VideoFrame>& frames)
@@ -1563,6 +1578,7 @@ namespace
         }
         return out;
     }
+}
 }
 
 size_t tl_view_get_draw_count(tl_view* view)

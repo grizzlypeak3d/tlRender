@@ -191,6 +191,8 @@ include("${CMAKE_CURRENT_LIST_DIR}/tlTimelineTargets.cmake")
 include("${CMAKE_CURRENT_LIST_DIR}/tlGLTargets.cmake")
 include("${CMAKE_CURRENT_LIST_DIR}/tlGPUTargets.cmake" OPTIONAL)
 include("${CMAKE_CURRENT_LIST_DIR}/tlUITargets.cmake")
+# The C interface, built with the GPU renderer.
+include("${CMAKE_CURRENT_LIST_DIR}/tlCTargets.cmake" OPTIONAL)
 
 # \todo Is this the correct way to add the include directory?
 include_directories("@PACKAGE_INCLUDE_INSTALL_DIR@")

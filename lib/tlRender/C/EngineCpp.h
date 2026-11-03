@@ -29,22 +29,22 @@ namespace tl
     namespace c
     {
         //! The engine's context.
-        TL_TIMELINE_API std::shared_ptr<ftk::Context> getContext(tl_engine*);
+        TL_C_API std::shared_ptr<ftk::Context> getContext(tl_engine*);
 
         //! A player's timeline and player.
-        TL_TIMELINE_API std::shared_ptr<Timeline> getTimeline(tl_player*);
-        TL_TIMELINE_API std::shared_ptr<Player> getPlayer(tl_player*);
+        TL_C_API std::shared_ptr<Timeline> getTimeline(tl_player*);
+        TL_C_API std::shared_ptr<Player> getPlayer(tl_player*);
 
         //! What a view draws the picture with. Each is kept by the view
         //! and applied on its next draw.
-        TL_TIMELINE_API void setOCIOOptions(tl_view*, const OCIOOptions&);
-        TL_TIMELINE_API void setOCIOInputResolver(
+        TL_C_API void setOCIOOptions(tl_view*, const OCIOOptions&);
+        TL_C_API void setOCIOInputResolver(
             tl_view*,
             const std::function<std::string(const std::string& path, const ftk::ImageTags&)>&);
-        TL_TIMELINE_API void setLUTOptions(tl_view*, const LUTOptions&);
-        TL_TIMELINE_API void setImageOptions(tl_view*, const ftk::ImageOptions&);
-        TL_TIMELINE_API void setDisplayOptions(tl_view*, const DisplayOptions&);
-        TL_TIMELINE_API void setBackgroundOptions(tl_view*, const BackgroundOptions&);
-        TL_TIMELINE_API void setForegroundOptions(tl_view*, const ForegroundOptions&);
+        TL_C_API void setLUTOptions(tl_view*, const LUTOptions&);
+        TL_C_API void setImageOptions(tl_view*, const ftk::ImageOptions&);
+        TL_C_API void setDisplayOptions(tl_view*, const DisplayOptions&);
+        TL_C_API void setBackgroundOptions(tl_view*, const BackgroundOptions&);
+        TL_C_API void setForegroundOptions(tl_view*, const ForegroundOptions&);
     }
 }

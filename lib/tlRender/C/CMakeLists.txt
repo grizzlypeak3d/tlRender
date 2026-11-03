@@ -1,6 +1,7 @@
 set(HEADERS
     Engine.h
-    EngineCpp.h)
+    EngineCpp.h
+    Export.h)
 set(SOURCE
     Bundle.cpp
     Engine.cpp)
@@ -10,6 +11,11 @@ set(SOURCE
 # widget.
 add_library(tlC ${HEADERS} ${SOURCE})
 target_link_libraries(tlC PUBLIC tlGPU tlUI)
+if(BUILD_SHARED_LIBS)
+    target_compile_definitions(tlC PRIVATE TL_C_EXPORTS)
+else()
+    target_compile_definitions(tlC PUBLIC TL_C_STATIC)
+endif()
 set_target_properties(tlC PROPERTIES FOLDER lib)
 set_target_properties(tlC PROPERTIES PUBLIC_HEADER "${HEADERS}")
 
