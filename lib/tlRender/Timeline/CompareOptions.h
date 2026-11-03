@@ -105,6 +105,10 @@ namespace tl
     //! same choice.
     TL_TIMELINE_API bool isShown(Compare, size_t index);
 
+    //! Get the wipe center for a point in render space: the point as a
+    //! fraction of the first box, which the wipe is drawn across.
+    TL_TIMELINE_API ftk::V2F getWipeCenter(const ftk::V2F& pos, const ftk::Box2I& firstBox);
+
     //! Get a compare time.
     TL_TIMELINE_API OTIO_NS::RationalTime getCompareTime(
         const OTIO_NS::RationalTime& sourceTime,

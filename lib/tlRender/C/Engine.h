@@ -60,6 +60,12 @@ TL_C_API const char* tl_engine_get_error(tl_engine*);
 TL_C_API tl_player* tl_player_create(tl_engine*, const char* path);
 TL_C_API void tl_player_destroy(tl_player*);
 
+//! Compare the player's timeline with another file, which the view draws
+//! beside it or over it as its compare options say (see EngineCpp.h);
+//! NULL or an empty path for none. Zero if the file cannot be opened,
+//! with the reason in the engine's error.
+TL_C_API int tl_player_set_compare(tl_player*, const char* path);
+
 //! Times are seconds from the start of the timeline.
 TL_C_API double tl_player_get_duration(tl_player*);
 TL_C_API double tl_player_get_rate(tl_player*);
@@ -309,6 +315,11 @@ TL_C_API void tl_view_pan(tl_view*, float dx, float dy);
 //! and lines.
 TL_C_API void tl_view_set_timeline_frame(
     tl_view*, int x, int y, int w, int h, float displayScale);
+
+//! The screen's display scale, which sizes what is drawn over the
+//! picture: the timeline widget's text and lines, and a caller's overlay
+//! (see EngineCpp.h). Also set with the timeline's frame.
+TL_C_API void tl_view_set_display_scale(tl_view*, float);
 
 //! Minimize the timeline widget: the ruler and the tracks as lines,
 //! without their thumbnails and labels, as DJV's Minimize does.

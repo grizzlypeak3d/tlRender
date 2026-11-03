@@ -1732,24 +1732,27 @@ namespace tl
                     break;
                 case Private::MouseMode::Wipe:
                 {
-                    if (p.player)
+                    // Across the first box, as the wipe is drawn.
+                    const auto& displayOptions = p.displayOptions->get();
+                    const AspectRatioOptions aspectRatio =
+                        !displayOptions.empty() ?
+                        displayOptions.front().aspectRatio :
+                        AspectRatioOptions();
+                    CompareOptions compareOptions = p.compareOptions->get();
+                    const auto boxes = getBoxes(compareOptions, aspectRatio, p.videoFrame);
+                    if (!boxes.empty())
                     {
-                        const IOInfo& ioInfo = p.player->getIOInfo();
-                        if (!ioInfo.video.empty())
+                        const ftk::V2I& viewPos = p.viewPos->get();
+                        const double zoom = p.zoom->get();
+                        compareOptions.wipeCenter = getWipeCenter(
+                            ftk::V2F(
+                                (p.mouse.pos.x - viewPos.x) / zoom,
+                                (p.mouse.pos.y - viewPos.y) / zoom),
+                            boxes.front());
+                        if (p.compareOptions->setIfChanged(compareOptions))
                         {
-                            const ftk::V2I& viewPos = p.viewPos->get();
-                            const double zoom = p.zoom->get();
-                            const auto& imageInfo = ioInfo.video[0];
-                            CompareOptions compareOptions = p.compareOptions->get();
-                            compareOptions.wipeCenter.x = (p.mouse.pos.x - viewPos.x) / zoom /
-                                static_cast<float>(imageInfo.size.w * imageInfo.pixelAspectRatio);
-                            compareOptions.wipeCenter.y = (p.mouse.pos.y - viewPos.y) / zoom /
-                                static_cast<float>(imageInfo.size.h);
-                            if (p.compareOptions->setIfChanged(compareOptions))
-                            {
-                                p.doRender = true;
-                                setDrawUpdate();
-                            }
+                            p.doRender = true;
+                            setDrawUpdate();
                         }
                     }
                     break;

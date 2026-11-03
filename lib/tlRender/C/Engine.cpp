@@ -129,6 +129,8 @@ struct tl_player
     tl_engine* engine = nullptr;
     std::shared_ptr<tl::Timeline> timeline;
     std::shared_ptr<tl::Player> player;
+    //! What the timeline is compared with, if anything.
+    std::shared_ptr<tl::Timeline> compare;
     bool clipsRead = false;
     int videoTracks = 0;
     std::vector<tl_clip> clips;
@@ -351,6 +353,7 @@ struct tl_view
     tl::DisplayOptions displayOptions;
     tl::BackgroundOptions backgroundOptions;
     tl::ForegroundOptions foregroundOptions;
+    tl::CompareOptions compareOptions;
     std::function<void(const std::shared_ptr<ftk::IRender>&)> overlay;
     //! Where the last draw put the picture; see EngineCpp.h.
     tl::c::ViewPicture picture;
@@ -371,6 +374,43 @@ namespace
         {
             engine->context->log("tl_engine", what, ftk::LogType::Error);
         }
+    }
+
+    //! How a timeline is read: by the GPU where it can, and as the
+    //! engine's options say.
+    tl::Options getTimelineOptions(tl_engine* engine)
+    {
+        tl::Options timelineOptions;
+        // The GPU decodes what it can, which on a phone or a tablet is
+        // the difference between playing and not; the reader falls back
+        // to software for the rest.
+        timelineOptions.ioOptions["FFmpeg/HWAccel"] = "1";
+#if defined(__APPLE__) && TARGET_OS_IOS
+        // The decoded frames stay on the GPU; see the "Texture" option in
+        // IO.h. Only where SDL has the pixel buffer import (the super
+        // build's patch), which the desktop's SDL may not.
+        timelineOptions.ioOptions["Texture"] = "1";
+        // Two frames read ahead in each reader rather than four: a 4K
+        // frame is twelve megabytes, there are as many readers as clips
+        // played lately, and the player's own cache is the one that
+        // matters.
+        timelineOptions.ioOptions["FFmpeg/VideoBufferSize"] = "2";
+#endif // TARGET_OS_IOS
+        for (const auto& i : engine->ioOptions)
+        {
+            timelineOptions.ioOptions[i.first] = i.second;
+        }
+        // Not fewer readers kept open, though each hardware decoder's
+        // frame pool keeps every buffer it ever handed out, and with the
+        // frames drawn where the decoder put them an idle reader's pool
+        // grows as large as the cache: two readers froze the audio clock
+        // on a timeline of three clips (a deadlock in the eviction, still
+        // to be found), and the player's cache is sized for the pools.
+        if (engine->readCacheMax > 0)
+        {
+            timelineOptions.readCacheMax = engine->readCacheMax;
+        }
+        return timelineOptions;
     }
 }
 
@@ -467,36 +507,7 @@ tl_player* tl_player_create(tl_engine* engine, const char* path)
     out->engine = engine;
     try
     {
-        // The GPU decodes what it can, which on a phone or a tablet is
-        // the difference between playing and not; the reader falls back
-        // to software for the rest.
-        tl::Options timelineOptions;
-        timelineOptions.ioOptions["FFmpeg/HWAccel"] = "1";
-#if defined(__APPLE__) && TARGET_OS_IOS
-        // The decoded frames stay on the GPU; see the "Texture" option in
-        // IO.h. Only where SDL has the pixel buffer import (the super
-        // build's patch), which the desktop's SDL may not.
-        timelineOptions.ioOptions["Texture"] = "1";
-        // Two frames read ahead in each reader rather than four: a 4K
-        // frame is twelve megabytes, there are as many readers as clips
-        // played lately, and the player's own cache is the one that
-        // matters.
-        timelineOptions.ioOptions["FFmpeg/VideoBufferSize"] = "2";
-#endif // TARGET_OS_IOS
-        for (const auto& i : engine->ioOptions)
-        {
-            timelineOptions.ioOptions[i.first] = i.second;
-        }
-        // Not fewer readers kept open, though each hardware decoder's
-        // frame pool keeps every buffer it ever handed out, and with the
-        // frames drawn where the decoder put them an idle reader's pool
-        // grows as large as the cache: two readers froze the audio clock
-        // on a timeline of three clips (a deadlock in the eviction, still
-        // to be found), and the cache below is sized for the pools.
-        if (engine->readCacheMax > 0)
-        {
-            timelineOptions.readCacheMax = engine->readCacheMax;
-        }
+        const tl::Options timelineOptions = getTimelineOptions(engine);
         out->timeline = tl::Timeline::create(engine->context, ftk::Path(openPath(path)), timelineOptions);
         tl::PlayerOptions options;
         // A second of cache before the clock runs: the picture moves
@@ -535,6 +546,34 @@ tl_player* tl_player_create(tl_engine* engine, const char* path)
 void tl_player_destroy(tl_player* player)
 {
     delete player;
+}
+
+int tl_player_set_compare(tl_player* player, const char* path)
+{
+    if (!player)
+        return 0;
+    std::shared_ptr<tl::Timeline> compare;
+    if (path && path[0])
+    {
+        try
+        {
+            compare = tl::Timeline::create(
+                player->engine->context,
+                ftk::Path(openPath(path)),
+                getTimelineOptions(player->engine));
+        }
+        catch (const std::exception& e)
+        {
+            setError(player->engine, e.what());
+            return 0;
+        }
+    }
+    player->compare = compare;
+    player->player->setCompare(
+        compare ?
+        std::vector<std::shared_ptr<tl::Timeline> >{ compare } :
+        std::vector<std::shared_ptr<tl::Timeline> >());
+    return 1;
 }
 
 double tl_player_get_duration(tl_player* player)
@@ -1643,6 +1682,15 @@ void tl_view_set_timeline_frame(tl_view* view, int x, int y, int w, int h, float
     }
 }
 
+void tl_view_set_display_scale(tl_view* view, float value)
+{
+    if (view && value > 0.F && value != view->displayScale)
+    {
+        view->displayScale = value;
+        view->dirty = true;
+    }
+}
+
 void tl_view_set_timeline_minimized(tl_view* view, int value)
 {
     if (view && view->widgets)
@@ -1816,7 +1864,7 @@ void tl_view_draw(tl_view* view)
         const ftk::Box2I frame = view->frame.isValid() ?
             view->frame :
             ftk::Box2I(0, 0, w, h);
-        const tl::CompareOptions compare;
+        const tl::CompareOptions& compare = view->compareOptions;
         const tl::AspectRatioOptions aspect;
         const auto boxes = tl::getBoxes(compare, aspect, frames);
         const ftk::Size2I renderSize = tl::getRenderSize(compare, aspect, frames);
@@ -2005,6 +2053,15 @@ namespace tl
             if (view && view->foregroundOptions != value)
             {
                 view->foregroundOptions = value;
+                view->dirty = true;
+            }
+        }
+
+        void setCompareOptions(tl_view* view, const CompareOptions& value)
+        {
+            if (view && view->compareOptions != value)
+            {
+                view->compareOptions = value;
                 view->dirty = true;
             }
         }

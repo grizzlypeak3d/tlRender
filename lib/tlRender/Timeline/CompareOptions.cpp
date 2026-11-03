@@ -274,6 +274,13 @@ namespace tl
         return out;
     }
 
+    ftk::V2F getWipeCenter(const ftk::V2F& pos, const ftk::Box2I& firstBox)
+    {
+        return ftk::V2F(
+            firstBox.w() > 0 ? pos.x / static_cast<float>(firstBox.w()) : .5F,
+            firstBox.h() > 0 ? pos.y / static_cast<float>(firstBox.h()) : .5F);
+    }
+
     OTIO_NS::RationalTime getCompareTime(
         const OTIO_NS::RationalTime& sourceTime,
         const OTIO_NS::TimeRange& sourceTimeRange,

@@ -14,6 +14,7 @@
 #include <tlRender/Timeline/BackgroundOptions.h>
 #include <tlRender/Timeline/ColorOptions.h>
 #include <tlRender/Timeline/DisplayOptions.h>
+#include <tlRender/Timeline/CompareOptions.h>
 #include <tlRender/Timeline/ForegroundOptions.h>
 #include <tlRender/Timeline/Player.h>
 #include <tlRender/Timeline/Timeline.h>
@@ -49,6 +50,10 @@ namespace tl
         TL_C_API void setDisplayOptions(tl_view*, const DisplayOptions&);
         TL_C_API void setBackgroundOptions(tl_view*, const BackgroundOptions&);
         TL_C_API void setForegroundOptions(tl_view*, const ForegroundOptions&);
+
+        //! How the player's timeline and the one it is compared with are
+        //! drawn; see tl_player_set_compare().
+        TL_C_API void setCompareOptions(tl_view*, const CompareOptions&);
 
         //! Where the last draw put the picture, in the view's pixels: the
         //! render space at a position and a zoom, as the desktop viewport

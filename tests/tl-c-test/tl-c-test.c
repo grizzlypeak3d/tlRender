@@ -168,6 +168,16 @@ static void players(tl_engine* engine)
         CHECK(shot.hasColor);
         CHECK(tl_player_get_clip(player, 1, &clip) == 1);
         CHECK(!clip.hasColor);
+
+        /* Compared with another file, with one that is not there, and
+           with nothing. */
+        path(file, sizeof(file), TLRENDER_SAMPLE_DATA, "MultipleClips.otio");
+        CHECK(tl_player_set_compare(player, file) == 1);
+        path(file, sizeof(file), TLRENDER_SAMPLE_DATA, "NotThere.otio");
+        CHECK(tl_player_set_compare(player, file) == 0);
+        CHECK(strlen(tl_engine_get_error(engine)) > 0);
+        CHECK(tl_player_set_compare(player, NULL) == 1);
+        CHECK(tl_player_set_compare(player, "") == 1);
         tl_player_destroy(player);
     }
 

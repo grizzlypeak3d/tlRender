@@ -107,6 +107,13 @@ namespace tl
                     FTK_CHECK(isShown(compare, 2));
                 }
 
+                // The wipe is a fraction of the first box, wherever the
+                // point is.
+                FTK_CHECK(ftk::V2F(.5F, .25F) ==
+                    getWipeCenter(ftk::V2F(960.F, 270.F), ftk::Box2I(0, 0, 1920, 1080)));
+                FTK_CHECK(ftk::V2F(-.5F, 1.5F) ==
+                    getWipeCenter(ftk::V2F(-960.F, 1620.F), ftk::Box2I(0, 0, 1920, 1080)));
+
                 auto boxes = getBoxes({ Compare::Horizontal }, AspectRatioOptions(), infos);
                 FTK_CHECK(2 == boxes.size());
                 FTK_CHECK(ftk::Box2I(0, 0, 1920, 1080) == boxes[0]);
