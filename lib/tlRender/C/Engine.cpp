@@ -351,6 +351,9 @@ struct tl_view
     tl::DisplayOptions displayOptions;
     tl::BackgroundOptions backgroundOptions;
     tl::ForegroundOptions foregroundOptions;
+    std::function<void(const std::shared_ptr<ftk::IRender>&)> overlay;
+    //! Where the last draw put the picture; see EngineCpp.h.
+    tl::c::ViewPicture picture;
     //! What the last draw showed, to know when there is something new:
     //! the frames (their time and image), the size, the frames' places.
     std::vector<std::pair<double, const void*> > drawnFrames;
@@ -1834,6 +1837,20 @@ void tl_view_draw(tl_view* view)
         }
         view->viewPosNow = pos;
         view->viewZoomNow = zoom;
+        view->picture = tl::c::ViewPicture();
+        view->picture.pos = pos;
+        view->picture.zoom = zoom;
+        view->picture.displayScale = view->displayScale;
+        if (!boxes.empty())
+        {
+            view->picture.box = boxes.front();
+        }
+        if (!frames.empty() &&
+            !frames.front().layers.empty() &&
+            frames.front().layers.front().image)
+        {
+            view->picture.imageSize = frames.front().layers.front().image->getSize();
+        }
         const ftk::M44F vm =
             ftk::translate(ftk::V3F(pos.x, pos.y, 0.F)) *
             ftk::scale(ftk::V3F(zoom, zoom, 1.F));
@@ -1862,6 +1879,11 @@ void tl_view_draw(tl_view* view)
             ftk::ImageType::RGBA_F16);
         view->render->setTransform(pm);
         view->render->drawForeground(boxes, vm, view->foregroundOptions, compare);
+        if (view->overlay)
+        {
+            view->render->setTransform(pm);
+            view->overlay(view->render);
+        }
         // The widgets over the picture, in the buffer's own coordinates.
         if (view->widgets)
         {
@@ -1983,6 +2005,30 @@ namespace tl
             if (view && view->foregroundOptions != value)
             {
                 view->foregroundOptions = value;
+                view->dirty = true;
+            }
+        }
+
+        ViewPicture getViewPicture(tl_view* view)
+        {
+            return view ? view->picture : ViewPicture();
+        }
+
+        void setOverlay(
+            tl_view* view,
+            const std::function<void(const std::shared_ptr<ftk::IRender>&)>& value)
+        {
+            if (view)
+            {
+                view->overlay = value;
+                view->dirty = true;
+            }
+        }
+
+        void setNeedsDraw(tl_view* view)
+        {
+            if (view)
+            {
                 view->dirty = true;
             }
         }
