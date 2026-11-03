@@ -324,6 +324,49 @@ namespace
     }
 }
 
+namespace
+{
+    //! A file's path from the media folder, if it is under it: what a
+    //! relinked timeline names it by, the folder's own place being one
+    //! that can change between mounts.
+    std::optional<std::string> underFolder(const fs::path& file, const fs::path& folder)
+    {
+        std::error_code ec;
+        const fs::path f = fs::weakly_canonical(file, ec);
+        const fs::path root = fs::weakly_canonical(folder, ec);
+        if (root.empty())
+            return std::nullopt;
+        auto i = f.begin();
+        for (auto j = root.begin(); j != root.end(); ++j, ++i)
+        {
+            if (j->empty())
+                continue;
+            if (i == f.end() || *i != *j)
+                return std::nullopt;
+        }
+        fs::path rest;
+        for (; i != f.end(); ++i)
+        {
+            rest /= *i;
+        }
+        if (rest.empty())
+            return std::nullopt;
+        // Forward slashes, as a URL has them.
+        return ftk::fromFileSystemGeneric(rest);
+    }
+}
+
+//! A bundle, or with relink a timeline alone, its references pointing at
+//! the media where it was found.
+static int writeBundle(
+    const char* otio,
+    const char* mediaFolder,
+    const char* out,
+    tl_bundle_progress progressCallback,
+    void* progressUser,
+    tl_bundle_result* result,
+    bool relink);
+
 int tl_bundle_write_otiod(
     const char* otio,
     const char* mediaFolder,
@@ -331,6 +374,29 @@ int tl_bundle_write_otiod(
     tl_bundle_progress progressCallback,
     void* progressUser,
     tl_bundle_result* result)
+{
+    return writeBundle(otio, mediaFolder, out, progressCallback, progressUser, result, false);
+}
+
+int tl_bundle_relink_otio(
+    const char* otio,
+    const char* mediaFolder,
+    const char* out,
+    tl_bundle_progress progressCallback,
+    void* progressUser,
+    tl_bundle_result* result)
+{
+    return writeBundle(otio, mediaFolder, out, progressCallback, progressUser, result, true);
+}
+
+static int writeBundle(
+    const char* otio,
+    const char* mediaFolder,
+    const char* out,
+    tl_bundle_progress progressCallback,
+    void* progressUser,
+    tl_bundle_result* result,
+    bool relink)
 {
     tl_bundle_result r;
     std::memset(&r, 0, sizeof(r));
@@ -350,7 +416,7 @@ int tl_bundle_write_otiod(
     std::error_code ec;
     if (fs::exists(outPath, ec))
     {
-        copyString("The bundle already exists", r.error, sizeof(r.error));
+        copyString(relink ? "The timeline already exists" : "The bundle already exists", r.error, sizeof(r.error));
         return finish(0);
     }
 
@@ -368,6 +434,15 @@ int tl_bundle_write_otiod(
     }
 
     const fs::path otioDir = otioPath.parent_path();
+    const fs::path folderPath = mediaFolder && mediaFolder[0] ? toPath(mediaFolder) : fs::path();
+    // Where a relinked reference points: under the media folder, by its
+    // path from there; outside it, where it is.
+    const auto linked = [&folderPath](const fs::path& file)
+    {
+        if (const auto rest = underFolder(file, folderPath))
+            return *rest;
+        return fromPath(file);
+    };
     Index index;
     try
     {
@@ -398,7 +473,12 @@ int tl_bundle_write_otiod(
                     continue;
                 const auto file = findFile(*path, otioDir, index);
                 const auto size = file ? fileSize(*file) : std::nullopt;
-                if (file && size)
+                if (file && size && relink)
+                {
+                    ext->set_target_url(toURL(linked(*file)));
+                    found.insert(*path);
+                }
+                else if (file && size)
                 {
                     const std::string name = "media/" +
                         files.get(*file, fromPath(file->filename()));
@@ -429,6 +509,15 @@ int tl_bundle_write_otiod(
                     continue;
                 }
                 const fs::path sourceDir = file->parent_path();
+                if (relink)
+                {
+                    std::string base = linked(sourceDir);
+                    if (!base.empty() && base.back() != '/')
+                        base += '/';
+                    seq->set_target_url_base(toURL(base));
+                    found.insert(*first);
+                    continue;
+                }
                 std::string folder = fromPath(sourceDir.filename());
                 if (folder.empty())
                     folder = "sequence";
@@ -471,6 +560,26 @@ int tl_bundle_write_otiod(
 
     // Written, and removed again if any of it cannot be, or it is stopped.
     std::string failure;
+    if (relink)
+    {
+        try
+        {
+            fs::create_directories(outPath.parent_path());
+            OTIO_NS::ErrorStatus writeError;
+            if (!timeline->to_json_file(fromPath(outPath), &writeError) ||
+                OTIO_NS::is_error(writeError))
+            {
+                throw std::runtime_error("Cannot write the timeline: " + writeError.details);
+            }
+        }
+        catch (const std::exception& e)
+        {
+            fs::remove(outPath, ec);
+            copyString(e.what(), r.error, sizeof(r.error));
+            return finish(0);
+        }
+        return finish(1);
+    }
     try
     {
         uint64_t total = 0;

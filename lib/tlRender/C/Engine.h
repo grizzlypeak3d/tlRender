@@ -155,6 +155,20 @@ typedef struct tl_shot
 TL_TIMELINE_API int tl_player_get_shot_count(tl_player*);
 TL_TIMELINE_API int tl_player_get_shot(tl_player*, int index, tl_shot*);
 
+//! A line of information about what is open, as DJV's Info tool shows
+//! it: a section (File, Video, Audio, Metadata), a name and a value.
+typedef struct tl_info_item
+{
+    char section[32];
+    char name[128];
+    char value[1024];
+} tl_info_item;
+
+//! The information, section by section: of the file, or for a cut of
+//! the media of its first clip.
+TL_TIMELINE_API int tl_player_get_info_count(tl_player*);
+TL_TIMELINE_API int tl_player_get_info(tl_player*, int index, tl_info_item*);
+
 //! A marker the editor left: on the timeline, a track, or a clip, in
 //! seconds from the start of the timeline. A duration of zero marks a
 //! point. The color is OTIO's, green when the marker has none.
@@ -388,6 +402,20 @@ typedef struct tl_bundle_result
 //! stopped. Does not need the engine, and can be called from any thread.
 //! One when the bundle was written, whether media was missing or not.
 TL_TIMELINE_API int tl_bundle_write_otiod(
+    const char* otio,
+    const char* mediaFolder,
+    const char* out,
+    tl_bundle_progress,
+    void* progressUser,
+    tl_bundle_result*);
+
+//! Relink a .otio rather than bundle it: its media found as for a bundle,
+//! nothing copied, and the timeline written to out (a .otio) with each
+//! reference pointing at the file found -- by its path from the media
+//! folder when it is under it, which a caller makes whole again wherever
+//! the folder is next, and where it is otherwise. Missing media is left
+//! as it was. For media played where it is, on a drive or a share.
+TL_TIMELINE_API int tl_bundle_relink_otio(
     const char* otio,
     const char* mediaFolder,
     const char* out,

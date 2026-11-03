@@ -134,6 +134,8 @@ struct tl_player
     std::vector<tl_clip> clips;
     std::vector<tl_shot> shots;
     std::vector<tl_marker> markers;
+    std::vector<tl_info_item> info;
+    bool infoRead = false;
     std::map<unsigned long long, std::future<std::shared_ptr<ftk::Image> > > thumbnails;
 
     // The waveforms: read one at a time on a thread of their own.
@@ -1022,6 +1024,120 @@ int tl_player_get_shot(tl_player* player, int index, tl_shot* out)
     if (index < 0 || index >= static_cast<int>(player->shots.size()))
         return 0;
     *out = player->shots[index];
+    return 1;
+}
+
+// C++ linkage, as this part of the file is inside the C interface's
+// extern "C".
+extern "C++"
+{
+namespace
+{
+    // The rows of DJV's Info tool (lib/djv/UI/InfoWidget.cpp), here for
+    // the iPad, which has no DJV interface; kept the same.
+    template<typename T>
+    std::string infoString(const T& value)
+    {
+        std::stringstream ss;
+        ss << value;
+        return ss.str();
+    }
+
+    void readInfo(tl_player* player)
+    {
+        if (player->infoRead)
+            return;
+        player->infoRead = true;
+        auto add = [player](const char* section, const std::string& name, const std::string& value)
+        {
+            tl_info_item item = {};
+            std::snprintf(item.section, sizeof(item.section), "%s", section);
+            std::snprintf(item.name, sizeof(item.name), "%s", name.c_str());
+            std::snprintf(item.value, sizeof(item.value), "%s", value.c_str());
+            player->info.push_back(item);
+        };
+        const ftk::Path& path = player->timeline->getPath();
+        if (!path.isEmpty())
+        {
+            add("File", "Name", path.getFileName());
+            add("File", "Directory", path.getDir());
+            if (path.isSeq())
+            {
+                add("File", "Frames", path.getFrameRange(true));
+            }
+        }
+        const tl::IOInfo& info = player->timeline->getIOInfo();
+        if (!info.video.empty())
+        {
+            const ftk::ImageInfo& video = tl::getVideoInfo(info, 0);
+            if (!info.videoSource.codec.empty())
+                add("Video", "Codec", info.videoSource.codec);
+            if (!info.videoSource.pixelFormat.empty())
+                add("Video", "Source Format", info.videoSource.pixelFormat);
+            add("Video", "Resolution", infoString(video.size.w) + " " + infoString(video.size.h));
+            add("Video", "Pixel Type", infoString(ftk::getInterleavedType(video.type)));
+            {
+                std::stringstream ss;
+                ss.precision(2);
+                ss << std::fixed << video.pixelAspectRatio;
+                add("Video", "Pixel Aspect Ratio", ss.str());
+            }
+            add("Video", "Levels", infoString(video.videoLevels));
+            if (info.videoTime.has_value())
+            {
+                add("Video", "Start Time", info.videoTime->start_time().to_timecode());
+                add("Video", "Duration", info.videoTime->duration().to_timecode());
+                std::stringstream ss;
+                ss.precision(2);
+                ss << std::fixed << info.videoTime->start_time().rate() << " FPS";
+                add("Video", "Speed", ss.str());
+            }
+        }
+        if (info.audio.isValid())
+        {
+            const tl::AudioSourceInfo& source = info.audioSource;
+            if (!source.codec.empty())
+                add("Audio", "Codec", source.codec);
+            add("Audio", "Channels", infoString(info.audio.channelCount));
+            add("Audio", "Type", infoString(info.audio.type));
+            {
+                std::stringstream ss;
+                ss.precision(1);
+                ss << std::fixed << info.audio.sampleRate / 1000.0 << "kHz";
+                add("Audio", "Sample Rate", ss.str());
+            }
+            if (info.audioTime.has_value())
+            {
+                std::stringstream ss;
+                ss.precision(2);
+                ss << std::fixed << info.audioTime->duration().rescaled_to(1.0).value() << " seconds";
+                add("Audio", "Duration", ss.str());
+            }
+        }
+        for (const auto& tag : info.tags)
+        {
+            add("Metadata", tag.first, tag.second);
+        }
+    }
+}
+}
+
+int tl_player_get_info_count(tl_player* player)
+{
+    if (!player || !player->timeline)
+        return 0;
+    readInfo(player);
+    return static_cast<int>(player->info.size());
+}
+
+int tl_player_get_info(tl_player* player, int index, tl_info_item* out)
+{
+    if (!player || !out || !player->timeline)
+        return 0;
+    readInfo(player);
+    if (index < 0 || index >= static_cast<int>(player->info.size()))
+        return 0;
+    *out = player->info[index];
     return 1;
 }
 
