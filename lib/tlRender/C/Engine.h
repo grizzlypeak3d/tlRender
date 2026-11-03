@@ -155,20 +155,6 @@ typedef struct tl_shot
 TL_TIMELINE_API int tl_player_get_shot_count(tl_player*);
 TL_TIMELINE_API int tl_player_get_shot(tl_player*, int index, tl_shot*);
 
-//! A line of information about what is open, as DJV's Info tool shows
-//! it: a section (File, Video, Audio, Metadata), a name and a value.
-typedef struct tl_info_item
-{
-    char section[32];
-    char name[128];
-    char value[1024];
-} tl_info_item;
-
-//! The information, section by section: of the file, or for a cut of
-//! the media of its first clip.
-TL_TIMELINE_API int tl_player_get_info_count(tl_player*);
-TL_TIMELINE_API int tl_player_get_info(tl_player*, int index, tl_info_item*);
-
 //! A marker the editor left: on the timeline, a track, or a clip, in
 //! seconds from the start of the timeline. A duration of zero marks a
 //! point. The color is OTIO's, green when the marker has none.
@@ -345,20 +331,6 @@ TL_TIMELINE_API void tl_view_touch(tl_view*, tl_touch_phase, int x, int y);
 //! the widgets when the gesture begins.
 TL_TIMELINE_API void tl_view_gesture(
     tl_view*, tl_touch_phase, int x, int y, float panX, float panY, float zoom);
-
-//! Guides over the picture: the frame of a narrower or wider aspect
-//! within it, the rest masked, and the action and title safe areas.
-typedef struct tl_guides
-{
-    //! The width over the height of the frame to show, 2.39 say; zero
-    //! for none.
-    float aspect;
-    //! How dark the mask outside it is, zero to one.
-    float maskOpacity;
-    //! The action (93%) and title (90%) safe areas of the frame shown.
-    int safeAreas;
-} tl_guides;
-TL_TIMELINE_API void tl_view_set_guides(tl_view*, const tl_guides*);
 
 //! Draw the player's current frame, fitted to the view, and present it.
 //! Whether the view has something new to draw: a video frame that has

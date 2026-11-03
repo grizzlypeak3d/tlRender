@@ -108,12 +108,32 @@ namespace tl
         json["High"] = in.high;
     }
 
+    void to_json(nlohmann::json& json, const FrameGuide& in)
+    {
+        json["Enabled"] = in.enabled;
+        json["Aspect"] = in.aspect;
+        json["MaskOpacity"] = in.maskOpacity;
+        json["LineWidth"] = in.lineWidth;
+        json["Color"] = in.color;
+    }
+
+    void to_json(nlohmann::json& json, const SafeAreas& in)
+    {
+        json["Enabled"] = in.enabled;
+        json["Action"] = in.action;
+        json["Title"] = in.title;
+        json["LineWidth"] = in.lineWidth;
+        json["Color"] = in.color;
+    }
+
     void to_json(nlohmann::json& json, const ForegroundOptions& in)
     {
         json["Grid"] = in.grid;
         json["CenterMarker"] = in.centerMarker;
         json["MissingIndicator"] = in.missingIndicator;
         json["ClippingWarning"] = in.clippingWarning;
+        json["FrameGuide"] = in.frameGuide;
+        json["SafeAreas"] = in.safeAreas;
     }
 
     void from_json(const nlohmann::json& json, Grid& out)
@@ -159,6 +179,24 @@ namespace tl
         json.at("High").get_to(out.high);
     }
 
+    void from_json(const nlohmann::json& json, FrameGuide& out)
+    {
+        json.at("Enabled").get_to(out.enabled);
+        json.at("Aspect").get_to(out.aspect);
+        json.at("MaskOpacity").get_to(out.maskOpacity);
+        json.at("LineWidth").get_to(out.lineWidth);
+        json.at("Color").get_to(out.color);
+    }
+
+    void from_json(const nlohmann::json& json, SafeAreas& out)
+    {
+        json.at("Enabled").get_to(out.enabled);
+        json.at("Action").get_to(out.action);
+        json.at("Title").get_to(out.title);
+        json.at("LineWidth").get_to(out.lineWidth);
+        json.at("Color").get_to(out.color);
+    }
+
     void from_json(const nlohmann::json& json, ForegroundOptions& out)
     {
         json.at("Grid").get_to(out.grid);
@@ -172,6 +210,14 @@ namespace tl
         if (json.contains("ClippingWarning"))
         {
             json.at("ClippingWarning").get_to(out.clippingWarning);
+        }
+        if (json.contains("FrameGuide"))
+        {
+            json.at("FrameGuide").get_to(out.frameGuide);
+        }
+        if (json.contains("SafeAreas"))
+        {
+            json.at("SafeAreas").get_to(out.safeAreas);
         }
     }
 }

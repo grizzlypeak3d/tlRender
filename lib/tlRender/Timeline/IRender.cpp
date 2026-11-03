@@ -8,12 +8,30 @@
 #include <ftk/Core/Format.h>
 #include <ftk/Core/Math.h>
 
+#include <algorithm>
 #include <cmath>
+#include <vector>
 
 namespace tl
 {
     IRender::~IRender()
     {}
+
+    namespace
+    {
+        //! The four sides of a box, inside it, as rectangles.
+        std::vector<ftk::Box2F> outline(const ftk::Box2F& box, int width)
+        {
+            const float w = std::max(1, width);
+            return
+            {
+                ftk::Box2F(box.x(), box.y(), box.w(), w),
+                ftk::Box2F(box.x(), box.y() + box.h() - w, box.w(), w),
+                ftk::Box2F(box.x(), box.y() + w, w, box.h() - w * 2.F),
+                ftk::Box2F(box.x() + box.w() - w, box.y() + w, w, box.h() - w * 2.F)
+            };
+        }
+    }
 
     void IRender::_drawBackground(
         const std::vector<ftk::Box2I>& boxes,
@@ -428,6 +446,91 @@ namespace tl
                     options.centerMarker.size * b,
                     options.centerMarker.width));
                 drawRects(centerMarker, options.centerMarker.color);
+            }
+
+            if (options.frameGuide.enabled || options.safeAreas.enabled)
+            {
+                if (blend)
+                {
+                    blend();
+                }
+                // In view pixels: the picture, and the frame within it.
+                const ftk::V3F p0 = vm * ftk::V3F(box.min.x, box.min.y, 0.F);
+                const ftk::V3F p1 = vm * ftk::V3F(box.max.x + 1, box.max.y + 1, 0.F);
+                const ftk::Box2F picture(
+                    std::min(p0.x, p1.x),
+                    std::min(p0.y, p1.y),
+                    std::abs(p1.x - p0.x),
+                    std::abs(p1.y - p0.y));
+                ftk::Box2F frame = picture;
+                if (picture.w() > 0.F && picture.h() > 0.F)
+                {
+                    if (options.frameGuide.enabled && options.frameGuide.aspect > 0.F)
+                    {
+                        const float aspect = picture.w() / picture.h();
+                        if (options.frameGuide.aspect > aspect)
+                        {
+                            const float h = picture.w() / options.frameGuide.aspect;
+                            frame = ftk::Box2F(
+                                picture.x(),
+                                picture.y() + (picture.h() - h) / 2.F,
+                                picture.w(),
+                                h);
+                        }
+                        else
+                        {
+                            const float w = picture.h() * options.frameGuide.aspect;
+                            frame = ftk::Box2F(
+                                picture.x() + (picture.w() - w) / 2.F,
+                                picture.y(),
+                                w,
+                                picture.h());
+                        }
+                        std::vector<ftk::Box2F> mask;
+                        if (frame.y() > picture.y())
+                        {
+                            mask.push_back(ftk::Box2F(
+                                picture.x(), picture.y(),
+                                picture.w(), frame.y() - picture.y()));
+                            mask.push_back(ftk::Box2F(
+                                picture.x(), frame.y() + frame.h(),
+                                picture.w(), picture.y() + picture.h() - frame.y() - frame.h()));
+                        }
+                        if (frame.x() > picture.x())
+                        {
+                            mask.push_back(ftk::Box2F(
+                                picture.x(), picture.y(),
+                                frame.x() - picture.x(), picture.h()));
+                            mask.push_back(ftk::Box2F(
+                                frame.x() + frame.w(), picture.y(),
+                                picture.x() + picture.w() - frame.x() - frame.w(), picture.h()));
+                        }
+                        drawRects(
+                            mask,
+                            ftk::Color4F(0.F, 0.F, 0.F, ftk::clamp(options.frameGuide.maskOpacity, 0.F, 1.F)));
+                        drawRects(
+                            outline(frame, options.frameGuide.lineWidth),
+                            options.frameGuide.color);
+                    }
+                    if (options.safeAreas.enabled)
+                    {
+                        std::vector<ftk::Box2F> rects;
+                        for (const float fraction : { options.safeAreas.action, options.safeAreas.title })
+                        {
+                            const float w = frame.w() * fraction;
+                            const float h = frame.h() * fraction;
+                            const auto lines = outline(
+                                ftk::Box2F(
+                                    frame.x() + (frame.w() - w) / 2.F,
+                                    frame.y() + (frame.h() - h) / 2.F,
+                                    w,
+                                    h),
+                                options.safeAreas.lineWidth);
+                            rects.insert(rects.end(), lines.begin(), lines.end());
+                        }
+                        drawRects(rects, options.safeAreas.color);
+                    }
+                }
             }
         }
     }

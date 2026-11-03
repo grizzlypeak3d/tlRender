@@ -119,6 +119,34 @@ namespace tl
         bool operator == (const ClippingWarning&) const = default;
     };
 
+    //! Frame guide: the frame of another aspect ratio within the picture,
+    //! 2.39 in a 16:9 picture say, outlined, with the rest masked. The
+    //! lines are view pixels wide, so they stay one width however far the
+    //! picture is zoomed.
+    struct TL_TIMELINE_API_TYPE FrameGuide
+    {
+        bool         enabled     = false;
+        float        aspect      = 2.39F;
+        float        maskOpacity = .85F;
+        int          lineWidth   = 2;
+        ftk::Color4F color       = ftk::Color4F(1.F, 1.F, 1.F, .5F);
+
+        bool operator == (const FrameGuide&) const = default;
+    };
+
+    //! Safe areas: the action and title safe areas, as fractions of the
+    //! frame -- the frame guide's when it is on, the picture's otherwise.
+    struct TL_TIMELINE_API_TYPE SafeAreas
+    {
+        bool         enabled   = false;
+        float        action    = .93F;
+        float        title     = .9F;
+        int          lineWidth = 2;
+        ftk::Color4F color     = ftk::Color4F(1.F, 1.F, 1.F, .5F);
+
+        bool operator == (const SafeAreas&) const = default;
+    };
+
     //! Foreground options.
     struct TL_TIMELINE_API_TYPE ForegroundOptions
     {
@@ -126,6 +154,8 @@ namespace tl
         CenterMarker     centerMarker;
         MissingIndicator missingIndicator;
         ClippingWarning  clippingWarning;
+        FrameGuide       frameGuide;
+        SafeAreas        safeAreas;
 
         bool operator == (const ForegroundOptions&) const = default;
     };
@@ -137,12 +167,16 @@ namespace tl
     TL_TIMELINE_API void to_json(nlohmann::json&, const CenterMarker&);
     TL_TIMELINE_API void to_json(nlohmann::json&, const MissingIndicator&);
     TL_TIMELINE_API void to_json(nlohmann::json&, const ClippingWarning&);
+    TL_TIMELINE_API void to_json(nlohmann::json&, const FrameGuide&);
+    TL_TIMELINE_API void to_json(nlohmann::json&, const SafeAreas&);
     TL_TIMELINE_API void to_json(nlohmann::json&, const ForegroundOptions&);
 
     TL_TIMELINE_API void from_json(const nlohmann::json&, Grid&);
     TL_TIMELINE_API void from_json(const nlohmann::json&, CenterMarker&);
     TL_TIMELINE_API void from_json(const nlohmann::json&, MissingIndicator&);
     TL_TIMELINE_API void from_json(const nlohmann::json&, ClippingWarning&);
+    TL_TIMELINE_API void from_json(const nlohmann::json&, FrameGuide&);
+    TL_TIMELINE_API void from_json(const nlohmann::json&, SafeAreas&);
     TL_TIMELINE_API void from_json(const nlohmann::json&, ForegroundOptions&);
 
     ///@}

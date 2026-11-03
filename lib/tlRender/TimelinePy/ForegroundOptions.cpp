@@ -74,12 +74,34 @@ namespace tl
                 .def(nanobind::self == nanobind::self)
                 .def(nanobind::self != nanobind::self);
 
+            nb::class_<FrameGuide>(m, "FrameGuide")
+                .def(nb::init())
+                .def_rw("enabled", &FrameGuide::enabled)
+                .def_rw("aspect", &FrameGuide::aspect)
+                .def_rw("maskOpacity", &FrameGuide::maskOpacity)
+                .def_rw("lineWidth", &FrameGuide::lineWidth)
+                .def_rw("color", &FrameGuide::color)
+                .def(nanobind::self == nanobind::self)
+                .def(nanobind::self != nanobind::self);
+
+            nb::class_<SafeAreas>(m, "SafeAreas")
+                .def(nb::init())
+                .def_rw("enabled", &SafeAreas::enabled)
+                .def_rw("action", &SafeAreas::action)
+                .def_rw("title", &SafeAreas::title)
+                .def_rw("lineWidth", &SafeAreas::lineWidth)
+                .def_rw("color", &SafeAreas::color)
+                .def(nanobind::self == nanobind::self)
+                .def(nanobind::self != nanobind::self);
+
             nb::class_<ForegroundOptions>(m, "ForegroundOptions")
                 .def(nb::init())
                 .def_rw("grid", &ForegroundOptions::grid)
                 .def_rw("centerMarker", &ForegroundOptions::centerMarker)
                 .def_rw("missingIndicator", &ForegroundOptions::missingIndicator)
                 .def_rw("clippingWarning", &ForegroundOptions::clippingWarning)
+                .def_rw("frameGuide", &ForegroundOptions::frameGuide)
+                .def_rw("safeAreas", &ForegroundOptions::safeAreas)
                 .def(nanobind::self == nanobind::self)
                 .def(nanobind::self != nanobind::self);
 

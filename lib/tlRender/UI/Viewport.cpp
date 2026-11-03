@@ -1177,7 +1177,10 @@ namespace tl
                     {
                         p.bgBuffer.reset();
                     }
-                    if (fgOptions.grid.enabled || fgOptions.centerMarker.enabled)
+                    if (fgOptions.grid.enabled ||
+                        fgOptions.centerMarker.enabled ||
+                        fgOptions.frameGuide.enabled ||
+                        fgOptions.safeAreas.enabled)
                     {
                         if (ftk::gl::doCreate(
                             p.fgBuffer,
@@ -1436,7 +1439,10 @@ namespace tl
                     update(
                         p.gpuFgBuffer,
                         ftk::gpu::BufferType::RGBA_U8,
-                        fgOptions.grid.enabled || fgOptions.centerMarker.enabled);
+                        fgOptions.grid.enabled ||
+                        fgOptions.centerMarker.enabled ||
+                        fgOptions.frameGuide.enabled ||
+                        fgOptions.safeAreas.enabled);
                     ftk::gpu::BufferType bufferType = ftk::gpu::BufferType::RGBA_F16;
                     switch (p.colorBuffer->get())
                     {

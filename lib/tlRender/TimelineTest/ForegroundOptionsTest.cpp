@@ -104,6 +104,12 @@ namespace tl
                 v = ForegroundOptions();
                 v.clippingWarning.enabled = true;
                 FTK_CHECK(v != ForegroundOptions());
+                v = ForegroundOptions();
+                v.frameGuide.enabled = true;
+                FTK_CHECK(v != ForegroundOptions());
+                v = ForegroundOptions();
+                v.safeAreas.enabled = true;
+                FTK_CHECK(v != ForegroundOptions());
             }
             {
                 ForegroundOptions v;
@@ -117,6 +123,10 @@ namespace tl
                 v.missingIndicator.width = 8;
                 v.clippingWarning.enabled = true;
                 v.clippingWarning.high = .9F;
+                v.frameGuide.enabled = true;
+                v.frameGuide.aspect = 1.85F;
+                v.safeAreas.enabled = true;
+                v.safeAreas.title = .8F;
                 nlohmann::json json;
                 to_json(json, v);
                 ForegroundOptions v2;

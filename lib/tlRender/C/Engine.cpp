@@ -134,8 +134,6 @@ struct tl_player
     std::vector<tl_clip> clips;
     std::vector<tl_shot> shots;
     std::vector<tl_marker> markers;
-    std::vector<tl_info_item> info;
-    bool infoRead = false;
     std::map<unsigned long long, std::future<std::shared_ptr<ftk::Image> > > thumbnails;
 
     // The waveforms: read one at a time on a thread of their own.
@@ -353,7 +351,6 @@ struct tl_view
     tl::DisplayOptions displayOptions;
     tl::BackgroundOptions backgroundOptions;
     tl::ForegroundOptions foregroundOptions;
-    tl_guides guides = {};
     //! What the last draw showed, to know when there is something new:
     //! the frames (their time and image), the size, the frames' places.
     std::vector<std::pair<double, const void*> > drawnFrames;
@@ -1027,120 +1024,6 @@ int tl_player_get_shot(tl_player* player, int index, tl_shot* out)
     return 1;
 }
 
-// C++ linkage, as this part of the file is inside the C interface's
-// extern "C".
-extern "C++"
-{
-namespace
-{
-    // The rows of DJV's Info tool (lib/djv/UI/InfoWidget.cpp), here for
-    // the iPad, which has no DJV interface; kept the same.
-    template<typename T>
-    std::string infoString(const T& value)
-    {
-        std::stringstream ss;
-        ss << value;
-        return ss.str();
-    }
-
-    void readInfo(tl_player* player)
-    {
-        if (player->infoRead)
-            return;
-        player->infoRead = true;
-        auto add = [player](const char* section, const std::string& name, const std::string& value)
-        {
-            tl_info_item item = {};
-            std::snprintf(item.section, sizeof(item.section), "%s", section);
-            std::snprintf(item.name, sizeof(item.name), "%s", name.c_str());
-            std::snprintf(item.value, sizeof(item.value), "%s", value.c_str());
-            player->info.push_back(item);
-        };
-        const ftk::Path& path = player->timeline->getPath();
-        if (!path.isEmpty())
-        {
-            add("File", "Name", path.getFileName());
-            add("File", "Directory", path.getDir());
-            if (path.isSeq())
-            {
-                add("File", "Frames", path.getFrameRange(true));
-            }
-        }
-        const tl::IOInfo& info = player->timeline->getIOInfo();
-        if (!info.video.empty())
-        {
-            const ftk::ImageInfo& video = tl::getVideoInfo(info, 0);
-            if (!info.videoSource.codec.empty())
-                add("Video", "Codec", info.videoSource.codec);
-            if (!info.videoSource.pixelFormat.empty())
-                add("Video", "Source Format", info.videoSource.pixelFormat);
-            add("Video", "Resolution", infoString(video.size.w) + " " + infoString(video.size.h));
-            add("Video", "Pixel Type", infoString(ftk::getInterleavedType(video.type)));
-            {
-                std::stringstream ss;
-                ss.precision(2);
-                ss << std::fixed << video.pixelAspectRatio;
-                add("Video", "Pixel Aspect Ratio", ss.str());
-            }
-            add("Video", "Levels", infoString(video.videoLevels));
-            if (info.videoTime.has_value())
-            {
-                add("Video", "Start Time", info.videoTime->start_time().to_timecode());
-                add("Video", "Duration", info.videoTime->duration().to_timecode());
-                std::stringstream ss;
-                ss.precision(2);
-                ss << std::fixed << info.videoTime->start_time().rate() << " FPS";
-                add("Video", "Speed", ss.str());
-            }
-        }
-        if (info.audio.isValid())
-        {
-            const tl::AudioSourceInfo& source = info.audioSource;
-            if (!source.codec.empty())
-                add("Audio", "Codec", source.codec);
-            add("Audio", "Channels", infoString(info.audio.channelCount));
-            add("Audio", "Type", infoString(info.audio.type));
-            {
-                std::stringstream ss;
-                ss.precision(1);
-                ss << std::fixed << info.audio.sampleRate / 1000.0 << "kHz";
-                add("Audio", "Sample Rate", ss.str());
-            }
-            if (info.audioTime.has_value())
-            {
-                std::stringstream ss;
-                ss.precision(2);
-                ss << std::fixed << info.audioTime->duration().rescaled_to(1.0).value() << " seconds";
-                add("Audio", "Duration", ss.str());
-            }
-        }
-        for (const auto& tag : info.tags)
-        {
-            add("Metadata", tag.first, tag.second);
-        }
-    }
-}
-}
-
-int tl_player_get_info_count(tl_player* player)
-{
-    if (!player || !player->timeline)
-        return 0;
-    readInfo(player);
-    return static_cast<int>(player->info.size());
-}
-
-int tl_player_get_info(tl_player* player, int index, tl_info_item* out)
-{
-    if (!player || !out || !player->timeline)
-        return 0;
-    readInfo(player);
-    if (index < 0 || index >= static_cast<int>(player->info.size()))
-        return 0;
-    *out = player->info[index];
-    return 1;
-}
-
 int tl_player_get_marker_count(tl_player* player)
 {
     if (!player)
@@ -1783,17 +1666,6 @@ void tl_view_set_view(tl_view* view, float x, float y, float zoom)
     view->dirty = true;
 }
 
-void tl_view_set_guides(tl_view* view, const tl_guides* guides)
-{
-    if (!view || !guides)
-        return;
-    if (std::memcmp(&view->guides, guides, sizeof(tl_guides)) != 0)
-    {
-        view->guides = *guides;
-        view->dirty = true;
-    }
-}
-
 void tl_view_frame_view(tl_view* view)
 {
     if (!view)
@@ -1891,89 +1763,6 @@ void tl_view_set_player(tl_view* view, tl_player* player)
     }
 }
 
-namespace
-{
-    //! The outline of a box, so wide, inside it.
-    void drawOutline(
-        const std::shared_ptr<tl::gpu::Render>& render,
-        const ftk::Box2F& box,
-        float width,
-        const ftk::Color4F& color)
-    {
-        render->drawRects(
-            {
-                ftk::Box2F(box.x(), box.y(), box.w(), width),
-                ftk::Box2F(box.x(), box.y() + box.h() - width, box.w(), width),
-                ftk::Box2F(box.x(), box.y() + width, width, box.h() - width * 2.F),
-                ftk::Box2F(box.x() + box.w() - width, box.y() + width, width, box.h() - width * 2.F)
-            },
-            color);
-    }
-
-    //! The guides over the picture, in view pixels, so that the lines
-    //! stay one width however far the picture is zoomed.
-    void drawGuides(
-        const std::shared_ptr<tl::gpu::Render>& render,
-        const ftk::Box2F& picture,
-        const tl_guides& guides,
-        float displayScale)
-    {
-        if (picture.w() <= 0.F || picture.h() <= 0.F)
-            return;
-        ftk::Box2F frame = picture;
-        if (guides.aspect > 0.F)
-        {
-            const float aspect = picture.w() / picture.h();
-            if (guides.aspect > aspect)
-            {
-                const float h = picture.w() / guides.aspect;
-                frame = ftk::Box2F(picture.x(), picture.y() + (picture.h() - h) / 2.F, picture.w(), h);
-            }
-            else
-            {
-                const float w = picture.h() * guides.aspect;
-                frame = ftk::Box2F(picture.x() + (picture.w() - w) / 2.F, picture.y(), w, picture.h());
-            }
-            const ftk::Color4F mask(0.F, 0.F, 0.F, std::clamp(guides.maskOpacity, 0.F, 1.F));
-            std::vector<ftk::Box2F> boxes;
-            if (frame.y() > picture.y())
-            {
-                boxes.push_back(ftk::Box2F(picture.x(), picture.y(), picture.w(), frame.y() - picture.y()));
-                boxes.push_back(ftk::Box2F(
-                    picture.x(), frame.y() + frame.h(),
-                    picture.w(), picture.y() + picture.h() - frame.y() - frame.h()));
-            }
-            if (frame.x() > picture.x())
-            {
-                boxes.push_back(ftk::Box2F(picture.x(), picture.y(), frame.x() - picture.x(), picture.h()));
-                boxes.push_back(ftk::Box2F(
-                    frame.x() + frame.w(), picture.y(),
-                    picture.x() + picture.w() - frame.x() - frame.w(), picture.h()));
-            }
-            render->drawRects(boxes, mask);
-        }
-        const float width = std::max(1.F, std::round(displayScale));
-        const ftk::Color4F line(1.F, 1.F, 1.F, .5F);
-        if (guides.aspect > 0.F)
-        {
-            drawOutline(render, frame, width, line);
-        }
-        if (guides.safeAreas)
-        {
-            for (const float fraction : { .93F, .9F })
-            {
-                const float w = frame.w() * fraction;
-                const float h = frame.h() * fraction;
-                drawOutline(
-                    render,
-                    ftk::Box2F(frame.x() + (frame.w() - w) / 2.F, frame.y() + (frame.h() - h) / 2.F, w, h),
-                    width,
-                    line);
-            }
-        }
-    }
-}
-
 void tl_view_draw(tl_view* view)
 {
     if (!view || !view->render)
@@ -2057,14 +1846,6 @@ void tl_view_draw(tl_view* view)
             ftk::ImageType::RGBA_F16);
         view->render->setTransform(pm);
         view->render->drawForeground(boxes, vm, view->foregroundOptions, compare);
-        if (renderSize.isValid())
-        {
-            drawGuides(
-                view->render,
-                ftk::Box2F(pos.x, pos.y, renderSize.w * zoom, renderSize.h * zoom),
-                view->guides,
-                view->displayScale);
-        }
         // The widgets over the picture, in the buffer's own coordinates.
         if (view->widgets)
         {
