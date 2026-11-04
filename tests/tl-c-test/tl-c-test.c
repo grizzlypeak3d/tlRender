@@ -20,6 +20,15 @@ static int failures = 0;
 #define CHECK(x) check((x), #x, __FILE__, __LINE__)
 #define CHECK_NEAR(a, b, e) checkNear((a), (b), (e), #a, __FILE__, __LINE__)
 
+/* The samples' clips are movies, which need FFmpeg; a minimal build has
+   none, and opens them with no picture or sound. What is read from those
+   is checked only with it. */
+#if defined(TL_C_TEST_MOVIES)
+#define CHECK_MOVIE(x) CHECK(x)
+#else
+#define CHECK_MOVIE(x) ((void)(x))
+#endif
+
 static void check(int value, const char* text, const char* file, int line)
 {
     if (!value)
@@ -66,8 +75,8 @@ static void players(tl_engine* engine)
     const double frame = rate > 0.0 ? 1.0 / rate : 0.0;
     CHECK(rate > 23.0 && rate < 31.0);
     CHECK_NEAR(tl_player_get_duration(player), 9.0, 0.1);
-    CHECK(tl_player_get_video_width(player) > 0);
-    CHECK(tl_player_get_video_height(player) > 0);
+    CHECK_MOVIE(tl_player_get_video_width(player) > 0);
+    CHECK_MOVIE(tl_player_get_video_height(player) > 0);
     CHECK_NEAR(tl_player_get_speed(player), rate, 0.001);
 
     CHECK(tl_player_get_video_track_count(player) == 1);
@@ -126,7 +135,7 @@ static void players(tl_engine* engine)
     memset(&image, 0, sizeof(image));
     int ready = 0;
     WAIT(engine, (ready = tl_player_get_thumbnail(player, id, &image)) != 0);
-    CHECK(ready == 1);
+    CHECK_MOVIE(ready == 1);
     if (1 == ready)
     {
         CHECK(image.height == 64);
@@ -138,10 +147,10 @@ static void players(tl_engine* engine)
     /* The waveform under the cards. */
     float columns[2 * 100];
     id = tl_player_request_waveform(player, 0.0, 9.0, 100);
-    CHECK(id != 0);
+    CHECK_MOVIE(id != 0);
     ready = 0;
     WAIT(engine, (ready = tl_player_get_waveform(player, id, columns, 100)) != 0);
-    CHECK(ready == 1);
+    CHECK_MOVIE(ready == 1);
     if (1 == ready)
     {
         int sound = 0;
@@ -225,7 +234,7 @@ static void cuts(tl_engine* engine)
         return;
     CHECK_NEAR(tl_cut_get_duration(cut), 9.0, 0.1);
     CHECK(tl_cut_get_rate(cut) > 0.0);
-    CHECK(tl_cut_get_video_width(cut) > 0);
+    CHECK_MOVIE(tl_cut_get_video_width(cut) > 0);
     CHECK(tl_cut_get_clip_count(cut) == 3);
     CHECK(tl_cut_get_shot_count(cut) == 3);
     tl_clip clip;
@@ -240,7 +249,7 @@ static void cuts(tl_engine* engine)
     memset(&image, 0, sizeof(image));
     int ready = 0;
     WAIT(engine, (ready = tl_engine_get_poster(engine, id, &image)) != 0);
-    CHECK(ready == 1);
+    CHECK_MOVIE(ready == 1);
     if (1 == ready)
     {
         CHECK(image.height == 48);
@@ -310,7 +319,7 @@ static void bundles(tl_engine* engine)
     CHECK(player != NULL);
     if (player)
     {
-        CHECK(tl_player_get_video_width(player) > 0);
+        CHECK_MOVIE(tl_player_get_video_width(player) > 0);
         tl_player_destroy(player);
     }
 

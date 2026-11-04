@@ -6,6 +6,9 @@ target_link_libraries(tl-c-test tlC)
 target_compile_definitions(tl-c-test PRIVATE
     TLRENDER_SAMPLE_DATA="${PROJECT_SOURCE_DIR}/etc/SampleData"
     TL_C_TEST_OUT="${CMAKE_CURRENT_BINARY_DIR}/out")
+if(TLRENDER_FFMPEG_PLUGIN)
+    target_compile_definitions(tl-c-test PRIVATE TL_C_TEST_MOVIES)
+endif()
 set_target_properties(tl-c-test PROPERTIES
     FOLDER tests
     C_STANDARD 11
