@@ -205,6 +205,182 @@ namespace tl
                 }
             }
 
+            //! Whether a format is YUV with the two chroma components
+            //! interleaved in a second plane, as hardware hands frames back:
+            //! NV12 and P010 for 4:2:0, NV16 and P210 for 4:2:2, NV24 and
+            //! P416 for 4:4:4.
+            bool isSemiPlanar(AVPixelFormat format)
+            {
+                const AVPixFmtDescriptor* desc = av_pix_fmt_desc_get(format);
+                return desc &&
+                    (desc->flags & AV_PIX_FMT_FLAG_PLANAR) &&
+                    !(desc->flags & AV_PIX_FMT_FLAG_BE) &&
+                    !(desc->flags & AV_PIX_FMT_FLAG_ALPHA) &&
+                    !(desc->flags & AV_PIX_FMT_FLAG_RGB) &&
+                    3 == desc->nb_components &&
+                    1 == desc->comp[1].plane &&
+                    1 == desc->comp[2].plane;
+            }
+
+            //! Whether a semi-planar frame can be copied into an image of a
+            //! planar format by copySemiPlanar(): the same chroma
+            //! subsampling, and samples of the same size.
+            bool canCopySemiPlanar(AVPixelFormat in, AVPixelFormat out)
+            {
+                if (!isSemiPlanar(in) || isSemiPlanar(out))
+                {
+                    return false;
+                }
+                const AVPixFmtDescriptor* inDesc = av_pix_fmt_desc_get(in);
+                const AVPixFmtDescriptor* outDesc = av_pix_fmt_desc_get(out);
+                return outDesc &&
+                    (outDesc->flags & AV_PIX_FMT_FLAG_PLANAR) &&
+                    !(outDesc->flags & AV_PIX_FMT_FLAG_BE) &&
+                    !(outDesc->flags & AV_PIX_FMT_FLAG_ALPHA) &&
+                    !(outDesc->flags & AV_PIX_FMT_FLAG_RGB) &&
+                    3 == outDesc->nb_components &&
+                    inDesc->log2_chroma_w == outDesc->log2_chroma_w &&
+                    inDesc->log2_chroma_h == outDesc->log2_chroma_h &&
+                    (inDesc->comp[0].step > 1) == (outDesc->comp[0].step > 1);
+            }
+
+            //! Copy a semi-planar frame into a planar image of the same
+            //! chroma subsampling: the luma as it is, the chroma split into
+            //! its two planes, and each sample brought to the depth the
+            //! image keeps. The hardware's samples sit in the high bits of
+            //! their words (P210), the software decoder's in the low bits,
+            //! so that a hardware frame lands exactly as the software
+            //! decoder's would and is drawn the same way. Rows are shared
+            //! among the cores as copyPlanes() shares them.
+            void copySemiPlanar(
+                const AVFrame* frame,
+                uint8_t* data,
+                AVPixelFormat format,
+                int w,
+                int h)
+            {
+                const AVPixFmtDescriptor* srcDesc =
+                    av_pix_fmt_desc_get(static_cast<AVPixelFormat>(frame->format));
+                const AVPixFmtDescriptor* dstDesc = av_pix_fmt_desc_get(format);
+                uint8_t* dstData[4] = { nullptr, nullptr, nullptr, nullptr };
+                int dstLinesize[4] = { 0, 0, 0, 0 };
+                av_image_fill_arrays(dstData, dstLinesize, data, format, w, h, 1);
+                const int cw = AV_CEIL_RSHIFT(w, dstDesc->log2_chroma_w);
+                const int ch = AV_CEIL_RSHIFT(h, dstDesc->log2_chroma_h);
+                const bool wide = srcDesc->comp[0].step > 1;
+                const int srcShift = srcDesc->comp[0].shift;
+                const int srcDepth = srcDesc->comp[0].depth;
+                const int dstDepth = dstDesc->comp[0].depth;
+                const int dstMax = (1 << dstDepth) - 1;
+                // From the source's depth to the image's, rounded.
+                const auto sample = [srcShift, srcDepth, dstDepth, dstMax](uint16_t s)
+                {
+                    int v = s >> srcShift;
+                    if (srcDepth > dstDepth)
+                    {
+                        const int d = srcDepth - dstDepth;
+                        v = std::min(dstMax, (v + (1 << (d - 1))) >> d);
+                    }
+                    else if (srcDepth < dstDepth)
+                    {
+                        v <<= dstDepth - srcDepth;
+                    }
+                    return static_cast<uint16_t>(v);
+                };
+                const auto lumaRow = [&](int y)
+                {
+                    const uint8_t* src = frame->data[0] + static_cast<ptrdiff_t>(frame->linesize[0]) * y;
+                    uint8_t* dst = dstData[0] + static_cast<ptrdiff_t>(dstLinesize[0]) * y;
+                    if (!wide)
+                    {
+                        std::memcpy(dst, src, w);
+                    }
+                    else
+                    {
+                        const uint16_t* s = reinterpret_cast<const uint16_t*>(src);
+                        uint16_t* d = reinterpret_cast<uint16_t*>(dst);
+                        for (int x = 0; x < w; ++x)
+                        {
+                            d[x] = sample(s[x]);
+                        }
+                    }
+                };
+                const auto chromaRow = [&](int y)
+                {
+                    const uint8_t* src = frame->data[1] + static_cast<ptrdiff_t>(frame->linesize[1]) * y;
+                    uint8_t* u = dstData[1] + static_cast<ptrdiff_t>(dstLinesize[1]) * y;
+                    uint8_t* v = dstData[2] + static_cast<ptrdiff_t>(dstLinesize[2]) * y;
+                    if (!wide)
+                    {
+                        for (int x = 0; x < cw; ++x)
+                        {
+                            u[x] = src[x * 2];
+                            v[x] = src[x * 2 + 1];
+                        }
+                    }
+                    else
+                    {
+                        const uint16_t* s = reinterpret_cast<const uint16_t*>(src);
+                        uint16_t* u16 = reinterpret_cast<uint16_t*>(u);
+                        uint16_t* v16 = reinterpret_cast<uint16_t*>(v);
+                        for (int x = 0; x < cw; ++x)
+                        {
+                            u16[x] = sample(s[x * 2]);
+                            v16[x] = sample(s[x * 2 + 1]);
+                        }
+                    }
+                };
+                // The luma rows, then the chroma rows, numbered through.
+                const int rowsTotal = h + ch;
+                const auto work = [&](int r0, int r1)
+                {
+                    for (int r = r0; r < r1; ++r)
+                    {
+                        if (r < h)
+                        {
+                            lumaRow(r);
+                        }
+                        else
+                        {
+                            chromaRow(r - h);
+                        }
+                    }
+                };
+                const size_t bytesTotal =
+                    (static_cast<size_t>(w) * h + static_cast<size_t>(cw) * ch * 2) * (wide ? 2 : 1);
+                const int threadCount = std::max(1, std::min({
+                    16,
+                    static_cast<int>(std::thread::hardware_concurrency()),
+                    static_cast<int>(bytesTotal / (8 * 1024 * 1024)) }));
+                const int chunk = std::max(1, (rowsTotal + threadCount - 1) / threadCount);
+                std::vector<std::thread> threads;
+                for (int r0 = chunk; r0 < rowsTotal; r0 += chunk)
+                {
+                    threads.emplace_back(work, r0, std::min(rowsTotal, r0 + chunk));
+                }
+                work(0, std::min(rowsTotal, chunk));
+                for (auto& t : threads)
+                {
+                    t.join();
+                }
+            }
+
+            //! Whether a codec is always decoded by the platform's own
+            //! decoder: ProRes on Apple's systems, whose decoder is the
+            //! reference for the format (FFmpeg's is not licensed by Apple),
+            //! whether or not hardware decoding is on and whether or not the
+            //! machine has ProRes hardware -- without it VideoToolbox
+            //! decodes in software, which is still Apple's decoder.
+            bool isPlatformDecoded(AVCodecID id)
+            {
+#if defined(__APPLE__)
+                return AV_CODEC_ID_PRORES == id;
+#else
+                (void)id;
+                return false;
+#endif // __APPLE__
+            }
+
             //! Whether a decoder only decodes through hardware. FFmpeg's own
             //! AV1 decoder parses the stream and hands every frame to a
             //! hardware accelerator; without one each frame fails with
@@ -317,7 +493,9 @@ namespace tl
                     _avCodecDefault = avVideoCodecDefault;
                     _textures = options.textures;
                     const AVCodec* avVideoCodec = avVideoCodecDefault;
-                    if (options.hwAccel && !hasHwConfig(avVideoCodecDefault))
+                    const bool hwAccel = options.hwAccel ||
+                        isPlatformDecoded(avVideoCodecParameters->codec_id);
+                    if (hwAccel && !hasHwConfig(avVideoCodecDefault))
                     {
                         // The default decoder for a codec can be a software
                         // library with no hardware configurations at all --
@@ -353,7 +531,7 @@ namespace tl
                             arg(fileName));
                     }
                     _avCodec = avVideoCodec;
-                    r = _openCodec(avVideoCodec, options.hwAccel);
+                    r = _openCodec(avVideoCodec, hwAccel);
                     if (avVideoCodec != avVideoCodecDefault &&
                         (r < 0 || !_hwAccel))
                     {
@@ -598,20 +776,33 @@ namespace tl
                         }
                         break;
                     }
+                    // Hardware frames download semi-planar: NV12 or P010 for
+                    // 4:2:0, P210 for 4:2:2, P416 for 4:4:4. 8-bit 4:2:0 is
+                    // kept as NV12, handed to the display shader as it came
+                    // (and on Apple's systems drawn from VideoToolbox's own
+                    // texture, see _textures). Everything else is copied into
+                    // the image the software decoder would have made, its
+                    // chroma split into planes and its samples at the same
+                    // depth (copySemiPlanar()), so the two decoders' frames
+                    // are drawn alike: P010 kept as it came had its samples
+                    // in the high bits and was taken for ten bits in the low
+                    // ones, and drew blown out. _avOutputPixelFormat doubles
+                    // as the sws fallback target for any other download
+                    // format (see _copy()).
                     if (_hwAccel)
                     {
-                        // Hardware frames download as NV12 (8-bit) or P010 (>8-bit).
-                        // They are handed to the display shader as semi-planar YUV
-                        // with no colour conversion -- the shader performs YUV->RGB
-                        // exactly as for software-decoded YUV, so hardware and
-                        // software decoding match, and the cache keeps the smaller
-                        // YUV footprint. _avOutputPixelFormat doubles as the expected
-                        // download format and the sws fallback target (see _copy()).
                         const AVPixFmtDescriptor* desc =
                             av_pix_fmt_desc_get(_avInputPixelFormat);
-                        const bool gt8 = desc && desc->comp[0].depth > 8;
-                        _avOutputPixelFormat = gt8 ? AV_PIX_FMT_P010LE : AV_PIX_FMT_NV12;
-                        _info.type = gt8 ? ftk::ImageType::YUV_420SP_U16 : ftk::ImageType::YUV_420SP_U8;
+                        if (desc &&
+                            8 == desc->comp[0].depth &&
+                            1 == desc->log2_chroma_w &&
+                            1 == desc->log2_chroma_h &&
+                            !(desc->flags & AV_PIX_FMT_FLAG_ALPHA))
+                        {
+                            _avOutputPixelFormat = AV_PIX_FMT_NV12;
+                            _info.type = ftk::ImageType::YUV_420SP_U8;
+                            _info.depth = 0;
+                        }
                     }
                     if (!isFullRange(
                         _avCodecContext[_avStream]->color_range,
@@ -897,24 +1088,25 @@ namespace tl
                         arg(_fileName));
                 }
 
+                if (_hwAccel)
+                {
+                    // Hardware frames are downloaded into this one. Whether
+                    // they need the scaler is only known when the first
+                    // arrives (the download format, or the decoder's
+                    // software-fallback format), so it is created in
+                    // _copy() if at all.
+                    _swFrame = av_frame_alloc();
+                    if (!_swFrame)
+                    {
+                        throw std::runtime_error(
+                            ftk::Format("Cannot allocate frame: \"{0}\"").
+                            arg(_fileName));
+                    }
+                }
                 if (!canCopy(_avInputPixelFormat, _avOutputPixelFormat))
                 {
                     _initFrame2();
-
-                    if (_hwAccel)
-                    {
-                        _swFrame = av_frame_alloc();
-                        if (!_swFrame)
-                        {
-                            throw std::runtime_error(
-                                ftk::Format("Cannot allocate frame: \"{0}\"").
-                                arg(_fileName));
-                        }
-                        // The scaler is created lazily in _copy(), once the real
-                        // source format is known (the hardware download format, or
-                        // the decoder's software-fallback format).
-                    }
-                    else
+                    if (!_hwAccel)
                     {
                         _initSws(_avInputPixelFormat);
                     }
@@ -1133,40 +1325,23 @@ namespace tl
         void ReadVideo::_initHwAccel(const AVCodec* codec)
         {
             // The hardware path outputs limited-range YUV, so full-range
-            // sources stay on the software decoder, and chroma other than
-            // 4:2:0 stays gated for now: newer hardware decodes 4:2:2 and
-            // 4:4:4 and this machine's VideoToolbox hands back genuine P210,
-            // but the 4:2:2 pixels that reach the screen measurably differ
-            // from the software path's at sharp chroma edges, and until that
-            // difference is accounted for the gate stands -- hardware
-            // decoding is always a faithful match, it never alters the
-            // image. The first-frame chroma and depth check below the gate
-            // is groundwork for lifting it.
+            // sources stay on the software decoder. Any chroma subsampling
+            // the hardware decodes is taken: its frames are copied into the
+            // image the software decoder makes (see _copy()), and the first
+            // frame is checked for the source's chroma, depth and alpha,
+            // falling back to software when the hardware returned less. (A
+            // 4:2:2 gate stood here until the cause of the difference it
+            // guarded was found: hardware frames were converted to 4:2:0.)
             // Without a software decoder to fall back to, the reader
             // refuses the file after this and says why, so there is no
             // software decoding to announce.
             const bool software = !isHardwareOnly(_avCodecDefault);
-            const AVPixelFormat inputFormat =
-                static_cast<AVPixelFormat>(_avCodecParameters[_avStream]->format);
-            const AVPixFmtDescriptor* inputDesc = av_pix_fmt_desc_get(inputFormat);
-            const bool is420 = inputDesc &&
-                1 == inputDesc->log2_chroma_w && 1 == inputDesc->log2_chroma_h;
             if (AVCOL_RANGE_JPEG == _avCodecParameters[_avStream]->color_range)
             {
                 if (software)
                 {
                     _log(
                         ftk::Format("Hardware decoding skipped for a full-range source; using software decoding: \"{0}\"").arg(_fileName),
-                        ftk::LogType::Warning);
-                }
-                return;
-            }
-            if (!is420)
-            {
-                if (software)
-                {
-                    _log(
-                        ftk::Format("Hardware decoding skipped for a non-4:2:0 source; using software decoding: \"{0}\"").arg(_fileName),
                         ftk::LogType::Warning);
                 }
                 return;
@@ -1764,9 +1939,10 @@ namespace tl
                     if (!_hwLogged)
                     {
                         // The first downloaded frame says whether the hardware
-                        // kept its word: coarser chroma or fewer bits than the
-                        // source means the image would not be a faithful match,
-                        // and the error puts decoding back on software.
+                        // kept its word: coarser chroma, fewer bits, or no
+                        // alpha where the source has it means the image would
+                        // not be a faithful match, and the error puts decoding
+                        // back on software.
                         const AVPixFmtDescriptor* srcDesc =
                             av_pix_fmt_desc_get(_avInputPixelFormat);
                         const AVPixFmtDescriptor* dlDesc = av_pix_fmt_desc_get(
@@ -1774,7 +1950,9 @@ namespace tl
                         if (srcDesc && dlDesc &&
                             (dlDesc->log2_chroma_w > srcDesc->log2_chroma_w ||
                              dlDesc->log2_chroma_h > srcDesc->log2_chroma_h ||
-                             dlDesc->comp[0].depth < srcDesc->comp[0].depth))
+                             dlDesc->comp[0].depth < srcDesc->comp[0].depth ||
+                             ((srcDesc->flags & AV_PIX_FMT_FLAG_ALPHA) &&
+                              !(dlDesc->flags & AV_PIX_FMT_FLAG_ALPHA))))
                         {
                             _log(
                                 ftk::Format("Hardware decoding is coarser than the source ({0} for {1}); using software decoding: \"{2}\"").
@@ -1892,9 +2070,11 @@ namespace tl
             const std::size_t w = info.size.w;
             const std::size_t h = info.size.h;
             uint8_t* const data = image->getData();
-            if (_hwAccel && frame->format == _avOutputPixelFormat)
+            if (_hwAccel &&
+                frame->format == _avOutputPixelFormat &&
+                isSemiPlanar(_avOutputPixelFormat))
             {
-                // Native semi-planar copy (NV12/P010): luma plane, then the
+                // Native semi-planar copy (NV12): luma plane, then the
                 // interleaved chroma plane, straight into the ftk image. No colour
                 // conversion -- the display shader does YUV->RGB. The sws fallback
                 // below covers the rare case of an unexpected download format.
@@ -1916,14 +2096,21 @@ namespace tl
                 }
                 return;
             }
+            const AVPixelFormat frameFormat =
+                static_cast<AVPixelFormat>(frame->format);
+            if (canCopySemiPlanar(frameFormat, _avOutputPixelFormat))
+            {
+                // A hardware frame for an image the software decoder would
+                // have made: 4:2:2 and 4:4:4, and 4:2:0 deeper than 8 bits.
+                copySemiPlanar(frame, data, _avOutputPixelFormat, w, h);
+                return;
+            }
             // The format the stream declares is the format of its first
             // frame, and a file may change it partway through: a QuickTime
             // can carry ProRes 4444 and ProRes 422 frames in one stream, and
             // the 422 stretches decode to a format the header never
             // mentioned. So the arriving frame is asked rather than the
             // header, and the scaler is rebuilt whenever the answer changes.
-            const AVPixelFormat frameFormat =
-                static_cast<AVPixelFormat>(frame->format);
             if (canCopy(frameFormat, _avOutputPixelFormat))
             {
                 const uint8_t* const data0 = frame->data[0];
