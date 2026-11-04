@@ -203,31 +203,31 @@ TL_C_API int tl_player_get_thumbnail(
     tl_player*, unsigned long long id, tl_image*);
 TL_C_API void tl_player_cancel_thumbnail(tl_player*, unsigned long long id);
 
-//! A cut opened for what is in it alone: no player, no cache. Unlike
-//! the rest of this interface it can be used from any thread, one cut
+//! A timeline opened for what is in it alone: no player, no cache. Unlike
+//! the rest of this interface it can be used from any thread, one timeline
 //! at a time on each, so that a library can read its files in the
 //! background. The file stays open, and a bundle mapped, until it is
 //! closed: close it soon. NULL when it cannot be read. An .otiod bundle
 //! is opened by its folder, here and in tl_player_create().
-typedef struct tl_cut tl_cut;
-TL_C_API tl_cut* tl_cut_open(tl_engine*, const char* path);
-TL_C_API void tl_cut_close(tl_cut*);
-TL_C_API double tl_cut_get_duration(tl_cut*);
-TL_C_API double tl_cut_get_rate(tl_cut*);
-TL_C_API int tl_cut_get_video_width(tl_cut*);
-TL_C_API int tl_cut_get_video_height(tl_cut*);
-TL_C_API int tl_cut_get_clip_count(tl_cut*);
-TL_C_API int tl_cut_get_clip(tl_cut*, int index, tl_clip*);
-TL_C_API int tl_cut_get_shot_count(tl_cut*);
-TL_C_API int tl_cut_get_shot(tl_cut*, int index, tl_shot*);
+typedef struct tl_timeline tl_timeline;
+TL_C_API tl_timeline* tl_timeline_open(tl_engine*, const char* path);
+TL_C_API void tl_timeline_close(tl_timeline*);
+TL_C_API double tl_timeline_get_duration(tl_timeline*);
+TL_C_API double tl_timeline_get_rate(tl_timeline*);
+TL_C_API int tl_timeline_get_video_width(tl_timeline*);
+TL_C_API int tl_timeline_get_video_height(tl_timeline*);
+TL_C_API int tl_timeline_get_clip_count(tl_timeline*);
+TL_C_API int tl_timeline_get_clip(tl_timeline*, int index, tl_clip*);
+TL_C_API int tl_timeline_get_shot_count(tl_timeline*);
+TL_C_API int tl_timeline_get_shot(tl_timeline*, int index, tl_shot*);
 
-//! Ask for a poster of a cut: a thumbnail at a time, in seconds from its
+//! Ask for a poster of a timeline: a thumbnail at a time, in seconds from its
 //! start, so many pixels high. Made in the background, and the file is
 //! not kept open for it once it is made. Collected from the engine, from
-//! any thread, as tl_player_get_thumbnail() says; the cut can be closed
+//! any thread, as tl_player_get_thumbnail() says; the timeline can be closed
 //! before it is ready.
-TL_C_API unsigned long long tl_cut_request_poster(
-    tl_cut*, double seconds, int height);
+TL_C_API unsigned long long tl_timeline_request_poster(
+    tl_timeline*, double seconds, int height);
 TL_C_API int tl_engine_get_poster(
     tl_engine*, unsigned long long id, tl_image*);
 
@@ -367,7 +367,7 @@ typedef int (*tl_bundle_progress)(double fraction, void* user);
 //! What writing a bundle did.
 typedef struct tl_bundle_result
 {
-    //! The media files the cut uses, an image sequence counting as one.
+    //! The media files the timeline uses, an image sequence counting as one.
     int media;
     //! How many of them were not found. Their references are left as
     //! they were.

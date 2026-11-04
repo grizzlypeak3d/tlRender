@@ -224,26 +224,26 @@ static void players(tl_engine* engine)
     CHECK(strlen(tl_engine_get_error(engine)) > 0);
 }
 
-static void cuts(tl_engine* engine)
+static void timelines(tl_engine* engine)
 {
     char file[1024];
     path(file, sizeof(file), TLRENDER_SAMPLE_DATA, "MultipleClips.otio");
-    tl_cut* cut = tl_cut_open(engine, file);
-    CHECK(cut != NULL);
-    if (!cut)
+    tl_timeline* timeline = tl_timeline_open(engine, file);
+    CHECK(timeline != NULL);
+    if (!timeline)
         return;
-    CHECK_NEAR(tl_cut_get_duration(cut), 9.0, 0.1);
-    CHECK(tl_cut_get_rate(cut) > 0.0);
-    CHECK_MOVIE(tl_cut_get_video_width(cut) > 0);
-    CHECK(tl_cut_get_clip_count(cut) == 3);
-    CHECK(tl_cut_get_shot_count(cut) == 3);
+    CHECK_NEAR(tl_timeline_get_duration(timeline), 9.0, 0.1);
+    CHECK(tl_timeline_get_rate(timeline) > 0.0);
+    CHECK_MOVIE(tl_timeline_get_video_width(timeline) > 0);
+    CHECK(tl_timeline_get_clip_count(timeline) == 3);
+    CHECK(tl_timeline_get_shot_count(timeline) == 3);
     tl_clip clip;
-    CHECK(tl_cut_get_clip(cut, 0, &clip) == 1);
+    CHECK(tl_timeline_get_clip(timeline, 0, &clip) == 1);
     CHECK(strcmp(clip.name, "PSR63_2012-06-02") == 0);
 
-    /* The library card's poster, which outlives the cut. */
-    const unsigned long long id = tl_cut_request_poster(cut, 0.0, 48);
-    tl_cut_close(cut);
+    /* The library card's poster, which outlives the timeline. */
+    const unsigned long long id = tl_timeline_request_poster(timeline, 0.0, 48);
+    tl_timeline_close(timeline);
     CHECK(id != 0);
     tl_image image;
     memset(&image, 0, sizeof(image));
@@ -274,7 +274,7 @@ static int stop(double fraction, void* user)
     return 0;
 }
 
-/* A cut with a clip whose file is nowhere, and one found under the media
+/* A timeline with a clip whose file is nowhere, and one found under the media
  * folder by its name. */
 static const char* missingOTIO =
     "{\"OTIO_SCHEMA\": \"Timeline.1\", \"name\": \"Missing\", \"tracks\": {"
@@ -307,13 +307,13 @@ static void bundles(tl_engine* engine)
     CHECK(result.missing == 0);
     CHECK(strlen(result.error) == 0);
     CHECK(progressCalls > 0);
-    tl_cut* cut = tl_cut_open(engine, out);
-    CHECK(cut != NULL);
-    if (cut)
+    tl_timeline* timeline = tl_timeline_open(engine, out);
+    CHECK(timeline != NULL);
+    if (timeline)
     {
-        CHECK_NEAR(tl_cut_get_duration(cut), 9.0, 0.1);
-        CHECK(tl_cut_get_clip_count(cut) == 3);
-        tl_cut_close(cut);
+        CHECK_NEAR(tl_timeline_get_duration(timeline), 9.0, 0.1);
+        CHECK(tl_timeline_get_clip_count(timeline) == 3);
+        tl_timeline_close(timeline);
     }
     tl_player* player = tl_player_create(engine, out);
     CHECK(player != NULL);
@@ -356,7 +356,7 @@ static void bundles(tl_engine* engine)
     path(out, sizeof(out), TL_C_TEST_OUT, "Stopped.otiod");
     memset(&result, 0, sizeof(result));
     CHECK(tl_bundle_write_otiod(otio, TLRENDER_SAMPLE_DATA, out, stop, NULL, &result) == 0);
-    CHECK(tl_cut_open(engine, out) == NULL);
+    CHECK(tl_timeline_open(engine, out) == NULL);
 }
 
 int main(void)
@@ -372,7 +372,7 @@ int main(void)
     }
 
     players(engine);
-    cuts(engine);
+    timelines(engine);
     bundles(engine);
 
     tl_engine_destroy(engine);

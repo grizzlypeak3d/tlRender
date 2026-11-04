@@ -79,12 +79,12 @@ struct tl_engine
     float videoGB = 0.F;
     int readCacheMax = 0;
 
-    // Posters of cuts: asked for from any thread.
+    // Posters of timelines: asked for from any thread.
     std::mutex posterMutex;
     std::map<unsigned long long, std::future<std::shared_ptr<ftk::Image> > > posters;
 };
 
-struct tl_cut
+struct tl_timeline
 {
     tl_engine* engine = nullptr;
     std::shared_ptr<tl::Timeline> timeline;
@@ -1366,11 +1366,11 @@ void tl_player_cancel_waveform(tl_player* player, unsigned long long id)
     }
 }
 
-tl_cut* tl_cut_open(tl_engine* engine, const char* path)
+tl_timeline* tl_timeline_open(tl_engine* engine, const char* path)
 {
     if (!engine || !engine->context || !path)
         return nullptr;
-    auto out = new tl_cut;
+    auto out = new tl_timeline;
     out->engine = engine;
     try
     {
@@ -1385,83 +1385,83 @@ tl_cut* tl_cut_open(tl_engine* engine, const char* path)
     return out;
 }
 
-void tl_cut_close(tl_cut* cut)
+void tl_timeline_close(tl_timeline* timeline)
 {
-    delete cut;
+    delete timeline;
 }
 
-double tl_cut_get_duration(tl_cut* cut)
+double tl_timeline_get_duration(tl_timeline* timeline)
 {
-    return cut ? cut->timeline->getTimeRange().duration().rescaled_to(1.0).value() : 0.0;
+    return timeline ? timeline->timeline->getTimeRange().duration().rescaled_to(1.0).value() : 0.0;
 }
 
-double tl_cut_get_rate(tl_cut* cut)
+double tl_timeline_get_rate(tl_timeline* timeline)
 {
-    return cut ? cut->timeline->getTimeRange().duration().rate() : 0.0;
+    return timeline ? timeline->timeline->getTimeRange().duration().rate() : 0.0;
 }
 
-int tl_cut_get_video_width(tl_cut* cut)
+int tl_timeline_get_video_width(tl_timeline* timeline)
 {
-    if (!cut)
+    if (!timeline)
         return 0;
-    const auto& info = cut->timeline->getIOInfo();
+    const auto& info = timeline->timeline->getIOInfo();
     return !info.video.empty() ? info.video.front().size.w : 0;
 }
 
-int tl_cut_get_video_height(tl_cut* cut)
+int tl_timeline_get_video_height(tl_timeline* timeline)
 {
-    if (!cut)
+    if (!timeline)
         return 0;
-    const auto& info = cut->timeline->getIOInfo();
+    const auto& info = timeline->timeline->getIOInfo();
     return !info.video.empty() ? info.video.front().size.h : 0;
 }
 
-int tl_cut_get_clip_count(tl_cut* cut)
+int tl_timeline_get_clip_count(tl_timeline* timeline)
 {
-    return cut ? static_cast<int>(cut->clips.size()) : 0;
+    return timeline ? static_cast<int>(timeline->clips.size()) : 0;
 }
 
-int tl_cut_get_clip(tl_cut* cut, int index, tl_clip* out)
+int tl_timeline_get_clip(tl_timeline* timeline, int index, tl_clip* out)
 {
-    if (!cut || !out || index < 0 || index >= static_cast<int>(cut->clips.size()))
+    if (!timeline || !out || index < 0 || index >= static_cast<int>(timeline->clips.size()))
         return 0;
-    *out = cut->clips[index];
+    *out = timeline->clips[index];
     return 1;
 }
 
-int tl_cut_get_shot_count(tl_cut* cut)
+int tl_timeline_get_shot_count(tl_timeline* timeline)
 {
-    return cut ? static_cast<int>(cut->shots.size()) : 0;
+    return timeline ? static_cast<int>(timeline->shots.size()) : 0;
 }
 
-int tl_cut_get_shot(tl_cut* cut, int index, tl_shot* out)
+int tl_timeline_get_shot(tl_timeline* timeline, int index, tl_shot* out)
 {
-    if (!cut || !out || index < 0 || index >= static_cast<int>(cut->shots.size()))
+    if (!timeline || !out || index < 0 || index >= static_cast<int>(timeline->shots.size()))
         return 0;
-    *out = cut->shots[index];
+    *out = timeline->shots[index];
     return 1;
 }
 
-unsigned long long tl_cut_request_poster(tl_cut* cut, double seconds, int height)
+unsigned long long tl_timeline_request_poster(tl_timeline* timeline, double seconds, int height)
 {
-    if (!cut || height <= 0)
+    if (!timeline || height <= 0)
         return 0;
-    auto thumbnails = cut->engine->context->getSystem<tl::ui::ThumbnailSystem>();
+    auto thumbnails = timeline->engine->context->getSystem<tl::ui::ThumbnailSystem>();
     if (!thumbnails)
         return 0;
-    const auto& range = cut->timeline->getTimeRange();
+    const auto& range = timeline->timeline->getTimeRange();
     const double rate = range.duration().rate();
     // The browser's kind: the file is not kept open for the next
     // request, as the timeline widget's are. A library of bundles kept
     // open would map every one of them.
     auto request = thumbnails->getThumbnail(
-        cut->timeline->getPath(),
+        timeline->timeline->getPath(),
         height,
         range.start_time() + OTIO_NS::RationalTime(seconds * rate, rate).round(),
         tl::IOOptions(),
         tl::ui::ThumbnailType::Browser);
-    std::unique_lock<std::mutex> lock(cut->engine->posterMutex);
-    cut->engine->posters[request.id] = std::move(request.future);
+    std::unique_lock<std::mutex> lock(timeline->engine->posterMutex);
+    timeline->engine->posters[request.id] = std::move(request.future);
     return request.id;
 }
 
