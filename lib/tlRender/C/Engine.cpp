@@ -27,6 +27,7 @@
 #include <ftk/Core/Context.h>
 #include <ftk/Core/FontSystem.h>
 #include <ftk/Core/Format.h>
+#include <ftk/Core/FileLogSystem.h>
 #include <ftk/Core/LogSystem.h>
 #include <ftk/Core/Matrix.h>
 #include <ftk/Core/OS.h>
@@ -72,6 +73,7 @@
 struct tl_engine
 {
     std::shared_ptr<ftk::Context> context;
+    std::shared_ptr<ftk::FileLogSystem> fileLog;
     std::shared_ptr<ftk::gpu::System> gpu;
     std::string error;
     std::shared_ptr<ftk::ListObserver<ftk::LogItem> > logObserver;
@@ -415,7 +417,7 @@ namespace
 extern "C"
 {
 
-tl_engine* tl_engine_create(void)
+tl_engine* tl_engine_create(const char* logFile)
 {
     auto engine = new tl_engine;
     try
@@ -425,6 +427,22 @@ tl_engine* tl_engine_create(void)
         // audio.
         SDL_SetMainReady();
         engine->context = ftk::Context::create();
+        // The file before anything is logged, as ftk::App does it: the
+        // previous run's moved aside, not being able to keep it no reason
+        // not to start.
+        if (logFile && *logFile)
+        {
+            const std::filesystem::path path = ftk::toFileSystem(logFile);
+            std::error_code ec;
+            std::filesystem::create_directories(path.parent_path(), ec);
+            if (std::filesystem::exists(path, ec))
+            {
+                std::filesystem::path previous = path;
+                previous.replace_extension("prev.log");
+                std::filesystem::rename(path, previous, ec);
+            }
+            engine->fileLog = ftk::FileLogSystem::create(engine->context, path);
+        }
         // The widgets as well as the engine: the timeline widget draws
         // in the view.
         tl::ui::init(engine->context);

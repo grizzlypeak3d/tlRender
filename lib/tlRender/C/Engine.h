@@ -34,7 +34,13 @@ typedef enum
 //! Create the engine. When the GPU renderer cannot start, files still
 //! open and read, and only views cannot be made: tl_engine_has_gpu()
 //! says which, and tl_engine_get_error() why.
-TL_C_API tl_engine* tl_engine_create(void);
+//!
+//! The log goes to stderr, and to a file when one is given (NULL for
+//! none), from the start, so that the renderer starting is in it. The
+//! previous run's log is kept beside it, ".prev.log" for ".log": after a
+//! crash or a freeze, the launch that follows is the one someone makes to
+//! look, and it would otherwise have written over the log that mattered.
+TL_C_API tl_engine* tl_engine_create(const char* logFile);
 TL_C_API void tl_engine_destroy(tl_engine*);
 
 //! Tick the engine: once per display frame, before the views draw.
