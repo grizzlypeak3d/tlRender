@@ -88,15 +88,12 @@ static void players(tl_engine* engine)
     CHECK_NEAR(clip.duration, 3.0, 0.1);
     CHECK(strcmp(clip.name, "Dinky_2015-06-11") == 0);
     CHECK(!clip.hasColor);
+    CHECK(!clip.continued);
+    CHECK(tl_player_get_clip(player, 2, &clip) == 1);
+    CHECK_NEAR(clip.start, 6.0, 0.1);
+    CHECK(strcmp(clip.name, "BART_2021-02-07") == 0);
     CHECK(tl_player_get_clip(player, 3, &clip) == 0);
     CHECK(tl_player_get_clip(player, -1, &clip) == 0);
-
-    CHECK(tl_player_get_shot_count(player) == 3);
-    tl_shot shot;
-    CHECK(tl_player_get_shot(player, 2, &shot) == 1);
-    CHECK(shot.clip == 2);
-    CHECK_NEAR(shot.start, 6.0, 0.1);
-    CHECK(strcmp(shot.name, "BART_2021-02-07") == 0);
 
     /* Moving about. */
     tl_player_seek(player, 4.0);
@@ -110,7 +107,7 @@ static void players(tl_engine* engine)
     tl_player_time_action(player, TL_TIME_JUMP_BACK_1S);
     CHECK_NEAR(tl_player_get_time(player), tl_player_get_duration(player) - frame - 1.0, frame);
 
-    /* The in/out range, which Loop Shot sets to a shot. */
+    /* The in/out range, which Loop Clip sets to a clip. */
     double start = -1.0;
     double end = -1.0;
     tl_player_set_in_out(player, 3.0, 6.0);
@@ -162,6 +159,34 @@ static void players(tl_engine* engine)
     }
     tl_player_destroy(player);
 
+    /* A clip that a higher track's clip cuts into: seen before and
+       after it, the second time continued. */
+    path(file, sizeof(file), TLRENDER_SAMPLE_DATA, "ClipCutIn.otio");
+    player = tl_player_create(engine, file);
+    CHECK(player != NULL);
+    if (player)
+    {
+        CHECK(tl_player_get_video_track_count(player) == 2);
+        CHECK(tl_player_get_clip_count(player) == 3);
+        CHECK(tl_player_get_clip(player, 0, &clip) == 1);
+        CHECK(strcmp(clip.name, "Dinky_2015-06-11") == 0);
+        CHECK(clip.track == 0);
+        CHECK_NEAR(clip.start, 0.0, 0.01);
+        CHECK_NEAR(clip.duration, 2.0, 0.01);
+        CHECK(!clip.continued);
+        CHECK(tl_player_get_clip(player, 1, &clip) == 1);
+        CHECK(strcmp(clip.name, "PSR63_2012-06-02") == 0);
+        CHECK(clip.track == 1);
+        CHECK_NEAR(clip.start, 2.0, 0.01);
+        CHECK(!clip.continued);
+        CHECK(tl_player_get_clip(player, 2, &clip) == 1);
+        CHECK(strcmp(clip.name, "Dinky_2015-06-11") == 0);
+        CHECK_NEAR(clip.start, 4.0, 0.01);
+        CHECK_NEAR(clip.duration, 2.0, 0.01);
+        CHECK(clip.continued);
+        tl_player_destroy(player);
+    }
+
     /* A clip the editor colored, and one left alone. */
     path(file, sizeof(file), TLRENDER_SAMPLE_DATA, "ClipColors.otio");
     player = tl_player_create(engine, file);
@@ -173,8 +198,6 @@ static void players(tl_engine* engine)
         CHECK_NEAR(clip.color[0], 0.75, 0.001);
         CHECK_NEAR(clip.color[1], 0.25, 0.001);
         CHECK_NEAR(clip.color[2], 0.125, 0.001);
-        CHECK(tl_player_get_shot(player, 0, &shot) == 1);
-        CHECK(shot.hasColor);
         CHECK(tl_player_get_clip(player, 1, &clip) == 1);
         CHECK(!clip.hasColor);
 
@@ -236,7 +259,6 @@ static void timelines(tl_engine* engine)
     CHECK(tl_timeline_get_rate(timeline) > 0.0);
     CHECK_MOVIE(tl_timeline_get_video_width(timeline) > 0);
     CHECK(tl_timeline_get_clip_count(timeline) == 3);
-    CHECK(tl_timeline_get_shot_count(timeline) == 3);
     tl_clip clip;
     CHECK(tl_timeline_get_clip(timeline, 0, &clip) == 1);
     CHECK(strcmp(clip.name, "PSR63_2012-06-02") == 0);

@@ -1,0 +1,116 @@
+{
+    "OTIO_SCHEMA": "Timeline.1",
+    "name": "ClipCutIn",
+    "metadata": {},
+    "tracks": {
+        "OTIO_SCHEMA": "Stack.1",
+        "name": "",
+        "metadata": {},
+        "children": [
+            {
+                "OTIO_SCHEMA": "Track.1",
+                "name": "V1",
+                "kind": "Video",
+                "metadata": {},
+                "children": [
+                    {
+                        "OTIO_SCHEMA": "Clip.1",
+                        "name": "Dinky_2015-06-11",
+                        "metadata": {},
+                        "media_reference": {
+                            "OTIO_SCHEMA": "ExternalReference.1",
+                            "available_range": {
+                                "OTIO_SCHEMA": "TimeRange.1",
+                                "start_time": {
+                                    "OTIO_SCHEMA": "RationalTime.1",
+                                    "rate": 23.98,
+                                    "value": 0
+                                },
+                                "duration": {
+                                    "OTIO_SCHEMA": "RationalTime.1",
+                                    "rate": 23.98,
+                                    "value": 775
+                                }
+                            },
+                            "target_url": "Dinky_2015-06-11.m4v"
+                        },
+                        "source_range": {
+                            "OTIO_SCHEMA": "TimeRange.1",
+                            "start_time": {
+                                "OTIO_SCHEMA": "RationalTime.1",
+                                "rate": 23.98,
+                                "value": 0
+                            },
+                            "duration": {
+                                "OTIO_SCHEMA": "RationalTime.1",
+                                "rate": 23.98,
+                                "value": 143.88
+                            }
+                        }
+                    }
+                ]
+            },
+            {
+                "OTIO_SCHEMA": "Track.1",
+                "name": "V2",
+                "kind": "Video",
+                "metadata": {},
+                "children": [
+                    {
+                        "OTIO_SCHEMA": "Gap.1",
+                        "name": "",
+                        "metadata": {},
+                        "source_range": {
+                            "OTIO_SCHEMA": "TimeRange.1",
+                            "start_time": {
+                                "OTIO_SCHEMA": "RationalTime.1",
+                                "rate": 23.98,
+                                "value": 0
+                            },
+                            "duration": {
+                                "OTIO_SCHEMA": "RationalTime.1",
+                                "rate": 23.98,
+                                "value": 47.96
+                            }
+                        }
+                    },
+                    {
+                        "OTIO_SCHEMA": "Clip.1",
+                        "name": "PSR63_2012-06-02",
+                        "metadata": {},
+                        "media_reference": {
+                            "OTIO_SCHEMA": "ExternalReference.1",
+                            "available_range": {
+                                "OTIO_SCHEMA": "TimeRange.1",
+                                "start_time": {
+                                    "OTIO_SCHEMA": "RationalTime.1",
+                                    "rate": 23.98,
+                                    "value": 0
+                                },
+                                "duration": {
+                                    "OTIO_SCHEMA": "RationalTime.1",
+                                    "rate": 23.98,
+                                    "value": 411
+                                }
+                            },
+                            "target_url": "PSR63_2012-06-02.mov"
+                        },
+                        "source_range": {
+                            "OTIO_SCHEMA": "TimeRange.1",
+                            "start_time": {
+                                "OTIO_SCHEMA": "RationalTime.1",
+                                "rate": 23.98,
+                                "value": 0
+                            },
+                            "duration": {
+                                "OTIO_SCHEMA": "RationalTime.1",
+                                "rate": 23.98,
+                                "value": 47.96
+                            }
+                        }
+                    }
+                ]
+            }
+        ]
+    }
+}

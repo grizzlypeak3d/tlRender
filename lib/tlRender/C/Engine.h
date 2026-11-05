@@ -123,10 +123,15 @@ TL_C_API void tl_player_set_in_out(tl_player*, double start, double end);
 TL_C_API int tl_player_get_video_width(tl_player*);
 TL_C_API int tl_player_get_video_height(tl_player*);
 
-//! A clip on one of the timeline's video tracks: which track, counting
-//! from the bottom, where it is in seconds from the start of the
-//! timeline, and its name (the media's file name when it has none). A
-//! nested stack on a track is listed as a clip too.
+//! A clip as the timeline is seen: its video tracks flattened as OTIO's
+//! flatten_stack() flattens them, the highest track's clip winning
+//! wherever tracks overlap. Which video track the clip is on, counting
+//! from the bottom; where it is seen, in seconds from the start of the
+//! timeline; and its name (the media's file name when it has none). A
+//! clip that a higher track's clip cuts into is seen more than once,
+//! each time after the first continued. A nested stack on a track is a
+//! clip too. The list is only for finding one's way about: the timeline
+//! plays as it is, every track of it.
 typedef struct tl_clip
 {
     int track;
@@ -136,34 +141,15 @@ typedef struct tl_clip
     //! The color the editor gave the clip, RGBA, if any: hasColor says.
     float color[4];
     int hasColor;
+    //! Seen before: a higher track's clip cut into it.
+    int continued;
 } tl_clip;
 
-//! The clips of the video tracks, track by track, each in time order.
+//! The video tracks, and the clips as seen, in time order. Where no track
+//! has a clip, none.
 TL_C_API int tl_player_get_video_track_count(tl_player*);
 TL_C_API int tl_player_get_clip_count(tl_player*);
 TL_C_API int tl_player_get_clip(tl_player*, int index, tl_clip*);
-
-//! A shot as seen: a stretch of the timeline where the picture comes
-//! from one clip, the one on the highest video track there, as OTIO's
-//! flatten_stack() finds it. Which clip it is, as an index in the clip
-//! list (a clip that a higher track's clip cuts into is more than one
-//! shot), its clip's track and name, and where it is in seconds from
-//! the start of the timeline.
-typedef struct tl_shot
-{
-    int clip;
-    int track;
-    double start;
-    double duration;
-    char name[256];
-    //! The clip's color, as tl_clip has it.
-    float color[4];
-    int hasColor;
-} tl_shot;
-
-//! The shots, in time order. Where no track has a clip, none.
-TL_C_API int tl_player_get_shot_count(tl_player*);
-TL_C_API int tl_player_get_shot(tl_player*, int index, tl_shot*);
 
 //! A marker the editor left: on the timeline, a track, or a clip, in
 //! seconds from the start of the timeline. A duration of zero marks a
@@ -218,8 +204,6 @@ TL_C_API int tl_timeline_get_video_width(tl_timeline*);
 TL_C_API int tl_timeline_get_video_height(tl_timeline*);
 TL_C_API int tl_timeline_get_clip_count(tl_timeline*);
 TL_C_API int tl_timeline_get_clip(tl_timeline*, int index, tl_clip*);
-TL_C_API int tl_timeline_get_shot_count(tl_timeline*);
-TL_C_API int tl_timeline_get_shot(tl_timeline*, int index, tl_shot*);
 
 //! Ask for a poster of a timeline: a thumbnail at a time, in seconds from its
 //! start, so many pixels high. Made in the background, and the file is

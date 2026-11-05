@@ -89,7 +89,6 @@ struct tl_timeline
     tl_engine* engine = nullptr;
     std::shared_ptr<tl::Timeline> timeline;
     std::vector<tl_clip> clips;
-    std::vector<tl_shot> shots;
     int videoTracks = 0;
 };
 
@@ -134,7 +133,6 @@ struct tl_player
     bool clipsRead = false;
     int videoTracks = 0;
     std::vector<tl_clip> clips;
-    std::vector<tl_shot> shots;
     std::vector<tl_marker> markers;
     std::map<unsigned long long, std::future<std::shared_ptr<ftk::Image> > > thumbnails;
 
@@ -804,10 +802,6 @@ namespace
             dynamic_cast<const OTIO_NS::Stack*>(value);
     }
 
-    //! The clips of a timeline's video tracks, and the shots as seen:
-    //! the video tracks flattened, as OTIO flattens them, the highest
-    //! track's clip winning wherever tracks overlap. A clip that a higher
-    //! track's cuts into is more than one shot.
     //! The markers of the timeline, its enabled tracks and their clips,
     //! in seconds from the start of the timeline, in time order.
     void listMarkers(
@@ -882,19 +876,24 @@ namespace
             [](const tl_marker& a, const tl_marker& b) { return a.start < b.start; });
     }
 
+    //! The clips as seen: the video tracks flattened, as OTIO flattens
+    //! them, the highest track's clip winning wherever tracks overlap. A
+    //! clip that a higher track's cuts into is seen more than once.
     void listClips(
         const std::shared_ptr<tl::Timeline>& timeline,
         std::vector<tl_clip>& clips,
-        std::vector<tl_shot>& shots,
         int& videoTracks,
         std::vector<tl_marker>* markers)
     {
+        // Every clip of every video track, which the flattened ones are
+        // found in by their index.
+        std::vector<tl_clip> sources;
         const auto& otioTimeline = timeline->getOTIOTimeline();
         if (!otioTimeline)
             return;
 
-        // The clips, and a copy of the tracks with each clip tagged with
-        // its index, to flatten.
+        // The tracks' clips, and a copy of the tracks with each clip
+        // tagged with its index, to flatten.
         std::vector<OTIO_NS::SerializableObject::Retainer<OTIO_NS::Track> > copies;
         std::vector<OTIO_NS::Track*> tracks;
         int trackIndex = 0;
@@ -945,10 +944,10 @@ namespace
                     if (auto copyItem = dynamic_cast<OTIO_NS::Item*>(copyChildren[i].value))
                     {
                         copyItem->metadata()[clipIndexKey] =
-                            static_cast<int64_t>(clips.size());
+                            static_cast<int64_t>(sources.size());
                     }
                 }
-                clips.push_back(out);
+                sources.push_back(out);
             }
             if (copy && copy->enabled())
             {
@@ -963,8 +962,8 @@ namespace
             listMarkers(otioTimeline, *markers);
         }
 
-        // The shots: the flattened track's clips, by the clip each came
-        // from. Pieces of one clip that touch are one shot.
+        // The flattened track's clips, by the clip each came from. Pieces
+        // of one clip that touch are one.
         if (tracks.empty())
             return;
         OTIO_NS::ErrorStatus error;
@@ -972,6 +971,7 @@ namespace
             OTIO_NS::flatten_stack(tracks, &error));
         if (!flat || OTIO_NS::is_error(error))
             return;
+        std::vector<int64_t> indexes;
         for (const auto& child : flat->children())
         {
             if (!isShown(child))
@@ -989,30 +989,26 @@ namespace
             {
                 continue;
             }
-            if (index < 0 || index >= static_cast<int64_t>(clips.size()))
+            if (index < 0 || index >= static_cast<int64_t>(sources.size()))
                 continue;
             const auto range = item->trimmed_range_in_parent();
             if (!range.has_value() || range->duration().value() <= 0.0)
                 continue;
             const double start = range->start_time().rescaled_to(1.0).value();
             const double duration = range->duration().rescaled_to(1.0).value();
-            if (!shots.empty() &&
-                shots.back().clip == index &&
-                std::abs(shots.back().start + shots.back().duration - start) < 1e-6)
+            if (!clips.empty() &&
+                indexes.back() == index &&
+                std::abs(clips.back().start + clips.back().duration - start) < 1e-6)
             {
-                shots.back().duration += duration;
+                clips.back().duration += duration;
                 continue;
             }
-            const tl_clip& clip = clips[index];
-            tl_shot shot = {};
-            shot.clip = static_cast<int>(index);
-            shot.track = clip.track;
-            shot.start = start;
-            shot.duration = duration;
-            std::snprintf(shot.name, sizeof(shot.name), "%s", clip.name);
-            std::copy(clip.color, clip.color + 4, shot.color);
-            shot.hasColor = clip.hasColor;
-            shots.push_back(shot);
+            tl_clip clip = sources[index];
+            clip.start = start;
+            clip.duration = duration;
+            clip.continued = std::find(indexes.begin(), indexes.end(), index) != indexes.end();
+            clips.push_back(clip);
+            indexes.push_back(index);
         }
     }
 
@@ -1021,8 +1017,7 @@ namespace
         if (player->clipsRead)
             return;
         player->clipsRead = true;
-        listClips(
-            player->timeline, player->clips, player->shots, player->videoTracks, &player->markers);
+        listClips(player->timeline, player->clips, player->videoTracks, &player->markers);
     }
 }
 
@@ -1053,24 +1048,6 @@ int tl_player_get_clip(tl_player* player, int index, tl_clip* out)
     return 1;
 }
 
-int tl_player_get_shot_count(tl_player* player)
-{
-    if (!player)
-        return 0;
-    readClips(player);
-    return static_cast<int>(player->shots.size());
-}
-
-int tl_player_get_shot(tl_player* player, int index, tl_shot* out)
-{
-    if (!player || !out)
-        return 0;
-    readClips(player);
-    if (index < 0 || index >= static_cast<int>(player->shots.size()))
-        return 0;
-    *out = player->shots[index];
-    return 1;
-}
 
 int tl_player_get_marker_count(tl_player* player)
 {
@@ -1375,7 +1352,7 @@ tl_timeline* tl_timeline_open(tl_engine* engine, const char* path)
     try
     {
         out->timeline = tl::Timeline::create(engine->context, ftk::Path(openPath(path)));
-        listClips(out->timeline, out->clips, out->shots, out->videoTracks, nullptr);
+        listClips(out->timeline, out->clips, out->videoTracks, nullptr);
     }
     catch (const std::exception&)
     {
@@ -1429,18 +1406,6 @@ int tl_timeline_get_clip(tl_timeline* timeline, int index, tl_clip* out)
     return 1;
 }
 
-int tl_timeline_get_shot_count(tl_timeline* timeline)
-{
-    return timeline ? static_cast<int>(timeline->shots.size()) : 0;
-}
-
-int tl_timeline_get_shot(tl_timeline* timeline, int index, tl_shot* out)
-{
-    if (!timeline || !out || index < 0 || index >= static_cast<int>(timeline->shots.size()))
-        return 0;
-    *out = timeline->shots[index];
-    return 1;
-}
 
 unsigned long long tl_timeline_request_poster(tl_timeline* timeline, double seconds, int height)
 {
