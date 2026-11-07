@@ -788,18 +788,21 @@ namespace tl
             bool flipV,
             ftk::AlphaBlend alphaBlend,
             HDR_EOTF eotf,
-            float whiteNits)
+            float whiteNits,
+            bool displayP3)
         {
             FTK_P();
             SDL_GPUTexture* texture = p.system->getTexture(id);
-            if (HDR_EOTF::ST2084 != eotf || !texture || whiteNits <= 0.F)
+            const bool pq = HDR_EOTF::ST2084 == eotf && whiteNits > 0.F;
+            if (!texture || (!pq && !displayP3))
             {
                 drawTexture(id, rect, flipV, ftk::Color4F(1.F, 1.F, 1.F), alphaBlend);
                 return;
             }
             HDRUniforms uniforms;
-            uniforms.eotf = static_cast<int32_t>(eotf);
+            uniforms.eotf = pq ? static_cast<int32_t>(eotf) : 0;
             uniforms.whiteNits = whiteNits;
+            uniforms.displayP3 = displayP3;
             ftk::gpu::Blend blend = ftk::gpu::Blend::Default;
             switch (alphaBlend)
             {

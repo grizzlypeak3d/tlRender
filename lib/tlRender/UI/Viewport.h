@@ -360,6 +360,10 @@ namespace tl
             void _updateFrameView();
             void _drawMissingIndicators(const ftk::DrawEvent&);
             void _drawGPU(const ftk::DrawEvent&);
+            //! Whether the picture drawn is Display P3: through an
+            //! OpenColorIO Display P3 display, or without a display
+            //! transform a picture whose tags say it is.
+            bool _isDisplayP3() const;
             bool _getSourceBox(ftk::Box2I&, ftk::Size2I&) const;
             std::optional<ftk::V2I> _toSourcePixel(const ftk::V2I&) const;
             ftk::V2I _fromSourcePixel(const ftk::V2I&) const;

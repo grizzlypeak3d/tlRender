@@ -4,6 +4,9 @@
 #include <tlRender/UI/Viewport.h>
 
 #include <tlRender/Timeline/IRender.h>
+#include <tlRender/GL/Render.h>
+
+#include <tlRender/Core/Gamut.h>
 
 #include <ftk/UI/DrawUtil.h>
 #include <ftk/UI/IWindow.h>
@@ -1124,6 +1127,21 @@ namespace tl
             p.size.sizeHint = event.style->getSizeRole(ftk::SizeRole::ScrollArea, event.displayScale);
         }
 
+        bool Viewport::_isDisplayP3() const
+        {
+            FTK_P();
+            const OCIOOptions& ocio = p.ocioOptions->get();
+            if (ocio.enabled && !ocio.display.empty() && !ocio.view.empty())
+            {
+                return "smpte432" == getDisplayColorTags(ocio, false)["Color Primaries"];
+            }
+            return
+                !p.videoFrame.empty() &&
+                !p.videoFrame.front().layers.empty() &&
+                p.videoFrame.front().layers.front().image &&
+                isDisplayP3(p.videoFrame.front().layers.front().image->getTags());
+        }
+
         void Viewport::drawEvent(const ftk::Box2I& drawRect, const ftk::DrawEvent& event)
         {
             IWidget::drawEvent(drawRect, event);
@@ -1317,12 +1335,27 @@ namespace tl
                 {
                     alphaBlend = p.imageOptions->getItem(0).alphaBlend;
                 }
-                render->drawTexture(
-                    p.buffer->getColorID(),
-                    g,
-                    true,
-                    ftk::Color4F(1.F, 1.F, 1.F),
-                    alphaBlend);
+                // A Display P3 picture taken to the window's sRGB as it is
+                // drawn there, so the buffer keeps the display's values for
+                // the color sample.
+                auto glRender = std::dynamic_pointer_cast<gl::Render>(event.render);
+                if (glRender && _isDisplayP3())
+                {
+                    glRender->drawTextureDisplayP3(
+                        p.buffer->getColorID(),
+                        g,
+                        true,
+                        alphaBlend);
+                }
+                else
+                {
+                    render->drawTexture(
+                        p.buffer->getColorID(),
+                        g,
+                        true,
+                        ftk::Color4F(1.F, 1.F, 1.F),
+                        alphaBlend);
+                }
                 // Drawn over the buffer rather than into it, so the buffer
                 // keeps the true values for the color sample.
                 const auto& clippingWarning = p.fgOptions->get().clippingWarning;
@@ -1524,8 +1557,11 @@ namespace tl
                 // the window holds as it is drawn there, so that the buffer
                 // keeps the picture's own values for the color sample. The
                 // window says what its white is where the system says.
+                // A Display P3 picture is taken into the window's extended
+                // sRGB the same way, its colors past sRGB's kept.
                 auto gpuVideoRender = std::dynamic_pointer_cast<gpu::Render>(event.render);
-                if (gpuVideoRender && HDR_EOTF::SDR != p.hdrTransfer)
+                const bool displayP3 = _isDisplayP3();
+                if (gpuVideoRender && (HDR_EOTF::SDR != p.hdrTransfer || displayP3))
                 {
                     const float whiteNits = getWhiteNits(getWindow(), p.hdrWhite);
                     gpuVideoRender->drawTextureHDR(
@@ -1534,7 +1570,8 @@ namespace tl
                         true,
                         alphaBlend,
                         p.hdrTransfer,
-                        whiteNits);
+                        whiteNits,
+                        displayP3);
                 }
                 else
                 {

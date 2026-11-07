@@ -83,6 +83,16 @@ namespace tl
                 const ftk::M44F& vm,
                 const ClippingWarning&) override;
 
+            //! Draw a texture that holds Display P3, with the sRGB curve,
+            //! into a window that holds sRGB, which OpenGL's are taken to:
+            //! the colors as they are, those past sRGB's clipped, rather
+            //! than P3's numbers shown as sRGB's.
+            TL_GL_API void drawTextureDisplayP3(
+                unsigned int,
+                const ftk::Box2I& rect,
+                bool flipV,
+                ftk::AlphaBlend);
+
             TL_GL_API void begin(
                 const ftk::Size2I&,
                 const ftk::RenderOptions& = ftk::RenderOptions()) override;

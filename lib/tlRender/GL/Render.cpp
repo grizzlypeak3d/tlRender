@@ -330,6 +330,12 @@ namespace tl
                     vertexSource(),
                     clippingWarningFragmentSource());
             }
+            if (!p.shaders["displayP3"])
+            {
+                p.shaders["displayP3"] = ftk::gl::Shader::create(
+                    vertexSource(),
+                    displayP3FragmentSource());
+            }
             _displayShader();
 
             p.vbos["wipe"] = ftk::gl::VBO::create(1 * 3, ftk::gl::VBOType::Pos2_F32);

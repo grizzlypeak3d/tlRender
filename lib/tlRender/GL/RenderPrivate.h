@@ -43,6 +43,7 @@ namespace tl
             LUTOrder);
         std::string dissolveFragmentSource();
         std::string clippingWarningFragmentSource();
+        std::string displayP3FragmentSource();
         std::string butterflyFragmentSource();
         std::string differenceFragmentSource();
 

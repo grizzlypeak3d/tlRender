@@ -55,14 +55,17 @@ namespace tl
             //! HDR display -- PQ, with Rec. 2020 primaries -- into a window,
             //! which holds something else: see ftk::WindowHDR. The white
             //! level is the luminance that white in the window stands for.
-            //! With any other transfer this is drawTexture().
+            //! Otherwise a texture that holds Display P3, with the sRGB
+            //! curve, is taken into the window's extended sRGB, its colors
+            //! past sRGB's kept. With neither this is drawTexture().
             TL_GPU_API void drawTextureHDR(
                 unsigned int,
                 const ftk::Box2I&,
                 bool flipV,
                 ftk::AlphaBlend,
                 HDR_EOTF,
-                float whiteNits);
+                float whiteNits,
+                bool displayP3 = false);
 
             //! Set whether what is drawn is for a window, which holds
             //! extended sRGB (see ftk::gpu::Present), rather than for a

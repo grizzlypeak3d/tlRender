@@ -428,6 +428,35 @@ namespace tl
                 "}\n";
         }
 
+        std::string displayP3FragmentSource()
+        {
+            return
+                "\n"
+                "in vec2 fTexture;\n"
+                "out vec4 outColor;\n"
+                "\n"
+                "uniform sampler2D textureSampler;\n"
+                "\n"
+                "void main()\n"
+                "{\n"
+                "    vec4 c = texture(textureSampler, fTexture);\n"
+                // Display P3 to sRGB: the sRGB curve undone, P3's primaries
+                // taken to Rec. 709's by row, and the curve again; what
+                // sRGB cannot hold the window clips.
+                "    vec3 a = abs(c.rgb);\n"
+                "    vec3 l = sign(c.rgb) * mix(\n"
+                "        pow((a + 0.055) / 1.055, vec3(2.4)), a / 12.92, lessThanEqual(a, vec3(0.04045)));\n"
+                "    vec3 r709 = vec3(\n"
+                "        dot(l, vec3(1.224940, -0.224940, 0.000000)),\n"
+                "        dot(l, vec3(-0.042057, 1.042057, 0.000000)),\n"
+                "        dot(l, vec3(-0.019638, -0.078636, 1.098274)));\n"
+                "    vec3 b = abs(r709);\n"
+                "    c.rgb = sign(r709) * mix(\n"
+                "        1.055 * pow(b, vec3(1.0 / 2.4)) - 0.055, b * 12.92, lessThanEqual(b, vec3(0.0031308)));\n"
+                "    outColor = c;\n"
+                "}\n";
+        }
+
         std::string butterflyFragmentSource()
         {
             return

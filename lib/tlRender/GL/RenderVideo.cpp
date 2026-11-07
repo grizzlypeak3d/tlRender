@@ -1289,5 +1289,62 @@ namespace tl
                 }
             }
         }
+
+        void Render::drawTextureDisplayP3(
+            unsigned int id,
+            const ftk::Box2I& rect,
+            bool flipV,
+            ftk::AlphaBlend alphaBlend)
+        {
+            FTK_P();
+            if (!rect.isValid())
+            {
+                return;
+            }
+            p.shaders["displayP3"]->bind();
+            p.shaders["displayP3"]->setUniform("transform.mvp", getTransform());
+            p.shaders["displayP3"]->setUniform("textureSampler", 0);
+
+            ftk::gl::setAlphaBlend(alphaBlend);
+
+            glActiveTexture(static_cast<GLenum>(GL_TEXTURE0));
+            glBindTexture(GL_TEXTURE_2D, id);
+
+            // The whole texture over the rect, as drawClippingWarning()
+            // draws a box of it.
+            const float x0 = rect.min.x;
+            const float y0 = rect.min.y;
+            const float x1 = rect.max.x + 1;
+            const float y1 = rect.max.y + 1;
+            const float v0 = flipV ? 1.F : 0.F;
+            const float v1 = flipV ? 0.F : 1.F;
+            ftk::TriMesh2F mesh;
+            mesh.v = { ftk::V2F(x0, y0), ftk::V2F(x1, y0), ftk::V2F(x1, y1), ftk::V2F(x0, y1) };
+            mesh.t = { ftk::V2F(0.F, v0), ftk::V2F(1.F, v0), ftk::V2F(1.F, v1), ftk::V2F(0.F, v1) };
+            ftk::Triangle2 triangle;
+            triangle.v[0].v = 1;
+            triangle.v[1].v = 3;
+            triangle.v[2].v = 2;
+            triangle.v[0].t = 1;
+            triangle.v[1].t = 3;
+            triangle.v[2].t = 2;
+            mesh.triangles.push_back(triangle);
+            triangle.v[0].v = 3;
+            triangle.v[1].v = 1;
+            triangle.v[2].v = 4;
+            triangle.v[0].t = 3;
+            triangle.v[1].t = 1;
+            triangle.v[2].t = 4;
+            mesh.triangles.push_back(triangle);
+            if (p.vbos["video"])
+            {
+                p.vbos["video"]->copy(convert(mesh, p.vbos["video"]->getType()));
+            }
+            if (p.vaos["video"])
+            {
+                p.vaos["video"]->bind();
+                p.vaos["video"]->draw(GL_TRIANGLES, 0, p.vbos["video"]->getSize());
+            }
+        }
     }
 }

@@ -116,7 +116,8 @@ namespace tl
             float color[4] = { 1.F, 1.F, 1.F, 1.F };
             int32_t eotf = 0;
             float whiteNits = 203.F;
-            float pad[2] = { 0.F, 0.F };
+            int32_t displayP3 = 0;
+            float pad[1] = { 0.F };
         };
 
         struct DifferenceUniforms
