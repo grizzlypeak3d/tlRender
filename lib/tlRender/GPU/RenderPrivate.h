@@ -93,7 +93,8 @@ namespace tl
             float levelsGamma = 1.F;
             float levelsOutLow = 0.F;
             float levelsOutHigh = 1.F;
-            float pad[2] = { 0.F, 0.F };
+            int32_t displayP3 = 0;
+            float pad[1] = { 0.F };
         };
 
         struct DissolveUniforms
@@ -196,6 +197,11 @@ namespace tl
 
             OCIOOptions ocioOptions;
             LUTOptions lutOptions;
+            //! Drawing for a window, which holds extended sRGB; see
+            //! Render::setWindow().
+            bool window = false;
+            //! Whether the OpenColorIO display is Display P3.
+            bool displayP3 = false;
 
 #if defined(TLRENDER_OCIO)
             // See tl::gl::Render, which these are kept as.

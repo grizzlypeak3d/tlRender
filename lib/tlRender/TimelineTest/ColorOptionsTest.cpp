@@ -31,6 +31,29 @@ namespace tl
                 FTK_TEST_ENUM(LUTOrder);
             }
             {
+                // What a display's pixels are, named for the files written
+                // through it.
+                OCIOOptions options;
+                options.enabled = true;
+                options.view = "View";
+                options.display = "sRGB - Display";
+                auto tags = getDisplayColorTags(options, false);
+                FTK_CHECK("bt709" == tags["Color Primaries"]);
+                FTK_CHECK("iec61966-2-1" == tags["Color Transfer"]);
+                options.display = "Display P3 - Display";
+                tags = getDisplayColorTags(options, false);
+                FTK_CHECK("smpte432" == tags["Color Primaries"]);
+                FTK_CHECK("iec61966-2-1" == tags["Color Transfer"]);
+                tags = getDisplayColorTags(options, true);
+                FTK_CHECK("0.68 0.32 0.265 0.69 0.15 0.06 0.3127 0.329" == tags["Chromaticities"]);
+                // A display not known, or no display transform: nothing.
+                options.display = "Somewhere - Display";
+                FTK_CHECK(getDisplayColorTags(options, false).empty());
+                options.display = "Display P3 - Display";
+                options.enabled = false;
+                FTK_CHECK(getDisplayColorTags(options, false).empty());
+            }
+            {
                 _print("LUT formats: " + ftk::join(getLUTFormatNames(), ", "));
                 _print("LUT format extensions: " + ftk::join(getLUTFormatExts(), ", "));
             }

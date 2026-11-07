@@ -46,11 +46,20 @@ namespace tl
                 "0.64 0.33 0.3 0.6 0.15 0.06 0.3127 0.329";
             const std::string rec2020 =
                 "0.708 0.292 0.17 0.797 0.131 0.046 0.3127 0.329";
+            const std::string p3 =
+                "0.68 0.32 0.265 0.69 0.15 0.06 0.3127 0.329";
             if ("sRGB - Display" == options.display)
             {
                 primaries = "bt709";
                 transfer = "iec61966-2-1";
                 chromaticities = rec709;
+            }
+            else if ("Display P3 - Display" == options.display)
+            {
+                // P3's primaries with D65 white, and the sRGB curve.
+                primaries = "smpte432";
+                transfer = "iec61966-2-1";
+                chromaticities = p3;
             }
             else if ("Rec.1886 Rec.709 - Display" == options.display)
             {

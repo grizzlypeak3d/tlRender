@@ -667,6 +667,10 @@ namespace tl
                 std::pow(2.F, displayOptions.exposure.exposure) :
                 1.F;
             uniforms.softClip = displayOptions.softClip.enabled ? displayOptions.softClip.value : 0.F;
+#if defined(TLRENDER_OCIO)
+            // Through a Display P3 display, for a window: see setWindow().
+            uniforms.displayP3 = p.window && p.displayP3 && p.ocioDataBound ? 1 : 0;
+#endif // TLRENDER_OCIO
 
             // At the one to one size nothing needs filtering, so nothing
             // is; see tl::gl::Render. Otherwise the filter is the one for

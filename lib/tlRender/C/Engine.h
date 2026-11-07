@@ -363,8 +363,9 @@ typedef struct tl_sample
 {
     //! Whether the point is on the picture; the rest is zero when not.
     int onPicture;
-    //! The image pixel under the point, as drawn: after the color options,
-    //! with values past one and below zero kept. RGBA.
+    //! The image pixel under the point, as the display has it: after the
+    //! color options and the display transform, before what the window
+    //! makes of it, with values past one and below zero kept. RGBA.
     float color[4];
     //! The pixel, from the image's top left.
     int x;

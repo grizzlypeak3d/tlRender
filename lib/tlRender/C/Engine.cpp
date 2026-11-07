@@ -1548,6 +1548,9 @@ namespace
                 engine->gpu,
                 engine->context->getLogSystem(),
                 engine->context->getSystem<ftk::FontSystem>());
+            // For the window: a Display P3 display's colors are kept in
+            // what it holds.
+            out->render->setWindow(true);
             out->widgets = WidgetHost::create(engine->context);
             engine->context->log(
                 "tl_view",
@@ -2077,7 +2080,11 @@ int tl_view_sample(tl_view* view, float x, float y, float zoom, int size, uint8_
             ftk::scale(ftk::V3F(z, z, 1.F));
         ftk::ImageOptions imageOptions = view->imageOptions;
         imageOptions.imageFilters.magnify = ftk::ImageFilter::Nearest;
+        // The display's own values, as the desktop's color picker reads
+        // them, rather than the window's.
+        view->render->setWindow(false);
         drawPicture(view, view->sampleBuffer, frames, boxes, vm, imageOptions, false);
+        view->render->setWindow(true);
 
         // One read back, of the floats: the loupe from them, clamped to
         // eight bits as the screen shows them, and the center pixel as
@@ -2136,6 +2143,7 @@ int tl_view_sample(tl_view* view, float x, float y, float zoom, int size, uint8_
     }
     catch (const std::exception& e)
     {
+        view->render->setWindow(true);
         setError(view->engine, e.what());
     }
     return 0;

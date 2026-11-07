@@ -692,6 +692,11 @@ namespace tl
             _p->baseRender->end();
         }
 
+        void Render::setWindow(bool value)
+        {
+            _p->window = value;
+        }
+
         void Render::setOCIOOptions(const OCIOOptions& value)
         {
             FTK_P();
@@ -699,6 +704,7 @@ namespace tl
                 return;
 
             p.ocioOptions = value;
+            p.displayP3 = "smpte432" == getDisplayColorTags(value, false)["Color Primaries"];
 
 #if defined(TLRENDER_OCIO)
             p.ocioDataBound.reset();
