@@ -332,8 +332,9 @@ struct tl_view
     std::shared_ptr<tl::gpu::Render> render;
     std::shared_ptr<ftk::gpu::OffscreenBuffer> buffer;
     tl_player* player = nullptr;
-    //! Where the picture goes, in pixels; empty for the whole view.
-    ftk::Box2I frame;
+    //! Where the picture goes, in pixels; empty for the whole view, as it
+    //! is until set (a default box is one pixel, not empty).
+    ftk::Box2I frame = ftk::Box2I(0, 0, 0, 0);
     //! Where the picture is within it: fitted, or where it was put.
     bool viewFramed = true;
     ftk::V2F viewPos;
@@ -1574,6 +1575,20 @@ void* tl_view_get_native_window(tl_view* view)
 #endif
 }
 
+void tl_view_get_size(tl_view* view, int* w, int* h)
+{
+    int sw = 0;
+    int sh = 0;
+    if (view && view->window)
+    {
+        SDL_GetWindowSizeInPixels(view->window, &sw, &sh);
+    }
+    if (w)
+        *w = sw;
+    if (h)
+        *h = sh;
+}
+
 void tl_view_set_frame(tl_view* view, int x, int y, int w, int h)
 {
     if (view)
@@ -1942,6 +1957,12 @@ void tl_view_draw(tl_view* view)
                 static_cast<int>(SDL_GetGPUSwapchainTextureFormat(device, view->window)),
                 view->composition,
                 ftk::gpu::getSDRWhiteLevel(view->window, view->composition));
+        }
+        else
+        {
+            // Nothing to show it on yet, as a window just made on a second
+            // display can be: drawn again next time.
+            view->dirty = true;
         }
         if (cmd)
         {

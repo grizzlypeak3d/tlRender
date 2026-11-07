@@ -280,6 +280,10 @@ TL_C_API void tl_view_destroy(tl_view*);
 //! NSWindow on macOS.
 TL_C_API void* tl_view_get_native_window(tl_view*);
 
+//! The view's size in pixels: what it draws into, which on a second
+//! display need not be the screen's points times its scale.
+TL_C_API void tl_view_get_size(tl_view*, int* w, int* h);
+
 //! Set the player the view draws; NULL clears it.
 TL_C_API void tl_view_set_player(tl_view*, tl_player*);
 
