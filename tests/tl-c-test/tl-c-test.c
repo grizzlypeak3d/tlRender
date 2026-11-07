@@ -381,6 +381,34 @@ static void bundles(tl_engine* engine)
     CHECK(tl_timeline_open(engine, out) == NULL);
 }
 
+//! Whether a space separated list has a word.
+static int hasWord(const char* list, const char* word)
+{
+    const size_t n = strlen(word);
+    for (const char* p = strstr(list, word); p; p = strstr(p + 1, word))
+    {
+        if ((p == list || p[-1] == ' ') && (p[n] == ' ' || p[n] == 0))
+            return 1;
+    }
+    return 0;
+}
+
+static void extensions(tl_engine* engine)
+{
+    const char* exts = tl_engine_get_image_extensions(engine);
+    printf("Image extensions: %s\n", exts);
+    // PNG is in every build; HEIC on Apple's, through ImageIO.
+    CHECK(hasWord(exts, "png"));
+    CHECK(!hasWord(exts, ".png"));
+    CHECK(!hasWord(exts, "mov"));
+#if defined(__APPLE__)
+    CHECK(hasWord(exts, "heic"));
+#endif // __APPLE__
+    // The same string, asked again.
+    CHECK(tl_engine_get_image_extensions(engine) == exts);
+    CHECK(strcmp(tl_engine_get_image_extensions(NULL), "") == 0);
+}
+
 int main(void)
 {
     tl_engine* engine = tl_engine_create(NULL);
@@ -393,6 +421,7 @@ int main(void)
         printf("    %s\n", tl_engine_get_error(engine));
     }
 
+    extensions(engine);
     players(engine);
     timelines(engine);
     bundles(engine);

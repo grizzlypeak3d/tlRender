@@ -24,6 +24,10 @@ if(TLRENDER_SVG)
     list(APPEND HEADERS SVGTest.h)
     list(APPEND SOURCE SVGTest.cpp)
 endif()
+if(TLRENDER_IMAGEIO)
+    list(APPEND HEADERS ImageIOTest.h)
+    list(APPEND SOURCE ImageIOTest.cpp)
+endif()
 
 # Static, for the reason in ftk's TestLib.
 add_library(tlIOTest STATIC ${SOURCE} ${HEADERS})
@@ -36,6 +40,13 @@ target_include_directories(tlIOTest
         $<INSTALL_INTERFACE:include>)
 
 target_link_libraries(tlIOTest tlIO ftk::ftkTestLib)
+if(TLRENDER_IMAGEIO)
+    # The test writes its HEIC files with ImageIO too.
+    target_link_libraries(tlIOTest
+        "-framework ImageIO"
+        "-framework CoreGraphics"
+        "-framework CoreFoundation")
+endif()
 if(TLRENDER_FFMPEG_PLUGIN)
     # The test asks FFmpeg itself what this build can encode, so it needs the
     # libraries rather than only the plugin that wraps them: tlIO links them

@@ -61,6 +61,11 @@ TL_C_API int tl_engine_has_gpu(tl_engine*);
 //! The last error, or an empty string.
 TL_C_API const char* tl_engine_get_error(tl_engine*);
 
+//! The extensions of the still images this build reads, without the dot
+//! and separated by spaces: "dpx exr heic jpg ...". A sequence of them is
+//! opened by its first file.
+TL_C_API const char* tl_engine_get_image_extensions(tl_engine*);
+
 //! Open a file or timeline. NULL on failure, with the reason in the
 //! engine's error.
 TL_C_API tl_player* tl_player_create(tl_engine*, const char* path);

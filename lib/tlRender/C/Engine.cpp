@@ -5,6 +5,7 @@
 #include <tlRender/C/EngineCpp.h>
 
 #include <tlRender/GPU/Render.h>
+#include <tlRender/IO/System.h>
 #include <tlRender/Timeline/CompareOptions.h>
 #include <tlRender/Timeline/Init.h>
 #include <tlRender/Timeline/OTIOVersion.h>
@@ -76,6 +77,7 @@ struct tl_engine
     std::shared_ptr<ftk::FileLogSystem> fileLog;
     std::shared_ptr<ftk::gpu::System> gpu;
     std::string error;
+    std::string imageExtensions;
     std::shared_ptr<ftk::ListObserver<ftk::LogItem> > logObserver;
     tl::IOOptions ioOptions;
     float videoGB = 0.F;
@@ -514,6 +516,25 @@ int tl_engine_has_gpu(tl_engine* engine)
 const char* tl_engine_get_error(tl_engine* engine)
 {
     return engine ? engine->error.c_str() : "";
+}
+
+const char* tl_engine_get_image_extensions(tl_engine* engine)
+{
+    if (!engine || !engine->context)
+        return "";
+    if (engine->imageExtensions.empty())
+    {
+        if (auto readSystem = engine->context->getSystem<tl::ReadSystem>())
+        {
+            std::vector<std::string> list;
+            for (const auto& ext : readSystem->getExts(static_cast<int>(tl::FileType::Seq)))
+            {
+                list.push_back(ftk::toLower(!ext.empty() && '.' == ext[0] ? ext.substr(1) : ext));
+            }
+            engine->imageExtensions = ftk::join(list, " ");
+        }
+    }
+    return engine->imageExtensions.c_str();
 }
 
 tl_player* tl_player_create(tl_engine* engine, const char* path)

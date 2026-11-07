@@ -20,6 +20,9 @@
 
 #include <tlRender/IO/SVG.h>
 #endif // TLRENDER_SVG
+#if defined(TLRENDER_IMAGEIO)
+#include <tlRender/IO/ImageIO.h>
+#endif // TLRENDER_IMAGEIO
 #if defined(TLRENDER_USD)
 #include <tlRender/IO/USD.h>
 #endif // TLRENDER_USD
@@ -54,6 +57,9 @@ namespace tl
 #if defined(TLRENDER_SVG)
             _plugins.push_back(svg::ReadPlugin::create(logSystem));
 #endif // TLRENDER_SVG
+#if defined(TLRENDER_IMAGEIO)
+            _plugins.push_back(imageio::ReadPlugin::create(logSystem));
+#endif // TLRENDER_IMAGEIO
 #if defined(TLRENDER_OIIO)
             _plugins.push_back(oiio::ReadPlugin::create(logSystem));
 #endif // TLRENDER_OIIO

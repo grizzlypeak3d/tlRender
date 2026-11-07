@@ -45,6 +45,9 @@ set(TLRENDER_FFMPEG ON CACHE BOOL "Enable support for FFmpeg (required for audio
 set(TLRENDER_FFMPEG_PLUGIN ON CACHE BOOL "Enable support for FFmpeg I/O")
 set(TLRENDER_OIIO ON CACHE BOOL "Enable support for OpenImageIO")
 set(TLRENDER_SVG ON CACHE BOOL "Enable support for SVG I/O")
+if(APPLE)
+    set(TLRENDER_IMAGEIO ON CACHE BOOL "Enable support for HEIC and HEIF I/O with Apple's ImageIO")
+endif()
 set(TLRENDER_USD OFF CACHE BOOL "Enable support for USD")
 set(TLRENDER_PYTHON OFF CACHE BOOL "Enable support for Python")
 # Where the tlrender package goes, relative to the install prefix. The
