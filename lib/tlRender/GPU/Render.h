@@ -66,12 +66,13 @@ namespace tl
 
             //! Set whether what is drawn is for a window, which holds
             //! extended sRGB (see ftk::gpu::Present), rather than for a
-            //! file. For a window, the pixels of an OpenColorIO display with
-            //! a wider gamut than sRGB, Display P3, are converted into it,
+            //! file. For a window, Display P3 pixels are converted into it,
             //! the colors past sRGB's kept as values past zero and one, so
-            //! that a wide display shows them; for a file they are kept as
-            //! the display has them, which the file's tags say. Off by
-            //! default.
+            //! that a wide display shows them: an OpenColorIO Display P3
+            //! display's, or without a display transform a picture's whose
+            //! tags say it is P3 ("Color Primaries" "smpte432" with the
+            //! sRGB curve). For a file they are kept as they are, which the
+            //! file's tags say. Off by default.
             TL_GPU_API void setWindow(bool);
 
             TL_GPU_API void setOCIOOptions(const OCIOOptions&) override;

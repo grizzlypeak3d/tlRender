@@ -667,10 +667,25 @@ namespace tl
                 std::pow(2.F, displayOptions.exposure.exposure) :
                 1.F;
             uniforms.softClip = displayOptions.softClip.enabled ? displayOptions.softClip.value : 0.F;
+            // Display P3 pixels, for a window, are converted into what it
+            // holds (see setWindow()): what a Display P3 display makes, or
+            // without a display transform a picture that says it is P3,
+            // as an iPhone's photo does.
+            bool ocioBound = false;
 #if defined(TLRENDER_OCIO)
-            // Through a Display P3 display, for a window: see setWindow().
-            uniforms.displayP3 = p.window && p.displayP3 && p.ocioDataBound ? 1 : 0;
+            ocioBound = p.ocioDataBound.get() != nullptr;
 #endif // TLRENDER_OCIO
+            bool sourceP3 = false;
+            if (!videoFrame.layers.empty() && videoFrame.layers.front().image)
+            {
+                const auto& tags = videoFrame.layers.front().image->getTags();
+                const auto primaries = tags.find("Color Primaries");
+                const auto transfer = tags.find("Color Transfer");
+                sourceP3 =
+                    primaries != tags.end() && "smpte432" == primaries->second &&
+                    transfer != tags.end() && "iec61966-2-1" == transfer->second;
+            }
+            uniforms.displayP3 = p.window && (ocioBound ? p.displayP3 : sourceP3) ? 1 : 0;
 
             // At the one to one size nothing needs filtering, so nothing
             // is; see tl::gl::Render. Otherwise the filter is the one for

@@ -110,39 +110,53 @@ namespace tl
                     ftk::Size2I(w, h);
             }
 
-            //! Whether a picture holds more than eight bit sRGB does: a
-            //! wider gamut, as the Display P3 of an iPhone's photos, or
-            //! more than eight bits. The image is made without decoding
-            //! it, to ask its color space.
-            bool isWide(CGImageSourceRef source)
+            //! What a picture holds: a wider gamut than sRGB's, as the
+            //! Display P3 of an iPhone's photos, and more than eight bits.
+            //! The image is made without decoding it, to ask its color
+            //! space.
+            struct Kind
             {
-                bool out = false;
+                bool p3 = false;
+                bool deep = false;
+            };
+
+            Kind getKind(CGImageSourceRef source)
+            {
+                Kind out;
                 if (CF<CFDictionaryRef> properties{ CGImageSourceCopyPropertiesAtIndex(source, 0, nullptr) })
                 {
-                    out = getInt(properties.get(), kCGImagePropertyDepth, 8) > 8;
+                    out.deep = getInt(properties.get(), kCGImagePropertyDepth, 8) > 8;
                 }
-                if (!out)
+                if (CF<CGImageRef> image{ CGImageSourceCreateImageAtIndex(source, 0, nullptr) })
                 {
-                    if (CF<CGImageRef> image{ CGImageSourceCreateImageAtIndex(source, 0, nullptr) })
+                    if (CGColorSpaceRef colorSpace = CGImageGetColorSpace(image.get()))
                     {
-                        if (CGColorSpaceRef colorSpace = CGImageGetColorSpace(image.get()))
-                        {
-                            out = CGColorSpaceIsWideGamutRGB(colorSpace);
-                        }
+                        out.p3 = CGColorSpaceIsWideGamutRGB(colorSpace);
                     }
                 }
                 return out;
             }
 
-            //! Eight bit sRGB, or for a wide picture half float extended
-            //! sRGB: the colors past sRGB's as values past zero and one,
-            //! which is how the view takes them, so that a wide display
-            //! shows them.
-            ftk::ImageInfo imageInfo(const ftk::Size2I& size, bool wide)
+            //! Eight or sixteen bits, in sRGB, or for a wide picture in
+            //! Display P3, which it says, as a movie says its colors: the
+            //! view shows them on a wide display, and a color managed one
+            //! takes them through the configuration's P3.
+            ftk::ImageInfo imageInfo(const ftk::Size2I& size, const Kind& kind)
             {
-                ftk::ImageInfo out(size, wide ? ftk::ImageType::RGBA_F16 : ftk::ImageType::RGBA_U8);
+                ftk::ImageInfo out(size, kind.deep ? ftk::ImageType::RGBA_U16 : ftk::ImageType::RGBA_U8);
                 // Core Graphics gives the top row first.
                 out.layout.mirror.y = true;
+                return out;
+            }
+
+            ftk::ImageTags imageTags(const Kind& kind)
+            {
+                ftk::ImageTags out;
+                if (kind.p3)
+                {
+                    out["Color Primaries"] = "smpte432";
+                    out["Color Transfer"] = "iec61966-2-1";
+                }
                 return out;
             }
         }
@@ -160,8 +174,10 @@ namespace tl
             const ftk::MemFile* memory)
         {
             CF<CGImageSourceRef> source(createSource(fileName, memory));
+            const Kind kind = getKind(source.get());
             IOInfo out;
-            out.video.push_back(imageInfo(getSize(source.get(), fileName), isWide(source.get())));
+            out.video.push_back(imageInfo(getSize(source.get(), fileName), kind));
+            out.tags = imageTags(kind);
             return out;
         }
 
@@ -173,7 +189,7 @@ namespace tl
         {
             CF<CGImageSourceRef> source(createSource(fileName, memory));
             const ftk::Size2I size = getSize(source.get(), fileName);
-            const bool wide = isWide(source.get());
+            const Kind kind = getKind(source.get());
 
             // The whole picture, turned the way its orientation says: what
             // the thumbnail call does when asked for the full size, from
@@ -210,25 +226,27 @@ namespace tl
             }
 
             // Drawn into the image's own memory, converted on the way: to
-            // sRGB, which is what an eight bit picture is taken to be here,
-            // or for a wide one to extended sRGB, which keeps the colors
-            // sRGB cannot hold. The alpha is premultiplied, which an opaque
-            // photo does not notice.
+            // sRGB, which is what a picture is taken to be unless it says
+            // otherwise, or for a wide one to Display P3, which its tags
+            // say. Extended sRGB would hold the colors too, but its values
+            // past zero and one do not survive a color managed view. The
+            // alpha is premultiplied, which an opaque photo does not notice.
             VideoData out;
             out.time = time;
-            out.image = ftk::Image::create(imageInfo(size, wide));
+            out.image = ftk::Image::create(imageInfo(size, kind));
+            out.image->setTags(imageTags(kind));
             std::memset(out.image->getData(), 0, out.image->getByteCount());
             CF<CGColorSpaceRef> colorSpace(CGColorSpaceCreateWithName(
-                wide ? kCGColorSpaceExtendedSRGB : kCGColorSpaceSRGB));
+                kind.p3 ? kCGColorSpaceDisplayP3 : kCGColorSpaceSRGB));
             CF<CGContextRef> context(CGBitmapContextCreate(
                 out.image->getData(),
                 size.w,
                 size.h,
-                wide ? 16 : 8,
-                static_cast<size_t>(size.w) * (wide ? 8 : 4),
+                kind.deep ? 16 : 8,
+                static_cast<size_t>(size.w) * (kind.deep ? 8 : 4),
                 colorSpace.get(),
                 static_cast<CGBitmapInfo>(kCGImageAlphaPremultipliedLast) |
-                    (wide ? (kCGBitmapFloatComponents | kCGBitmapByteOrder16Little) : 0)));
+                    (kind.deep ? kCGBitmapByteOrder16Little : 0)));
             if (!context)
             {
                 throw std::runtime_error(ftk::Format(

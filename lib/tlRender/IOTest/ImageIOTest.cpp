@@ -193,47 +193,48 @@ namespace tl
                     FTK_CHECK(isBlue(p + (35 * 20 + 10) * 4));
                 }
 
-                // Display P3: half float extended sRGB, where P3's red is
-                // past sRGB's, red above one and green and blue below zero.
+                // Display P3: kept as P3, which the tags say, as the file
+                // and its info; sRGB says nothing.
                 const ftk::Path p3(ftk::fromFileSystem(_getTempDir() / "ImageIOTestP3.heic"));
                 FTK_CHECK(writeHEIC(p3, 1, true));
                 for (const bool memoryIO : { false, true })
                 {
                     auto image = _read(plugin, p3, memoryIO);
                     FTK_CHECK(ftk::Size2I(40, 20) == image->getSize());
-                    FTK_CHECK(ftk::ImageType::RGBA_F16 == image->getType());
-                    const half* p = reinterpret_cast<const half*>(image->getData()) + (10 * 40 + 5) * 4;
-                    const float r = p[0];
-                    const float g = p[1];
-                    const float b = p[2];
-                    const float a = p[3];
-                    _print(ftk::Format("P3 red as extended sRGB: {0} {1} {2} {3}").
-                        arg(r).arg(g).arg(b).arg(a));
-                    FTK_CHECK(r > 1.03F);
-                    FTK_CHECK(g < -.1F);
-                    FTK_CHECK(b < -.05F);
-                    FTK_CHECK(std::abs(a - 1.F) < .01F);
+                    FTK_CHECK(ftk::ImageType::RGBA_U8 == image->getType());
+                    FTK_CHECK(isRed(image->getData() + (10 * 40 + 5) * 4));
+                    const auto& tags = image->getTags();
+                    FTK_CHECK(tags.count("Color Primaries") && "smpte432" == tags.at("Color Primaries"));
+                    FTK_CHECK(tags.count("Color Transfer") && "iec61966-2-1" == tags.at("Color Transfer"));
                 }
+                FTK_CHECK("smpte432" == plugin->decode()->getInfo(p3.get()).tags["Color Primaries"]);
+                FTK_CHECK(plugin->decode()->getInfo(upright.get()).tags.empty());
+                FTK_CHECK(_read(plugin, upright, false)->getTags().empty());
             }
 
 #if defined(TLRENDER_OIIO)
-            // A JPEG written through a Display P3 display, the profile
-            // embedded from its tags, read back by Apple's decoder: what
-            // was P3's red is past sRGB's. Without the tags it is sRGB.
-            if (auto writePlugin = _context->getSystem<WriteSystem>()->getPlugin<oiio::WritePlugin>())
+            // A JPEG, a PNG and a TIFF written through a Display P3
+            // display, by whichever writer takes each, the profile embedded
+            // from their tags, read back by Apple's decoder: P3 again, its
+            // values as they were rather than taken to sRGB, where this red
+            // would be brighter. Without the tags it is sRGB.
+            auto writeSystem = _context->getSystem<WriteSystem>();
+            for (const std::string ext : { ".jpg", ".png", ".tif" })
             {
                 const ftk::ImageInfo info(16, 16, ftk::ImageType::RGB_U8);
                 auto red = ftk::Image::create(info);
                 for (size_t i = 0; i < 16 * 16; ++i)
                 {
-                    red->getData()[i * 3] = 255;
+                    red->getData()[i * 3] = 200;
                     red->getData()[i * 3 + 1] = 0;
                     red->getData()[i * 3 + 2] = 0;
                 }
                 for (const bool p3 : { true, false })
                 {
                     const ftk::Path path(ftk::fromFileSystem(
-                        _getTempDir() / (p3 ? "ImageIOTestWide.jpg" : "ImageIOTestNarrow.jpg")));
+                        _getTempDir() / ((p3 ? "ImageIOTestWide" : "ImageIOTestNarrow") + ext)));
+                    auto writePlugin = writeSystem->getPlugin(path);
+                    FTK_CHECK(writePlugin);
                     IOInfo ioInfo;
                     ioInfo.video.push_back(info);
                     ioInfo.videoTime = OTIO_NS::TimeRange(
@@ -246,21 +247,12 @@ namespace tl
                     }
                     writePlugin->write(path, ioInfo)->writeVideo(OTIO_NS::RationalTime(0.0, 24.0), red);
                     auto image = _read(plugin, path, false);
-                    if (p3)
-                    {
-                        FTK_CHECK(ftk::ImageType::RGBA_F16 == image->getType());
-                        const half* p = reinterpret_cast<const half*>(image->getData()) + (8 * 16 + 8) * 4;
-                        const float r = p[0];
-                        const float g = p[1];
-                        _print(ftk::Format("P3 JPEG red as extended sRGB: {0} {1}").arg(r).arg(g));
-                        FTK_CHECK(r > 1.03F);
-                        FTK_CHECK(g < -.1F);
-                    }
-                    else
-                    {
-                        FTK_CHECK(ftk::ImageType::RGBA_U8 == image->getType());
-                        FTK_CHECK(isRed(image->getData() + (8 * 16 + 8) * 4));
-                    }
+                    FTK_CHECK(ftk::ImageType::RGBA_U8 == image->getType());
+                    const uint8_t* p = image->getData() + (8 * 16 + 8) * 4;
+                    _print(ftk::Format("{0} {1}: {2} {3} {4}").
+                        arg(p3 ? "P3" : "sRGB").arg(ext).arg(p[0]).arg(p[1]).arg(p[2]));
+                    FTK_CHECK(std::abs(p[0] - 200) <= 4 && p[1] <= 4 && p[2] <= 4);
+                    FTK_CHECK(p3 == (image->getTags().count("Color Primaries") > 0));
                 }
             }
 #endif // TLRENDER_OIIO
