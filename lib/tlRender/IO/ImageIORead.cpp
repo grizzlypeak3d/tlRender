@@ -110,9 +110,37 @@ namespace tl
                     ftk::Size2I(w, h);
             }
 
-            ftk::ImageInfo imageInfo(const ftk::Size2I& size)
+            //! Whether a picture holds more than eight bit sRGB does: a
+            //! wider gamut, as the Display P3 of an iPhone's photos, or
+            //! more than eight bits. The image is made without decoding
+            //! it, to ask its color space.
+            bool isWide(CGImageSourceRef source)
             {
-                ftk::ImageInfo out(size, ftk::ImageType::RGBA_U8);
+                bool out = false;
+                if (CF<CFDictionaryRef> properties{ CGImageSourceCopyPropertiesAtIndex(source, 0, nullptr) })
+                {
+                    out = getInt(properties.get(), kCGImagePropertyDepth, 8) > 8;
+                }
+                if (!out)
+                {
+                    if (CF<CGImageRef> image{ CGImageSourceCreateImageAtIndex(source, 0, nullptr) })
+                    {
+                        if (CGColorSpaceRef colorSpace = CGImageGetColorSpace(image.get()))
+                        {
+                            out = CGColorSpaceIsWideGamutRGB(colorSpace);
+                        }
+                    }
+                }
+                return out;
+            }
+
+            //! Eight bit sRGB, or for a wide picture half float extended
+            //! sRGB: the colors past sRGB's as values past zero and one,
+            //! which is how the view takes them, so that a wide display
+            //! shows them.
+            ftk::ImageInfo imageInfo(const ftk::Size2I& size, bool wide)
+            {
+                ftk::ImageInfo out(size, wide ? ftk::ImageType::RGBA_F16 : ftk::ImageType::RGBA_U8);
                 // Core Graphics gives the top row first.
                 out.layout.mirror.y = true;
                 return out;
@@ -133,7 +161,7 @@ namespace tl
         {
             CF<CGImageSourceRef> source(createSource(fileName, memory));
             IOInfo out;
-            out.video.push_back(imageInfo(getSize(source.get(), fileName)));
+            out.video.push_back(imageInfo(getSize(source.get(), fileName), isWide(source.get())));
             return out;
         }
 
@@ -145,6 +173,7 @@ namespace tl
         {
             CF<CGImageSourceRef> source(createSource(fileName, memory));
             const ftk::Size2I size = getSize(source.get(), fileName);
+            const bool wide = isWide(source.get());
 
             // The whole picture, turned the way its orientation says: what
             // the thumbnail call does when asked for the full size, from
@@ -180,23 +209,26 @@ namespace tl
                     "Cannot decode file: \"{0}\"").arg(fileName).str());
             }
 
-            // Drawn into the image's own memory, in sRGB, which is what an
-            // 8-bit picture is taken to be here: a wider gamut, as an
-            // iPhone's Display P3, is converted and clipped. The alpha is
-            // premultiplied, which an opaque photo does not notice.
+            // Drawn into the image's own memory, converted on the way: to
+            // sRGB, which is what an eight bit picture is taken to be here,
+            // or for a wide one to extended sRGB, which keeps the colors
+            // sRGB cannot hold. The alpha is premultiplied, which an opaque
+            // photo does not notice.
             VideoData out;
             out.time = time;
-            out.image = ftk::Image::create(imageInfo(size));
+            out.image = ftk::Image::create(imageInfo(size, wide));
             std::memset(out.image->getData(), 0, out.image->getByteCount());
-            CF<CGColorSpaceRef> colorSpace(CGColorSpaceCreateWithName(kCGColorSpaceSRGB));
+            CF<CGColorSpaceRef> colorSpace(CGColorSpaceCreateWithName(
+                wide ? kCGColorSpaceExtendedSRGB : kCGColorSpaceSRGB));
             CF<CGContextRef> context(CGBitmapContextCreate(
                 out.image->getData(),
                 size.w,
                 size.h,
-                8,
-                static_cast<size_t>(size.w) * 4,
+                wide ? 16 : 8,
+                static_cast<size_t>(size.w) * (wide ? 8 : 4),
                 colorSpace.get(),
-                static_cast<CGBitmapInfo>(kCGImageAlphaPremultipliedLast)));
+                static_cast<CGBitmapInfo>(kCGImageAlphaPremultipliedLast) |
+                    (wide ? (kCGBitmapFloatComponents | kCGBitmapByteOrder16Little) : 0)));
             if (!context)
             {
                 throw std::runtime_error(ftk::Format(
