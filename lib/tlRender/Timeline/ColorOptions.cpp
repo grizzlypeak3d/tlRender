@@ -84,6 +84,7 @@ namespace tl
                 if (!chromaticities.empty())
                 {
                     out["Chromaticities"] = chromaticities;
+                    out["Color Transfer"] = transfer;
                 }
             }
             else if (!primaries.empty())

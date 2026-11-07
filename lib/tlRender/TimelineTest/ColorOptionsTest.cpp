@@ -46,6 +46,8 @@ namespace tl
                 FTK_CHECK("iec61966-2-1" == tags["Color Transfer"]);
                 tags = getDisplayColorTags(options, true);
                 FTK_CHECK("0.68 0.32 0.265 0.69 0.15 0.06 0.3127 0.329" == tags["Chromaticities"]);
+                FTK_CHECK("iec61966-2-1" == tags["Color Transfer"]);
+                FTK_CHECK(tags.find("Color Primaries") == tags.end());
                 // A display not known, or no display transform: nothing.
                 options.display = "Somewhere - Display";
                 FTK_CHECK(getDisplayColorTags(options, false).empty());

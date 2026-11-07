@@ -4,6 +4,9 @@
 #include <tlRender/IOTest/ImageIOTest.h>
 
 #include <tlRender/IO/ImageIO.h>
+#if defined(TLRENDER_OIIO)
+#include <tlRender/IO/OIIO.h>
+#endif // TLRENDER_OIIO
 #include <tlRender/IO/System.h>
 
 #include <ftk/Core/Assert.h>
@@ -212,6 +215,55 @@ namespace tl
                     FTK_CHECK(std::abs(a - 1.F) < .01F);
                 }
             }
+
+#if defined(TLRENDER_OIIO)
+            // A JPEG written through a Display P3 display, the profile
+            // embedded from its tags, read back by Apple's decoder: what
+            // was P3's red is past sRGB's. Without the tags it is sRGB.
+            if (auto writePlugin = _context->getSystem<WriteSystem>()->getPlugin<oiio::WritePlugin>())
+            {
+                const ftk::ImageInfo info(16, 16, ftk::ImageType::RGB_U8);
+                auto red = ftk::Image::create(info);
+                for (size_t i = 0; i < 16 * 16; ++i)
+                {
+                    red->getData()[i * 3] = 255;
+                    red->getData()[i * 3 + 1] = 0;
+                    red->getData()[i * 3 + 2] = 0;
+                }
+                for (const bool p3 : { true, false })
+                {
+                    const ftk::Path path(ftk::fromFileSystem(
+                        _getTempDir() / (p3 ? "ImageIOTestWide.jpg" : "ImageIOTestNarrow.jpg")));
+                    IOInfo ioInfo;
+                    ioInfo.video.push_back(info);
+                    ioInfo.videoTime = OTIO_NS::TimeRange(
+                        OTIO_NS::RationalTime(0.0, 24.0),
+                        OTIO_NS::RationalTime(1.0, 24.0));
+                    if (p3)
+                    {
+                        ioInfo.tags["Chromaticities"] = "0.68 0.32 0.265 0.69 0.15 0.06 0.3127 0.329";
+                        ioInfo.tags["Color Transfer"] = "iec61966-2-1";
+                    }
+                    writePlugin->write(path, ioInfo)->writeVideo(OTIO_NS::RationalTime(0.0, 24.0), red);
+                    auto image = _read(plugin, path, false);
+                    if (p3)
+                    {
+                        FTK_CHECK(ftk::ImageType::RGBA_F16 == image->getType());
+                        const half* p = reinterpret_cast<const half*>(image->getData()) + (8 * 16 + 8) * 4;
+                        const float r = p[0];
+                        const float g = p[1];
+                        _print(ftk::Format("P3 JPEG red as extended sRGB: {0} {1}").arg(r).arg(g));
+                        FTK_CHECK(r > 1.03F);
+                        FTK_CHECK(g < -.1F);
+                    }
+                    else
+                    {
+                        FTK_CHECK(ftk::ImageType::RGBA_U8 == image->getType());
+                        FTK_CHECK(isRed(image->getData() + (8 * 16 + 8) * 4));
+                    }
+                }
+            }
+#endif // TLRENDER_OIIO
 
             // A file that is not an image, and one that is not there.
             const ftk::Path badPath(ftk::fromFileSystem(_getTempDir() / "ImageIOTestBad.heic"));

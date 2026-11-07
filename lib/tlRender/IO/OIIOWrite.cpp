@@ -3,6 +3,8 @@
 
 #include <tlRender/IO/OIIO.h>
 
+#include <tlRender/Core/ICC.h>
+
 #include <ftk/Core/Error.h>
 #include <ftk/Core/Format.h>
 #include <ftk/Core/Memory.h>
@@ -137,9 +139,30 @@ namespace tl
                 info.size.h,
                 ftk::getChannelCount(info.type),
                 toOIIO(info.type));
+            // What the file was opened with, then what the image says, as
+            // the EXR writer has them.
+            ftk::ImageTags tags = _info.tags;
             for (const auto& tag : image->getTags())
             {
+                tags[tag.first] = tag.second;
+            }
+            for (const auto& tag : tags)
+            {
                 oiioSpec.attribute(tag.first, tag.second);
+            }
+            // The colors, for what reads the file: without a profile a
+            // display's pixels other than sRGB's, Display P3's, are taken
+            // for sRGB.
+            if ("jpeg" == format || "tiff" == format || "png" == format)
+            {
+                const std::vector<uint8_t> icc = getICCProfile(tags);
+                if (!icc.empty())
+                {
+                    oiioSpec.attribute(
+                        "ICCProfile",
+                        OIIO::TypeDesc(OIIO::TypeDesc::UINT8, icc.size()),
+                        icc.data());
+                }
             }
             if ("openexr" == format)
             {

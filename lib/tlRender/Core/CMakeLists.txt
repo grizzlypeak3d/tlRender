@@ -5,6 +5,7 @@ set(HEADERS
     Export.h
     HDR.h
     HDRInline.h
+    ICC.h
     ImageScale.h
     Quantize.h
     Time.h
@@ -17,6 +18,7 @@ set(SOURCE
     Audio.cpp
     AudioResample.cpp
     HDR.cpp
+    ICC.cpp
     ImageScale.cpp
     Quantize.cpp
     Time.cpp

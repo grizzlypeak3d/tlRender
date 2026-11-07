@@ -48,9 +48,11 @@ namespace tl
     //! The common displays of the OpenColorIO configurations are named;
     //! an unrecognized display, or options that do not render through a
     //! display transform, return nothing rather than guess. Sequences
-    //! take the "Chromaticities" tag, movies "Color Primaries" and
-    //! "Color Transfer"; the YUV matrix is left unsaid either way, since
-    //! it belongs to the encoder's conversion, not the display.
+    //! take the "Chromaticities" tag, movies "Color Primaries"; both take
+    //! "Color Transfer", which for a sequence is what its ICC profile is
+    //! made from with the chromaticities (see getICCProfile()). The YUV
+    //! matrix is left unsaid either way, since it belongs to the
+    //! encoder's conversion, not the display.
     TL_TIMELINE_API ftk::ImageTags getDisplayColorTags(
         const OCIOOptions&,
         bool sequence);
