@@ -1,5 +1,6 @@
 set(HEADERS
     AudioTest.h
+    GamutTest.h
     HDRTest.h
     ICCTest.h
     QuantizeTest.h
@@ -8,6 +9,7 @@ set(HEADERS
 
 set(SOURCE
     AudioTest.cpp
+    GamutTest.cpp
     HDRTest.cpp
     ICCTest.cpp
     QuantizeTest.cpp

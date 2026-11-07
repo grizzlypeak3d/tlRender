@@ -41,6 +41,7 @@
 #endif // TLRENDER_IMAGEIO
 
 #include <tlRender/CoreTest/AudioTest.h>
+#include <tlRender/CoreTest/GamutTest.h>
 #include <tlRender/CoreTest/HDRTest.h>
 #include <tlRender/CoreTest/ICCTest.h>
 #include <tlRender/CoreTest/TimeTest.h>
@@ -119,6 +120,7 @@ namespace tl
 
             // Core tests.
             p.tests.push_back(core_tests::AudioTest::create(context));
+            p.tests.push_back(core_tests::GamutTest::create(context));
             p.tests.push_back(core_tests::HDRTest::create(context));
             p.tests.push_back(core_tests::ICCTest::create(context));
             p.tests.push_back(core_tests::QuantizeTest::create(context));

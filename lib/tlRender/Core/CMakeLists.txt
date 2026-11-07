@@ -3,6 +3,7 @@ set(HEADERS
     AudioInline.h
     AudioResample.h
     Export.h
+    Gamut.h
     HDR.h
     HDRInline.h
     ICC.h
@@ -17,6 +18,7 @@ set(HEADERS
 set(SOURCE
     Audio.cpp
     AudioResample.cpp
+    Gamut.cpp
     HDR.cpp
     ICC.cpp
     ImageScale.cpp

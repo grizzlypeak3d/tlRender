@@ -9,6 +9,7 @@
 #include <tlRender/IO/System.h>
 
 #include <tlRender/Core/AudioResample.h>
+#include <tlRender/Core/Gamut.h>
 #include <tlRender/Core/ImageScale.h>
 
 #include <ftk/Core/Context.h>
@@ -1029,7 +1030,14 @@ namespace tl
                             ftk::LogType::Warning);
                     }
                 }
-                return scale->process(image);
+                auto out = scale->process(image);
+                // Shown as sRGB wherever a thumbnail goes: a Display P3
+                // picture's taken into it, or its colors would be duller.
+                if (out && isDisplayP3(image->getTags()))
+                {
+                    displayP3ToSRGB(out);
+                }
+                return out;
             }
         }
 

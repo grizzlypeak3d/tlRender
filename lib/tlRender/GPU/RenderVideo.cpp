@@ -3,6 +3,8 @@
 
 #include <tlRender/GPU/RenderPrivate.h>
 
+#include <tlRender/Core/Gamut.h>
+
 #include <tlRender/Timeline/Util.h>
 
 #include <ftk/Core/Format.h>
@@ -675,16 +677,10 @@ namespace tl
 #if defined(TLRENDER_OCIO)
             ocioBound = p.ocioDataBound.get() != nullptr;
 #endif // TLRENDER_OCIO
-            bool sourceP3 = false;
-            if (!videoFrame.layers.empty() && videoFrame.layers.front().image)
-            {
-                const auto& tags = videoFrame.layers.front().image->getTags();
-                const auto primaries = tags.find("Color Primaries");
-                const auto transfer = tags.find("Color Transfer");
-                sourceP3 =
-                    primaries != tags.end() && "smpte432" == primaries->second &&
-                    transfer != tags.end() && "iec61966-2-1" == transfer->second;
-            }
+            const bool sourceP3 =
+                !videoFrame.layers.empty() &&
+                videoFrame.layers.front().image &&
+                isDisplayP3(videoFrame.layers.front().image->getTags());
             uniforms.displayP3 = p.window && (ocioBound ? p.displayP3 : sourceP3) ? 1 : 0;
 
             // At the one to one size nothing needs filtering, so nothing
