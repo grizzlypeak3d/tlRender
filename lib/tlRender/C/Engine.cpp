@@ -37,6 +37,8 @@
 #include <ftk/Core/ObservableList.h>
 
 #include <SDL3/SDL.h>
+
+#include <half.h>
 // For SDL_SetMainReady() only: SDL did not start this program, and the
 // main it would otherwise insist on is the application's own.
 #define SDL_MAIN_HANDLED
@@ -333,6 +335,8 @@ struct tl_view
     std::shared_ptr<ftk::gpu::Present> present;
     std::shared_ptr<tl::gpu::Render> render;
     std::shared_ptr<ftk::gpu::OffscreenBuffer> buffer;
+    //! What tl_view_sample() draws into.
+    std::shared_ptr<ftk::gpu::OffscreenBuffer> sampleBuffer;
     tl_player* player = nullptr;
     //! Where the picture goes, in pixels; empty for the whole view, as it
     //! is until set (a default box is one pixel, not empty).
@@ -1639,6 +1643,58 @@ namespace
         }
         return out;
     }
+
+    //! The picture into a buffer, placed by a view matrix: the background
+    //! behind it, the picture, and the foreground over it, as the
+    //! viewport draws them, and with the view's own drawing what is drawn
+    //! over the picture and the widgets. The color options are given
+    //! every draw; the renderer keeps its processors when they have not
+    //! changed.
+    void drawPicture(
+        tl_view* view,
+        const std::shared_ptr<ftk::gpu::OffscreenBuffer>& buffer,
+        const std::vector<tl::VideoFrame>& frames,
+        const std::vector<ftk::Box2I>& boxes,
+        const ftk::M44F& vm,
+        const ftk::ImageOptions& imageOptions,
+        bool over)
+    {
+        const ftk::Size2I size = buffer->getSize();
+        const ftk::M44F pm = ftk::ortho(
+            0.F, static_cast<float>(size.w), static_cast<float>(size.h), 0.F, -1.F, 1.F);
+        const tl::CompareOptions& compare = view->compareOptions;
+        auto base = view->render->getBaseRender();
+        base->setTarget(buffer);
+        view->render->begin(size);
+        view->render->setOCIOOptions(view->ocioOptions);
+        view->render->setOCIOInputResolver(view->ocioInputResolver);
+        view->render->setLUTOptions(view->lutOptions);
+        view->render->setTransform(pm);
+        view->render->drawBackground(boxes, vm, view->backgroundOptions, compare);
+        view->render->setTransform(pm * vm);
+        view->render->drawVideo(
+            frames,
+            boxes,
+            { imageOptions },
+            { view->displayOptions },
+            compare,
+            ftk::ImageType::RGBA_F16);
+        view->render->setTransform(pm);
+        view->render->drawForeground(boxes, vm, view->foregroundOptions, compare);
+        if (over && view->overlay)
+        {
+            view->render->setTransform(pm);
+            view->overlay(view->render);
+        }
+        // The widgets over the picture, in the buffer's own coordinates.
+        if (over && view->widgets)
+        {
+            view->render->setTransform(pm);
+            view->widgets->setFrames(size, view->timelineFrame, view->displayScale);
+            view->widgets->draw(view->render);
+        }
+        view->render->end();
+    }
 }
 }
 
@@ -1921,44 +1977,7 @@ void tl_view_draw(tl_view* view)
         const ftk::M44F vm =
             ftk::translate(ftk::V3F(pos.x, pos.y, 0.F)) *
             ftk::scale(ftk::V3F(zoom, zoom, 1.F));
-        const ftk::M44F pm = ftk::ortho(
-            0.F, static_cast<float>(w), static_cast<float>(h), 0.F, -1.F, 1.F);
-
-        auto base = view->render->getBaseRender();
-        base->setTarget(view->buffer);
-        view->render->begin(size);
-        // The background behind the picture, the picture, and the
-        // foreground over it, as the viewport draws them, into the one
-        // buffer here. The color options are given every draw; the
-        // renderer keeps its processors when they have not changed.
-        view->render->setOCIOOptions(view->ocioOptions);
-        view->render->setOCIOInputResolver(view->ocioInputResolver);
-        view->render->setLUTOptions(view->lutOptions);
-        view->render->setTransform(pm);
-        view->render->drawBackground(boxes, vm, view->backgroundOptions, compare);
-        view->render->setTransform(pm * vm);
-        view->render->drawVideo(
-            frames,
-            boxes,
-            { view->imageOptions },
-            { view->displayOptions },
-            compare,
-            ftk::ImageType::RGBA_F16);
-        view->render->setTransform(pm);
-        view->render->drawForeground(boxes, vm, view->foregroundOptions, compare);
-        if (view->overlay)
-        {
-            view->render->setTransform(pm);
-            view->overlay(view->render);
-        }
-        // The widgets over the picture, in the buffer's own coordinates.
-        if (view->widgets)
-        {
-            view->render->setTransform(pm);
-            view->widgets->setFrames(size, view->timelineFrame, view->displayScale);
-            view->widgets->draw(view->render);
-        }
-        view->render->end();
+        drawPicture(view, view->buffer, frames, boxes, vm, view->imageOptions, true);
 
         // To the view's swapchain: the texture is the view's for this
         // frame only, and submitting the command buffer presents it.
@@ -1996,6 +2015,130 @@ void tl_view_draw(tl_view* view)
     }
 }
 
+}
+
+int tl_view_sample(tl_view* view, float x, float y, float zoom, int size, uint8_t* rgba, tl_sample* out)
+{
+    if (out)
+    {
+        *out = tl_sample();
+    }
+    if (!view || !view->render || size <= 0 || zoom <= 0.F || view->picture.zoom <= 0.F)
+        return 0;
+    try
+    {
+        auto& gpu = view->engine->gpu;
+        const ftk::Size2I bufferSize(size, size);
+        if (!view->sampleBuffer || view->sampleBuffer->getSize() != bufferSize)
+        {
+            view->sampleBuffer = ftk::gpu::OffscreenBuffer::create(
+                gpu, bufferSize, ftk::gpu::BufferType::RGBA_F16);
+        }
+
+        std::vector<tl::VideoFrame> frames;
+        if (view->player)
+        {
+            frames = view->player->player->observeCurrentVideo()->get();
+        }
+        const tl::AspectRatioOptions aspect;
+        const auto boxes = tl::getBoxes(view->compareOptions, aspect, frames);
+
+        // The point in the picture's space, and the image pixel under it,
+        // whose center is put at the loupe's center.
+        const tl::c::ViewPicture& picture = view->picture;
+        ftk::V2F center(
+            (x - picture.pos.x) / picture.zoom,
+            (y - picture.pos.y) / picture.zoom);
+        const ftk::Box2I& box = picture.box;
+        const ftk::Size2I& imageSize = picture.imageSize;
+        bool onPicture = false;
+        float pixelSize = 0.F;
+        int px = 0;
+        int py = 0;
+        if (box.isValid() && imageSize.isValid() && box.w() > 0 && box.h() > 0)
+        {
+            const float sx = box.w() / static_cast<float>(imageSize.w);
+            const float sy = box.h() / static_cast<float>(imageSize.h);
+            px = static_cast<int>(std::floor((center.x - box.min.x) / sx));
+            py = static_cast<int>(std::floor((center.y - box.min.y) / sy));
+            onPicture = px >= 0 && px < imageSize.w && py >= 0 && py < imageSize.h;
+            if (onPicture)
+            {
+                center.x = box.min.x + (px + .5F) * sx;
+                center.y = box.min.y + (py + .5F) * sy;
+            }
+            pixelSize = sx * picture.zoom * zoom;
+        }
+
+        // Enlarged about that point, the pixels as squares.
+        const float z = picture.zoom * zoom;
+        const ftk::M44F vm =
+            ftk::translate(ftk::V3F(size / 2.F - center.x * z, size / 2.F - center.y * z, 0.F)) *
+            ftk::scale(ftk::V3F(z, z, 1.F));
+        ftk::ImageOptions imageOptions = view->imageOptions;
+        imageOptions.imageFilters.magnify = ftk::ImageFilter::Nearest;
+        drawPicture(view, view->sampleBuffer, frames, boxes, vm, imageOptions, false);
+
+        // One read back, of the floats: the loupe from them, clamped to
+        // eight bits as the screen shows them, and the center pixel as
+        // it is. A read back waits for the picture to be drawn, so two
+        // took twice as long.
+        ftk::Color4F c;
+        if (auto image = view->sampleBuffer->read())
+        {
+            const auto& info = image->getInfo();
+            if (info.size == bufferSize && ftk::ImageType::RGBA_F16 == info.type)
+            {
+                const size_t rowHalves = image->getByteCount() / sizeof(half) / size;
+                const half* data = reinterpret_cast<const half*>(image->getData());
+                // The rows top first, whichever the image keeps first.
+                const auto row = [&](int y)
+                {
+                    return data + (info.layout.mirror.y ? (size - 1 - y) : y) * rowHalves;
+                };
+                if (rgba)
+                {
+                    for (int y = 0; y < size; ++y)
+                    {
+                        const half* in = row(y);
+                        uint8_t* outRow = rgba + static_cast<size_t>(y) * size * 4;
+                        for (int i = 0; i < size * 4; ++i)
+                        {
+                            const float v = in[i];
+                            outRow[i] = static_cast<uint8_t>(
+                                std::lround(std::min(std::max(v, 0.F), 1.F) * 255.F));
+                        }
+                    }
+                }
+                const half* p = row(size / 2) + (size / 2) * 4;
+                c = ftk::Color4F(p[0], p[1], p[2], p[3]);
+            }
+        }
+        if (out)
+        {
+            out->onPicture = onPicture ? 1 : 0;
+            out->x = px;
+            out->y = py;
+            out->pixelSize = pixelSize;
+            if (onPicture)
+            {
+                const auto clean = [](float value)
+                {
+                    return std::isnan(value) || std::isinf(value) ? 0.F : value;
+                };
+                out->color[0] = clean(c.r);
+                out->color[1] = clean(c.g);
+                out->color[2] = clean(c.b);
+                out->color[3] = clean(c.a);
+            }
+        }
+        return 1;
+    }
+    catch (const std::exception& e)
+    {
+        setError(view->engine, e.what());
+    }
+    return 0;
 }
 
 namespace tl

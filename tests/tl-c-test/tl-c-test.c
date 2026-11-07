@@ -409,6 +409,20 @@ static void extensions(tl_engine* engine)
     CHECK(strcmp(tl_engine_get_image_extensions(NULL), "") == 0);
 }
 
+/* Sampling without a view: nothing, and what it found cleared. A view
+ * needs a window, which the tests do not open. */
+static void samples(void)
+{
+    tl_sample sample;
+    memset(&sample, 0xff, sizeof(sample));
+    unsigned char rgba[4 * 4 * 4];
+    CHECK(tl_view_sample(NULL, 0.F, 0.F, 8.F, 4, rgba, &sample) == 0);
+    CHECK(sample.onPicture == 0);
+    CHECK(sample.x == 0 && sample.y == 0);
+    CHECK(sample.color[0] == 0.F && sample.pixelSize == 0.F);
+    CHECK(tl_view_sample(NULL, 0.F, 0.F, 8.F, 4, NULL, NULL) == 0);
+}
+
 int main(void)
 {
     tl_engine* engine = tl_engine_create(NULL);
@@ -422,6 +436,7 @@ int main(void)
     }
 
     extensions(engine);
+    samples();
     players(engine);
     timelines(engine);
     bundles(engine);

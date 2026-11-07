@@ -9,6 +9,7 @@
 //! called on the main thread.
 
 #include <stddef.h>
+#include <stdint.h>
 #include <tlRender/C/Export.h>
 
 #ifdef __cplusplus
@@ -356,6 +357,30 @@ TL_C_API int tl_view_needs_draw(tl_view*);
 //! How many times the view has been drawn, for a readout of draws a second.
 TL_C_API size_t tl_view_get_draw_count(tl_view*);
 TL_C_API void tl_view_draw(tl_view*);
+
+//! What tl_view_sample() found under a point.
+typedef struct tl_sample
+{
+    //! Whether the point is on the picture; the rest is zero when not.
+    int onPicture;
+    //! The image pixel under the point, as drawn: after the color options,
+    //! with values past one and below zero kept. RGBA.
+    float color[4];
+    //! The pixel, from the image's top left.
+    int x;
+    int y;
+    //! How wide an image pixel is in the loupe, in its pixels.
+    float pixelSize;
+} tl_sample;
+
+//! A loupe: the picture about a point of the view, in view pixels,
+//! enlarged by a zoom over the view's own, as the view draws it but
+//! without what is drawn over it, its pixels as squares. The image pixel
+//! under the point is centered. Drawn size by size pixels into rgba, eight
+//! bits a channel with the top row first, size * size * 4 bytes; rgba may
+//! be NULL. Returns 0 before the view has drawn, or on an error.
+TL_C_API int tl_view_sample(
+    tl_view*, float x, float y, float zoom, int size, uint8_t* rgba, tl_sample*);
 
 //! How far writing a bundle has got: minus one now and then while the
 //! media folder is being looked through, then the fraction of the media's
