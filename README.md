@@ -180,8 +180,14 @@ on some pip builds it from source, which needs a C++ compiler.
 ### Without a display
 
 A script with no window drives the player itself. Nothing updates between
-calls to `Context.tick()`, and after a seek the player's current frame is the
-previous one until the new one is decoded, so wait for the time asked for:
+calls to `Context.tick()`, which does not wait: frames are decoded on other
+threads and a tick only takes in what has finished, so sleep a little between
+ticks. After a seek the player's current frame is the previous one until the
+new one is decoded, so wait for the time asked for. No playback, clock or
+audio device is needed to get a frame.
+
+One frame of a sequence opens that frame alone; `ftk.expandSeq` finds the
+rest of the sequence beside it on disk:
 
 ```python
 import numpy as np
@@ -191,7 +197,8 @@ import time
 
 context = ftk.Context()
 tl.init(context)
-timeline = tl.Timeline(context, ftk.Path("render.0001.exr"))
+path = ftk.expandSeq(ftk.Path("render.0001.exr"), ftk.PathOptions())
+timeline = tl.Timeline(context, path)
 player = tl.Player(context, timeline)
 
 def frame_at(t):
@@ -209,14 +216,16 @@ pixels = np.asarray(image)       # (height, width, channels), the right way up
 print(pixels.dtype, pixels.shape, pixels.max())
 ```
 
-A `Timeline` also takes an `opentimelineio.schema.Timeline` object, so a cut
-built or edited in Python plays without being written to a file first.
+A `Timeline` also takes an `opentimelineio.schema.Timeline` object, so a
+timeline built or edited in Python plays without being written to a file
+first.
 
 `OffscreenRender` draws frames the way a viewport does, a compare included,
 to an image you can write or read:
 
 ```python
-player.compare = [tl.Timeline(context, ftk.Path("v002/render.0001.exr"))]
+v002 = ftk.expandSeq(ftk.Path("v002/render.0001.exr"), ftk.PathOptions())
+player.compare = [tl.Timeline(context, v002)]
 options = tl.CompareOptions()
 options.compare = tl.Compare.Tile
 t = timeline.timeRange.start_time

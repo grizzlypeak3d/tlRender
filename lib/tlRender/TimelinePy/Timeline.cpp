@@ -33,7 +33,12 @@ namespace tl
                 "A timeline opened for playback: an OpenTimelineIO file, a "
                 "movie, an image sequence, or an opentimelineio Timeline "
                 "object, with its media found and its video and audio "
-                "described in ioInfo. Played by a Player.")
+                "described in ioInfo. Played by a Player.\n"
+                "\n"
+                "One frame of a sequence, such as render.0001.exr, opens "
+                "that frame alone. For the whole sequence pass "
+                "ftk.expandSeq(path, ftk.PathOptions()), which finds the "
+                "frames beside it on disk.")
                 .def(nb::new_(nb::overload_cast<
                         const std::shared_ptr<ftk::Context>&,
                         const ftk::Path&,

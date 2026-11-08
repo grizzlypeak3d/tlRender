@@ -67,7 +67,9 @@ namespace tl
                 "Plays a timeline: decodes its video and audio, ahead of "
                 "the current time, on threads of its own. What it has "
                 "decoded reaches currentVideo and the observers only in "
-                "Context.tick(), so a script calls tick() while it waits.")
+                "Context.tick(), so a script calls tick() while it waits, "
+                "sleeping a few milliseconds between calls: tick() does not "
+                "wait for the threads.")
                 .def(
                     nb::new_(nb::overload_cast<
                         const std::shared_ptr<ftk::Context>&,
@@ -183,7 +185,11 @@ namespace tl
                     nb::rv_policy::copy,
                     "The video frames last decoded: one for this timeline, "
                     "then one for each compare timeline. Updated only in "
-                    "Context.tick(). After a seek it holds the previous frame "
+                    "Context.tick(), which does not wait for decoding, so it "
+                    "is empty until the first frame is in; sleep between "
+                    "ticks. No playback, clock or audio device is needed: a "
+                    "stopped player decodes the frame at its current time. "
+                    "After a seek it holds the previous frame "
                     "until the new one is decoded, as a viewer keeps showing "
                     "it, so check each frame's time against the time wanted "
                     "rather than taking the first one that arrives.")

@@ -364,6 +364,24 @@ class TimelineTest(unittest.TestCase):
             if channels == 4:
                 self.assertEqual(data[1, 1, 3], 255)
 
+    def test_sequence_expand(self):
+        # One frame of a sequence opens that frame alone, and expandSeq
+        # finds the rest, as the docs say.
+        with tempfile.TemporaryDirectory() as dir:
+            for i in range(3):
+                writePNG(os.path.join(dir, "render.%04d.png" % (i + 1)),
+                    [[(i * 100, 0, 0)]])
+            path = ftk.Path(os.path.join(dir, "render.0001.png"))
+            timeline = tl.Timeline(self.context, path)
+            self.assertEqual(1, timeline.timeRange.duration.value)
+            timeline = tl.Timeline(self.context,
+                ftk.expandSeq(path, ftk.PathOptions()))
+            self.assertEqual(
+                otio.opentime.TimeRange(
+                    otio.opentime.RationalTime(1, 24),
+                    otio.opentime.RationalTime(3, 24)),
+                timeline.timeRange)
+
     def test_pixels_upright(self):
         # Which way up the pixels are, against files made and read without
         # the library: row zero of the view is the top of the picture, read
