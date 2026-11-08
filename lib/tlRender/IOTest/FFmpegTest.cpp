@@ -833,6 +833,13 @@ namespace tl
                 FTK_CHECK(!info.audio.isValid());
                 FTK_CHECK(read->getError().find("FFmpeg is needed to read") != std::string::npos);
             }
+            {
+                // No command line to name in the system information.
+                auto writePlugin = _context->getSystem<WriteSystem>()->getPlugin<ffmpeg::WritePlugin>();
+                const std::string info = writePlugin->getPluginInfo(options);
+                FTK_CHECK(!info.empty());
+                FTK_CHECK(info.find("command line") == std::string::npos);
+            }
         }
 
         void FFmpegTest::_pixelAspectRatio()
@@ -1110,6 +1117,20 @@ namespace tl
             }
             auto readSystem = _context->getSystem<ReadSystem>();
             auto writeSystem = _context->getSystem<WriteSystem>();
+            {
+                // System information says which ffmpeg both read and write:
+                // the command line presets write with it too.
+                const std::string cmd =
+                    "(command line " + ffmpeg_cmd::getVersion(IOOptions(), nullptr) + ")";
+                const std::string readInfo =
+                    readSystem->getPlugin<ffmpeg::ReadPlugin>()->getPluginInfo();
+                const std::string writeInfo =
+                    writeSystem->getPlugin<ffmpeg::WritePlugin>()->getPluginInfo();
+                _print(readInfo);
+                _print(writeInfo);
+                FTK_CHECK(readInfo.find(cmd) != std::string::npos);
+                FTK_CHECK(writeInfo.find(cmd) != std::string::npos);
+            }
             const ftk::Path path(
                 ftk::fromFileSystem(_getTempDir() / "FFmpegCommandLineTest.mov"));
             auto readPlugin = readSystem->getPlugin(path);

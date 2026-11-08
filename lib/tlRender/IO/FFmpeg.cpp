@@ -889,9 +889,18 @@ namespace tl
             return Write::create(path, info, options, _logSystem.lock());
         }
 
-        std::string WritePlugin::getPluginInfo(const IOOptions&) const
+        std::string WritePlugin::getPluginInfo(const IOOptions& ioOptions) const
         {
-            return FFMPEG_VERSION;
+            // Both, as for reading: the command line presets write with the
+            // ffmpeg application, the codecs this build has not got.
+            std::string out = FFMPEG_VERSION;
+            const std::string cmd =
+                ffmpeg_cmd::getVersion(ioOptions, _logSystem.lock());
+            if (!cmd.empty())
+            {
+                out = ftk::Format("{0} (command line {1})").arg(out).arg(cmd);
+            }
+            return out;
         }
 
         void to_json(nlohmann::json& json, const Options& value)
