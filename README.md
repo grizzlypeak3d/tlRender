@@ -179,13 +179,8 @@ on some pip builds it from source, which needs a C++ compiler.
 
 ### Without a display
 
-A script with no window drives the player itself. Nothing updates between
-calls to `Context.tick()`, which does not wait: frames are decoded on other
-threads and a tick only takes in what has finished, so sleep a little between
-ticks. After a seek the player's current frame is the previous one until the
-new one is decoded, so wait for the time asked for. No playback, clock or
-audio device is needed to get a frame.
-
+A script with no window asks the timeline for frames. `Timeline.getVideo()`
+returns once the frame is decoded, with no player, clock or audio device.
 One frame of a sequence opens that frame alone; `ftk.expandSeq` finds the
 rest of the sequence beside it on disk:
 
@@ -193,48 +188,39 @@ rest of the sequence beside it on disk:
 import numpy as np
 import feather_tk as ftk
 import tlrender as tl
-import time
 
 context = ftk.Context()
 tl.init(context)
 path = ftk.expandSeq(ftk.Path("render.0001.exr"), ftk.PathOptions())
 timeline = tl.Timeline(context, path)
-player = tl.Player(context, timeline)
 
-def frame_at(t):
-    player.currentTime = t
-    while True:
-        context.tick()
-        for frame in player.currentVideo:
-            image = frame.layers[0].image if frame.layers else None
-            if frame.time == t and image and image.valid:
-                return image
-        time.sleep(0.005)
-
-image = frame_at(timeline.timeRange.start_time)
+frame = timeline.getVideo(timeline.timeRange.start_time)
+image = frame.layers[0].image
 pixels = np.asarray(image)       # (height, width, channels), the right way up
 print(pixels.dtype, pixels.shape, pixels.max())
 ```
+
+A time with no clip gives a frame with no layers, and a frame that cannot be
+read a layer whose image is `None`.
 
 A `Timeline` also takes an `opentimelineio.schema.Timeline` object, so a
 timeline built or edited in Python plays without being written to a file
 first.
 
 `OffscreenRender` draws frames the way a viewport does, a compare included,
-to an image you can write or read:
+to an image you can write or read. A compare is a frame from each timeline,
+the second at the time `getCompareTime()` gives, counted from its own start
+as a `Player` compares them:
 
 ```python
-v002 = ftk.expandSeq(ftk.Path("v002/render.0001.exr"), ftk.PathOptions())
-player.compare = [tl.Timeline(context, v002)]
+v002 = tl.Timeline(context,
+    ftk.expandSeq(ftk.Path("v002/render.0001.exr"), ftk.PathOptions()))
 options = tl.CompareOptions()
 options.compare = tl.Compare.Tile
 t = timeline.timeRange.start_time
-player.currentTime = t
-while not (len(player.currentVideo) == 2 and
-           all(f.time == t for f in player.currentVideo)):
-    context.tick()
-    time.sleep(0.005)
-image = tl.OffscreenRender(context).render(player.currentVideo, options)
+frames = [timeline.getVideo(t),
+          v002.getVideo(tl.getCompareTime(t, timeline.timeRange, v002.timeRange))]
+image = tl.OffscreenRender(context).render(frames, options)
 
 info = tl.IOInfo()
 info.video = [image.info]
@@ -259,6 +245,13 @@ one and Mesa's software renderer where there is not. Where there is no sound
 card either, set `SDL_AUDIO_DRIVER=dummy`: audio then goes nowhere, and the
 audio libraries are not asked for devices, which is what prints their errors
 in a container.
+
+For playback, a `Player` decodes ahead of its current time on threads of its
+own, and what it has decoded reaches `currentVideo` only in `Context.tick()`.
+A tick does not wait for anything, so a script playing without an
+application's event loop sleeps a few milliseconds between ticks. After a
+seek `currentVideo` holds the previous frame until the new one is decoded;
+check each frame's time.
 
 The [Python examples](https://github.com/grizzlypeak3d/tlRender/tree/main/examples/python)
 show the API in use. The wheel also carries the C++ libraries, headers, and

@@ -135,7 +135,30 @@ namespace tl
                     &Timeline::getMediaFrameTime,
                     nb::arg("time"),
                     nb::arg("frame"))
-                .def("isMediaTimeContinuous", &Timeline::isMediaTimeContinuous);
+                .def("isMediaTimeContinuous", &Timeline::isMediaTimeContinuous)
+                // The future is waited on with the interpreter released:
+                // the decode runs on the timeline's threads and needs
+                // nothing from Python.
+                .def(
+                    "getVideo",
+                    [](Timeline& self,
+                        const OTIO_NS::RationalTime& time,
+                        const IOOptions& options)
+                    {
+                        auto request = self.getVideo(time, options);
+                        nb::gil_scoped_release release;
+                        return request.future.get();
+                    },
+                    nb::arg("time"),
+                    nb::arg("options") = IOOptions(),
+                    "The video at a time, decoded: returns once it is, with "
+                    "no Player and no Context.tick(). For a script that "
+                    "wants frames rather than playback. Each call decodes "
+                    "its frame; nothing is read ahead or kept, as a Player "
+                    "does for playback. Frames for OffscreenRender.render() "
+                    "are a list of these, one per timeline. A time with no "
+                    "clip gives a frame with no layers, and a frame that "
+                    "cannot be read a layer whose image is None.");
         }
     }
 }

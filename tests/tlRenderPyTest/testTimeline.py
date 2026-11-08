@@ -382,6 +382,38 @@ class TimelineTest(unittest.TestCase):
                     otio.opentime.RationalTime(3, 24)),
                 timeline.timeRange)
 
+    def test_get_video(self):
+        # Frames straight from the timeline: no player and no tick.
+        colors = [(255, 0, 0), (0, 255, 0), (0, 0, 255)]
+        with tempfile.TemporaryDirectory() as dir:
+            for i, color in enumerate(colors):
+                writePNG(os.path.join(dir, "render.%04d.png" % (i + 1)),
+                    [[color, color]])
+            path = ftk.expandSeq(
+                ftk.Path(os.path.join(dir, "render.0001.png")),
+                ftk.PathOptions())
+            timeline = tl.Timeline(self.context, path)
+            for i, color in enumerate(colors):
+                t = otio.opentime.RationalTime(i + 1, 24)
+                frame = timeline.getVideo(t)
+                self.assertEqual(t, frame.time)
+                image = frame.layers[0].image
+                self.assertTrue(image.valid)
+                data = image.data
+                self.assertEqual(color, tuple(data[0, 0, c] for c in range(3)))
+            frame = timeline.getVideo(otio.opentime.RationalTime(7, 24))
+            self.assertEqual(0, len(frame.layers))
+
+    def test_compare_time(self):
+        # The compared timeline's time counted from its own start, in its
+        # own rate, as a player compares them.
+        rt = otio.opentime.RationalTime
+        a = otio.opentime.TimeRange(rt(1, 24), rt(3, 24))
+        b = otio.opentime.TimeRange(rt(2002, 48), rt(6, 48))
+        self.assertEqual(rt(2004, 48), tl.getCompareTime(rt(2, 24), a, b))
+        self.assertEqual(rt(2, 24),
+            tl.getCompareTime(rt(2, 24), a, b, tl.CompareTime.Absolute))
+
     def test_pixels_upright(self):
         # Which way up the pixels are, against files made and read without
         # the library: row zero of the view is the top of the picture, read

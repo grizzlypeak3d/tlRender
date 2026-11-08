@@ -69,7 +69,8 @@ namespace tl
                 "decoded reaches currentVideo and the observers only in "
                 "Context.tick(), so a script calls tick() while it waits, "
                 "sleeping a few milliseconds between calls: tick() does not "
-                "wait for the threads.")
+                "wait for the threads. For frames without playback, "
+                "Timeline.getVideo() needs neither.")
                 .def(
                     nb::new_(nb::overload_cast<
                         const std::shared_ptr<ftk::Context>&,

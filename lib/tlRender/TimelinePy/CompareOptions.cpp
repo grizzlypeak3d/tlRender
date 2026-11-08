@@ -37,6 +37,19 @@ namespace tl
             FTK_ENUM_PY(m, CompareTime);
             FTK_ENUM_BIND(m, CompareTime);
 
+            m.def(
+                "getCompareTime",
+                &getCompareTime,
+                nb::arg("sourceTime"),
+                nb::arg("sourceTimeRange"),
+                nb::arg("compareTimeRange"),
+                nb::arg("compareTime") = CompareTime::Relative,
+                "The time in a compared timeline for a time in this one, as "
+                "a Player finds it: Relative counts from each timeline's "
+                "start, in the compared one's rate, Absolute takes the time "
+                "as it is. For Timeline.getVideo() on the compared "
+                "timeline.");
+
             nb::class_<CompareOptions>(
                 m, "CompareOptions",
                 "How compared timelines are drawn together: compare is the "
