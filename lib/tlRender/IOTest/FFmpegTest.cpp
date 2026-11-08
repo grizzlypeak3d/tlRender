@@ -477,13 +477,32 @@ namespace tl
                     FTK_CHECK(found);
                 }
             }
+            // The command line ones depend on the ffmpeg application's
+            // encoders, not on the ones built in: offered with an application
+            // that has the encoder, and not otherwise.
+            const auto cmdEncoders = ffmpeg_cmd::getEncoders(IOOptions(), nullptr);
+            _print(ftk::Format("Command line encoders: {0}").arg(cmdEncoders.size()));
             for (const auto& preset : all)
             {
-                // The command line ones depend on an ffmpeg application, not
-                // on the encoders built in, so they are always offered.
                 if (preset.command)
                 {
-                    FTK_CHECK(hasName(available, preset.name));
+                    std::string encoder;
+                    const auto i = preset.options.find("FFmpeg/WritePreset");
+                    FTK_CHECK(i != preset.options.end());
+                    for (const auto& cmdPreset : ffmpeg_cmd::getWritePresets())
+                    {
+                        if (cmdPreset.name == i->second)
+                        {
+                            const auto j = std::find(cmdPreset.args.begin(), cmdPreset.args.end(), "-codec:v");
+                            FTK_CHECK(j != cmdPreset.args.end() && j + 1 != cmdPreset.args.end());
+                            encoder = *(j + 1);
+                        }
+                    }
+                    FTK_CHECK(!encoder.empty());
+                    const bool has = std::find(cmdEncoders.begin(), cmdEncoders.end(), encoder) !=
+                        cmdEncoders.end();
+                    _print(ftk::Format("{0}: {1}").arg(preset.name).arg(has ? "offered" : "not offered"));
+                    FTK_CHECK(has == hasName(available, preset.name));
                 }
             }
             // The file types a preset names have to be ones this build
@@ -839,6 +858,13 @@ namespace tl
                 const std::string info = writePlugin->getPluginInfo(options);
                 FTK_CHECK(!info.empty());
                 FTK_CHECK(info.find("command line") == std::string::npos);
+
+                // Nor any command line preset to export with.
+                FTK_CHECK(ffmpeg_cmd::getEncoders(options, nullptr).empty());
+                for (const auto& preset : writePlugin->getWritePresets(options))
+                {
+                    FTK_CHECK(!preset.command);
+                }
             }
         }
 

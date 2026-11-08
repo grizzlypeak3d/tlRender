@@ -34,6 +34,7 @@ extern "C"
 #include <atomic>
 #include <cstdlib>
 #include <cstring>
+#include <optional>
 
 namespace tl
 {
@@ -806,10 +807,40 @@ namespace tl
             return _p->audioCodecNames;
         }
 
-        std::vector<WritePreset> WritePlugin::getWritePresets() const
+        namespace
+        {
+            // The encoder a command line preset hands the ffmpeg
+            // application.
+            std::string getCommandEncoder(const WritePreset& preset)
+            {
+                std::string out;
+                const auto i = preset.options.find("FFmpeg/WritePreset");
+                if (i != preset.options.end())
+                {
+                    for (const auto& cmdPreset : ffmpeg_cmd::getWritePresets())
+                    {
+                        if (cmdPreset.name == i->second)
+                        {
+                            const auto& args = cmdPreset.args;
+                            const auto j = std::find(args.begin(), args.end(), "-codec:v");
+                            if (j != args.end() && j + 1 != args.end())
+                            {
+                                out = *(j + 1);
+                            }
+                            break;
+                        }
+                    }
+                }
+                return out;
+            }
+        }
+
+        std::vector<WritePreset> WritePlugin::getWritePresets(const IOOptions& ioOptions) const
         {
             FTK_P();
             std::vector<WritePreset> out;
+            // Asked for only when there is a command line preset to offer.
+            std::optional<std::vector<std::string> > cmdEncoders;
             for (const auto& preset : ffmpeg::getWritePresets())
             {
 #if defined(__APPLE__) && TARGET_OS_IPHONE
@@ -820,8 +851,24 @@ namespace tl
                     continue;
                 }
 #endif // TARGET_OS_IPHONE
-                bool available = preset.command;
-                if (!available)
+                bool available = false;
+                if (preset.command)
+                {
+                    // The application's encoders rather than this build's,
+                    // which do not include these: offering one the
+                    // application has not got only fails once the export
+                    // starts.
+                    if (!cmdEncoders)
+                    {
+                        cmdEncoders = ffmpeg_cmd::getEncoders(ioOptions, _logSystem.lock());
+                    }
+                    const std::string encoder = getCommandEncoder(preset);
+                    available =
+                        !encoder.empty() &&
+                        std::find(cmdEncoders->begin(), cmdEncoders->end(), encoder) !=
+                            cmdEncoders->end();
+                }
+                else
                 {
                     const auto i = preset.options.find("FFmpeg/Codec");
                     available =

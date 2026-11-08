@@ -266,11 +266,13 @@ namespace tl
             //! Get the list of audio codecs.
             TL_IO_API const std::vector<std::string>& getAudioCodecs() const;
 
-            //! Get the movie export presets this build can write: the command
-            //! line ones, which depend on an ffmpeg application rather than on
-            //! this build, and the others whose encoder the FFmpeg libraries
-            //! have. A minimal FFmpeg leaves several of them out.
-            TL_IO_API std::vector<WritePreset> getWritePresets() const;
+            //! Get the movie export presets that can be written: the ones
+            //! whose encoder the FFmpeg libraries have, which a minimal
+            //! FFmpeg leaves several of, and the command line ones whose
+            //! encoder the ffmpeg application has. The options name that
+            //! application, as for reading.
+            TL_IO_API std::vector<WritePreset> getWritePresets(
+                const IOOptions& = IOOptions()) const;
 
             TL_IO_API ftk::ImageInfo getInfo(
                 const ftk::ImageInfo&,

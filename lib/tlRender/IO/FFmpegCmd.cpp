@@ -15,6 +15,7 @@
 #include <csignal>
 #include <cstdlib>
 #include <filesystem>
+#include <map>
 #include <mutex>
 #include <thread>
 #if !defined(_WIN32)
@@ -540,6 +541,62 @@ namespace tl
                 {
                     logSystem->print("tl::ffmpeg_cmd", e.what());
                 }
+            }
+            return out;
+        }
+
+        std::vector<std::string> getEncoders(
+            const IOOptions& ioOptions,
+            const std::shared_ptr<ftk::LogSystem>& logSystem)
+        {
+            static std::mutex mutex;
+            static std::map<std::string, std::vector<std::string> > found;
+            const Options options(ioOptions);
+            {
+                std::unique_lock<std::mutex> lock(mutex);
+                const auto i = found.find(options.ffmpegPath);
+                if (i != found.end())
+                {
+                    return i->second;
+                }
+            }
+            std::vector<std::string> out;
+            try
+            {
+                std::vector<std::string> cmd;
+                cmd.push_back(options.ffmpegPath);
+                cmd.push_back("-v");
+                cmd.push_back("quiet");
+                cmd.push_back("-hide_banner");
+                cmd.push_back("-encoders");
+                // A legend first, ending in a row of dashes; then a line for
+                // each encoder, its flags and then its name.
+                bool listed = false;
+                for (const auto& line : ftk::splitLines(Pipe(cmd).readAll()))
+                {
+                    const auto words = ftk::split(line, ' ');
+                    if (!listed)
+                    {
+                        listed = !words.empty() && "------" == words[0];
+                    }
+                    else if (words.size() >= 2)
+                    {
+                        out.push_back(words[1]);
+                    }
+                }
+            }
+            catch (const std::exception& e)
+            {
+                // As for the version: no ffmpeg is not an error.
+                if (logSystem)
+                {
+                    logSystem->print("tl::ffmpeg_cmd", e.what());
+                }
+            }
+            if (!out.empty())
+            {
+                std::unique_lock<std::mutex> lock(mutex);
+                found[options.ffmpegPath] = out;
             }
             return out;
         }

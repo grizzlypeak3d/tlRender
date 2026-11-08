@@ -177,6 +177,14 @@ namespace tl
             const IOOptions&,
             const std::shared_ptr<ftk::LogSystem>&);
 
+        //! Get the names of the command line application's encoders, or
+        //! nothing when there is none to ask. Asking runs the application,
+        //! so the list is kept for each path once found; with none found it
+        //! is asked again, for an application installed since.
+        TL_IO_API std::vector<std::string> getEncoders(
+            const IOOptions&,
+            const std::shared_ptr<ftk::LogSystem>&);
+
         //! \name Serialize
         ///@{
 
