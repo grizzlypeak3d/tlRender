@@ -141,7 +141,9 @@ static void players(tl_engine* engine)
         tl_image_free(&image);
     }
 
-    /* The waveform under the cards. */
+    /* The waveform under the cards, of the sound it has. */
+    CHECK_MOVIE(tl_player_has_audio(player));
+    CHECK(!tl_player_has_audio(NULL));
     float columns[2 * 100];
     id = tl_player_request_waveform(player, 0.0, 9.0, 100);
     CHECK_MOVIE(id != 0);

@@ -81,6 +81,8 @@ TL_C_API int tl_player_set_compare(tl_player*, const char* path);
 //! Times are seconds from the start of the timeline.
 TL_C_API double tl_player_get_duration(tl_player*);
 TL_C_API double tl_player_get_rate(tl_player*);
+//! Whether the timeline has sound: what a waveform can be asked for of.
+TL_C_API int tl_player_has_audio(tl_player*);
 TL_C_API double tl_player_get_time(tl_player*);
 //! The time of the video frame being shown, which trails the current
 //! time while the reader catches up; negative when there is none yet.

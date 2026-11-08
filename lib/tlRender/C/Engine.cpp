@@ -626,6 +626,11 @@ double tl_player_get_duration(tl_player* player)
     return range.duration().rescaled_to(1.0).value();
 }
 
+int tl_player_has_audio(tl_player* player)
+{
+    return player && player->timeline->getIOInfo().audio.sampleRate > 0 ? 1 : 0;
+}
+
 double tl_player_get_rate(tl_player* player)
 {
     return player ? player->player->getTimeRange().duration().rate() : 0.0;
