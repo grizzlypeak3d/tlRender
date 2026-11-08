@@ -453,6 +453,16 @@ namespace tl
         return out;
     }
 
+    std::future<AudioData> Timeline::readClipAudio(
+        const OTIO_NS::Clip* clip,
+        const OTIO_NS::TimeRange& timeRange,
+        const IOOptions& options)
+    {
+        if (!clip)
+            return {};
+        return _readAudio(clip, timeRange, options);
+    }
+
     std::vector<std::string> Timeline::getMediaReferenceKeys() const
     {
         FTK_P();

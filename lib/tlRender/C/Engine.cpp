@@ -124,8 +124,17 @@ namespace
         double start = 0.0;
         double duration = 0.0;
         int columns = 0;
+        //! One audio track alone, or minus one for them all.
+        int track = -1;
         std::atomic<bool> cancelled{ false };
         std::promise<std::vector<float> > promise;
+    };
+
+    //! A track and its clips as they are on it.
+    struct Track
+    {
+        tl_track track = {};
+        std::vector<tl_clip> clips;
     };
 }
 
@@ -139,6 +148,7 @@ struct tl_player
     bool clipsRead = false;
     int videoTracks = 0;
     std::vector<tl_clip> clips;
+    std::vector<Track> tracks;
     std::vector<tl_marker> markers;
     std::map<unsigned long long, std::future<std::shared_ptr<ftk::Image> > > thumbnails;
 
@@ -925,14 +935,60 @@ namespace
             [](const tl_marker& a, const tl_marker& b) { return a.start < b.start; });
     }
 
+    //! A clip as it is on a track.
+    tl_clip makeClip(const OTIO_NS::Item* item, int trackIndex, const OTIO_NS::TimeRange& range)
+    {
+        tl_clip out = {};
+        out.track = trackIndex;
+        out.start = range.start_time().rescaled_to(1.0).value();
+        out.duration = range.duration().rescaled_to(1.0).value();
+        std::string name = item->name();
+        if (name.empty())
+        {
+            if (auto clip = dynamic_cast<const OTIO_NS::Clip*>(item))
+            {
+                if (auto ref = dynamic_cast<const OTIO_NS::ExternalReference*>(
+                    clip->media_reference()))
+                {
+                    name = ftk::Path(ref->target_url()).getFileName();
+                }
+            }
+        }
+        std::snprintf(out.name, sizeof(out.name), "%s", name.c_str());
+#if TLRENDER_OTIO_ITEM_COLOR
+        if (const auto color = item->color())
+        {
+            out.color[0] = static_cast<float>(color->r());
+            out.color[1] = static_cast<float>(color->g());
+            out.color[2] = static_cast<float>(color->b());
+            out.color[3] = static_cast<float>(color->a());
+            out.hasColor = 1;
+        }
+#endif // TLRENDER_OTIO_ITEM_COLOR
+        return out;
+    }
+
+    //! A track as the C interface has it.
+    tl_track makeTrack(const OTIO_NS::Track* track, int kind, int index)
+    {
+        tl_track out = {};
+        out.kind = kind;
+        out.index = index;
+        out.enabled = track->enabled() ? 1 : 0;
+        std::snprintf(out.name, sizeof(out.name), "%s", track->name().c_str());
+        return out;
+    }
+
     //! The clips as seen: the video tracks flattened, as OTIO flattens
     //! them, the highest track's clip winning wherever tracks overlap. A
-    //! clip that a higher track's cuts into is seen more than once.
+    //! clip that a higher track's cuts into is seen more than once. And,
+    //! if asked for, every track with its clips as they are on it.
     void listClips(
         const std::shared_ptr<tl::Timeline>& timeline,
         std::vector<tl_clip>& clips,
         int& videoTracks,
-        std::vector<tl_marker>* markers)
+        std::vector<tl_marker>* markers,
+        std::vector<Track>* trackList = nullptr)
     {
         // Every clip of every video track, which the flattened ones are
         // found in by their index.
@@ -952,6 +1008,8 @@ namespace
                 dynamic_cast<OTIO_NS::Track*>(track->clone()));
             const auto& children = track->children();
             const auto& copyChildren = copy ? copy->children() : children;
+            Track listed;
+            listed.track = makeTrack(track, TL_TRACK_VIDEO, trackIndex);
             for (size_t i = 0; i < children.size(); ++i)
             {
                 const auto& child = children[i];
@@ -961,33 +1019,7 @@ namespace
                 const auto range = item->trimmed_range_in_parent();
                 if (!range.has_value())
                     continue;
-                tl_clip out = {};
-                out.track = trackIndex;
-                out.start = range->start_time().rescaled_to(1.0).value();
-                out.duration = range->duration().rescaled_to(1.0).value();
-                std::string name = item->name();
-                if (name.empty())
-                {
-                    if (auto clip = dynamic_cast<OTIO_NS::Clip*>(item.value))
-                    {
-                        if (auto ref = dynamic_cast<OTIO_NS::ExternalReference*>(
-                            clip->media_reference()))
-                        {
-                            name = ftk::Path(ref->target_url()).getFileName();
-                        }
-                    }
-                }
-                std::snprintf(out.name, sizeof(out.name), "%s", name.c_str());
-#if TLRENDER_OTIO_ITEM_COLOR
-                if (const auto color = item->color())
-                {
-                    out.color[0] = static_cast<float>(color->r());
-                    out.color[1] = static_cast<float>(color->g());
-                    out.color[2] = static_cast<float>(color->b());
-                    out.color[3] = static_cast<float>(color->a());
-                    out.hasColor = 1;
-                }
-#endif // TLRENDER_OTIO_ITEM_COLOR
+                const tl_clip out = makeClip(item.value, trackIndex, *range);
                 if (copy && i < copyChildren.size())
                 {
                     if (auto copyItem = dynamic_cast<OTIO_NS::Item*>(copyChildren[i].value))
@@ -997,6 +1029,11 @@ namespace
                     }
                 }
                 sources.push_back(out);
+                listed.clips.push_back(out);
+            }
+            if (trackList)
+            {
+                trackList->push_back(std::move(listed));
             }
             if (copy && copy->enabled())
             {
@@ -1004,6 +1041,27 @@ namespace
                 copies.push_back(copy);
             }
             ++trackIndex;
+        }
+        if (trackList)
+        {
+            int audioIndex = 0;
+            for (const auto& track : otioTimeline->audio_tracks())
+            {
+                Track listed;
+                listed.track = makeTrack(track, TL_TRACK_AUDIO, audioIndex);
+                for (const auto& child : track->children())
+                {
+                    if (!isShown(child))
+                        continue;
+                    auto item = OTIO_NS::dynamic_retainer_cast<OTIO_NS::Item>(child);
+                    const auto range = item->trimmed_range_in_parent();
+                    if (!range.has_value())
+                        continue;
+                    listed.clips.push_back(makeClip(item.value, audioIndex, *range));
+                }
+                trackList->push_back(std::move(listed));
+                ++audioIndex;
+            }
         }
         videoTracks = trackIndex;
         if (markers)
@@ -1066,7 +1124,12 @@ namespace
         if (player->clipsRead)
             return;
         player->clipsRead = true;
-        listClips(player->timeline, player->clips, player->videoTracks, &player->markers);
+        listClips(
+            player->timeline,
+            player->clips,
+            player->videoTracks,
+            &player->markers,
+            &player->tracks);
     }
 }
 
@@ -1097,6 +1160,48 @@ int tl_player_get_clip(tl_player* player, int index, tl_clip* out)
     return 1;
 }
 
+int tl_player_get_track_count(tl_player* player)
+{
+    if (!player)
+        return 0;
+    readClips(player);
+    return static_cast<int>(player->tracks.size());
+}
+
+int tl_player_get_track(tl_player* player, int index, tl_track* out)
+{
+    if (!player || !out)
+        return 0;
+    readClips(player);
+    if (index < 0 || index >= static_cast<int>(player->tracks.size()))
+        return 0;
+    *out = player->tracks[index].track;
+    return 1;
+}
+
+int tl_player_get_track_clip_count(tl_player* player, int track)
+{
+    if (!player)
+        return 0;
+    readClips(player);
+    if (track < 0 || track >= static_cast<int>(player->tracks.size()))
+        return 0;
+    return static_cast<int>(player->tracks[track].clips.size());
+}
+
+int tl_player_get_track_clip(tl_player* player, int track, int index, tl_clip* out)
+{
+    if (!player || !out)
+        return 0;
+    readClips(player);
+    if (track < 0 || track >= static_cast<int>(player->tracks.size()))
+        return 0;
+    const auto& clips = player->tracks[track].clips;
+    if (index < 0 || index >= static_cast<int>(clips.size()))
+        return 0;
+    *out = clips[index];
+    return 1;
+}
 
 int tl_player_get_marker_count(tl_player* player)
 {
@@ -1219,70 +1324,133 @@ extern "C++"
 {
 namespace
 {
-    //! Read one waveform: the timeline's audio a second at a time, every
-    //! layer, each sample counted in the column its time falls in. Lowest
-    //! and highest a column, in pairs.
-    std::vector<float> readWaveform(
-        const std::shared_ptr<tl::Timeline>& timeline,
-        const WaveformJob& job)
+    //! A waveform's columns as they are read: the lowest and the highest
+    //! sample of each column, in pairs.
+    class WaveformColumns
     {
-        std::vector<float> out(job.columns * 2, 0.F);
-        std::vector<bool> seen(job.columns, false);
-        const auto& range = timeline->getTimeRange();
-        const double origin = range.start_time().rescaled_to(1.0).value();
-        const double start = origin + job.start;
-        const double end = start + job.duration;
-        std::shared_ptr<tl::AudioResample> resample;
-        for (double second = std::floor(start); second < end && !job.cancelled; second += 1.0)
+    public:
+        explicit WaveformColumns(const WaveformJob& job) :
+            _job(job),
+            out(job.columns * 2, 0.F),
+            _seen(job.columns, false)
+        {}
+
+        //! Audio that starts at a time, in seconds from the start of the
+        //! timeline: each sample counted in the column its time falls in.
+        void add(const std::shared_ptr<tl::Audio>& in, double time)
         {
-            const auto frame = timeline->getAudio(second).future.get();
-            for (const auto& layer : frame.layers)
+            if (!in)
+                return;
+            const auto& info = in->getInfo();
+            const tl::AudioInfo f32(info.channelCount, tl::AudioType::F32, info.sampleRate);
+            if (!_resample || _resample->getInputInfo() != info)
             {
-                if (!layer.audio)
+                _resample = tl::AudioResample::create(info, f32);
+            }
+            const auto audio = info.type == tl::AudioType::F32 ? in : _resample->process(in);
+            if (!audio)
+                return;
+            const float* data = reinterpret_cast<const float*>(audio->getData());
+            const size_t count = audio->getSampleCount();
+            const int channels = audio->getChannelCount();
+            const double rate = audio->getSampleRate();
+            const double start = _job.start;
+            const double end = start + _job.duration;
+            for (size_t i = 0; i < count; ++i)
+            {
+                const double t = time + i / rate;
+                if (t < start || t >= end)
                     continue;
-                const auto& info = layer.audio->getInfo();
-                const tl::AudioInfo f32(info.channelCount, tl::AudioType::F32, info.sampleRate);
-                if (!resample || resample->getInputInfo() != info)
+                const int column = std::min(
+                    static_cast<int>((t - start) / _job.duration * _job.columns),
+                    _job.columns - 1);
+                float& low = out[column * 2];
+                float& high = out[column * 2 + 1];
+                for (int c = 0; c < channels; ++c)
                 {
-                    resample = tl::AudioResample::create(info, f32);
-                }
-                const auto audio = info.type == tl::AudioType::F32 ?
-                    layer.audio :
-                    resample->process(layer.audio);
-                if (!audio)
-                    continue;
-                const float* data = reinterpret_cast<const float*>(audio->getData());
-                const size_t count = audio->getSampleCount();
-                const int channels = audio->getChannelCount();
-                const double rate = audio->getSampleRate();
-                for (size_t i = 0; i < count; ++i)
-                {
-                    const double t = second + i / rate;
-                    if (t < start || t >= end)
-                        continue;
-                    const int column = std::min(
-                        static_cast<int>((t - start) / job.duration * job.columns),
-                        job.columns - 1);
-                    float& low = out[column * 2];
-                    float& high = out[column * 2 + 1];
-                    for (int c = 0; c < channels; ++c)
+                    const float v = data[i * channels + c];
+                    if (!_seen[column])
                     {
-                        const float v = data[i * channels + c];
-                        if (!seen[column])
-                        {
-                            low = high = v;
-                            seen[column] = true;
-                        }
-                        else
-                        {
-                            low = std::min(low, v);
-                            high = std::max(high, v);
-                        }
+                        low = high = v;
+                        _seen[column] = true;
+                    }
+                    else
+                    {
+                        low = std::min(low, v);
+                        high = std::max(high, v);
                     }
                 }
             }
         }
-        return out;
+
+    private:
+        const WaveformJob& _job;
+
+    public:
+        std::vector<float> out;
+
+    private:
+        std::vector<bool> _seen;
+        std::shared_ptr<tl::AudioResample> _resample;
+    };
+
+    //! Read one waveform. Of the timeline: its audio a second at a time,
+    //! every layer. Of one audio track: its clips' media alone, a second
+    //! at a time, rather than the timeline's audio with every other
+    //! track's read and thrown away.
+    std::vector<float> readWaveform(
+        const std::shared_ptr<tl::Timeline>& timeline,
+        const WaveformJob& job)
+    {
+        WaveformColumns columns(job);
+        const double start = job.start;
+        const double end = start + job.duration;
+        if (job.track < 0)
+        {
+            const auto& range = timeline->getTimeRange();
+            const double origin = range.start_time().rescaled_to(1.0).value();
+            for (double second = std::floor(start); second < end && !job.cancelled; second += 1.0)
+            {
+                const auto frame = timeline->getAudio(origin + second).future.get();
+                for (const auto& layer : frame.layers)
+                {
+                    columns.add(layer.audio, second);
+                }
+            }
+            return columns.out;
+        }
+        const auto& otioTimeline = timeline->getOTIOTimeline();
+        if (!otioTimeline)
+            return columns.out;
+        const auto tracks = otioTimeline->audio_tracks();
+        if (job.track >= static_cast<int>(tracks.size()))
+            return columns.out;
+        for (const auto& child : tracks[job.track]->children())
+        {
+            auto clip = dynamic_cast<OTIO_NS::Clip*>(child.value);
+            if (!clip)
+                continue;
+            const auto range = clip->trimmed_range_in_parent();
+            if (!range.has_value())
+                continue;
+            const double clipStart = range->start_time().rescaled_to(1.0).value();
+            const double clipEnd = clipStart + range->duration().rescaled_to(1.0).value();
+            const double from = std::max(start, clipStart);
+            const double to = std::min(end, clipEnd);
+            for (double t = from; t < to && !job.cancelled; t += 1.0)
+            {
+                const double length = std::min(1.0, to - t);
+                auto future = timeline->readClipAudio(
+                    clip,
+                    OTIO_NS::TimeRange(
+                        OTIO_NS::RationalTime(t, 1.0),
+                        OTIO_NS::RationalTime(length, 1.0)));
+                if (!future.valid())
+                    break;
+                columns.add(future.get().audio, t);
+            }
+        }
+        return columns.out;
     }
 
     void waveformRun(tl_player* player)
@@ -1332,31 +1500,49 @@ namespace
 }
 }
 
+namespace
+{
+    unsigned long long requestWaveform(
+        tl_player* player, int track, double start, double duration, int columns)
+    {
+        if (!player || duration <= 0.0 || columns <= 0)
+            return 0;
+        if (player->timeline->getIOInfo().audio.sampleRate <= 0)
+            return 0;
+        if (!player->waveformThread.joinable())
+        {
+            player->waveformRunning = true;
+            player->waveformThread = std::thread(waveformRun, player);
+        }
+        auto job = std::make_shared<WaveformJob>();
+        job->start = start;
+        job->duration = duration;
+        job->columns = columns;
+        job->track = track;
+        {
+            std::unique_lock<std::mutex> lock(player->waveformMutex);
+            job->id = ++player->waveformId;
+            player->waveforms[job->id] = job->promise.get_future();
+            player->waveformJobs[job->id] = job;
+            player->waveformQueue.push_back(job);
+        }
+        player->waveformCV.notify_one();
+        return job->id;
+    }
+}
+
 unsigned long long tl_player_request_waveform(
     tl_player* player, double start, double duration, int columns)
 {
-    if (!player || duration <= 0.0 || columns <= 0)
+    return requestWaveform(player, -1, start, duration, columns);
+}
+
+unsigned long long tl_player_request_track_waveform(
+    tl_player* player, int audioTrack, double start, double duration, int columns)
+{
+    if (audioTrack < 0)
         return 0;
-    if (player->timeline->getIOInfo().audio.sampleRate <= 0)
-        return 0;
-    if (!player->waveformThread.joinable())
-    {
-        player->waveformRunning = true;
-        player->waveformThread = std::thread(waveformRun, player);
-    }
-    auto job = std::make_shared<WaveformJob>();
-    job->start = start;
-    job->duration = duration;
-    job->columns = columns;
-    {
-        std::unique_lock<std::mutex> lock(player->waveformMutex);
-        job->id = ++player->waveformId;
-        player->waveforms[job->id] = job->promise.get_future();
-        player->waveformJobs[job->id] = job;
-        player->waveformQueue.push_back(job);
-    }
-    player->waveformCV.notify_one();
-    return job->id;
+    return requestWaveform(player, audioTrack, start, duration, columns);
 }
 
 int tl_player_get_waveform(tl_player* player, unsigned long long id, float* columns, int count)

@@ -1,0 +1,127 @@
+{
+    "OTIO_SCHEMA": "Timeline.1",
+    "name": "AudioTracks",
+    "metadata": {},
+    "tracks": {
+        "OTIO_SCHEMA": "Stack.1",
+        "name": "Stack",
+        "children": [
+            {
+                "OTIO_SCHEMA": "Track.1",
+                "kind": "Audio",
+                "name": "Left",
+                "children": [
+                    {
+                        "OTIO_SCHEMA": "Clip.1",
+                        "name": "AudioToneLeft",
+                        "source_range": {
+                            "OTIO_SCHEMA": "TimeRange.1",
+                            "start_time": {
+                                "OTIO_SCHEMA": "RationalTime.1",
+                                "rate": 44100,
+                                "value": 0
+                            },
+                            "duration": {
+                                "OTIO_SCHEMA": "RationalTime.1",
+                                "rate": 44100,
+                                "value": 44100
+                            }
+                        },
+                        "media_reference": {
+                            "OTIO_SCHEMA": "ExternalReference.1",
+                            "target_url": "AudioToneLeft.wav",
+                            "available_range": {
+                                "OTIO_SCHEMA": "TimeRange.1",
+                                "start_time": {
+                                    "OTIO_SCHEMA": "RationalTime.1",
+                                    "rate": 44100,
+                                    "value": 0
+                                },
+                                "duration": {
+                                    "OTIO_SCHEMA": "RationalTime.1",
+                                    "rate": 44100,
+                                    "value": 44100
+                                }
+                            }
+                        }
+                    },
+                    {
+                        "OTIO_SCHEMA": "Gap.1",
+                        "name": "Gap",
+                        "source_range": {
+                            "OTIO_SCHEMA": "TimeRange.1",
+                            "start_time": {
+                                "OTIO_SCHEMA": "RationalTime.1",
+                                "rate": 44100,
+                                "value": 0
+                            },
+                            "duration": {
+                                "OTIO_SCHEMA": "RationalTime.1",
+                                "rate": 44100,
+                                "value": 88200
+                            }
+                        }
+                    }
+                ]
+            },
+            {
+                "OTIO_SCHEMA": "Track.1",
+                "kind": "Audio",
+                "name": "Right",
+                "children": [
+                    {
+                        "OTIO_SCHEMA": "Gap.1",
+                        "name": "Gap",
+                        "source_range": {
+                            "OTIO_SCHEMA": "TimeRange.1",
+                            "start_time": {
+                                "OTIO_SCHEMA": "RationalTime.1",
+                                "rate": 44100,
+                                "value": 0
+                            },
+                            "duration": {
+                                "OTIO_SCHEMA": "RationalTime.1",
+                                "rate": 44100,
+                                "value": 88200
+                            }
+                        }
+                    },
+                    {
+                        "OTIO_SCHEMA": "Clip.1",
+                        "name": "AudioToneRight",
+                        "source_range": {
+                            "OTIO_SCHEMA": "TimeRange.1",
+                            "start_time": {
+                                "OTIO_SCHEMA": "RationalTime.1",
+                                "rate": 44100,
+                                "value": 0
+                            },
+                            "duration": {
+                                "OTIO_SCHEMA": "RationalTime.1",
+                                "rate": 44100,
+                                "value": 44100
+                            }
+                        },
+                        "media_reference": {
+                            "OTIO_SCHEMA": "ExternalReference.1",
+                            "target_url": "AudioToneRight.wav",
+                            "available_range": {
+                                "OTIO_SCHEMA": "TimeRange.1",
+                                "start_time": {
+                                    "OTIO_SCHEMA": "RationalTime.1",
+                                    "rate": 44100,
+                                    "value": 0
+                                },
+                                "duration": {
+                                    "OTIO_SCHEMA": "RationalTime.1",
+                                    "rate": 44100,
+                                    "value": 44100
+                                }
+                            }
+                        }
+                    }
+                ]
+            }
+        ]
+    }
+}

@@ -165,6 +165,33 @@ TL_C_API int tl_player_get_video_track_count(tl_player*);
 TL_C_API int tl_player_get_clip_count(tl_player*);
 TL_C_API int tl_player_get_clip(tl_player*, int index, tl_clip*);
 
+//! A track of the timeline: video or audio; which of its kind it is, in
+//! the timeline's order (the first video track is the bottom one, the
+//! first audio track the one nearest the video); its name; and whether
+//! it is enabled.
+typedef enum tl_track_kind
+{
+    TL_TRACK_VIDEO = 0,
+    TL_TRACK_AUDIO = 1
+} tl_track_kind;
+typedef struct tl_track
+{
+    int kind;
+    int index;
+    int enabled;
+    char name[256];
+} tl_track;
+
+//! The tracks, the video tracks then the audio tracks, and each one's
+//! clips as they are on it, in time order: track is the index in this
+//! list, and a clip's track is its track's index of its kind. None of
+//! a track's clips is continued.
+TL_C_API int tl_player_get_track_count(tl_player*);
+TL_C_API int tl_player_get_track(tl_player*, int index, tl_track*);
+TL_C_API int tl_player_get_track_clip_count(tl_player*, int track);
+TL_C_API int tl_player_get_track_clip(
+    tl_player*, int track, int index, tl_clip*);
+
 //! A marker the editor left: on the timeline, a track, or a clip, in
 //! seconds from the start of the timeline. A duration of zero marks a
 //! point. The color is OTIO's, green when the marker has none.
@@ -236,6 +263,10 @@ TL_C_API int tl_engine_get_poster(
 //! the player's timeline: zero when it cannot be asked for.
 TL_C_API unsigned long long tl_player_request_waveform(
     tl_player*, double start, double duration, int columns);
+//! The same for one audio track alone, by its index of its kind: its
+//! clips' media, read whether the track is enabled or not.
+TL_C_API unsigned long long tl_player_request_track_waveform(
+    tl_player*, int audioTrack, double start, double duration, int columns);
 //! Whether a waveform is ready: one with the columns copied out, zero
 //! while it is being read, minus one when there is none. The columns are
 //! pairs, lowest then highest, two floats a column: count is the number

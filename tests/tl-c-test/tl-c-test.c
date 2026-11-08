@@ -161,6 +161,81 @@ static void players(tl_engine* engine)
     }
     tl_player_destroy(player);
 
+    /* The tracks, each with its clips as they are on it. */
+    path(file, sizeof(file), TLRENDER_SAMPLE_DATA, "MultipleClips.otio");
+    player = tl_player_create(engine, file);
+    CHECK(player != NULL);
+    if (player)
+    {
+        tl_track track;
+        CHECK(tl_player_get_track_count(player) == 2);
+        CHECK(tl_player_get_track(player, 0, &track) == 1);
+        CHECK(track.kind == TL_TRACK_VIDEO);
+        CHECK(track.index == 0);
+        CHECK(track.enabled);
+        CHECK(strcmp(track.name, "Video") == 0);
+        CHECK(tl_player_get_track(player, 1, &track) == 1);
+        CHECK(track.kind == TL_TRACK_AUDIO);
+        CHECK(track.index == 0);
+        CHECK(strcmp(track.name, "Audio") == 0);
+        CHECK(tl_player_get_track(player, 2, &track) == 0);
+        CHECK(tl_player_get_track_clip_count(player, 1) == 3);
+        CHECK(tl_player_get_track_clip(player, 1, 2, &clip) == 1);
+        CHECK(clip.track == 0);
+        CHECK_NEAR(clip.start, 6.0, 0.1);
+        CHECK(strcmp(clip.name, "BART_2021-02-07") == 0);
+        CHECK(tl_player_get_track_clip(player, 1, 3, &clip) == 0);
+        CHECK(tl_player_get_track_clip_count(player, 2) == 0);
+        tl_player_destroy(player);
+    }
+
+    /* Two audio tracks, a tone on each at its own time, and each
+       track's waveform with only its own tone. */
+    path(file, sizeof(file), TLRENDER_SAMPLE_DATA, "AudioTracks.otio");
+    player = tl_player_create(engine, file);
+    CHECK(player != NULL);
+    if (player)
+    {
+        tl_track track;
+        CHECK(tl_player_get_track_count(player) == 2);
+        CHECK(tl_player_get_track(player, 1, &track) == 1);
+        CHECK(track.kind == TL_TRACK_AUDIO);
+        CHECK(track.index == 1);
+        CHECK(strcmp(track.name, "Right") == 0);
+        CHECK(tl_player_get_track_clip_count(player, 1) == 1);
+        CHECK(tl_player_get_track_clip(player, 1, 0, &clip) == 1);
+        CHECK(clip.track == 1);
+        CHECK_NEAR(clip.start, 2.0, 0.01);
+        CHECK(tl_player_request_track_waveform(player, -1, 0.0, 3.0, 30) == 0);
+        for (int t = 0; t < 2; ++t)
+        {
+            id = tl_player_request_track_waveform(player, t, 0.0, 3.0, 30);
+            CHECK_MOVIE(id != 0);
+            float trackColumns[2 * 30];
+            ready = 0;
+            WAIT(engine, (ready = tl_player_get_waveform(player, id, trackColumns, 30)) != 0);
+            CHECK_MOVIE(ready == 1);
+            if (1 == ready)
+            {
+                /* The left tone is the first second, the right the
+                   last; a column clear of each edge is checked. */
+                int early = 0;
+                int late = 0;
+                for (int i = 0; i < 30; ++i)
+                {
+                    const int sound = trackColumns[i * 2] != 0.F || trackColumns[i * 2 + 1] != 0.F;
+                    if (i < 9)
+                        early |= sound;
+                    else if (i > 20)
+                        late |= sound;
+                }
+                CHECK(early == (0 == t));
+                CHECK(late == (1 == t));
+            }
+        }
+        tl_player_destroy(player);
+    }
+
     /* A clip that a higher track's clip cuts into: seen before and
        after it, the second time continued. */
     path(file, sizeof(file), TLRENDER_SAMPLE_DATA, "ClipCutIn.otio");

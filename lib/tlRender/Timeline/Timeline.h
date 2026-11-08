@@ -204,6 +204,14 @@ namespace tl
             const OTIO_NS::TimeRange&,
             const IOOptions& = IOOptions());
 
+        //! Read audio of a clip in the timeline, its active media, over a
+        //! range of the timeline in seconds from its start: the clip's
+        //! sound alone, as an audio track's waveform draws it.
+        TL_TIMELINE_API std::future<AudioData> readClipAudio(
+            const OTIO_NS::Clip*,
+            const OTIO_NS::TimeRange&,
+            const IOOptions& = IOOptions());
+
         //! \name Media References
         ///
         //! Clips may carry several media references, for example a proxy and
