@@ -1782,6 +1782,23 @@ tl_view* tl_view_create_ios(tl_engine* engine, void* uiWindowScene)
     return viewInit(engine, props);
 }
 
+void tl_view_set_full_screen(tl_view* view, int value)
+{
+#if defined(__APPLE__) && TARGET_OS_IOS
+    if (!view || !view->window)
+        return;
+    // Borderless rather than SDL's full screen, which hides the status bar
+    // the same way but goes through display modes. The home indicator
+    // fades rather than going: "1", not "2", which would hold back the
+    // swipe home.
+    SDL_SetHint(SDL_HINT_IOS_HIDE_HOME_INDICATOR, value ? "1" : "0");
+    SDL_SetWindowBordered(view->window, !value);
+#else
+    (void)view;
+    (void)value;
+#endif // TARGET_OS_IOS
+}
+
 void* tl_view_get_native_window(tl_view* view)
 {
     if (!view || !view->window)
