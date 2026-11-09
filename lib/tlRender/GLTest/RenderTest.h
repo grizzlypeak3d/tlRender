@@ -34,6 +34,7 @@ namespace tl
             void _oneToOne();
             void _yuvLevels();
             void _color();
+            void _cpuColor();
         };
     }
 }

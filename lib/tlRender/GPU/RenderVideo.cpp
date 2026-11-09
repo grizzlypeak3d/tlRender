@@ -3,6 +3,8 @@
 
 #include <tlRender/GPU/RenderPrivate.h>
 
+#include <tlRender/Timeline/ColorShaders.h>
+
 #include <tlRender/Core/Gamut.h>
 
 #include <tlRender/Timeline/Util.h>
@@ -603,38 +605,33 @@ namespace tl
             uniforms.magnifyAxes[1] = magnify && onScreen.h > displaySize.h ? 1.F : 0.F;
             uniforms.sourceSize[0] = displaySize.w;
             uniforms.sourceSize[1] = displaySize.h;
-            uniforms.channels = static_cast<int32_t>(displayOptions.channels);
-            uniforms.negative = displayOptions.negative;
+            // The display options as the shader takes them; see
+            // tl::getDisplayColorValues().
+            const DisplayColorValues values = getDisplayColorValues(displayOptions);
+            uniforms.channels = values.channels;
+            uniforms.negative = values.negative;
             uniforms.mirrorX = displayOptions.mirror.x;
             uniforms.mirrorY = displayOptions.mirror.y;
-            const bool colorMatrixEnabled =
-                displayOptions.color != Color() &&
-                displayOptions.color.enabled;
-            uniforms.colorEnabled = colorMatrixEnabled;
-            uniforms.colorAdd[0] = displayOptions.color.add.x;
-            uniforms.colorAdd[1] = displayOptions.color.add.y;
-            uniforms.colorAdd[2] = displayOptions.color.add.z;
-            const ftk::M44F colorMatrix = colorMatrixEnabled ? color(displayOptions.color) : ftk::M44F();
+            uniforms.colorEnabled = values.colorEnabled;
+            uniforms.colorAdd[0] = values.colorAdd.x;
+            uniforms.colorAdd[1] = values.colorAdd.y;
+            uniforms.colorAdd[2] = values.colorAdd.z;
             for (int row = 0; row < 4; ++row)
             {
                 for (int column = 0; column < 4; ++column)
                 {
-                    uniforms.colorMatrix[column * 4 + row] = colorMatrix.get(row, column);
+                    uniforms.colorMatrix[column * 4 + row] = values.colorMatrix.get(row, column);
                 }
             }
-            uniforms.levelsEnabled = displayOptions.levels.enabled;
-            uniforms.levelsInLow = displayOptions.levels.inLow;
-            uniforms.levelsInHigh = displayOptions.levels.inHigh;
-            uniforms.levelsGamma = displayOptions.levels.gamma > 0.F ?
-                (1.F / displayOptions.levels.gamma) :
-                1000000.F;
-            uniforms.levelsOutLow = displayOptions.levels.outLow;
-            uniforms.levelsOutHigh = displayOptions.levels.outHigh;
-            uniforms.exposureEnabled = displayOptions.exposure.enabled;
-            uniforms.exposure = displayOptions.exposure.enabled ?
-                std::pow(2.F, displayOptions.exposure.exposure) :
-                1.F;
-            uniforms.softClip = displayOptions.softClip.enabled ? displayOptions.softClip.value : 0.F;
+            uniforms.levelsEnabled = values.levelsEnabled;
+            uniforms.levelsInLow = values.levelsInLow;
+            uniforms.levelsInHigh = values.levelsInHigh;
+            uniforms.levelsGamma = values.levelsGamma;
+            uniforms.levelsOutLow = values.levelsOutLow;
+            uniforms.levelsOutHigh = values.levelsOutHigh;
+            uniforms.exposureEnabled = values.exposureEnabled;
+            uniforms.exposure = values.exposure;
+            uniforms.softClip = values.softClip;
             // Display P3 pixels, for a window, are converted into what it
             // holds (see setWindow()): what a Display P3 display makes, or
             // without a display transform a picture that says it is P3,

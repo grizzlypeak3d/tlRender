@@ -22,6 +22,7 @@ set(HEADERS
     Video.h)
 set(PRIVATE_HEADERS
     ColorShaders.h
+    CPUColor.h
     PlayerPrivate.h
     RenderPrivate.h
     RenderPrivateInline.h
@@ -43,6 +44,7 @@ set(SOURCE
     PlayerOptions.cpp
     PlayerPrivate.cpp
     ColorShaders.cpp
+    CPUColor.cpp
     RenderPrivate.cpp
     System.cpp
     TimeUnits.cpp

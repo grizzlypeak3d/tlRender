@@ -4,8 +4,8 @@
 #include <tlRender/C/Engine.h>
 #include <tlRender/C/EngineCpp.h>
 
-#include <tlRender/Core/Gamut.h>
 #if defined(TLRENDER_OCIO)
+#include <tlRender/Timeline/CPUColor.h>
 #include <tlRender/Timeline/RenderPrivate.h>
 #endif // TLRENDER_OCIO
 
@@ -81,15 +81,12 @@
 namespace
 {
     //! The color thumbnails are put through, made once for a set of
-    //! options and an input: the processors, in the order the picture
-    //! has them, and whether what comes out is Display P3.
-    struct ThumbnailColor
-    {
+    //! options and an input.
 #if defined(TLRENDER_OCIO)
-        std::vector<OCIO_NAMESPACE::ConstCPUProcessorRcPtr> processors;
+    typedef tl::CPUColor ThumbnailColor;
+#else // TLRENDER_OCIO
+    struct ThumbnailColor {};
 #endif // TLRENDER_OCIO
-        bool displayP3 = false;
-    };
 }
 
 struct tl_engine
@@ -1339,40 +1336,12 @@ namespace
 
         // Made once and kept, a failure too: the same options give the
         // same answer, and a bad LUT should not be read for every
-        // thumbnail.
+        // thumbnail. Thumbnails have no color corrections; a Display P3
+        // display is taken into sRGB, as the picture is for a window,
+        // and what sRGB cannot hold is then clipped.
         try
         {
-            // In the order the picture has them; thumbnails have no color
-            // corrections.
-            auto color = std::make_shared<ThumbnailColor>();
-            tl::OCIOProcessors processors;
-            if (ocioOn)
-            {
-                processors = tl::getOCIOProcessors(ocio);
-                color->displayP3 =
-                    "smpte432" == tl::getDisplayColorTags(ocio, false)["Color Primaries"];
-            }
-            for (const auto stage : tl::getColorStages(lut.order))
-            {
-                OCIO_NAMESPACE::ConstProcessorRcPtr processor;
-                switch (stage)
-                {
-                case tl::ColorStage::LUT:
-                    if (lutOn)
-                    {
-                        processor = tl::getOCIOLUTProcessor(lut).processor;
-                    }
-                    break;
-                case tl::ColorStage::ToLinear: processor = processors.toLinear; break;
-                case tl::ColorStage::Display: processor = processors.display; break;
-                case tl::ColorStage::Corrections: break;
-                }
-                if (processor)
-                {
-                    color->processors.push_back(processor->getDefaultCPUProcessor());
-                }
-            }
-            out = color;
+            out = std::make_shared<tl::CPUColor>(ocio, lut, tl::DisplayOptions(), true);
         }
         catch (const std::exception&)
         {}
@@ -1404,35 +1373,11 @@ namespace
         {
             pixels[i] = out->data[i] / 255.F;
         }
-        OCIO_NAMESPACE::PackedImageDesc desc(
-            pixels.data(), out->width, out->height, 4);
-        for (const auto& processor : color->processors)
-        {
-            processor->apply(desc);
-        }
+        color->apply(pixels.data(), count);
         for (size_t i = 0; i < count * 4; ++i)
         {
             out->data[i] = static_cast<unsigned char>(
                 std::clamp(pixels[i], 0.F, 1.F) * 255.F + .5F);
-        }
-        // Shown as sRGB, as the thumbnails are; the picture's window
-        // holds a Display P3 display's colors past sRGB's, which a
-        // thumbnail cannot.
-        if (color->displayP3)
-        {
-            auto converted = ftk::Image::create(
-                out->width, out->height, ftk::ImageType::RGBA_U8);
-            const size_t rowBytes = static_cast<size_t>(out->width) * 4;
-            const size_t stride = converted->getByteCount() / out->height;
-            for (int y = 0; y < out->height; ++y)
-            {
-                std::memcpy(converted->getData() + y * stride, out->data + y * rowBytes, rowBytes);
-            }
-            tl::displayP3ToSRGB(converted);
-            for (int y = 0; y < out->height; ++y)
-            {
-                std::memcpy(out->data + y * rowBytes, converted->getData() + y * stride, rowBytes);
-            }
         }
 #else // TLRENDER_OCIO
         (void)engine; (void)image; (void)out;

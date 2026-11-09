@@ -7,6 +7,7 @@
 #include <tlRender/GL/Render.h>
 
 #include <tlRender/Timeline/BackgroundOptions.h>
+#include <tlRender/Timeline/CPUColor.h>
 #include <tlRender/Timeline/ColorOptions.h>
 #include <tlRender/Timeline/CompareOptions.h>
 #include <tlRender/Timeline/DisplayOptions.h>
@@ -99,6 +100,7 @@ namespace tl
             _oneToOne();
             _yuvLevels();
             _color();
+            _cpuColor();
         }
 
         //! Video frames rendered to an image with no window to show them:
@@ -1020,6 +1022,147 @@ namespace tl
                 const bool threw = true;
                 FTK_CHECK(!threw);
             }
+#endif // TLRENDER_OCIO
+        }
+
+        //! The renderer against the CPU: the same pixels drawn through the
+        //! display shader and through CPUColor, for the two to match --
+        //! what keeps the thumbnails, and any renderer, honest.
+        void RenderTest::_cpuColor()
+        {
+#if defined(TLRENDER_OCIO)
+            if (!ftk::gl::OffscreenBuffer::canRead(ftk::ImageType::RGBA_F32))
+            {
+                _print("CPU color: no floating point read back, skipped");
+                return;
+            }
+            auto render = gl::OffscreenRender::create(_context);
+
+            // Ramps of every channel, a little past one at the end.
+            const ftk::Size2I size(32, 16);
+            auto image = ftk::Image::create(size, ftk::ImageType::RGBA_F32);
+            float* pixels = reinterpret_cast<float*>(image->getData());
+            for (int y = 0; y < size.h; ++y)
+            {
+                for (int x = 0; x < size.w; ++x)
+                {
+                    float* p = pixels + (y * size.w + x) * 4;
+                    p[0] = x / static_cast<float>(size.w - 1) * 1.1F;
+                    p[1] = y / static_cast<float>(size.h - 1);
+                    p[2] = (x + y) / static_cast<float>(size.w + size.h - 2);
+                    p[3] = 1.F;
+                }
+            }
+            VideoLayer layer;
+            layer.image = image;
+            VideoFrame frame;
+            frame.size = size;
+            frame.layers.push_back(layer);
+
+            auto config = OCIO::Config::CreateFromFile("ocio://default");
+            OCIOOptions ocio;
+            ocio.enabled = true;
+            ocio.config = OCIOConfig::BuiltIn;
+            ocio.input = "ACEScg";
+            ocio.display = config->getDefaultDisplay();
+            ocio.view = config->getDefaultView(ocio.display.c_str());
+            LUTOptions lut;
+            lut.enabled = true;
+            lut.fileName = std::string(TLRENDER_SAMPLE_DATA) + "/LUT_SRGB_256.lut";
+            DisplayOptions corrections;
+            corrections.color.enabled = true;
+            corrections.color.add = ftk::V3F(.02F, 0.F, -.01F);
+            corrections.color.contrast = ftk::V3F(1.2F, 1.2F, 1.2F);
+            corrections.color.saturation = ftk::V3F(1.3F, 1.3F, 1.3F);
+            corrections.color.hue = 10.F;
+            corrections.levels.enabled = true;
+            corrections.levels.inLow = .05F;
+            corrections.levels.inHigh = .9F;
+            corrections.levels.gamma = 1.3F;
+            corrections.exposure.enabled = true;
+            corrections.exposure.exposure = .5F;
+            corrections.softClip.enabled = true;
+            corrections.softClip.value = .2F;
+            DisplayOptions channels;
+            channels.negative = true;
+            channels.channels = ftk::ChannelDisplay::Red;
+
+            struct Case
+            {
+                std::string name;
+                OCIOOptions ocio;
+                LUTOptions lut;
+                DisplayOptions display;
+            };
+            std::vector<Case> cases;
+            cases.push_back({ "nothing", OCIOOptions(), LUTOptions(), DisplayOptions() });
+            cases.push_back({ "corrections", OCIOOptions(), LUTOptions(), corrections });
+            cases.push_back({ "negative and channels", OCIOOptions(), LUTOptions(), channels });
+            cases.push_back({ "LUT", OCIOOptions(), lut, DisplayOptions() });
+            lut.order = LUTOrder::PreConfig;
+            cases.push_back({ "OCIO", ocio, LUTOptions(), DisplayOptions() });
+            cases.push_back({ "OCIO, LUT before, corrections", ocio, lut, corrections });
+            lut.order = LUTOrder::PostConfig;
+            cases.push_back({ "OCIO, LUT after, corrections", ocio, lut, corrections });
+
+            for (const auto& c : cases)
+            {
+                try
+                {
+                    render->setOCIOOptions(c.ocio);
+                    render->setLUTOptions(c.lut);
+                    const auto out = render->render(
+                        { frame },
+                        CompareOptions(),
+                        size,
+                        { ftk::ImageOptions() },
+                        { c.display },
+                        ftk::ImageType::RGBA_F32);
+
+                    std::vector<float> expected(pixels, pixels + size.w * size.h * 4);
+                    CPUColor(c.ocio, c.lut, c.display).apply(expected.data(), size.w * size.h);
+
+                    // The rows come back in the order they went in, unless
+                    // the layout says they were turned over. The renderer
+                    // may draw through a half float buffer, and OCIO's
+                    // shaders are not its CPU arithmetic to the last bit, so
+                    // the difference allowed grows a little with the value;
+                    // a stage left out or out of order is far past it.
+                    const ftk::ImageInfo& info = out->getInfo();
+                    const float* result = reinterpret_cast<const float*>(out->getData());
+                    float maxDiff = 0.F;
+                    bool ok = true;
+                    for (int y = 0; y < size.h; ++y)
+                    {
+                        const int row = info.layout.mirror.y ? size.h - 1 - y : y;
+                        for (int x = 0; x < size.w; ++x)
+                        {
+                            for (int i = 0; i < 3; ++i)
+                            {
+                                const float a = result[(row * size.w + x) * 4 + i];
+                                const float b = expected[(y * size.w + x) * 4 + i];
+                                const float d = std::abs(a - b);
+                                maxDiff = std::max(maxDiff, d);
+                                if (d > .002F + .002F * std::abs(b))
+                                {
+                                    ok = false;
+                                }
+                            }
+                        }
+                    }
+                    _print(ftk::Format("CPU color, {0}: largest difference {1}").
+                        arg(c.name).arg(maxDiff, 5));
+                    FTK_CHECK(ok);
+                }
+                catch (const std::exception& e)
+                {
+                    _error(e.what());
+                    const bool threw = true;
+                    FTK_CHECK(!threw);
+                }
+            }
+            render->setOCIOOptions(OCIOOptions());
+            render->setLUTOptions(LUTOptions());
 #endif // TLRENDER_OCIO
         }
     }

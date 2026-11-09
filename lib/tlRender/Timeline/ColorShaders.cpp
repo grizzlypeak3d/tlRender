@@ -3,8 +3,39 @@
 
 #include <tlRender/Timeline/ColorShaders.h>
 
+#include <cmath>
+
 namespace tl
 {
+    DisplayColorValues getDisplayColorValues(const DisplayOptions& options)
+    {
+        DisplayColorValues out;
+        out.channels = static_cast<int>(options.channels);
+        out.negative = options.negative;
+        // A matrix that does nothing is not applied: it is not quite
+        // nothing in the arithmetic.
+        out.colorEnabled = options.color.enabled && options.color != Color();
+        out.colorAdd = options.color.add;
+        if (out.colorEnabled)
+        {
+            out.colorMatrix = color(options.color);
+        }
+        out.levelsEnabled = options.levels.enabled;
+        out.levelsInLow = options.levels.inLow;
+        out.levelsInHigh = options.levels.inHigh;
+        out.levelsGamma = options.levels.gamma > 0.F ?
+            (1.F / options.levels.gamma) :
+            1000000.F;
+        out.levelsOutLow = options.levels.outLow;
+        out.levelsOutHigh = options.levels.outHigh;
+        out.exposureEnabled = options.exposure.enabled;
+        out.exposure = options.exposure.enabled ?
+            std::pow(2.F, options.exposure.exposure) :
+            1.F;
+        out.softClip = options.softClip.enabled ? options.softClip.value : 0.F;
+        return out;
+    }
+
     std::string getColorShaderFunctions(ShaderLanguage language)
     {
         std::string out;

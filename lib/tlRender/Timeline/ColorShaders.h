@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include <tlRender/Timeline/DisplayOptions.h>
 #include <tlRender/Timeline/Export.h>
 #include <tlRender/Timeline/RenderPrivate.h>
 
@@ -50,6 +51,32 @@ namespace tl
     //! with GLSL's vector and matrix type names, which the functions, and
     //! the body below, are written with.
     TL_TIMELINE_API std::string getColorShaderFunctions(ShaderLanguage);
+
+    //! The display options as the display shader takes them, and as
+    //! CPUColor applies them: what is turned on, and the values in the form
+    //! the arithmetic uses -- the levels' gamma inverted, the exposure as a
+    //! factor -- so that the renderers and the CPU cannot work them out
+    //! differently.
+    struct TL_TIMELINE_API_TYPE DisplayColorValues
+    {
+        int       channels        = 0;
+        bool      negative        = false;
+        bool      colorEnabled    = false;
+        ftk::V3F  colorAdd;
+        ftk::M44F colorMatrix;
+        bool      levelsEnabled   = false;
+        float     levelsInLow     = 0.F;
+        float     levelsInHigh    = 1.F;
+        float     levelsGamma     = 1.F;
+        float     levelsOutLow    = 0.F;
+        float     levelsOutHigh   = 1.F;
+        bool      exposureEnabled = false;
+        float     exposure        = 1.F;
+        float     softClip        = 0.F;
+    };
+
+    //! Get the display options as the display shader takes them.
+    TL_TIMELINE_API DisplayColorValues getDisplayColorValues(const DisplayOptions&);
 
     //! What the display shader's body reads, in its language.
     struct TL_TIMELINE_API_TYPE DisplayShaderInputs

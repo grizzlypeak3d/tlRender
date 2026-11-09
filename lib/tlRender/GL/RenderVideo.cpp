@@ -3,6 +3,8 @@
 
 #include <tlRender/GL/RenderPrivate.h>
 
+#include <tlRender/Timeline/ColorShaders.h>
+
 #include <tlRender/Timeline/Util.h>
 
 #include <ftk/GL/GL.h>
@@ -1043,37 +1045,28 @@ namespace tl
                 displayShader->setUniform(
                     "sourceSize",
                     ftk::V2F(displaySize.w, displaySize.h));
-                displayShader->setUniform("channels", static_cast<int>(displayOptions.channels));
-                displayShader->setUniform("negative", displayOptions.negative);
+                // The display options as the shader takes them; see
+                // tl::getDisplayColorValues().
+                const DisplayColorValues values = getDisplayColorValues(displayOptions);
+                displayShader->setUniform("channels", values.channels);
+                displayShader->setUniform("negative", values.negative);
                 displayShader->setUniform("mirrorX", displayOptions.mirror.x);
                 displayShader->setUniform("mirrorY", displayOptions.mirror.y);
-                const bool colorMatrixEnabled =
-                    displayOptions.color != Color() &&
-                    displayOptions.color.enabled;
-                displayShader->setUniform("colorEnabled", colorMatrixEnabled);
-                displayShader->setUniform("colorAdd", displayOptions.color.add);
-                if (colorMatrixEnabled)
+                displayShader->setUniform("colorEnabled", values.colorEnabled);
+                displayShader->setUniform("colorAdd", values.colorAdd);
+                if (values.colorEnabled)
                 {
-                    displayShader->setUniform("colorMatrix", color(displayOptions.color));
+                    displayShader->setUniform("colorMatrix", values.colorMatrix);
                 }
-                displayShader->setUniform("levelsEnabled", displayOptions.levels.enabled);
-                displayShader->setUniform("levelsInLow", displayOptions.levels.inLow);
-                displayShader->setUniform("levelsInHigh", displayOptions.levels.inHigh);
-                displayShader->setUniform(
-                    "levelsGamma",
-                    displayOptions.levels.gamma > 0.F ? (1.F / displayOptions.levels.gamma) : 1000000.F);
-                displayShader->setUniform("levelsOutLow", displayOptions.levels.outLow);
-                displayShader->setUniform("levelsOutHigh", displayOptions.levels.outHigh);
-                displayShader->setUniform("exposureEnabled", displayOptions.exposure.enabled);
-                if (displayOptions.exposure.enabled)
-                {
-                    displayShader->setUniform(
-                        "exposure",
-                        powf(2.F, displayOptions.exposure.exposure));
-                }
-                displayShader->setUniform(
-                    "softClip",
-                    displayOptions.softClip.enabled ? displayOptions.softClip.value : 0.F);
+                displayShader->setUniform("levelsEnabled", values.levelsEnabled);
+                displayShader->setUniform("levelsInLow", values.levelsInLow);
+                displayShader->setUniform("levelsInHigh", values.levelsInHigh);
+                displayShader->setUniform("levelsGamma", values.levelsGamma);
+                displayShader->setUniform("levelsOutLow", values.levelsOutLow);
+                displayShader->setUniform("levelsOutHigh", values.levelsOutHigh);
+                displayShader->setUniform("exposureEnabled", values.exposureEnabled);
+                displayShader->setUniform("exposure", values.exposure);
+                displayShader->setUniform("softClip", values.softClip);
 
                 glActiveTexture(static_cast<GLenum>(GL_TEXTURE0));
                 glBindTexture(GL_TEXTURE_2D, videoID);
