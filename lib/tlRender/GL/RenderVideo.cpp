@@ -1057,13 +1057,13 @@ namespace tl
                     displayShader->setUniform("colorMatrix", color(displayOptions.color));
                 }
                 displayShader->setUniform("levelsEnabled", displayOptions.levels.enabled);
-                displayShader->setUniform("levels.inLow", displayOptions.levels.inLow);
-                displayShader->setUniform("levels.inHigh", displayOptions.levels.inHigh);
+                displayShader->setUniform("levelsInLow", displayOptions.levels.inLow);
+                displayShader->setUniform("levelsInHigh", displayOptions.levels.inHigh);
                 displayShader->setUniform(
-                    "levels.gamma",
+                    "levelsGamma",
                     displayOptions.levels.gamma > 0.F ? (1.F / displayOptions.levels.gamma) : 1000000.F);
-                displayShader->setUniform("levels.outLow", displayOptions.levels.outLow);
-                displayShader->setUniform("levels.outHigh", displayOptions.levels.outHigh);
+                displayShader->setUniform("levelsOutLow", displayOptions.levels.outLow);
+                displayShader->setUniform("levelsOutHigh", displayOptions.levels.outHigh);
                 displayShader->setUniform("exposureEnabled", displayOptions.exposure.enabled);
                 if (displayOptions.exposure.enabled)
                 {

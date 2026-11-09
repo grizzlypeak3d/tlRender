@@ -21,6 +21,7 @@ set(HEADERS
     UtilInline.h
     Video.h)
 set(PRIVATE_HEADERS
+    ColorShaders.h
     PlayerPrivate.h
     RenderPrivate.h
     RenderPrivateInline.h
@@ -41,6 +42,7 @@ set(SOURCE
     PlayerAudio.cpp
     PlayerOptions.cpp
     PlayerPrivate.cpp
+    ColorShaders.cpp
     RenderPrivate.cpp
     System.cpp
     TimeUnits.cpp
