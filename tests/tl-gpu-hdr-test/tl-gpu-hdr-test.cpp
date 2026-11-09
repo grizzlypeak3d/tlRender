@@ -10,6 +10,8 @@
 // taken to be, that is there and back: what arrives should be the code
 // values that set out. Into an extended linear one it is the picture's
 // light, in Rec. 709, as a multiple of white.
+//
+// With no GPU device to draw with, the test is skipped: exit code 77.
 
 #include <tlRender/GPU/Render.h>
 
@@ -35,6 +37,16 @@ int main(int, char**)
         auto context = ftk::Context::create();
         ftk::gpu::init(context);
         auto system = context->getSystem<ftk::gpu::System>();
+        try
+        {
+            system->getDevice();
+        }
+        catch (const std::exception& e)
+        {
+            // Nothing to draw with: skipped, as ctest has it.
+            std::cout << "SKIPPED: no GPU device: " << e.what() << std::endl;
+            return 77;
+        }
         auto render = gpu::Render::create(
             system,
             context->getLogSystem(),

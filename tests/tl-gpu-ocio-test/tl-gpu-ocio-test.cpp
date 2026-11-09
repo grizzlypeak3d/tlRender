@@ -357,9 +357,22 @@ int main(int, char**)
     try
     {
         if (!SDL_Init(SDL_INIT_VIDEO)) throw std::runtime_error(SDL_GetError());
-        SDL_GPUDevice* device = SDL_CreateGPUDevice(
-            SDL_GPU_SHADERFORMAT_MSL | SDL_GPU_SHADERFORMAT_SPIRV, true, nullptr);
-        if (!device) throw std::runtime_error(SDL_GetError());
+        // A device as ftk makes one: Metal, or Vulkan on a GPU rather than
+        // drawing on the CPU, which is skipped like having none.
+        SDL_PropertiesID props = SDL_CreateProperties();
+        SDL_SetBooleanProperty(props, SDL_PROP_GPU_DEVICE_CREATE_SHADERS_MSL_BOOLEAN, true);
+        SDL_SetBooleanProperty(props, SDL_PROP_GPU_DEVICE_CREATE_SHADERS_SPIRV_BOOLEAN, true);
+        SDL_SetBooleanProperty(props, SDL_PROP_GPU_DEVICE_CREATE_DEBUGMODE_BOOLEAN, true);
+        SDL_SetBooleanProperty(props, SDL_PROP_GPU_DEVICE_CREATE_VULKAN_REQUIRE_HARDWARE_ACCELERATION_BOOLEAN, true);
+        SDL_GPUDevice* device = SDL_CreateGPUDeviceWithProperties(props);
+        SDL_DestroyProperties(props);
+        if (!device)
+        {
+            // Nothing to draw with: skipped, as ctest has it.
+            std::printf("SKIPPED: no GPU device: %s\n", SDL_GetError());
+            SDL_Quit();
+            return 77;
+        }
         std::printf("GPU driver: %s\n", SDL_GetGPUDeviceDriver(device));
         auto config = OCIO::Config::CreateFromBuiltinConfig("studio-config-latest");
         const std::string display = config->getDefaultDisplay();
