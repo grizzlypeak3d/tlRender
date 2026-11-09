@@ -662,48 +662,12 @@ namespace tl
             bool perLayer = false;
             std::vector<std::pair<std::string, std::string> > layerInputs;
 #if defined(TLRENDER_OCIO)
-            if (p.ocioOptions.enabled &&
-                !p.ocioOptions.display.empty() &&
-                !p.ocioOptions.view.empty())
+            layerInputs = p.ocio.getLayerInputs(videoFrame, displayOptions.ocioInput);
+            const std::string probe = getFirstLayerInput(layerInputs);
+            if (!probe.empty())
             {
-                const std::string itemInput = !displayOptions.ocioInput.empty() ?
-                    displayOptions.ocioInput :
-                    p.ocioOptions.input;
-                for (const auto& layer : videoFrame.layers)
-                {
-                    std::string in = _layerOCIOInput(
-                        layer.ocioInput, layer.path, layer.image);
-                    if (in.empty())
-                    {
-                        in = itemInput;
-                    }
-                    std::string inB = _layerOCIOInput(
-                        layer.ocioInputB, layer.pathB, layer.imageB);
-                    if (inB.empty())
-                    {
-                        inB = itemInput;
-                    }
-                    layerInputs.push_back(std::make_pair(in, inB));
-                }
-                std::string probe;
-                for (const auto& i : layerInputs)
-                {
-                    if (!i.first.empty())
-                    {
-                        probe = i.first;
-                        break;
-                    }
-                    if (!i.second.empty())
-                    {
-                        probe = i.second;
-                        break;
-                    }
-                }
-                if (!probe.empty())
-                {
-                    const auto data = _ocioData(probe);
-                    perLayer = data && data->toLinear.shaderDesc;
-                }
+                const auto data = _ocioData(probe);
+                perLayer = data && data->toLinear.shaderDesc;
             }
 #endif // TLRENDER_OCIO
 

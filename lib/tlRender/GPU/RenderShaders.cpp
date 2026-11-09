@@ -50,20 +50,10 @@ namespace tl
                 const ShaderStage& lut,
                 LUTOrder lutOrder)
             {
-                std::string before;
-                std::string after;
-                switch (lutOrder)
-                {
-                case LUTOrder::PreConfig:
-                    before = lut.mslCall + "\n    " + toLinear.mslCall;
-                    after = ocio.mslCall;
-                    break;
-                case LUTOrder::PostConfig:
-                    before = toLinear.mslCall;
-                    after = ocio.mslCall + "\n    " + lut.mslCall;
-                    break;
-                default: break;
-                }
+                const ColorStageCalls calls = getColorStageCalls(
+                    lutOrder, lut.mslCall, toLinear.mslCall, ocio.mslCall);
+                const std::string& before = calls.before;
+                const std::string& after = calls.after;
                 return header +
                     "// enum ftk::ChannelDisplay\n"
                     "constant int Channels_Color = 0;\n"
@@ -529,20 +519,10 @@ namespace tl
                 const ShaderStage& lut,
                 LUTOrder lutOrder)
             {
-                std::string before;
-                std::string after;
-                switch (lutOrder)
-                {
-                case LUTOrder::PreConfig:
-                    before = lut.glslCall + "\n    " + toLinear.glslCall;
-                    after = ocio.glslCall;
-                    break;
-                case LUTOrder::PostConfig:
-                    before = toLinear.glslCall;
-                    after = ocio.glslCall + "\n    " + lut.glslCall;
-                    break;
-                default: break;
-                }
+                const ColorStageCalls calls = getColorStageCalls(
+                    lutOrder, lut.glslCall, toLinear.glslCall, ocio.glslCall);
+                const std::string& before = calls.before;
+                const std::string& after = calls.after;
                 return headerGLSL +
                     "// enum ftk::ChannelDisplay\n"
                     "const int Channels_Color = 0;\n"

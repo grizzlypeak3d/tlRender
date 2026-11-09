@@ -28,6 +28,54 @@ namespace tl
         return out;
     }
 
+    std::vector<ColorStage> getColorStages(LUTOrder lutOrder)
+    {
+        std::vector<ColorStage> out;
+        if (LUTOrder::PreConfig == lutOrder)
+        {
+            out.push_back(ColorStage::LUT);
+        }
+        out.push_back(ColorStage::ToLinear);
+        out.push_back(ColorStage::Corrections);
+        out.push_back(ColorStage::Display);
+        if (LUTOrder::PostConfig == lutOrder)
+        {
+            out.push_back(ColorStage::LUT);
+        }
+        return out;
+    }
+
+    ColorStageCalls getColorStageCalls(
+        LUTOrder lutOrder,
+        const std::string& lut,
+        const std::string& toLinear,
+        const std::string& display,
+        const std::string& indent)
+    {
+        ColorStageCalls out;
+        std::string* calls = &out.before;
+        for (const auto stage : getColorStages(lutOrder))
+        {
+            const std::string* call = nullptr;
+            switch (stage)
+            {
+            case ColorStage::LUT: call = &lut; break;
+            case ColorStage::ToLinear: call = &toLinear; break;
+            case ColorStage::Display: call = &display; break;
+            case ColorStage::Corrections: calls = &out.after; break;
+            }
+            if (call && !call->empty())
+            {
+                if (!calls->empty())
+                {
+                    *calls += '\n' + indent;
+                }
+                *calls += *call;
+            }
+        }
+        return out;
+    }
+
 #if defined(TLRENDER_OCIO)
     namespace
     {
@@ -210,6 +258,23 @@ namespace tl
             throw std::runtime_error("Cannot get OCIO processor");
         }
         return out;
+    }
+
+    std::string getFirstLayerInput(
+        const std::vector<std::pair<std::string, std::string> >& value)
+    {
+        for (const auto& i : value)
+        {
+            if (!i.first.empty())
+            {
+                return i.first;
+            }
+            if (!i.second.empty())
+            {
+                return i.second;
+            }
+        }
+        return std::string();
     }
 #endif // TLRENDER_OCIO
 }

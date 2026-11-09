@@ -110,28 +110,11 @@ namespace tl
             bool videoCache = false;
 
 #if defined(TLRENDER_OCIO)
-            // Keyed by the options they were built for and then by the
-            // input color space, so that items with different inputs each
-            // draw through their own transform -- and so that more than one
-            // set of options can be held at once. The viewport and the
-            // timeline items draw through the same render with different
-            // options, so the two sets alternate within every frame:
-            // keeping only the current one meant reading the configuration
-            // and recompiling the shaders twice a frame.
-            std::map<std::string, std::shared_ptr<OCIOData> > ocioData;
-            // The current options' key, and the keys held, most recent
-            // first. Entries beyond the last few are dropped.
-            std::string ocioKey;
-            std::list<std::string> ocioKeys;
+            // What the options are built into, for each input color space,
+            // and the layers' input color spaces; see tl::OCIOCache.
+            OCIOCache<OCIOData> ocio;
             // What _displayShader() most recently bound, for the textures.
             std::shared_ptr<OCIOData> ocioDataBound;
-            // Resolves an input color space for a layer from where it came
-            // from; the results are kept per options and path until the
-            // resolver changes.
-            std::function<std::string(
-                const std::string&,
-                const ftk::ImageTags&)> ocioInputResolver;
-            std::map<std::string, std::string> ocioInputCache;
             // What _toLinearShader() most recently bound, for the textures.
             std::shared_ptr<OCIOData> ocioToLinearBound;
             std::unique_ptr<OCIOLUTData> lutData;

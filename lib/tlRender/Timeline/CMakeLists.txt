@@ -23,6 +23,7 @@ set(HEADERS
 set(PRIVATE_HEADERS
     PlayerPrivate.h
     RenderPrivate.h
+    RenderPrivateInline.h
     TimelinePrivate.h
     ZipPrivate.h)
 

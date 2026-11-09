@@ -1342,30 +1342,35 @@ namespace
         // thumbnail.
         try
         {
+            // In the order the picture has them; thumbnails have no color
+            // corrections.
             auto color = std::make_shared<ThumbnailColor>();
-            OCIO_NAMESPACE::ConstCPUProcessorRcPtr lutCPU;
-            if (lutOn)
-            {
-                lutCPU = tl::getOCIOLUTProcessor(lut).processor->getDefaultCPUProcessor();
-            }
-            if (lutOn && tl::LUTOrder::PreConfig == lut.order)
-            {
-                color->processors.push_back(lutCPU);
-            }
+            tl::OCIOProcessors processors;
             if (ocioOn)
             {
-                const auto processors = tl::getOCIOProcessors(ocio);
-                if (processors.toLinear)
-                {
-                    color->processors.push_back(processors.toLinear->getDefaultCPUProcessor());
-                }
-                color->processors.push_back(processors.display->getDefaultCPUProcessor());
+                processors = tl::getOCIOProcessors(ocio);
                 color->displayP3 =
                     "smpte432" == tl::getDisplayColorTags(ocio, false)["Color Primaries"];
             }
-            if (lutOn && tl::LUTOrder::PostConfig == lut.order)
+            for (const auto stage : tl::getColorStages(lut.order))
             {
-                color->processors.push_back(lutCPU);
+                OCIO_NAMESPACE::ConstProcessorRcPtr processor;
+                switch (stage)
+                {
+                case tl::ColorStage::LUT:
+                    if (lutOn)
+                    {
+                        processor = tl::getOCIOLUTProcessor(lut).processor;
+                    }
+                    break;
+                case tl::ColorStage::ToLinear: processor = processors.toLinear; break;
+                case tl::ColorStage::Display: processor = processors.display; break;
+                case tl::ColorStage::Corrections: break;
+                }
+                if (processor)
+                {
+                    color->processors.push_back(processor->getDefaultCPUProcessor());
+                }
             }
             out = color;
         }

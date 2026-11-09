@@ -205,15 +205,11 @@ namespace tl
             bool displayP3 = false;
 
 #if defined(TLRENDER_OCIO)
-            // See tl::gl::Render, which these are kept as.
-            std::map<std::string, std::shared_ptr<OCIOData> > ocioData;
-            std::string ocioKey;
-            std::list<std::string> ocioKeys;
+            // What the options are built into, for each input color space,
+            // and the layers' input color spaces; see tl::OCIOCache.
+            OCIOCache<OCIOData> ocio;
+            // What _displayShader() most recently bound, for the textures.
             std::shared_ptr<OCIOData> ocioDataBound;
-            std::function<std::string(
-                const std::string&,
-                const ftk::ImageTags&)> ocioInputResolver;
-            std::map<std::string, std::string> ocioInputCache;
             std::unique_ptr<OCIOLUTData> lutData;
 #endif // TLRENDER_OCIO
 

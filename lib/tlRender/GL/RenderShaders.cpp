@@ -97,27 +97,11 @@ namespace tl
             args.push_back(toLinearDef);
             args.push_back(ocioDef);
             args.push_back(lutDef);
-            // What runs before the color corrections and what runs after:
-            // the transform to linear comes before so the corrections
-            // operate on linear values, the display transform after, and
-            // the LUT is on whichever side of the color management it was
-            // asked for.
-            std::string before;
-            std::string after;
-            switch (lutOrder)
-            {
-            case LUTOrder::PreConfig:
-                before = lut + "\n    " + toLinear;
-                after = ocio;
-                break;
-            case LUTOrder::PostConfig:
-                before = toLinear;
-                after = ocio + "\n    " + lut;
-                break;
-            default: break;
-            }
-            args.push_back(before);
-            args.push_back(after);
+            // What runs before the color corrections and what runs after;
+            // see tl::getColorStages().
+            const ColorStageCalls calls = getColorStageCalls(lutOrder, lut, toLinear, ocio);
+            args.push_back(calls.before);
+            args.push_back(calls.after);
             return ftk::Format(
                 "\n"
                 "in vec2 fTexture;\n"

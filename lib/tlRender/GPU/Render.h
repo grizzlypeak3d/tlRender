@@ -196,10 +196,6 @@ namespace tl
             void _ocioErase(const std::string& ocioKey);
             void _ocioError(const std::string&);
 #endif // TLRENDER_OCIO
-            std::string _layerOCIOInput(
-                const std::string& layerInput,
-                const std::string& path,
-                const std::shared_ptr<ftk::Image>&);
 
             std::shared_ptr<ftk::gpu::OffscreenBuffer> _buffer(
                 const std::string& name,

@@ -166,10 +166,6 @@ namespace tl
 #endif // TLRENDER_OCIO
             std::shared_ptr<ftk::gl::Shader> _toLinearShader(
                 const std::string& input);
-            std::string _layerOCIOInput(
-                const std::string& layerInput,
-                const std::string& path,
-                const std::shared_ptr<ftk::Image>&);
 
             void _drawVideoA(
                 const std::vector<VideoFrame>&,

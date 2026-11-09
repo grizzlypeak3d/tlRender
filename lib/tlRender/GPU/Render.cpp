@@ -647,10 +647,6 @@ namespace tl
             p.baseRender->setShader("tl:butterfly", butterflyFragmentSource(), 2);
             p.baseRender->setShader("tl:difference", differenceFragmentSource(), 2);
             p.baseRender->setShader("tl:hdr", hdrFragmentSource(), 1);
-#if defined(TLRENDER_OCIO)
-            p.ocioKey = getOCIOOptionsKey(p.ocioOptions);
-            p.ocioKeys.push_front(p.ocioKey);
-#endif // TLRENDER_OCIO
         }
 
         Render::Render() :
@@ -709,17 +705,9 @@ namespace tl
 #if defined(TLRENDER_OCIO)
             p.ocioDataBound.reset();
 
-            p.ocioKey = getOCIOOptionsKey(p.ocioOptions);
-            auto i = std::find(p.ocioKeys.begin(), p.ocioKeys.end(), p.ocioKey);
-            if (i != p.ocioKeys.end())
+            for (const auto& key : p.ocio.setOptions(p.ocioOptions))
             {
-                p.ocioKeys.erase(i);
-            }
-            p.ocioKeys.push_front(p.ocioKey);
-            while (p.ocioKeys.size() > 4)
-            {
-                _ocioErase(p.ocioKeys.back());
-                p.ocioKeys.pop_back();
+                _ocioErase(key);
             }
 
             if (p.ocioOptions.enabled &&
@@ -739,8 +727,7 @@ namespace tl
         {
             FTK_P();
 #if defined(TLRENDER_OCIO)
-            p.ocioInputResolver = value;
-            p.ocioInputCache.clear();
+            p.ocio.setInputResolver(value);
 #endif // TLRENDER_OCIO
         }
 
@@ -953,7 +940,7 @@ namespace tl
                 }
             }
             p.ocioDataBound = ocioData;
-            const std::string name = "display:" + p.ocioKey + '\n' + input;
+            const std::string name = "display:" + p.ocio.getKey() + '\n' + input;
 #else // TLRENDER_OCIO
             const std::string name = "display:" + input;
 #endif // TLRENDER_OCIO
@@ -997,7 +984,7 @@ namespace tl
             const auto ocioData = _ocioData(input);
             if (ocioData && ocioData->toLinear.shaderDesc)
             {
-                out = "toLinear:" + p.ocioKey + '\n' + input;
+                out = "toLinear:" + p.ocio.getKey() + '\n' + input;
                 if (p.displayShaders.find(out) == p.displayShaders.end())
                 {
                     const ShaderStage toLinear = shaderStage(ocioData->toLinear, 1);
@@ -1016,29 +1003,20 @@ namespace tl
         std::shared_ptr<OCIOData> Render::_ocioData(const std::string& input)
         {
             FTK_P();
-            const std::string key = p.ocioKey + '\n' + input;
-            auto i = p.ocioData.find(key);
-            if (i == p.ocioData.end())
-            {
-                auto data = std::make_shared<OCIOData>();
-                try
+            return p.ocio.get(
+                input,
+                [&p](OCIOData& data, const OCIOOptions& options)
                 {
-                    OCIOOptions options = p.ocioOptions;
-                    options.input = input;
                     ocioDataInit(
-                        *data,
+                        data,
                         options,
                         p.system->getDevice(),
                         ftk::gpu::hasFloatFilter(p.system));
-                }
-                catch (const std::exception& e)
+                },
+                [this](const std::string& what)
                 {
-                    _ocioError(e.what());
-                    data.reset();
-                }
-                i = p.ocioData.insert(std::make_pair(key, data)).first;
-            }
-            return i->second;
+                    _ocioError(what);
+                });
         }
 
         void Render::_ocioError(const std::string& what)
@@ -1055,13 +1033,9 @@ namespace tl
         void Render::_ocioErase(const std::string& ocioKey)
         {
             FTK_P();
+            // The display and to-linear shaders built for one set of
+            // options, which the cache has let go of.
             const std::string suffix = ocioKey + '\n';
-            auto i = p.ocioData.lower_bound(suffix);
-            while (i != p.ocioData.end() &&
-                0 == i->first.compare(0, suffix.size(), suffix))
-            {
-                i = p.ocioData.erase(i);
-            }
             for (const std::string prefix : { "display:", "toLinear:" })
             {
                 const std::string begin = prefix + suffix;
@@ -1075,32 +1049,6 @@ namespace tl
             }
         }
 #endif // TLRENDER_OCIO
-
-        std::string Render::_layerOCIOInput(
-            const std::string& layerInput,
-            const std::string& path,
-            const std::shared_ptr<ftk::Image>& image)
-        {
-            FTK_P();
-            std::string out = layerInput;
-#if defined(TLRENDER_OCIO)
-            if (out.empty() && p.ocioInputResolver && !path.empty())
-            {
-                const std::string key = p.ocioKey + '\n' + path;
-                auto i = p.ocioInputCache.find(key);
-                if (i == p.ocioInputCache.end())
-                {
-                    i = p.ocioInputCache.insert(std::make_pair(
-                        key,
-                        p.ocioInputResolver(
-                            path,
-                            image ? image->getTags() : ftk::ImageTags()))).first;
-                }
-                out = i->second;
-            }
-#endif // TLRENDER_OCIO
-            return out;
-        }
 
         void Render::_displayShadersReset()
         {
