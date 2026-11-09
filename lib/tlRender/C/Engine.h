@@ -256,6 +256,14 @@ TL_C_API unsigned long long tl_timeline_request_poster(
 TL_C_API int tl_engine_get_poster(
     tl_engine*, unsigned long long id, tl_image*);
 
+//! Thumbnails and posters come in the color the picture is drawn with
+//! (see tl::c::setThumbnailColor()). This moves when that changes: the
+//! ones already collected are in the old color.
+TL_C_API unsigned long long tl_engine_get_color_generation(tl_engine*);
+//! The color as a number, the same from one run to the next, for a cache
+//! of them on disk: zero when they are shown as they are.
+TL_C_API unsigned long long tl_engine_get_color_hash(tl_engine*);
+
 //! Ask for the timeline's audio over a range, in seconds from its start,
 //! as so many columns: each the lowest and the highest sample under it,
 //! of every audio track and channel together, as the timeline widget

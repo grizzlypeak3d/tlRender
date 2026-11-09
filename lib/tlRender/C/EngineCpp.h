@@ -51,6 +51,18 @@ namespace tl
         TL_C_API void setBackgroundOptions(tl_view*, const BackgroundOptions&);
         TL_C_API void setForegroundOptions(tl_view*, const ForegroundOptions&);
 
+        //! What the thumbnails and posters are shown with: the color the
+        //! picture is drawn with, as the views have it, given to the
+        //! engine as well so that a library with no view open has it.
+        //! Put on each one as it is collected, by
+        //! tl_player_get_thumbnail() and tl_engine_get_poster(), with
+        //! the input of the media the thumbnail was made from.
+        TL_C_API void setThumbnailColor(
+            tl_engine*,
+            const OCIOOptions&,
+            const std::function<std::string(const std::string& path, const ftk::ImageTags&)>&,
+            const LUTOptions&);
+
         //! How the player's timeline and the one it is compared with are
         //! drawn; see tl_player_set_compare().
         TL_C_API void setCompareOptions(tl_view*, const CompareOptions&);

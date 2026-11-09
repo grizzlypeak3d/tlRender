@@ -1008,7 +1008,8 @@ namespace tl
                 const std::shared_ptr<ftk::LogSystem>& logSystem,
                 std::shared_ptr<ImageScale>& scale,
                 const std::shared_ptr<ftk::Image>& image,
-                const ftk::Size2I& size)
+                const ftk::Size2I& size,
+                const std::string& path)
             {
                 const ftk::ImageInfo outputInfo(size, ftk::ImageType::RGBA_U8);
                 if (!scale ||
@@ -1033,9 +1034,25 @@ namespace tl
                 auto out = scale->process(image);
                 // Shown as sRGB wherever a thumbnail goes: a Display P3
                 // picture's taken into it, or its colors would be duller.
-                if (out && isDisplayP3(image->getTags()))
+                const bool displayP3 = isDisplayP3(image->getTags());
+                if (out && displayP3)
                 {
                     displayP3ToSRGB(out);
+                }
+                // What the picture was and where it came from, for whoever
+                // shows the thumbnail through the color options (see
+                // thumbnailPathTag): the file's tags, but not a Display P3
+                // file's color, as it has been taken into sRGB.
+                if (out)
+                {
+                    ftk::ImageTags tags = image->getTags();
+                    if (displayP3)
+                    {
+                        tags.erase("Color Primaries");
+                        tags.erase("Color Transfer");
+                    }
+                    tags[thumbnailPathTag] = path;
+                    out->setTags(tags);
                 }
                 return out;
             }
@@ -1124,7 +1141,8 @@ namespace tl
                                             context->getLogSystem(),
                                             p.thumbnailThread.scale,
                                             videoData.image,
-                                            size);
+                                            size,
+                                            request->mediaPath.get());
                                     }
                                 }
                             }
@@ -1173,11 +1191,13 @@ namespace tl
                                 // a miniature of a compare is not worth a
                                 // renderer here.
                                 std::shared_ptr<ftk::Image> layerImage;
+                                std::string layerPath;
                                 for (const auto& layer : videoData.layers)
                                 {
                                     if (layer.image)
                                     {
                                         layerImage = layer.image;
+                                        layerPath = layer.path;
                                         break;
                                     }
                                 }
@@ -1187,7 +1207,8 @@ namespace tl
                                         context->getLogSystem(),
                                         p.thumbnailThread.scale,
                                         layerImage,
-                                        size);
+                                        size,
+                                        layerPath);
                                 }
                             }
                         }

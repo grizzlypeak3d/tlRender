@@ -4,6 +4,11 @@
 #include <tlRender/C/Engine.h>
 #include <tlRender/C/EngineCpp.h>
 
+#include <tlRender/Core/Gamut.h>
+#if defined(TLRENDER_OCIO)
+#include <tlRender/Timeline/RenderPrivate.h>
+#endif // TLRENDER_OCIO
+
 #include <tlRender/GPU/Render.h>
 #include <tlRender/IO/System.h>
 #include <tlRender/Timeline/CompareOptions.h>
@@ -73,6 +78,20 @@
 #include <string>
 #include <vector>
 
+namespace
+{
+    //! The color thumbnails are put through, made once for a set of
+    //! options and an input: the processors, in the order the picture
+    //! has them, and whether what comes out is Display P3.
+    struct ThumbnailColor
+    {
+#if defined(TLRENDER_OCIO)
+        std::vector<OCIO_NAMESPACE::ConstCPUProcessorRcPtr> processors;
+#endif // TLRENDER_OCIO
+        bool displayP3 = false;
+    };
+}
+
 struct tl_engine
 {
     std::shared_ptr<ftk::Context> context;
@@ -88,6 +107,17 @@ struct tl_engine
     // Posters of timelines: asked for from any thread.
     std::mutex posterMutex;
     std::map<unsigned long long, std::future<std::shared_ptr<ftk::Image> > > posters;
+
+    // The color thumbnails and posters are shown with, and what it was
+    // made into for the inputs seen; see tl::c::setThumbnailColor().
+    // Posters are collected from any thread.
+    std::mutex colorMutex;
+    tl::OCIOOptions ocioOptions;
+    std::function<std::string(const std::string&, const ftk::ImageTags&)> ocioInputResolver;
+    tl::LUTOptions lutOptions;
+    std::list<std::pair<std::string, std::shared_ptr<ThumbnailColor> > > colorCache;
+    std::atomic<unsigned long long> colorGeneration{ 0 };
+    std::atomic<unsigned long long> colorHash{ 0 };
 };
 
 struct tl_timeline
@@ -1233,6 +1263,10 @@ void tl_image_free(tl_image* image)
     }
 }
 
+// C++ linkage: this part of the file is inside the C interface's
+// extern "C".
+extern "C++"
+{
 namespace
 {
     //! A thumbnail into a picture for the caller: RGBA, the top row
@@ -1258,6 +1292,148 @@ namespace
         }
         return true;
     }
+
+    //! The color for a thumbnail with these tags: the engine's options,
+    //! with the input its media resolves to when none is chosen. Null
+    //! when there is nothing to do, or it cannot be had.
+    std::shared_ptr<ThumbnailColor> getThumbnailColor(
+        tl_engine* engine,
+        const ftk::ImageTags& tags)
+    {
+        std::shared_ptr<ThumbnailColor> out;
+#if defined(TLRENDER_OCIO)
+        std::unique_lock<std::mutex> lock(engine->colorMutex);
+        tl::OCIOOptions ocio = engine->ocioOptions;
+        const tl::LUTOptions& lut = engine->lutOptions;
+        if (ocio.enabled && ocio.input.empty() && engine->ocioInputResolver)
+        {
+            const auto i = tags.find(tl::ui::thumbnailPathTag);
+            if (i != tags.end() && !i->second.empty())
+            {
+                ocio.input = engine->ocioInputResolver(i->second, tags);
+            }
+        }
+        // As the picture is drawn: a layer with no input is not put
+        // through the configuration.
+        const bool ocioOn = ocio.enabled && !ocio.input.empty();
+        const bool lutOn = lut.enabled && !lut.fileName.empty();
+        if (!ocioOn && !lutOn)
+            return out;
+
+        const std::string key =
+            (ocioOn ? tl::getOCIOOptionsKey(ocio) : std::string()) + '\n' +
+            (lutOn ?
+                lut.fileName + '\n' +
+                std::to_string(static_cast<int>(lut.order)) + '\n' +
+                std::to_string(static_cast<int>(lut.direction)) :
+                std::string());
+        for (auto i = engine->colorCache.begin(); i != engine->colorCache.end(); ++i)
+        {
+            if (i->first == key)
+            {
+                engine->colorCache.splice(
+                    engine->colorCache.begin(), engine->colorCache, i);
+                return engine->colorCache.front().second;
+            }
+        }
+
+        // Made once and kept, a failure too: the same options give the
+        // same answer, and a bad LUT should not be read for every
+        // thumbnail.
+        try
+        {
+            auto color = std::make_shared<ThumbnailColor>();
+            OCIO_NAMESPACE::ConstCPUProcessorRcPtr lutCPU;
+            if (lutOn)
+            {
+                lutCPU = tl::getOCIOLUTProcessor(lut).processor->getDefaultCPUProcessor();
+            }
+            if (lutOn && tl::LUTOrder::PreConfig == lut.order)
+            {
+                color->processors.push_back(lutCPU);
+            }
+            if (ocioOn)
+            {
+                const auto processors = tl::getOCIOProcessors(ocio);
+                if (processors.toLinear)
+                {
+                    color->processors.push_back(processors.toLinear->getDefaultCPUProcessor());
+                }
+                color->processors.push_back(processors.display->getDefaultCPUProcessor());
+                color->displayP3 =
+                    "smpte432" == tl::getDisplayColorTags(ocio, false)["Color Primaries"];
+            }
+            if (lutOn && tl::LUTOrder::PostConfig == lut.order)
+            {
+                color->processors.push_back(lutCPU);
+            }
+            out = color;
+        }
+        catch (const std::exception&)
+        {}
+        engine->colorCache.push_front(std::make_pair(key, out));
+        while (engine->colorCache.size() > 16)
+        {
+            engine->colorCache.pop_back();
+        }
+#endif // TLRENDER_OCIO
+        return out;
+    }
+
+    //! Put a thumbnail through the color the picture is drawn with, as
+    //! the timeline widget on the desktop draws its thumbnails.
+    void colorThumbnail(
+        tl_engine* engine,
+        const std::shared_ptr<ftk::Image>& image,
+        tl_image* out)
+    {
+#if defined(TLRENDER_OCIO)
+        if (!engine || !image || !out->data)
+            return;
+        const auto color = getThumbnailColor(engine, image->getTags());
+        if (!color)
+            return;
+        const size_t count = static_cast<size_t>(out->width) * out->height;
+        std::vector<float> pixels(count * 4);
+        for (size_t i = 0; i < count * 4; ++i)
+        {
+            pixels[i] = out->data[i] / 255.F;
+        }
+        OCIO_NAMESPACE::PackedImageDesc desc(
+            pixels.data(), out->width, out->height, 4);
+        for (const auto& processor : color->processors)
+        {
+            processor->apply(desc);
+        }
+        for (size_t i = 0; i < count * 4; ++i)
+        {
+            out->data[i] = static_cast<unsigned char>(
+                std::clamp(pixels[i], 0.F, 1.F) * 255.F + .5F);
+        }
+        // Shown as sRGB, as the thumbnails are; the picture's window
+        // holds a Display P3 display's colors past sRGB's, which a
+        // thumbnail cannot.
+        if (color->displayP3)
+        {
+            auto converted = ftk::Image::create(
+                out->width, out->height, ftk::ImageType::RGBA_U8);
+            const size_t rowBytes = static_cast<size_t>(out->width) * 4;
+            const size_t stride = converted->getByteCount() / out->height;
+            for (int y = 0; y < out->height; ++y)
+            {
+                std::memcpy(converted->getData() + y * stride, out->data + y * rowBytes, rowBytes);
+            }
+            tl::displayP3ToSRGB(converted);
+            for (int y = 0; y < out->height; ++y)
+            {
+                std::memcpy(out->data + y * rowBytes, converted->getData() + y * stride, rowBytes);
+            }
+        }
+#else // TLRENDER_OCIO
+        (void)engine; (void)image; (void)out;
+#endif // TLRENDER_OCIO
+    }
+}
 }
 
 unsigned long long tl_player_request_thumbnail(tl_player* player, double seconds, int height)
@@ -1301,7 +1477,10 @@ int tl_player_get_thumbnail(tl_player* player, unsigned long long id, tl_image* 
     catch (const std::exception&)
     {}
     player->thumbnails.erase(i);
-    return copyImage(image, out) ? 1 : -1;
+    if (!copyImage(image, out))
+        return -1;
+    colorThumbnail(player->engine, image, out);
+    return 1;
 }
 
 void tl_player_cancel_thumbnail(tl_player* player, unsigned long long id)
@@ -1665,6 +1844,16 @@ unsigned long long tl_timeline_request_poster(tl_timeline* timeline, double seco
     return request.id;
 }
 
+unsigned long long tl_engine_get_color_generation(tl_engine* engine)
+{
+    return engine ? engine->colorGeneration.load() : 0;
+}
+
+unsigned long long tl_engine_get_color_hash(tl_engine* engine)
+{
+    return engine ? engine->colorHash.load() : 0;
+}
+
 int tl_engine_get_poster(tl_engine* engine, unsigned long long id, tl_image* out)
 {
     if (!engine || !out)
@@ -1687,7 +1876,10 @@ int tl_engine_get_poster(tl_engine* engine, unsigned long long id, tl_image* out
     }
     catch (const std::exception&)
     {}
-    return copyImage(image, out) ? 1 : -1;
+    if (!copyImage(image, out))
+        return -1;
+    colorThumbnail(engine, image, out);
+    return 1;
 }
 
 int tl_player_get_video_width(tl_player* player)
@@ -2383,6 +2575,52 @@ namespace tl
                 view->ocioOptions = value;
                 view->dirty = true;
             }
+        }
+
+        void setThumbnailColor(
+            tl_engine* engine,
+            const OCIOOptions& ocio,
+            const std::function<std::string(const std::string&, const ftk::ImageTags&)>& resolver,
+            const LUTOptions& lut)
+        {
+            if (!engine)
+                return;
+            std::unique_lock<std::mutex> lock(engine->colorMutex);
+            if (ocio != engine->ocioOptions || lut != engine->lutOptions)
+            {
+                ++engine->colorGeneration;
+            }
+            // FNV-1a of what changes the pixels, the same from one run to
+            // the next, for a cache kept on disk.
+            std::string key;
+#if defined(TLRENDER_OCIO)
+            if (ocio.enabled)
+            {
+                key += getOCIOOptionsKey(ocio);
+            }
+#endif // TLRENDER_OCIO
+            if (lut.enabled && !lut.fileName.empty())
+            {
+                key += '\n' + lut.fileName + '\n' +
+                    std::to_string(static_cast<int>(lut.order)) + '\n' +
+                    std::to_string(static_cast<int>(lut.direction));
+            }
+            unsigned long long hash = 0;
+            if (!key.empty())
+            {
+                hash = 14695981039346656037ULL;
+                for (const unsigned char c : key)
+                {
+                    hash = (hash ^ c) * 1099511628211ULL;
+                }
+            }
+            engine->colorHash = hash;
+            engine->ocioOptions = ocio;
+            engine->ocioInputResolver = resolver;
+            engine->lutOptions = lut;
+            // The inputs are resolved again: an extension's assignment
+            // or the configuration's rules may be what changed.
+            engine->colorCache.clear();
         }
 
         void setOCIOInputResolver(

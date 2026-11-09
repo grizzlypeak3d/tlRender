@@ -26,6 +26,13 @@ namespace tl
             std::future<IOInfo> future;
         };
 
+        //! The tag a video thumbnail names the file its picture came from
+        //! with, beside the file's own tags: the media of the clip, for a
+        //! thumbnail of a timeline. A thumbnail is not drawn through the
+        //! color options where it is made; this is what finds the input
+        //! color space when they are put on it later.
+        constexpr const char* thumbnailPathTag = "tlRender Thumbnail Path";
+
         //! What the timeline behind a thumbnail is for. The timeline
         //! widget comes back for frame after frame of the same file, so
         //! its timeline is kept for the next request; the file browser
