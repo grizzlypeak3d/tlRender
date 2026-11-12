@@ -49,7 +49,7 @@ fi
 # FFmpeg's own build system wants, since the super build's recipe is for
 # the whole of FFmpeg on a desktop.
 if [ ! -f $PREFIX/lib/libswscale.a ]; then
-    FFMPEG_VERSION=n9.0.1
+    FFMPEG_VERSION=n9.0.2
     if [ ! -d FFmpeg-$FFMPEG_VERSION ]; then
         curl -sL -o ffmpeg.tar.gz \
             https://github.com/FFmpeg/FFmpeg/archive/refs/tags/$FFMPEG_VERSION.tar.gz

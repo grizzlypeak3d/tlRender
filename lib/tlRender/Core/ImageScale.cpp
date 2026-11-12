@@ -110,7 +110,7 @@ namespace tl
         //! Only RGBA_F32 needs this. Of everything mapped above it is the
         //! single type swscale has no input support for -- packed RGBA float
         //! is missing from its table, while RGB_F32 and RGBA_F16 beside it
-        //! are there. Still missing upstream as of FFmpeg 9.0.1 and its
+        //! are there. Still missing upstream as of FFmpeg 9.0.2 and its
         //! master, so this is not waiting on a release.
         //!
         //! Half rather than sixteen bit integer: these are high dynamic range

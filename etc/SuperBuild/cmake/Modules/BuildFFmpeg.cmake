@@ -18,10 +18,14 @@ endif()
 # itself as version "unknown" -- av_version_info() is not read anywhere here,
 # and the library versions come from the source.
 #
-# The library versions are written out in the install names below and in the
-# packaging, so check them against libavutil/version.h and its siblings when
-# this moves: a point release bumps them.
-set(FFmpeg_URL https://github.com/FFmpeg/FFmpeg/archive/refs/tags/n9.0.1.tar.gz)
+# FFmpeg_LIB_VERSION is the minor and micro version of this release's
+# libraries (libavcodec.63.1.102 and the rest), which the macOS install names
+# below are spelled with. A point release bumps it, so check it against
+# libavutil/version.h and its siblings when the URL moves: with the old one
+# the libraries name files that are not there, and a clean build fails at
+# its install step. The packaging matches the files rather than naming them.
+set(FFmpeg_URL https://github.com/FFmpeg/FFmpeg/archive/refs/tags/n9.0.2.tar.gz)
+set(FFmpeg_LIB_VERSION 1.102)
 
 set(FFmpeg_DEPS)
 if(TLRENDER_AOM)
@@ -672,34 +676,34 @@ else()
     # The install names are only for the shared libraries.
     if(APPLE AND FFmpeg_SHARED_LIBS)
         list(APPEND FFmpeg_INSTALL
-            COMMAND install_name_tool -id @rpath/libavcodec.63.1.101.dylib ${CMAKE_INSTALL_PREFIX}/lib/libavcodec.63.dylib
-            COMMAND install_name_tool -id @rpath/libavdevice.63.1.101.dylib ${CMAKE_INSTALL_PREFIX}/lib/libavdevice.63.dylib
-            COMMAND install_name_tool -id @rpath/libavformat.63.1.101.dylib ${CMAKE_INSTALL_PREFIX}/lib/libavformat.63.dylib
-            COMMAND install_name_tool -id @rpath/libavutil.61.1.101.dylib ${CMAKE_INSTALL_PREFIX}/lib/libavutil.61.dylib
-            COMMAND install_name_tool -id @rpath/libswresample.7.1.101.dylib ${CMAKE_INSTALL_PREFIX}/lib/libswresample.7.dylib
-            COMMAND install_name_tool -id @rpath/libswscale.10.1.101.dylib ${CMAKE_INSTALL_PREFIX}/lib/libswscale.10.dylib
+            COMMAND install_name_tool -id @rpath/libavcodec.63.${FFmpeg_LIB_VERSION}.dylib ${CMAKE_INSTALL_PREFIX}/lib/libavcodec.63.dylib
+            COMMAND install_name_tool -id @rpath/libavdevice.63.${FFmpeg_LIB_VERSION}.dylib ${CMAKE_INSTALL_PREFIX}/lib/libavdevice.63.dylib
+            COMMAND install_name_tool -id @rpath/libavformat.63.${FFmpeg_LIB_VERSION}.dylib ${CMAKE_INSTALL_PREFIX}/lib/libavformat.63.dylib
+            COMMAND install_name_tool -id @rpath/libavutil.61.${FFmpeg_LIB_VERSION}.dylib ${CMAKE_INSTALL_PREFIX}/lib/libavutil.61.dylib
+            COMMAND install_name_tool -id @rpath/libswresample.7.${FFmpeg_LIB_VERSION}.dylib ${CMAKE_INSTALL_PREFIX}/lib/libswresample.7.dylib
+            COMMAND install_name_tool -id @rpath/libswscale.10.${FFmpeg_LIB_VERSION}.dylib ${CMAKE_INSTALL_PREFIX}/lib/libswscale.10.dylib
             COMMAND install_name_tool
                 -change ${CMAKE_INSTALL_PREFIX}/lib/libswresample.7.dylib @rpath/libswresample.7.dylib
                 -change ${CMAKE_INSTALL_PREFIX}/lib/libavutil.61.dylib @rpath/libavutil.61.dylib
-                ${CMAKE_INSTALL_PREFIX}/lib/libavcodec.63.1.101.dylib
+                ${CMAKE_INSTALL_PREFIX}/lib/libavcodec.63.${FFmpeg_LIB_VERSION}.dylib
             COMMAND install_name_tool
                 -change ${CMAKE_INSTALL_PREFIX}/lib/libswscale.10.dylib @rpath/libswscale.10.dylib
                 -change ${CMAKE_INSTALL_PREFIX}/lib/libavformat.63.dylib @rpath/libavformat.63.dylib
                 -change ${CMAKE_INSTALL_PREFIX}/lib/libavcodec.63.dylib @rpath/libavcodec.63.dylib
                 -change ${CMAKE_INSTALL_PREFIX}/lib/libswresample.7.dylib @rpath/libswresample.7.dylib
                 -change ${CMAKE_INSTALL_PREFIX}/lib/libavutil.61.dylib @rpath/libavutil.61.dylib
-                ${CMAKE_INSTALL_PREFIX}/lib/libavdevice.63.1.101.dylib
+                ${CMAKE_INSTALL_PREFIX}/lib/libavdevice.63.${FFmpeg_LIB_VERSION}.dylib
             COMMAND install_name_tool
                 -change ${CMAKE_INSTALL_PREFIX}/lib/libavcodec.63.dylib @rpath/libavcodec.63.dylib
                 -change ${CMAKE_INSTALL_PREFIX}/lib/libswresample.7.dylib @rpath/libswresample.7.dylib
                 -change ${CMAKE_INSTALL_PREFIX}/lib/libavutil.61.dylib @rpath/libavutil.61.dylib
-                ${CMAKE_INSTALL_PREFIX}/lib/libavformat.63.1.101.dylib
+                ${CMAKE_INSTALL_PREFIX}/lib/libavformat.63.${FFmpeg_LIB_VERSION}.dylib
             COMMAND install_name_tool
                 -change ${CMAKE_INSTALL_PREFIX}/lib/libavutil.61.dylib @rpath/libavutil.61.dylib
-                ${CMAKE_INSTALL_PREFIX}/lib/libswresample.7.1.101.dylib
+                ${CMAKE_INSTALL_PREFIX}/lib/libswresample.7.${FFmpeg_LIB_VERSION}.dylib
             COMMAND install_name_tool
                 -change ${CMAKE_INSTALL_PREFIX}/lib/libavutil.61.dylib @rpath/libavutil.61.dylib
-                ${CMAKE_INSTALL_PREFIX}/lib/libswscale.10.1.101.dylib)
+                ${CMAKE_INSTALL_PREFIX}/lib/libswscale.10.${FFmpeg_LIB_VERSION}.dylib)
     endif()
 endif()
 
