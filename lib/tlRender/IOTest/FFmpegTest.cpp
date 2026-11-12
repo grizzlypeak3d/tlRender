@@ -56,6 +56,7 @@ namespace tl
             _droppedFrames();
             _presets();
             _frameOrder();
+            _packedRows();
             _conversionEdges();
             _writeType();
             _conversionDepth();
@@ -442,6 +443,100 @@ namespace tl
                         arg(i).arg(level).arg(i * 10));
                 }
                 FTK_CHECK(level == i * 10);
+            }
+        }
+
+        void FFmpegTest::_packedRows()
+        {
+            // Each row read back is the row written. Packed RGB and RGBA
+            // frames are copied straight into the image, and the copy once
+            // stepped through the frame three (or four) rows at a time: the
+            // picture was every third row, then whatever lay past the end of
+            // the frame, which crashed on Windows. Each row here has its own
+            // level, so a row from anywhere else shows.
+            auto writePlugin = _context->getSystem<WriteSystem>()->getPlugin<ffmpeg::WritePlugin>();
+            const auto& codecs = writePlugin->getCodecs();
+            struct Test
+            {
+                std::string codec;
+                std::string pixelFormat;
+                ftk::ImageType type;
+            };
+            const std::vector<Test> tests =
+            {
+                { "png", "rgb24", ftk::ImageType::RGB_U8 },
+                { "png", "rgba", ftk::ImageType::RGBA_U8 }
+            };
+            for (const auto& test : tests)
+            {
+                if (std::find(codecs.begin(), codecs.end(), test.codec) == codecs.end())
+                {
+                    _print(ftk::Format("Skipped: no {0} encoder").arg(test.codec));
+                    continue;
+                }
+                const ftk::Path path(ftk::fromFileSystem(
+                    _getTempDir() / ftk::Format("FFmpegPackedRowsTest_{0}.mov").arg(test.pixelFormat).str()));
+                const ftk::ImageInfo imageInfo(64, 48, test.type);
+                const int frames = 2;
+                IOInfo info;
+                info.video.push_back(imageInfo);
+                info.videoTime = OTIO_NS::TimeRange(
+                    OTIO_NS::RationalTime(0.0, 24.0),
+                    OTIO_NS::RationalTime(frames, 24.0));
+                {
+                    IOOptions options;
+                    options["FFmpeg/Codec"] = test.codec;
+                    options["FFmpeg/PixelFormat"] = test.pixelFormat;
+                    auto write = writePlugin->write(path, info, options);
+                    for (int i = 0; i < frames; ++i)
+                    {
+                        auto image = ftk::Image::create(imageInfo);
+                        const std::size_t rowBytes = image->getByteCount() / imageInfo.size.h;
+                        for (int y = 0; y < imageInfo.size.h; ++y)
+                        {
+                            std::memset(image->getData() + rowBytes * y, y * 5 + i, rowBytes);
+                        }
+                        write->writeVideo(OTIO_NS::RationalTime(i, 24.0), image);
+                    }
+                    write->finish();
+                }
+
+                auto readPlugin = _context->getSystem<ReadSystem>()->getPlugin(path);
+                auto read = readPlugin->videoRead(path, IOOptions());
+                FTK_CHECK(read);
+                for (int i = 0; i < frames; ++i)
+                {
+                    const auto data = read->readVideo(OTIO_NS::RationalTime(i, 24.0)).get();
+                    FTK_CHECK(data.image);
+                    if (!data.image)
+                    {
+                        _print(ftk::Format("{0} frame {1}: no image: {2}").
+                            arg(test.pixelFormat).arg(i).arg(read->getError()));
+                        continue;
+                    }
+                    const auto& readInfo = data.image->getInfo();
+                    FTK_CHECK(readInfo.size == imageInfo.size);
+                    FTK_CHECK(readInfo.type == imageInfo.type);
+                    const std::size_t rowBytes = data.image->getByteCount() / readInfo.size.h;
+                    // The reader keeps the rows bottom up, and says so.
+                    int wrong = 0;
+                    for (int y = 0; y < readInfo.size.h; ++y)
+                    {
+                        const uint8_t* row = data.image->getData() + rowBytes * y;
+                        const int written = readInfo.layout.mirror.y ? readInfo.size.h - 1 - y : y;
+                        for (std::size_t x = 0; x < rowBytes; ++x)
+                        {
+                            wrong += row[x] != static_cast<uint8_t>(written * 5 + i) ? 1 : 0;
+                        }
+                    }
+                    if (wrong > 0)
+                    {
+                        _print(ftk::Format("{0} frame {1} ({2}): {3} bytes wrong").
+                            arg(test.pixelFormat).arg(i).arg(readInfo.type).arg(wrong));
+                    }
+                    FTK_CHECK(0 == wrong);
+                }
+                _print(ftk::Format("Packed rows: {0} {1}").arg(test.codec).arg(test.pixelFormat));
             }
         }
 

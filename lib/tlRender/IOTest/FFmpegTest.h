@@ -36,6 +36,7 @@ namespace tl
             void _droppedFrames();
             void _presets();
             void _frameOrder();
+            void _packedRows();
             void _conversionEdges();
             // Members rather than free helpers so they can report a
             // failed check, which goes through the test.
