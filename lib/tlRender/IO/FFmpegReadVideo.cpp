@@ -26,6 +26,8 @@ extern "C"
 #endif // __APPLE__
 
 #include <algorithm>
+#include <fstream>
+#include <iterator>
 #include <cmath>
 #include <thread>
 
@@ -97,6 +99,35 @@ namespace tl
                     }
                 }
                 return AVRational{ 0, 1 };
+            }
+
+            //! The frames of a WebP: one for each ANMF chunk of an animation,
+            //! one for a still; zero for what is not a WebP.
+            size_t countWebPFrames(const uint8_t* p, size_t size)
+            {
+                if (!p || size < 12 ||
+                    std::memcmp(p, "RIFF", 4) != 0 ||
+                    std::memcmp(p + 8, "WEBP", 4) != 0)
+                {
+                    return 0;
+                }
+                size_t frames = 0;
+                size_t pos = 12;
+                while (pos + 8 <= size)
+                {
+                    const uint32_t chunkSize =
+                        static_cast<uint32_t>(p[pos + 4]) |
+                        static_cast<uint32_t>(p[pos + 5]) << 8 |
+                        static_cast<uint32_t>(p[pos + 6]) << 16 |
+                        static_cast<uint32_t>(p[pos + 7]) << 24;
+                    if (0 == std::memcmp(p + pos, "ANMF", 4))
+                    {
+                        ++frames;
+                    }
+                    // Chunks are padded to an even size.
+                    pos += 8 + static_cast<size_t>(chunkSize) + (chunkSize & 1);
+                }
+                return frames > 0 ? frames : 1;
             }
 
             //! Whether frames of one format are copied straight into images
@@ -911,6 +942,28 @@ namespace tl
                             _avFormatContext->duration,
                             av_get_time_base_q(),
                             swap(_avSpeed));
+                    }
+                    // WebP, still or animated, says neither its length nor
+                    // how many frames it has, and its demuxer cannot be
+                    // read through and sent back. The frames are counted
+                    // from the file's chunks instead.
+                    if (0 == sequenceSize &&
+                        _avFormatContext->iformat &&
+                        (std::string("webp_anim") == _avFormatContext->iformat->name ||
+                         std::string("webp_pipe") == _avFormatContext->iformat->name))
+                    {
+                        if (!memory.empty() && !window)
+                        {
+                            sequenceSize = countWebPFrames(memory[0].p, memory[0].size);
+                        }
+                        else if (memory.empty())
+                        {
+                            std::ifstream file(ftk::toFileSystem(fileName), std::ios::binary);
+                            const std::vector<uint8_t> data(
+                                (std::istreambuf_iterator<char>(file)),
+                                std::istreambuf_iterator<char>());
+                            sequenceSize = countWebPFrames(data.data(), data.size());
+                        }
                     }
         
                     ftk::ImageTags tags;

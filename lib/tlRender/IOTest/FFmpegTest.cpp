@@ -50,6 +50,7 @@ namespace tl
             _commandLine();
             _commandMissing();
             _gif();
+            _webp();
             _subfileSeek();
             _pixelAspectRatio();
             _pulldown();
@@ -618,6 +619,91 @@ namespace tl
             }
             // MJPEG is in every build, the minimal one included.
             FTK_CHECK(hasName(available, "MJPEG"));
+        }
+
+        void FFmpegTest::_webp()
+        {
+            // WebP, read only: a still, a lossless still with alpha (the
+            // left half opaque, the right half a quarter), and an
+            // animation of five frames (five ANMF chunks; the encoder was
+            // asked for six and wrote five). Made with an ffmpeg that has
+            // libwebp; FFmpeg's own decoder reads them.
+            auto readPlugin = _context->getSystem<ReadSystem>()->getPlugin<ffmpeg::ReadPlugin>();
+            const auto& exts = readPlugin->getExts();
+            if (exts.find(".webp") == exts.end())
+            {
+                _print("Skipped: no WebP demuxer");
+                return;
+            }
+            // FFmpeg's own decoder, not an installed ffmpeg, which may be
+            // older than the animated WebP decoder.
+            IOOptions options;
+            options["FFmpeg/CommandLine"] = "Never";
+            try
+            {
+                const ftk::Path path(TLRENDER_SAMPLE_DATA, "WebP.webp");
+                auto read = readPlugin->videoRead(path, options);
+                const auto info = read->getInfo().get();
+                FTK_CHECK(1 == info.video.size());
+                FTK_CHECK(info.videoTime.has_value());
+                FTK_CHECK(ftk::Size2I(64, 48) == info.video[0].size);
+                const auto data = read->readVideo(info.videoTime->start_time()).get();
+                FTK_CHECK(data.image);
+            }
+            catch (const std::exception& e)
+            {
+                _error(e.what());
+            }
+            try
+            {
+                const ftk::Path path(TLRENDER_SAMPLE_DATA, "WebPAlpha.webp");
+                auto read = readPlugin->videoRead(path, options);
+                const auto info = read->getInfo().get();
+                FTK_CHECK(1 == info.video.size());
+                FTK_CHECK(info.videoTime.has_value());
+                FTK_CHECK(4 == ftk::getChannelCount(info.video[0].type));
+                const auto data = read->readVideo(info.videoTime->start_time()).get();
+                FTK_CHECK(data.image);
+                if (data.image && ftk::ImageType::RGBA_U8 == data.image->getInfo().type)
+                {
+                    const int w = data.image->getWidth();
+                    const uint8_t* p = data.image->getData();
+                    FTK_CHECK(255 == p[3]);
+                    FTK_CHECK(64 == p[(w - 1) * 4 + 3]);
+                }
+            }
+            catch (const std::exception& e)
+            {
+                _error(e.what());
+            }
+            try
+            {
+                const ftk::Path path(TLRENDER_SAMPLE_DATA, "WebPAnim.webp");
+                auto read = readPlugin->videoRead(path, options);
+                const auto info = read->getInfo().get();
+                FTK_CHECK(1 == info.video.size());
+                FTK_CHECK(info.videoTime.has_value());
+                const int frames = static_cast<int>(info.videoTime->duration().value());
+                _print(ftk::Format("WebP animation: {0} frames at {1}").
+                    arg(frames).arg(info.videoTime->duration().rate()));
+                FTK_CHECK(5 == frames);
+                const auto first = read->readVideo(info.videoTime->start_time()).get();
+                const auto last = read->readVideo(
+                    info.videoTime->start_time() +
+                    OTIO_NS::RationalTime(frames - 1, info.videoTime->duration().rate())).get();
+                FTK_CHECK(first.image && last.image);
+                if (first.image && last.image)
+                {
+                    FTK_CHECK(0 != std::memcmp(
+                        first.image->getData(),
+                        last.image->getData(),
+                        first.image->getByteCount()));
+                }
+            }
+            catch (const std::exception& e)
+            {
+                _error(e.what());
+            }
         }
 
         void FFmpegTest::_gif()

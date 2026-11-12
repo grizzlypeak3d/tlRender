@@ -30,6 +30,7 @@ namespace tl
             void _commandLine();
             void _commandMissing();
             void _gif();
+            void _webp();
             void _subfileSeek();
             void _pixelAspectRatio();
             void _pulldown();

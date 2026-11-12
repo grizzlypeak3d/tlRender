@@ -332,6 +332,11 @@ namespace tl
             extensions[".m4v"] = FileType::Media;
             extensions[".mxf"] = FileType::Media;
             extensions[".wav"] = FileType::Audio;
+            // WebP's demuxers know it by its contents and name no extension.
+            if (av_find_input_format("webp_anim") || av_find_input_format("webp_pipe"))
+            {
+                extensions[".webp"] = FileType::Media;
+            }
 
             // The demuxers do not say what they carry, so the audio
             // extensions are named; the same list as the command line

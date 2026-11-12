@@ -258,6 +258,11 @@ set(FFmpeg_FREE_ARGS
     --enable-decoder=png
     --enable-decoder=apng
     --enable-decoder=gif
+    # WebP, still and animated: reference images from a browser. Lossy
+    # WebP is VP8 inside, which is above. Read only: FFmpeg has no WebP
+    # encoder of its own, and writing it needs libwebp.
+    --enable-decoder=webp
+    --enable-decoder=webp_anim
     # Audio. AAC is deliberately absent (see above), so these are what a
     # minimal build has: Opus and Vorbis for lossy, the rest lossless.
     --enable-decoder=opus
@@ -389,6 +394,8 @@ set(FFmpeg_FREE_ARGS
     --enable-demuxer=nut
     --enable-demuxer=apng
     --enable-demuxer=gif
+    --enable-demuxer=image_webp_pipe
+    --enable-demuxer=webp_anim
     --enable-demuxer=pcm_alaw
     --enable-demuxer=pcm_f32be
     --enable-demuxer=pcm_f32le
@@ -472,6 +479,7 @@ set(FFmpeg_FREE_ARGS
     --enable-parser=dirac
     --enable-parser=gif
     --enable-parser=png
+    --enable-parser=webp
     --enable-protocol=file
     # For reading a byte range of a file in place -- media stored in
     # an OTIOZ bundle. A protocol, not a codec, so it carries no
