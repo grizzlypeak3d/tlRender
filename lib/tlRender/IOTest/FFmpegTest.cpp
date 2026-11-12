@@ -2272,6 +2272,43 @@ namespace tl
                 }
             }
 
+            // WebM: AV1 with the container's own audio codec, Opus, which is
+            // all WebM carries besides Vorbis. The AV1 preset offers .webm.
+            if (writePlugin->getCodecs().end() == std::find(
+                writePlugin->getCodecs().begin(),
+                writePlugin->getCodecs().end(),
+                "libsvtav1"))
+            {
+                _print("_audio: WebM skipped, no AV1 encoder");
+            }
+            else
+            {
+                try
+                {
+                    _print("_audio: WebM");
+                    const ftk::Path path(
+                        ftk::fromFileSystem(_getTempDir() / "FFmpegAudio.webm"));
+                    IOOptions options;
+                    options["FFmpeg/Codec"] = "libsvtav1";
+                    writeMovie(path, options);
+
+                    auto audioRead = readPlugin->audioRead(path);
+                    const auto audioIOInfo = audioRead->getInfo().get();
+                    FTK_CHECK(audioIOInfo.audio.isValid());
+                    FTK_CHECK(audioIOInfo.audio.sampleRate == audioInfo.sampleRate);
+                    auto videoRead = readPlugin->videoRead(path);
+                    const auto videoIOInfo = videoRead->getInfo().get();
+                    FTK_CHECK(!videoIOInfo.video.empty());
+                    const auto videoData = videoRead->readVideo(
+                        OTIO_NS::RationalTime(0.0, 24.0)).get();
+                    FTK_CHECK(videoData.image);
+                }
+                catch (const std::exception& e)
+                {
+                    _error(e.what());
+                }
+            }
+
             // An explicitly requested audio codec that does not exist is an
             // error.
             {

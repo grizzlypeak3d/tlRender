@@ -230,7 +230,7 @@ namespace tl
                     { { "FFmpeg/Codec", "libsvtav1" },
                       { "FFmpeg/CodecOptions", "crf=35" } },
                     false,
-                    { ".mp4", ".mkv" } },
+                    { ".mp4", ".mkv", ".webm" } },
                 // For where a movie cannot go: reference boards, design
                 // tools, chat. 256 colors a frame, chosen for the frame.
                 { "GIF",
@@ -253,7 +253,7 @@ namespace tl
                     { { "FFmpeg/WriteCommandLine", "1" },
                       { "FFmpeg/WritePreset", "VP9" } },
                     true,
-                    { ".mkv", ".mp4" } }
+                    { ".webm", ".mkv", ".mp4" } }
             };
             return presets;
         }
@@ -576,6 +576,15 @@ namespace tl
                     if (!p.avAudioCodecContext)
                     {
                         throw std::runtime_error(ftk::Format("Cannot allocate context: \"{0}\"").arg(p.fileName));
+                    }
+                    // FFmpeg's own Opus and Vorbis encoders are marked
+                    // experimental, and they are the only audio WebM and
+                    // Ogg can carry: without this a WebM export with sound
+                    // fails. They are good enough for review audio, and the
+                    // alternative is libopus, a dependency of its own.
+                    if (avAudioCodec->capabilities & AV_CODEC_CAP_EXPERIMENTAL)
+                    {
+                        p.avAudioCodecContext->strict_std_compliance = FF_COMPLIANCE_EXPERIMENTAL;
                     }
                     p.avAudioStream = avformat_new_stream(p.avFormatContext, avAudioCodec);
                     if (!p.avAudioStream)
