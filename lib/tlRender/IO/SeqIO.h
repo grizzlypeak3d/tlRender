@@ -42,6 +42,12 @@ namespace tl
     TL_IO_API bool isStructural(MissingFrames);
 
     //! Sequence I/O options.
+    //!
+    //! The default speed is the rate of a sequence whose files do not say
+    //! what theirs is. The options can also give "SeqIO/Speed", the rate
+    //! when something more specific than the files says what it is, such as
+    //! a timeline's image sequence reference. That one is used whatever the
+    //! files say.
     struct TL_IO_API_TYPE SeqOptions
     {
         TL_IO_API SeqOptions();

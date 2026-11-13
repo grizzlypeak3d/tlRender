@@ -31,11 +31,30 @@ namespace tl
 {
     namespace
     {
-        std::string getKey(const ftk::Path& path)
+        //! The rate an image sequence reference gives its frames, or zero
+        //! for any other reference or one that does not say.
+        double getSeqRate(const OTIO_NS::MediaReference* mediaReference)
+        {
+            double out = 0.0;
+            if (auto imageSeqReference =
+                dynamic_cast<const OTIO_NS::ImageSequenceReference*>(mediaReference))
+            {
+                out = std::max(imageSeqReference->rate(), 0.0);
+            }
+            return out;
+        }
+
+        std::string getKey(const ftk::Path& path, double seqRate)
         {
             std::vector<std::string> out;
             out.push_back(path.get());
             out.push_back(path.getNum());
+            if (seqRate > 0.0)
+            {
+                // A reader's rate is fixed when it is made, so two references
+                // to the same files at different rates need a reader each.
+                out.push_back(ftk::Format("{0}").arg(seqRate, 17));
+            }
             return ftk::join(out, ';');
         }
     }
@@ -63,7 +82,8 @@ namespace tl
             mediaReference,
             path.getProtocol() + path.getDir(),
             options.pathOptions);
-        const std::string key = getKey(mediaPath);
+        const double seqRate = getSeqRate(mediaReference);
+        const std::string key = getKey(mediaPath, seqRate);
         std::vector<std::shared_ptr<T> > evicted;
         std::unique_lock<std::mutex> lock(readCacheMutex);
         if (!cache.get(key, out))
@@ -84,8 +104,22 @@ namespace tl
                     return out;
                 }
                 IOOptions readOptions = ioOptions;
+                // Written with every digit: six significant ones made
+                // 23.976024627685547 into 23.976, which at frame 363808 (an
+                // edit starting at four hours of timecode) is a third of a
+                // frame out, and past six hours reads the wrong file.
                 readOptions["SeqIO/DefaultSpeed"] =
-                    ftk::Format("{0}").arg(timeRange.duration().rate());
+                    ftk::Format("{0}").arg(timeRange.duration().rate(), 17);
+                if (seqRate > 0.0)
+                {
+                    // The reference's rate is what its frames are numbered
+                    // in, and what the clip's times were written against.
+                    // The timeline's rate is not: a 24 fps sequence in a 30
+                    // fps timeline read at 30 ran out of frames with a fifth
+                    // of the clip still to play (#128).
+                    readOptions["SeqIO/Speed"] =
+                        ftk::Format("{0}").arg(seqRate, 17);
+                }
                 if (auto imageSeqReference =
                     dynamic_cast<const OTIO_NS::ImageSequenceReference*>(mediaReference))
                 {

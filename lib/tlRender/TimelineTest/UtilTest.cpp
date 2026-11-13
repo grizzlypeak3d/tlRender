@@ -56,6 +56,37 @@ namespace tl
             _print(ftk::Format("Sequence path: {0}").arg(b.get()));
             FTK_CHECK(a.get() == b.get());
 
+            // A file URL is the path it names, whatever the directory, and
+            // decoded. Hiero writes them with a drive letter, which a reader
+            // was asked for as "/X:/..." (#143).
+            const std::vector<std::pair<std::string, std::string> > urls =
+            {
+                { "file:///X:/jobs/PKG%20104/a.mov", "X:/jobs/PKG 104/a.mov" },
+                { "FILE:///x:/a.mov", "x:/a.mov" },
+                { "file:///X:\\jobs\\a.mov", "X:\\jobs\\a.mov" },
+                { "file:///Users/me/a.exr", "/Users/me/a.exr" },
+                { "file://localhost/Users/me/a.exr", "/Users/me/a.exr" },
+                { "file://server/share/a.exr", "//server/share/a.exr" },
+                { "file:/Users/me/a.exr", "/Users/me/a.exr" },
+                { "media/a.mov", "/tmp/media/a.mov" }
+            };
+            for (const auto& url : urls)
+            {
+                const ftk::Path path = getPath(
+                    url.first, directory, ftk::PathOptions());
+                _print(ftk::Format("{0}: {1}").arg(url.first).arg(path.get()));
+                FTK_CHECK(url.second == path.get());
+                FTK_CHECK(path.isAbs());
+                FTK_CHECK(!path.hasProtocol());
+            }
+            OTIO_NS::SerializableObject::Retainer<OTIO_NS::ImageSequenceReference>
+                fileURLSeq(new OTIO_NS::ImageSequenceReference(
+                    "file:///X:/renders/", "frame.", ".exr", 1, 1, 24.0, 4));
+            const ftk::Path seq = getPath(
+                fileURLSeq.value, directory, ftk::PathOptions());
+            _print(ftk::Format("Sequence path: {0}").arg(seq.get()));
+            FTK_CHECK("X:/renders/frame.0001.exr" == seq.get());
+
             // Gathering the frames of a sequence: naming one frame names the
             // sequence, the same way listing a directory gathers its frames
             // into one entry, and the one flag says both.

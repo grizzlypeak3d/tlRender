@@ -20,9 +20,11 @@
 #include <cstring>
 #include <ftk/Core/Format.h>
 #include <ftk/Core/Path.h>
+#include <ftk/Core/String.h>
 
 #include <opentimelineio/clip.h>
 #include <opentimelineio/externalReference.h>
+#include <opentimelineio/gap.h>
 #include <opentimelineio/imageSequenceReference.h>
 #include <opentimelineio/marker.h>
 #include <opentimelineio/timeline.h>
@@ -79,6 +81,7 @@ namespace tl
             _path();
             _seqOnDisk();
             _seqStartFrame();
+            _seqRate();
             _separateAudio();
             _spatial();
             _mediaReferences();
@@ -926,6 +929,133 @@ namespace tl
                     FTK_CHECK(i + 1 == static_cast<int>(mediaTime->value()));
                 }
             }
+        }
+
+        void TimelineTest::_seqRate()
+        {
+            // An image sequence plays at the rate its reference gives it, not
+            // the timeline's (#128): a 24 fps sequence after 30 fps media was
+            // read at 30, and ran out of frames before its clip ended. The
+            // same files at 12 fps as well, which needs a reader of its own,
+            // and shows each frame held for the time it covers rather than
+            // the nearest one taken. Each file has its number in its pixels.
+            auto readSystem = _context->getSystem<ReadSystem>();
+            auto writeSystem = _context->getSystem<WriteSystem>();
+            const std::filesystem::path dir = _getTempDir() / "SeqRate";
+            std::filesystem::remove_all(dir);
+            std::filesystem::create_directory(dir);
+            const ftk::Path firstFile(ftk::fromFileSystem(dir / "seq.0001.png"));
+            auto writePlugin = writeSystem->getPlugin(firstFile);
+            if (!writePlugin || !readSystem->getPlugin(firstFile))
+            {
+                _print("Skipped: no plugin reads the fixture");
+                return;
+            }
+            IOInfo writeInfo;
+            writeInfo.video.push_back(writePlugin->getInfo(
+                ftk::ImageInfo(ftk::Size2I(4, 4), ftk::ImageType::RGB_U8)));
+            for (int frame = 1; frame <= 4; ++frame)
+            {
+                auto image = ftk::Image::create(writeInfo.video[0]);
+                std::memset(image->getData(), frame * 10, image->getByteCount());
+                auto write = writeSystem->write(
+                    ftk::Path(ftk::fromFileSystem(dir / ftk::Format("seq.{0}.png").
+                        arg(frame, 4, '0').str())),
+                    writeInfo);
+                write->writeVideo(
+                    OTIO_NS::RationalTime(static_cast<double>(frame), 24.0),
+                    image);
+            }
+
+            auto otioTrack = new OTIO_NS::Track;
+            // A second of 30 fps first, standing in for the movie in the
+            // report, so the timeline is 30 fps.
+            otioTrack->append_child(new OTIO_NS::Gap(OTIO_NS::TimeRange(
+                OTIO_NS::RationalTime(0.0, 30.0),
+                OTIO_NS::RationalTime(30.0, 30.0))));
+            const std::vector<double> rates = { 24.0, 12.0 };
+            for (const double rate : rates)
+            {
+                auto reference = new OTIO_NS::ImageSequenceReference(
+                    ftk::fromFileSystem(dir) + "/",
+                    "seq.",
+                    ".png",
+                    1,
+                    1,
+                    rate,
+                    4);
+                const OTIO_NS::TimeRange range(
+                    OTIO_NS::RationalTime(1.0, rate),
+                    OTIO_NS::RationalTime(4.0, rate));
+                reference->set_available_range(range);
+                auto otioClip = new OTIO_NS::Clip;
+                otioClip->set_media_reference(reference);
+                otioClip->set_source_range(range);
+                otioTrack->append_child(otioClip);
+            }
+            OTIO_NS::SerializableObject::Retainer<OTIO_NS::Timeline> otioTimeline(
+                new OTIO_NS::Timeline);
+            otioTimeline->tracks()->append_child(otioTrack);
+            auto timeline = Timeline::create(_context, otioTimeline);
+            const OTIO_NS::TimeRange timeRange = timeline->getTimeRange();
+            FTK_CHECK(30.0 == timeRange.duration().rate());
+            // 30 frames of gap, 5 of the 24 fps clip, 10 of the 12 fps one.
+            FTK_CHECK(45.0 == timeRange.duration().value());
+
+            const std::vector<std::vector<int> > expected =
+            {
+                // A 24 fps frame lasts 1.25 timeline frames.
+                { 1, 1, 2, 3, 4 },
+                // A 12 fps frame lasts 2.5.
+                { 1, 1, 1, 2, 2, 3, 3, 3, 4, 4 }
+            };
+            double start = timeRange.start_time().value() + 30.0;
+            for (size_t i = 0; i < rates.size(); ++i)
+            {
+                std::vector<int> files;
+                for (size_t j = 0; j < expected[i].size(); ++j)
+                {
+                    const OTIO_NS::RationalTime time(start + j, 30.0);
+                    const VideoFrame videoFrame = timeline->getVideo(time).future.get();
+                    int file = 0;
+                    if (!videoFrame.layers.empty() &&
+                        videoFrame.layers.front().image &&
+                        videoFrame.layers.front().image->isValid())
+                    {
+                        file = videoFrame.layers.front().image->getData()[0] / 10;
+                    }
+                    files.push_back(file);
+
+                    // The media time agrees with the file that was read, and
+                    // going back from it lands on the first timeline frame
+                    // that shows it.
+                    const auto mediaFrame = timeline->getMediaFrame(time);
+                    FTK_CHECK(mediaFrame.has_value());
+                    FTK_CHECK(expected[i][j] == mediaFrame.value_or(0));
+                    const auto back = timeline->getMediaFrameTime(
+                        time, expected[i][j]);
+                    FTK_CHECK(back.has_value());
+                    size_t first = j;
+                    while (first > 0 && expected[i][first - 1] == expected[i][j])
+                    {
+                        --first;
+                    }
+                    FTK_CHECK(back.has_value() &&
+                        start + first == back->value());
+                }
+                _print(ftk::Format("{0} fps files: {1}").
+                    arg(rates[i]).arg(ftk::join(
+                        [&files]
+                        {
+                            std::vector<std::string> out;
+                            for (const int f : files)
+                                out.push_back(std::to_string(f));
+                            return out;
+                        }(), ' ')));
+                FTK_CHECK(expected[i] == files);
+                start += expected[i].size();
+            }
+            FTK_CHECK(0 == timeline->getReadErrorCount());
         }
 
         void TimelineTest::_separateAudio()

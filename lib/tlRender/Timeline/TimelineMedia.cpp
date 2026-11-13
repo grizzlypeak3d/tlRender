@@ -26,6 +26,7 @@
 #include <opentimelineio/transition.h>
 
 #include <algorithm>
+#include <cmath>
 
 namespace tl
 {
@@ -252,15 +253,22 @@ namespace tl
 
         // The inverse of toVideoMediaTime(), with the timeline's own start put
         // back on. Which frames a clip covers is the caller's business: this
-        // just moves a frame number into the clip that holds it.
+        // just moves a frame number into the clip that holds it. That one
+        // takes the frame showing, so this takes the first timeline frame it
+        // shows on, at the timeline's rate: at the clip's, a seek would round
+        // it down onto the frame before.
         const OTIO_NS::RationalTime mediaTime(
             static_cast<double>(frame), mediaAt.rate);
-        return (mediaTime
+        const double rate = p.timeRange.duration().rate();
+        const double value = (mediaTime
             - mediaAt.trimmedRange.start_time()
             + mediaAt.rangeInParent.start_time()
             + p.timeRange.start_time()).
-            rescaled_to(mediaAt.rangeInParent.duration().rate()).
-            round();
+            rescaled_to(rate).value();
+        const double nearest = std::round(value);
+        return OTIO_NS::RationalTime(
+            std::abs(value - nearest) < 1.0e-6 ? nearest : std::ceil(value),
+            rate);
     }
 
     std::optional<OTIO_NS::RationalTime> Timeline::getMediaTime(

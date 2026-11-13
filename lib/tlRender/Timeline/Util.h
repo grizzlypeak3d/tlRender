@@ -100,7 +100,8 @@ namespace tl
         const ftk::DirListOptions&);
 
     //! Get an absolute path. The directory may include a protocol, so
-    //! that media next to a remote timeline resolves remote.
+    //! that media next to a remote timeline resolves remote. A file URL
+    //! gives the path it names.
     TL_TIMELINE_API ftk::Path getPath(
         const std::string& url,
         const std::string& directory,
@@ -145,7 +146,10 @@ namespace tl
         const std::optional<OTIO_NS::TimeRange>& mediaTime,
         bool compat);
 
-    //! Transform track time to video media time.
+    //! Transform track time to video media time: the frame that is showing
+    //! then, which at a different rate is the one whose time it falls in
+    //! rather than the nearest. Within a millionth of a frame counts as on
+    //! it, for the arithmetic's sake.
     TL_TIMELINE_API OTIO_NS::RationalTime toVideoMediaTime(
         const OTIO_NS::RationalTime&,
         const OTIO_NS::TimeRange& trimmedRangeInParent,

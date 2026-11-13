@@ -20,6 +20,8 @@
 
 #include <algorithm>
 #include <array>
+#include <cctype>
+#include <cmath>
 #include <cstring>
 #include <ctime>
 #include <filesystem>
@@ -415,12 +417,51 @@ namespace tl
         return out;
     }
 
+    namespace
+    {
+        //! The path a file URL names, or the value as it is when it is not
+        //! one. Editors write them (Hiero writes "file:///X:/..."), and kept
+        //! as a URL the drive letter came after a slash, so "/X:/..." was
+        //! what the readers were asked to open (#143).
+        std::string fromFileURL(const std::string& value)
+        {
+            if (ftk::toLower(value.substr(0, 5)) != "file:")
+            {
+                return value;
+            }
+            std::string out = value.substr(5);
+            if (0 == out.compare(0, 2, "//"))
+            {
+                // A host, or none: "file:///path" and
+                // "file://localhost/path" are on this machine, and any
+                // other is a share on that one.
+                out = out.substr(2);
+                const size_t i = out.find('/');
+                const std::string host = out.substr(0, i);
+                out = i != std::string::npos ? out.substr(i) : std::string();
+                if (!host.empty() && ftk::toLower(host) != "localhost")
+                {
+                    out = "//" + host + out;
+                }
+            }
+            if (out.size() >= 3 &&
+                '/' == out[0] &&
+                std::isalpha(static_cast<unsigned char>(out[1])) &&
+                ':' == out[2] &&
+                (3 == out.size() || '/' == out[3] || '\\' == out[3]))
+            {
+                out = out.substr(1);
+            }
+            return out;
+        }
+    }
+
     ftk::Path getPath(
         const std::string& url,
         const std::string& directory,
         const ftk::PathOptions& pathOptions)
     {
-        ftk::Path out(decodeURL(url), pathOptions);
+        ftk::Path out(fromFileURL(decodeURL(url)), pathOptions);
         if (!directory.empty() && !out.hasProtocol() && !out.isAbs())
         {
             out.setDir(ftk::appendSeparator(directory) + out.getDir());
@@ -564,8 +605,14 @@ namespace tl
     {
         OTIO_NS::RationalTime out =
             time - trimmedRangeInParent.start_time() + trimmedRange.start_time();
-        out = out.rescaled_to(rate).round();
-        return out;
+        // Not the nearest frame: a 12 fps sequence in a 24 fps timeline went
+        // 1, 2, 2, 3 rather than 1, 1, 2, 2, every frame showing a timeline
+        // frame early and the last one asking for a frame after the end.
+        const double value = out.rescaled_to(rate).value();
+        const double nearest = std::round(value);
+        return OTIO_NS::RationalTime(
+            std::abs(value - nearest) < 1.0e-6 ? nearest : std::floor(value),
+            rate);
     }
 
     OTIO_NS::TimeRange toAudioMediaTime(
