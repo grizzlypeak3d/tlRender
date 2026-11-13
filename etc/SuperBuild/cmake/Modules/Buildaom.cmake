@@ -13,7 +13,11 @@ set(aom_ARGS
     -DENABLE_EXAMPLES=0
     -DENABLE_TESTS=0
     -DENABLE_TOOLS=0
-    -DENABLE_DOCS=0)
+    -DENABLE_DOCS=0
+    # Only the decoder: FFmpeg reads AV1 with it, and writes AV1 with
+    # SVT-AV1 (Buildsvt-av1.cmake). Without the encoder the library is a
+    # third of the size and builds in 60% of the time.
+    -DCONFIG_AV1_ENCODER=0)
 if(TLRENDER_NASM)
     list(APPEND aom_ARGS -DCMAKE_ASM_NASM_COMPILER=${CMAKE_INSTALL_PREFIX}/bin/nasm)
 endif()
