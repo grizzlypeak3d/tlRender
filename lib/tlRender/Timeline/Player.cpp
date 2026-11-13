@@ -646,23 +646,32 @@ namespace tl
         const auto& currentTime = p.currentTime->get();
         // A jump of seconds is the rate rounded per second, as timecode
         // counts them: 24 frames at 23.976, where a second of time was
-        // 23.976 frames and came out as 23 (DJV #720). It stops at the in
-        // or out point rather than wrapping past it to the other end,
-        // which in a range shorter than the jump looked like nowhere in
-        // particular (DJV #659).
+        // 23.976 frames and came out as 23 (DJV #720). Past the in or out
+        // point it stops there, where it wrapped to the other end of the
+        // whole timeline, which in a range shorter than the jump looked
+        // like nowhere in particular (DJV #659). Playing in a loop, it
+        // goes to the frame the loop would wrap to instead: the out point
+        // shown for a frame and then wrapped flashed.
         const auto jump = [this, &p, &currentTime](double seconds)
         {
             const double rate = p.timeRange.duration().rate();
             OTIO_NS::RationalTime t = currentTime +
                 OTIO_NS::RationalTime(std::round(rate) * seconds, rate);
             const OTIO_NS::TimeRange& inOutRange = p.inOutRange->get();
+            const bool looping =
+                p.playback->get() != Playback::Stop &&
+                Loop::Loop == p.loop->get();
             if (t > inOutRange.end_time_inclusive())
             {
-                t = inOutRange.end_time_inclusive();
+                t = looping ?
+                    inOutRange.start_time() :
+                    inOutRange.end_time_inclusive();
             }
             else if (t < inOutRange.start_time())
             {
-                t = inOutRange.start_time();
+                t = looping ?
+                    inOutRange.end_time_inclusive() :
+                    inOutRange.start_time();
             }
             seek(t);
         };

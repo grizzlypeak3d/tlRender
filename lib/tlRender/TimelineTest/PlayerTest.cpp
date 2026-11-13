@@ -760,6 +760,23 @@ namespace tl
             FTK_CHECK(50 == frame());
             player->timeAction(TimeAction::JumpBack1s);
             FTK_CHECK(50 == frame());
+
+            // Playing in a loop, past the out point is the in point, the
+            // frame the loop wraps to, and past the in point the out point;
+            // playing once, the jump stops there as when stopped.
+            player->setLoop(Loop::Loop);
+            player->setPlayback(Playback::Forward);
+            player->seek(start + OTIO_NS::RationalTime(140.0, rate));
+            player->timeAction(TimeAction::JumpForward10s);
+            FTK_CHECK(50 == frame());
+            player->seek(start + OTIO_NS::RationalTime(60.0, rate));
+            player->timeAction(TimeAction::JumpBack10s);
+            FTK_CHECK(149 == frame());
+            player->setLoop(Loop::Once);
+            player->seek(start + OTIO_NS::RationalTime(140.0, rate));
+            player->timeAction(TimeAction::JumpForward10s);
+            FTK_CHECK(149 == frame());
+            player->setPlayback(Playback::Stop);
         }
 
         void PlayerTest::_outsideInOut()
