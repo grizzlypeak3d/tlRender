@@ -31,6 +31,25 @@ namespace tl
                 FTK_TEST_ENUM(CompareTime);
             }
             {
+                // A held frame takes every source's place but the first.
+                VideoFrame a;
+                a.time = OTIO_NS::RationalTime(1.0, 24.0);
+                VideoFrame b;
+                b.time = OTIO_NS::RationalTime(2.0, 24.0);
+                VideoFrame c;
+                c.time = OTIO_NS::RationalTime(3.0, 24.0);
+                VideoFrame held;
+                held.time = OTIO_NS::RationalTime(9.0, 24.0);
+                const std::vector<VideoFrame> frames = { a, b, c };
+                FTK_CHECK(frames == withHeldFrame(frames, std::nullopt));
+                const auto out = withHeldFrame(frames, held);
+                FTK_CHECK(2 == out.size());
+                FTK_CHECK(a == out[0]);
+                FTK_CHECK(held == out[1]);
+                FTK_CHECK(2 == withHeldFrame({ a }, held).size());
+                FTK_CHECK(withHeldFrame({}, held).empty());
+            }
+            {
                 CompareOptions options;
                 options.compare = Compare::B;
                 FTK_CHECK(options == options);
@@ -205,6 +224,22 @@ namespace tl
                         OTIO_NS::RationalTime(24.0, 24.0)),
                     CompareTime::Relative);
                 FTK_CHECK(time == OTIO_NS::RationalTime(24.0, 24.0));
+            }
+            {
+                // A still is its one frame whatever the time, in either mode.
+                const OTIO_NS::TimeRange movie(
+                    OTIO_NS::RationalTime(0.0, 24.0),
+                    OTIO_NS::RationalTime(240.0, 24.0));
+                const OTIO_NS::TimeRange still(
+                    OTIO_NS::RationalTime(0.0, 24.0),
+                    OTIO_NS::RationalTime(1.0, 24.0));
+                for (const auto mode : { CompareTime::Relative, CompareTime::Absolute })
+                {
+                    FTK_CHECK(still.start_time() == getCompareTime(
+                        OTIO_NS::RationalTime(0.0, 24.0), movie, still, mode));
+                    FTK_CHECK(still.start_time() == getCompareTime(
+                        OTIO_NS::RationalTime(100.0, 24.0), movie, still, mode));
+                }
             }
         }
     }

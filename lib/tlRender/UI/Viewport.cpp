@@ -103,6 +103,9 @@ namespace tl
             std::shared_ptr<ftk::Observable<ftk::ImageType> > colorBuffer;
             std::shared_ptr<Player> player;
             std::vector<VideoFrame> videoFrame;
+            //! The player's frames, before a held frame takes B's place.
+            std::vector<VideoFrame> playerVideoFrame;
+            std::optional<VideoFrame> heldFrame;
             // The size of the image last shown, for keeping the next one
             // where it was.
             ftk::Size2I renderSize;
@@ -241,6 +244,21 @@ namespace tl
         std::shared_ptr<ftk::IObservable<CompareOptions> > Viewport::observeCompareOptions() const
         {
             return _p->compareOptions;
+        }
+
+        void Viewport::setHeldFrame(const std::optional<VideoFrame>& value)
+        {
+            FTK_P();
+            if (value == p.heldFrame)
+                return;
+            p.heldFrame = value;
+            p.videoFrame = withHeldFrame(p.playerVideoFrame, p.heldFrame);
+            if (p.picked)
+            {
+                p.resample = Private::Resample::Wait;
+            }
+            p.doRender = true;
+            setDrawUpdate();
         }
 
         void Viewport::setCompareOptions(const CompareOptions& value)
@@ -506,7 +524,8 @@ namespace tl
                     [this](const std::vector<VideoFrame>& value)
                     {
                         FTK_P();
-                        p.videoFrame = value;
+                        p.playerVideoFrame = value;
+                        p.videoFrame = withHeldFrame(value, p.heldFrame);
 
                         // An image of another size keeps its center where
                         // the last one's was, when the view is not framed.
@@ -573,6 +592,7 @@ namespace tl
                     p.zoom->setIfChanged(reset.second);
                     changed = true;
                 }
+                p.playerVideoFrame.clear();
                 if (!p.videoFrame.empty())
                 {
                     p.videoFrame.clear();

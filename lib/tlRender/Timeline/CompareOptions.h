@@ -105,11 +105,21 @@ namespace tl
     //! same choice.
     TL_TIMELINE_API bool isShown(Compare, size_t index);
 
+    //! The frames of a comparison against a held frame: the first source's
+    //! frame, and the held frame in place of every other source's, whatever
+    //! their times or files. No first frame, or no held frame, leaves the
+    //! frames as they are.
+    TL_TIMELINE_API std::vector<VideoFrame> withHeldFrame(
+        const std::vector<VideoFrame>&,
+        const std::optional<VideoFrame>&);
+
     //! Get the wipe center for a point in render space: the point as a
     //! fraction of the first box, which the wipe is drawn across.
     TL_TIMELINE_API ftk::V2F getWipeCenter(const ftk::V2F& pos, const ftk::Box2I& firstBox);
 
     //! Get a compare time.
+    //! A compared file one frame long, a still, gives that frame at every
+    //! time.
     TL_TIMELINE_API OTIO_NS::RationalTime getCompareTime(
         const OTIO_NS::RationalTime& sourceTime,
         const OTIO_NS::TimeRange& sourceTimeRange,

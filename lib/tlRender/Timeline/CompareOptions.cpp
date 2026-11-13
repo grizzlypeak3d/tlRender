@@ -287,6 +287,12 @@ namespace tl
         const OTIO_NS::TimeRange& compareTimeRange,
         CompareTime compare)
     {
+        // A still, one frame long, is that frame whatever the time: compared
+        // with a movie it was only there for the movie's first frame.
+        if (compareTimeRange.duration().value() <= 1.0)
+        {
+            return compareTimeRange.start_time();
+        }
         OTIO_NS::RationalTime out;
         switch (compare)
         {
@@ -334,5 +340,16 @@ namespace tl
             json.at("DifferenceGain").get_to(out.differenceGain);
         }
         json.at("SameSize").get_to(out.sameSize);
+    }
+
+    std::vector<VideoFrame> withHeldFrame(
+        const std::vector<VideoFrame>& frames,
+        const std::optional<VideoFrame>& held)
+    {
+        if (!held.has_value() || frames.empty())
+        {
+            return frames;
+        }
+        return { frames.front(), *held };
     }
 }

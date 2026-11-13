@@ -150,6 +150,10 @@ namespace tl
             TL_UI_API const std::shared_ptr<Player>& getPlayer() const;
             TL_UI_API virtual void setPlayer(const std::shared_ptr<Player>&);
 
+            //! Show a held frame in place of the comparison's other sources
+            //! (withHeldFrame()), or none.
+            TL_UI_API void setHeldFrame(const std::optional<VideoFrame>&);
+
             ///@}
 
             //! \name Coordinates
