@@ -31,6 +31,7 @@ namespace tl
             void _readBehind();
             void _preroll();
             void _outsideInOut();
+            void _jumps();
         };
     }
 }

@@ -644,6 +644,28 @@ namespace tl
     {
         FTK_P();
         const auto& currentTime = p.currentTime->get();
+        // A jump of seconds is the rate rounded per second, as timecode
+        // counts them: 24 frames at 23.976, where a second of time was
+        // 23.976 frames and came out as 23 (DJV #720). It stops at the in
+        // or out point rather than wrapping past it to the other end,
+        // which in a range shorter than the jump looked like nowhere in
+        // particular (DJV #659).
+        const auto jump = [this, &p, &currentTime](double seconds)
+        {
+            const double rate = p.timeRange.duration().rate();
+            OTIO_NS::RationalTime t = currentTime +
+                OTIO_NS::RationalTime(std::round(rate) * seconds, rate);
+            const OTIO_NS::TimeRange& inOutRange = p.inOutRange->get();
+            if (t > inOutRange.end_time_inclusive())
+            {
+                t = inOutRange.end_time_inclusive();
+            }
+            else if (t < inOutRange.start_time())
+            {
+                t = inOutRange.start_time();
+            }
+            seek(t);
+        };
         switch (time)
         {
         case TimeAction::Start:
@@ -679,16 +701,16 @@ namespace tl
             seek(currentTime + OTIO_NS::RationalTime(100, p.timeRange.duration().rate()));
             break;
         case TimeAction::JumpBack1s:
-            seek(currentTime - OTIO_NS::RationalTime(1.0, 1.0));
+            jump(-1.0);
             break;
         case TimeAction::JumpBack10s:
-            seek(currentTime - OTIO_NS::RationalTime(10.0, 1.0));
+            jump(-10.0);
             break;
         case TimeAction::JumpForward1s:
-            seek(currentTime + OTIO_NS::RationalTime(1.0, 1.0));
+            jump(1.0);
             break;
         case TimeAction::JumpForward10s:
-            seek(currentTime + OTIO_NS::RationalTime(10.0, 1.0));
+            jump(10.0);
             break;
         default: break;
         }

@@ -16,9 +16,12 @@
 
 #include <opentimelineio/clip.h>
 #include <opentimelineio/externalReference.h>
+#include <opentimelineio/gap.h>
 #include <opentimelineio/imageSequenceReference.h>
 #include <opentimelineio/timeline.h>
+#include <opentimelineio/track.h>
 
+#include <cmath>
 #include <sstream>
 
 namespace tl
@@ -64,6 +67,7 @@ namespace tl
             _readBehind();
             _preroll();
             _outsideInOut();
+            _jumps();
         }
 
         void PlayerTest::_enums()
@@ -710,6 +714,52 @@ namespace tl
             FTK_ASSERT(!player->isBuffering());
             FTK_ASSERT(player->getCurrentTime() > timeRange.start_time());
             player->setPlayback(Playback::Stop);
+        }
+
+        void PlayerTest::_jumps()
+        {
+            // A second's jump at 23.976 is 24 frames, the rate rounded as
+            // timecode counts it, not 23 (DJV #720); a jump past the in or
+            // out point stops there rather than wrapping (DJV #659).
+            const double rate = 24000.0 / 1001.0;
+            auto otioGap = new OTIO_NS::Gap(OTIO_NS::TimeRange(
+                OTIO_NS::RationalTime(0.0, rate),
+                OTIO_NS::RationalTime(600.0, rate)));
+            auto otioTrack = new OTIO_NS::Track;
+            otioTrack->append_child(otioGap);
+            OTIO_NS::SerializableObject::Retainer<OTIO_NS::Timeline> otioTimeline(
+                new OTIO_NS::Timeline);
+            otioTimeline->tracks()->append_child(otioTrack);
+            auto timeline = Timeline::create(_context, otioTimeline);
+            auto player = Player::create(_context, timeline);
+            const OTIO_NS::RationalTime start = player->getTimeRange().start_time();
+            const auto frame = [player, start]
+            {
+                return static_cast<int>(std::round(
+                    (player->getCurrentTime() - start).value()));
+            };
+            player->seek(start + OTIO_NS::RationalTime(100.0, rate));
+            player->timeAction(TimeAction::JumpForward1s);
+            FTK_CHECK(124 == frame());
+            player->timeAction(TimeAction::JumpForward10s);
+            FTK_CHECK(364 == frame());
+            player->timeAction(TimeAction::JumpBack1s);
+            FTK_CHECK(340 == frame());
+            player->timeAction(TimeAction::JumpBack10s);
+            FTK_CHECK(100 == frame());
+
+            // In and out points 50 to 149: the jumps stop at them.
+            player->setInOutRange(OTIO_NS::TimeRange(
+                start + OTIO_NS::RationalTime(50.0, rate),
+                OTIO_NS::RationalTime(100.0, rate)));
+            player->seek(start + OTIO_NS::RationalTime(140.0, rate));
+            player->timeAction(TimeAction::JumpForward10s);
+            FTK_CHECK(149 == frame());
+            player->seek(start + OTIO_NS::RationalTime(60.0, rate));
+            player->timeAction(TimeAction::JumpBack10s);
+            FTK_CHECK(50 == frame());
+            player->timeAction(TimeAction::JumpBack1s);
+            FTK_CHECK(50 == frame());
         }
 
         void PlayerTest::_outsideInOut()
