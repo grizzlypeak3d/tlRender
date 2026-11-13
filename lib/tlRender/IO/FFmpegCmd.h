@@ -19,7 +19,7 @@ namespace tl
         struct TL_IO_API_TYPE Options
         {
             Options() = default;
-            Options(const IOOptions&);
+            TL_IO_API Options(const IOOptions&);
 
             std::string ffmpegPath  = "ffmpeg";
             std::string ffprobePath = "ffprobe";
