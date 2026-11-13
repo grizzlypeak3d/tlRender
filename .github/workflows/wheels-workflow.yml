@@ -90,8 +90,10 @@ jobs:
 
     # Built again whenever anything that decides what they are changes: the
     # super build, the wheel's configuration, or pyproject.toml, which pins
-    # the feather-tk they are built against.
-    - uses: actions/cache@v6
+    # the feather-tk they are built against. Restored here and saved after
+    # the build, below.
+    - uses: actions/cache/restore@v6
+      id: cache
       with:
         path: wheel-cache
         key: wheel-deps-${{ matrix.name }}-${{ hashFiles('etc/SuperBuild/**', 'etc/Config/wheel.cmake', 'etc/Python/tlWheelDeps.cmake', 'etc/Python/fix_rpaths.py', 'pyproject.toml') }}
@@ -117,6 +119,17 @@ jobs:
     - uses: pypa/cibuildwheel@v4.2.1
       env:
         MSYS_INSTALL_PATH: ${{ steps.msys2.outputs.msys2-location }}
+
+    # Saved even when the wheel failed, as long as the dependencies were
+    # finished: tlWheelDeps.cmake writes the stamp once they are. Between
+    # releases main's tlRender can need a feather-tk that is not on PyPI
+    # yet, and a cache saved only on success was then never saved, so the
+    # tag's run started from nothing.
+    - uses: actions/cache/save@v6
+      if: always() && steps.cache.outputs.cache-hit != 'true' && hashFiles('wheel-cache/deps/.tlrender-wheel-deps') != ''
+      with:
+        path: wheel-cache
+        key: ${{ steps.cache.outputs.cache-primary-key }}
 
     - uses: actions/upload-artifact@v7
       with:
