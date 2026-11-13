@@ -30,15 +30,16 @@ namespace tl
     {
         Options::Options(const IOOptions& value)
         {
+            // Taken whole: read through a stream they stopped at the first
+            // space, and "C:/Program Files/ffmpeg/bin/ffmpeg.exe" became
+            // "C:/Program".
             if (auto i = value.find("FFmpeg/FFmpegPath"); i != value.end())
             {
-                std::stringstream ss(i->second);
-                ss >> ffmpegPath;
+                ffmpegPath = i->second;
             }
             if (auto i = value.find("FFmpeg/FFprobePath"); i != value.end())
             {
-                std::stringstream ss(i->second);
-                ss >> ffprobePath;
+                ffprobePath = i->second;
             }
         }
 

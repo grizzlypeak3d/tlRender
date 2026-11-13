@@ -168,6 +168,12 @@ namespace tl
                 { "-ffmpegWriteArgs" },
                 "Extra arguments for the command line writer.",
                 "FFmpeg");
+            _cmdLine.ffmpegPath = ftk::CmdLineOption<std::string>::create(
+                { "-ffmpegPath" },
+                "The FFmpeg command line application for -ffmpegWriteCmd. "
+                "By default it is looked for on the PATH, and on macOS and "
+                "Linux in the usual package manager directories as well.",
+                "FFmpeg");
 #endif // TLRENDER_FFMPEG_PLUGIN
 #if defined(TLRENDER_USD)
             _cmdLine.usdRenderWidth = ftk::CmdLineOption<int>::create(
@@ -244,6 +250,7 @@ namespace tl
                     _cmdLine.ffmpegWriteCmd,
                     _cmdLine.ffmpegWritePreset,
                     _cmdLine.ffmpegWriteArgs,
+                    _cmdLine.ffmpegPath,
 #endif // TLRENDER_FFMPEG_PLUGIN
 #if defined(TLRENDER_USD)
                     _cmdLine.usdRenderWidth,
@@ -572,6 +579,10 @@ namespace tl
             if (_cmdLine.ffmpegWriteArgs->hasValue())
             {
                 out["FFmpeg/WriteArgs"] = _cmdLine.ffmpegWriteArgs->getValue();
+            }
+            if (_cmdLine.ffmpegPath->hasValue())
+            {
+                out["FFmpeg/FFmpegPath"] = _cmdLine.ffmpegPath->getValue();
             }
 #endif // TLRENDER_FFMPEG_PLUGIN
 

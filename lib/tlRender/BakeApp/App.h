@@ -65,6 +65,7 @@ namespace tl
             std::shared_ptr<ftk::CmdLineFlag> ffmpegWriteCmd;
             std::shared_ptr<ftk::CmdLineOption<std::string> > ffmpegWritePreset;
             std::shared_ptr<ftk::CmdLineOption<std::string> > ffmpegWriteArgs;
+            std::shared_ptr<ftk::CmdLineOption<std::string> > ffmpegPath;
 #endif // TLRENDER_FFMPEG_PLUGIN
 #if defined(TLRENDER_USD)
             std::shared_ptr<ftk::CmdLineOption<int> > usdRenderWidth;

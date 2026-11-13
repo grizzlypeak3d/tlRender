@@ -1308,6 +1308,17 @@ namespace tl
             FTK_CHECK(!found.empty());
             // Given a location of its own, that location is what comes back.
             FTK_CHECK(found == ffmpeg_cmd::findCommand(found));
+
+            // The paths in the options are taken whole, spaces and all.
+            {
+                IOOptions options;
+                options["FFmpeg/FFmpegPath"] = "C:/Program Files/ffmpeg/bin/ffmpeg.exe";
+                options["FFmpeg/FFprobePath"] = "/Applications/My Tools/ffprobe";
+                const ffmpeg_cmd::Options value(options);
+                FTK_CHECK("C:/Program Files/ffmpeg/bin/ffmpeg.exe" == value.ffmpegPath);
+                FTK_CHECK("/Applications/My Tools/ffprobe" == value.ffprobePath);
+                FTK_CHECK(options == value.getIOOptions());
+            }
         }
 
         void FFmpegTest::_commandLine()
