@@ -15,6 +15,7 @@ namespace tl
         void backgroundOptions(nanobind::module_&);
         void colorOptions(nanobind::module_&);
         void compareOptions(nanobind::module_&);
+        void detectCuts(nanobind::module_&);
         void displayOptions(nanobind::module_&);
         void foregroundOptions(nanobind::module_&);
         void iRender(nanobind::module_&);

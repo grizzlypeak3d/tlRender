@@ -4,6 +4,7 @@ set(HEADERS
     BackgroundOptions.h
     ColorOptions.h
     CompareOptions.h
+    DetectCuts.h
     DisplayOptions.h
     Export.h
     ForegroundOptions.h
@@ -35,6 +36,7 @@ set(SOURCE
     BackgroundOptions.cpp
     ColorOptions.cpp
     CompareOptions.cpp
+    DetectCuts.cpp
     DisplayOptions.cpp
     ForegroundOptions.cpp
     IRender.cpp

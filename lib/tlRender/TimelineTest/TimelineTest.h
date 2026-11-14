@@ -38,6 +38,7 @@ namespace tl
             void _seqOnDisk();
             void _seqStartFrame();
             void _seqRate();
+            void _detectCuts();
             void _separateAudio();
             void _spatial();
             void _mediaReferences();

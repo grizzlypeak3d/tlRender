@@ -3,6 +3,7 @@
 
 #include <tlRender/TimelineTest/TimelineTest.h>
 
+#include <tlRender/Timeline/DetectCuts.h>
 #include <tlRender/Timeline/OTIOVersion.h>
 #include <tlRender/Timeline/Timeline.h>
 #include <tlRender/Timeline/Util.h>
@@ -82,6 +83,7 @@ namespace tl
             _seqOnDisk();
             _seqStartFrame();
             _seqRate();
+            _detectCuts();
             _separateAudio();
             _spatial();
             _mediaReferences();
@@ -1056,6 +1058,126 @@ namespace tl
                 start += expected[i].size();
             }
             FTK_CHECK(0 == timeline->getReadErrorCount());
+        }
+
+        void TimelineTest::_detectCuts()
+        {
+            // The rule on its own. A cut over the threshold; one out of
+            // black over the lower threshold; cuts close together are the
+            // first of them; nothing on the first frame.
+            {
+                DetectCutsOptions options;
+                std::vector<CutScore> scores(40, CutScore{ 0.F, .5F });
+                scores[0] = CutScore{ 1.F, .5F };
+                scores[10].score = .9F;
+                scores[13].score = .9F;
+                scores[20].luma = 0.F;
+                scores[21].score = .2F;
+                scores[30].score = .2F;
+                FTK_CHECK(std::vector<size_t>({ 10, 21 }) == findCuts(scores, options));
+                options.minLength = 1;
+                FTK_CHECK(std::vector<size_t>({ 10, 13, 21 }) == findCuts(scores, options));
+                options.blackThreshold = .3F;
+                FTK_CHECK(std::vector<size_t>({ 10, 13 }) == findCuts(scores, options));
+                FTK_CHECK(findCuts({}).empty());
+            }
+            {
+                // A frame under the threshold that stands far above the
+                // frames around it is a cut: two similar pictures. Flicker,
+                // scoring as high frame after frame, is not.
+                std::vector<CutScore> scores(100, CutScore{ .02F, .5F });
+                scores[30].score = .2F;
+                for (size_t i = 60; i < 80; ++i)
+                {
+                    scores[i].score = (i % 2) ? .26F : .2F;
+                }
+                FTK_CHECK(std::vector<size_t>({ 30 }) == findCuts(scores));
+                DetectCutsOptions off;
+                off.relativeRatio = 0.F;
+                FTK_CHECK(findCuts(scores, off).empty());
+                // Too faint to count, however quiet around it.
+                scores[30].score = .08F;
+                FTK_CHECK(findCuts(scores).empty());
+            }
+
+            // Through a timeline: thirty frames, gray, then black, then dim
+            // with a flash in it. Gray to black is a cut on
+            // any rule; black to dim scores about 0.24, a cut only by the
+            // black rule; and the flash three frames on is too close to it.
+            auto readSystem = _context->getSystem<ReadSystem>();
+            auto writeSystem = _context->getSystem<WriteSystem>();
+            const std::filesystem::path dir = _getTempDir() / "DetectCuts";
+            std::filesystem::remove_all(dir);
+            std::filesystem::create_directory(dir);
+            const ftk::Path first(ftk::fromFileSystem(dir / "cuts.0000.png"));
+            auto writePlugin = writeSystem->getPlugin(first);
+            if (!writePlugin || !readSystem->getPlugin(first))
+            {
+                _print("Skipped: no plugin reads the fixture");
+                return;
+            }
+            IOInfo writeInfo;
+            writeInfo.video.push_back(writePlugin->getInfo(
+                ftk::ImageInfo(ftk::Size2I(64, 36), ftk::ImageType::RGB_U8)));
+            for (int frame = 0; frame < 30; ++frame)
+            {
+                uint8_t value = 120;
+                if (frame >= 10 && frame < 20)
+                    value = 16;
+                else if (frame == 23)
+                    value = 250;
+                else if (frame >= 20)
+                    value = 40;
+                auto image = ftk::Image::create(writeInfo.video[0]);
+                std::memset(image->getData(), value, image->getByteCount());
+                auto write = writeSystem->write(
+                    ftk::Path(ftk::fromFileSystem(dir / ftk::Format("cuts.{0}.png").
+                        arg(frame, 4, '0').str())),
+                    writeInfo);
+                write->writeVideo(
+                    OTIO_NS::RationalTime(static_cast<double>(frame), 24.0),
+                    image);
+            }
+            ftk::Path seqPath(first);
+            seqPath.setFrames(ftk::RangeI64(0, 29));
+            auto timeline = Timeline::create(_context, seqPath);
+            const OTIO_NS::TimeRange range = timeline->getTimeRange();
+            FTK_CHECK(30.0 == range.duration().value());
+
+            const auto scores = scoreFrames(timeline, range);
+            FTK_CHECK(30 == scores.size());
+            if (30 == scores.size())
+            {
+                _print(ftk::Format("Scores at the cuts: {0} {1} {2}").
+                    arg(scores[10].score).arg(scores[20].score).arg(scores[23].score));
+                FTK_CHECK(0.F == scores[5].score);
+                FTK_CHECK(scores[10].score >= .9F);
+                FTK_CHECK(scores[19].luma < 24.F / 255.F);
+                FTK_CHECK(scores[20].score > .2F && scores[20].score < .3F);
+            }
+            const auto cuts = detectCuts(timeline, range);
+            FTK_CHECK(2 == cuts.size());
+            if (2 == cuts.size())
+            {
+                FTK_CHECK(range.start_time() + OTIO_NS::RationalTime(10.0, 24.0) == cuts[0]);
+                FTK_CHECK(range.start_time() + OTIO_NS::RationalTime(20.0, 24.0) == cuts[1]);
+            }
+
+            // Without the black rule (or the relative one) the cut to dim is
+            // not found, and the flash, alone, is.
+            DetectCutsOptions noBlack;
+            noBlack.blackThreshold = noBlack.threshold;
+            noBlack.relativeRatio = 0.F;
+            const auto flash = detectCuts(timeline, range, noBlack);
+            FTK_CHECK(2 == flash.size() &&
+                range.start_time() + OTIO_NS::RationalTime(23.0, 24.0) == flash[1]);
+
+            // Stopped part way, nothing.
+            FTK_CHECK(detectCuts(
+                timeline,
+                range,
+                DetectCutsOptions(),
+                [](size_t frame, size_t) { return frame < 5; }).empty());
         }
 
         void TimelineTest::_separateAudio()

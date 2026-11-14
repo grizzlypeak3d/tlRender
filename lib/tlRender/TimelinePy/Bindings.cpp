@@ -45,6 +45,7 @@ namespace tl
             timelineOptions(m);
             timelineSystem(m);
             timeline(m);
+            detectCuts(m);
             playerOptions(m);
             player(m);
             transition(m);

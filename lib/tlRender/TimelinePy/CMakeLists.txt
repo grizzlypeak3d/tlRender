@@ -9,6 +9,7 @@ set(SOURCE
     Bindings.cpp
     ColorOptions.cpp
     CompareOptions.cpp
+    DetectCuts.cpp
     DisplayOptions.cpp
     ForegroundOptions.cpp
     IRender.cpp
