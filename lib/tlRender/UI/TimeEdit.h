@@ -69,6 +69,11 @@ namespace tl
             //! Set the time value callback.
             TL_UI_API void setCallback(const std::function<void(const OTIO_NS::RationalTime&)>&);
 
+            //! Set a callback for the edit taking or losing the key focus:
+            //! for an editor of several fields that ends when the focus
+            //! leaves all of them.
+            TL_UI_API void setFocusCallback(const std::function<void(bool)>&);
+
             //! Select all.
             TL_UI_API void selectAll();
 

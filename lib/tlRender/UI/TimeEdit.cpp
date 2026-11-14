@@ -20,6 +20,7 @@ namespace tl
             std::optional<OTIO_NS::RationalTime> value;
             TimeMap timeMap;
             std::function<void(const OTIO_NS::RationalTime&)> callback;
+            std::function<void(bool)> focusCallback;
             std::shared_ptr<ftk::LineEdit> lineEdit;
             std::shared_ptr<ftk::IncButtons> incButtons;
             std::shared_ptr<ftk::HorizontalLayout> layout;
@@ -69,6 +70,10 @@ namespace tl
                     if (!value)
                     {
                         _textUpdate();
+                    }
+                    if (_p->focusCallback)
+                    {
+                        _p->focusCallback(value);
                     }
                 });
 
@@ -147,6 +152,11 @@ namespace tl
         void TimeEdit::setCallback(const std::function<void(const OTIO_NS::RationalTime&)>& value)
         {
             _p->callback = value;
+        }
+
+        void TimeEdit::setFocusCallback(const std::function<void(bool)>& value)
+        {
+            _p->focusCallback = value;
         }
 
         void TimeEdit::selectAll()
