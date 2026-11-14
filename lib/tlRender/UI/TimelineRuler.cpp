@@ -842,6 +842,17 @@ namespace tl
                     labelPos = labelPos2;
                 }
             }
+            // On a background of its own: the ruler's labels and the
+            // markers' ticks run under it, and a frame number drawn over
+            // another reads as one long number.
+            const int pad = p.size.margin / 2;
+            event.render->drawRect(
+                ftk::Box2I(
+                    labelPos.x - pad,
+                    labelPos.y,
+                    labelSize.w + pad * 2,
+                    p.size.fontMetrics.lineHeight),
+                event.style->getColorRole(ftk::ColorRole::Base));
             event.render->drawText(
                 event.fontSystem->getGlyphs(label, p.size.fontInfo),
                 p.size.fontMetrics,
