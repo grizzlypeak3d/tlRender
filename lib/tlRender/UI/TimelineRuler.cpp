@@ -5,6 +5,7 @@
 
 #include <ftk/Core/RenderUtil.h>
 
+#include <algorithm>
 #include <cmath>
 
 namespace tl
@@ -733,12 +734,20 @@ namespace tl
                         const int x = timeToPos(OTIO_NS::RationalTime(t, 1.0));
                         const std::string label = _timeLabel(
                             OTIO_NS::RationalTime(t, 1.0).rescaled_to(rate));
+                        const ftk::V2I labelPos(
+                            x + p.size.border + p.size.margin,
+                            g.min.y + p.size.margin);
+                        // The markers' ticks stop at the label rather
+                        // than striking it out: a movie's worth of cuts
+                        // runs through every one.
+                        _drawLabelBackground(
+                            labelPos,
+                            event.fontSystem->getSize(label, p.size.fontInfo),
+                            event);
                         event.render->drawText(
                             event.fontSystem->getGlyphs(label, p.size.fontInfo),
                             p.size.fontMetrics,
-                            ftk::V2I(
-                                x + p.size.border + p.size.margin,
-                                g.min.y + p.size.margin),
+                            labelPos,
                             event.style->getColorRole(ftk::ColorRole::TextDisabled));
                     }
                 }
@@ -811,6 +820,28 @@ namespace tl
             }
         }
 
+        void TimelineRuler::_drawLabelBackground(
+            const ftk::V2I& pos,
+            const ftk::Size2I& size,
+            const ftk::DrawEvent& event)
+        {
+            FTK_P();
+            // The ruler's own color, so it shows only where something runs
+            // under the label. Not without the ruler's background, which
+            // the layout behind it then draws in a color of its own.
+            if (p.displayOptions.background != ftk::ColorRole::None)
+            {
+                const int pad = std::max(p.size.margin, 1);
+                event.render->drawRect(
+                    ftk::Box2I(
+                        pos.x - pad,
+                        pos.y,
+                        size.w + pad * 2,
+                        p.size.fontMetrics.lineHeight),
+                    event.style->getColorRole(ftk::ColorRole::Base));
+            }
+        }
+
         void TimelineRuler::_drawCurrentTime(
             const ftk::Box2I& drawRect,
             const ftk::DrawEvent& event)
@@ -845,14 +876,7 @@ namespace tl
             // On a background of its own: the ruler's labels and the
             // markers' ticks run under it, and a frame number drawn over
             // another reads as one long number.
-            const int pad = p.size.margin / 2;
-            event.render->drawRect(
-                ftk::Box2I(
-                    labelPos.x - pad,
-                    labelPos.y,
-                    labelSize.w + pad * 2,
-                    p.size.fontMetrics.lineHeight),
-                event.style->getColorRole(ftk::ColorRole::Base));
+            _drawLabelBackground(labelPos, labelSize, event);
             event.render->drawText(
                 event.fontSystem->getGlyphs(label, p.size.fontInfo),
                 p.size.fontMetrics,

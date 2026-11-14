@@ -104,6 +104,10 @@ namespace tl
             void _drawCacheInfo(const ftk::Box2I&, const ftk::DrawEvent&);
             void _drawTimeLabels(const ftk::Box2I&, const ftk::DrawEvent&);
             void _drawTimeTicks(const ftk::Box2I&, const ftk::DrawEvent&);
+            void _drawLabelBackground(
+                const ftk::V2I&,
+                const ftk::Size2I&,
+                const ftk::DrawEvent&);
             void _drawCurrentTime(const ftk::Box2I&, const ftk::DrawEvent&);
 
             OTIO_NS::RationalTime _posToTime(float) const;
