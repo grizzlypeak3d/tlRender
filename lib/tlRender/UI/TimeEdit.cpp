@@ -77,6 +77,21 @@ namespace tl
                     }
                 });
 
+            // Stepping keeps the focus in the edit, as the keys do, rather
+            // than the press sending it away; taken without selecting the
+            // text, which the step rewrites.
+            p.incButtons->setPressedCallback(
+                [this]
+                {
+                    FTK_P();
+                    if (!p.lineEdit->hasKeyFocus() && p.lineEdit->acceptsKeyFocus())
+                    {
+                        p.lineEdit->setSelectAllOnFocus(false);
+                        p.lineEdit->takeKeyFocus();
+                        p.lineEdit->setSelectAllOnFocus(true);
+                    }
+                });
+
             // Nothing to step from when the edit has no value.
             p.incButtons->setIncCallback(
                 [this]
@@ -157,6 +172,11 @@ namespace tl
         void TimeEdit::setFocusCallback(const std::function<void(bool)>& value)
         {
             _p->focusCallback = value;
+        }
+
+        void TimeEdit::setSelectAllOnFocus(bool value)
+        {
+            _p->lineEdit->setSelectAllOnFocus(value);
         }
 
         void TimeEdit::selectAll()

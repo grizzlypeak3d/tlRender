@@ -74,6 +74,11 @@ namespace tl
             //! leaves all of them.
             TL_UI_API void setFocusCallback(const std::function<void(bool)>&);
 
+            //! Set whether taking the key focus selects the text, as it does
+            //! by default: not for a focus given back, after the edit was
+            //! made again.
+            TL_UI_API void setSelectAllOnFocus(bool);
+
             //! Select all.
             TL_UI_API void selectAll();
 
