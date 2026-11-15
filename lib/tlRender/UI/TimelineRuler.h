@@ -104,10 +104,13 @@ namespace tl
             void _drawCacheInfo(const ftk::Box2I&, const ftk::DrawEvent&);
             void _drawTimeLabels(const ftk::Box2I&, const ftk::DrawEvent&);
             void _drawTimeTicks(const ftk::Box2I&, const ftk::DrawEvent&);
+            //! The ruler's color behind a label, a pad either side across;
+            //! a pad of zero or less is the margin.
             void _drawLabelBackground(
                 const ftk::V2I&,
                 const ftk::Size2I&,
-                const ftk::DrawEvent&);
+                const ftk::DrawEvent&,
+                int pad = 0);
             void _drawCurrentTime(const ftk::Box2I&, const ftk::DrawEvent&);
 
             OTIO_NS::RationalTime _posToTime(float) const;

@@ -825,7 +825,8 @@ namespace tl
         void TimelineRuler::_drawLabelBackground(
             const ftk::V2I& pos,
             const ftk::Size2I& size,
-            const ftk::DrawEvent& event)
+            const ftk::DrawEvent& event,
+            int pad)
         {
             FTK_P();
             // The ruler's own color, so it shows only where something runs
@@ -833,7 +834,10 @@ namespace tl
             // the layout behind it then draws in a color of its own.
             if (p.displayOptions.background != ftk::ColorRole::None)
             {
-                const int pad = std::max(p.size.margin, 1);
+                if (pad <= 0)
+                {
+                    pad = std::max(p.size.margin, 1);
+                }
                 event.render->drawRect(
                     ftk::Box2I(
                         pos.x - pad,
@@ -859,16 +863,22 @@ namespace tl
                 ftk::Box2I(x, g.min.y, p.size.border * 2, g.h()),
                 event.style->getColorRole(ftk::ColorRole::Red));
 
+            // A digit's width of the ruler's color either side, so a
+            // ruler label it lands on stops well short of it: drawn
+            // against it, the two read as one long number.
             const std::string label = _timeLabel(*p.currentTime);
+            const int pad = std::max(
+                event.fontSystem->getSize("0", p.size.fontInfo).w,
+                p.size.margin);
             ftk::V2I labelPos(
-                x + p.size.border * 2 + p.size.margin,
+                x + p.size.border * 2 + pad,
                 g.min.y + p.size.margin);
             const ftk::Size2I labelSize =
                 event.fontSystem->getSize(label, p.size.fontInfo);
             if (labelPos.x + labelSize.w > g.max.x)
             {
                 const ftk::V2I labelPos2(
-                    x - p.size.border * 2 - p.size.margin - labelSize.w,
+                    x - pad - labelSize.w,
                     g.min.y + p.size.margin);
                 if (labelPos2.x > g.min.x)
                 {
@@ -878,7 +888,7 @@ namespace tl
             // On a background of its own: the ruler's labels and the
             // markers' ticks run under it, and a frame number drawn over
             // another reads as one long number.
-            _drawLabelBackground(labelPos, labelSize, event);
+            _drawLabelBackground(labelPos, labelSize, event, pad);
             event.render->drawText(
                 event.fontSystem->getGlyphs(label, p.size.fontInfo),
                 p.size.fontMetrics,
