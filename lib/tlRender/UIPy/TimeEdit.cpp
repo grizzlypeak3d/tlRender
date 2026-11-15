@@ -66,6 +66,12 @@ namespace tl
                     "Set the mapping between the value and the time shown. "
                     "The value, and the callback, stay in the player's "
                     "time.")
+                .def(
+                    "setRange",
+                    &TimeEdit::setRange,
+                    nb::arg("range").none(),
+                    "Set the times the value can take, in the player's time, "
+                    "so the edit is wide enough for any of them.")
                 .def("selectAll", &TimeEdit::selectAll);
         }
     }

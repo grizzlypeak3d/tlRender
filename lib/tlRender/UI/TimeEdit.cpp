@@ -18,6 +18,7 @@ namespace tl
         {
             std::shared_ptr<TimeUnitsModel> timeUnitsModel;
             std::optional<OTIO_NS::RationalTime> value;
+            std::optional<OTIO_NS::TimeRange> range;
             TimeMap timeMap;
             std::function<void(const OTIO_NS::RationalTime&)> callback;
             std::function<void(bool)> focusCallback;
@@ -157,6 +158,18 @@ namespace tl
             _textUpdate();
         }
 
+        void TimeEdit::setRange(const std::optional<OTIO_NS::TimeRange>& value)
+        {
+            FTK_P();
+            if (value.has_value() == p.range.has_value() &&
+                (!value.has_value() ||
+                 (value->start_time().strictly_equal(p.range->start_time()) &&
+                  value->duration().strictly_equal(p.range->duration()))))
+                return;
+            p.range = value;
+            _textUpdate();
+        }
+
         void TimeEdit::setTimeMap(const TimeMap& value)
         {
             FTK_P();
@@ -256,16 +269,22 @@ namespace tl
 
         std::optional<OTIO_NS::RationalTime> TimeEdit::_mediaValue() const
         {
+            return _toShown(_p->value);
+        }
+
+        std::optional<OTIO_NS::RationalTime> TimeEdit::_toShown(
+            const std::optional<OTIO_NS::RationalTime>& value) const
+        {
             FTK_P();
             // Counted from the start, the media's own numbering is what is
             // being set aside.
-            if (p.timeUnitsModel && p.timeUnitsModel->isStartAtZero() && p.value.has_value())
+            if (p.timeUnitsModel && p.timeUnitsModel->isStartAtZero() && value.has_value())
             {
-                return p.timeUnitsModel->toDisplay(*p.value);
+                return p.timeUnitsModel->toDisplay(*value);
             }
-            return (p.timeMap.toMedia && p.value.has_value()) ?
-                p.timeMap.toMedia(*p.value) :
-                p.value;
+            return (p.timeMap.toMedia && value.has_value()) ?
+                p.timeMap.toMedia(*value) :
+                value;
         }
 
         void TimeEdit::_commitValue(const std::string& value)
@@ -328,11 +347,37 @@ namespace tl
             if (p.timeUnitsModel)
             {
                 const TimeUnits timeUnits = p.timeUnitsModel->getTimeUnits();
-                text = timeToText(
-                    _mediaValue(),
-                    timeUnits,
-                    p.timeUnitsModel->isDropFrame());
+                const bool dropFrame = p.timeUnitsModel->isDropFrame();
+                text = timeToText(_mediaValue(), timeUnits, dropFrame);
+                // The template for the units, widened to the longest of the
+                // value and the ends of the range as they are shown: a long
+                // clip, or timecode an hour or more in, has more frame
+                // digits than the template (#959).
                 format = formatString(timeUnits);
+                std::vector<std::string> texts = { text };
+                if (p.range.has_value())
+                {
+                    for (const auto& time : {
+                        p.range->start_time(),
+                        p.range->end_time_inclusive() })
+                    {
+                        texts.push_back(timeToText(_toShown(time), timeUnits, dropFrame));
+                    }
+                }
+                for (const auto& i : texts)
+                {
+                    if (i.size() > format.size())
+                    {
+                        format = i;
+                        for (auto& c : format)
+                        {
+                            if (c >= '1' && c <= '9')
+                            {
+                                c = '0';
+                            }
+                        }
+                    }
+                }
             }
             p.lineEdit->setText(text);
             p.lineEdit->setFormat(format);

@@ -66,6 +66,12 @@ namespace tl
             //! value, and the callback, stay in the player's time.
             TL_UI_API void setTimeMap(const TimeMap&);
 
+            //! Set the times the value can take, in the player's time, so the
+            //! edit is wide enough for any of them from the start rather than
+            //! growing as the value crosses a digit. The edit is always wide
+            //! enough for the value it shows.
+            TL_UI_API void setRange(const std::optional<OTIO_NS::TimeRange>&);
+
             //! Set the time value callback.
             TL_UI_API void setCallback(const std::function<void(const OTIO_NS::RationalTime&)>&);
 
@@ -101,6 +107,8 @@ namespace tl
 
         private:
             std::optional<OTIO_NS::RationalTime> _mediaValue() const;
+            std::optional<OTIO_NS::RationalTime> _toShown(
+                const std::optional<OTIO_NS::RationalTime>&) const;
             void _commitValue(const std::string&);
             void _commitValue(const OTIO_NS::RationalTime&);
             void _textUpdate();
