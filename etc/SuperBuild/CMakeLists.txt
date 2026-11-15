@@ -25,6 +25,9 @@ set(TLRENDER_SVTAV1 ON CACHE BOOL "Build SVT-AV1")
 # does not install is the pkg-config file FFmpeg looks it up by
 # (openapv-patch/msvc.patch).
 set(TLRENDER_OPENAPV ON CACHE BOOL "Build OpenAPV, for writing APV")
+# OpenH264, for writing H.264 where there is no system encoder. Off: writing
+# H.264 needs a patent license, which a product turning this on holds.
+set(TLRENDER_OPENH264 OFF CACHE BOOL "Build OpenH264, for writing H.264 (needs an H.264 patent license)")
 set(TLRENDER_FFMPEG ON CACHE BOOL "Build FFmpeg (required for audio, see the README for building FFmpeg on Windows)")
 set(TLRENDER_FFMPEG_MINIMAL OFF CACHE BOOL "Enable a minimal set of FFmpeg codecs")
 # Components to leave out of whatever the build would otherwise enable, as
@@ -202,6 +205,9 @@ if(TLRENDER_FFMPEG)
     endif()
     if(TLRENDER_OPENAPV)
         include(Buildopenapv)
+    endif()
+    if(TLRENDER_OPENH264)
+        include(Buildopenh264)
     endif()
     if(NOT WIN32 AND NOT APPLE)
         include(Buildnv-codec-headers)

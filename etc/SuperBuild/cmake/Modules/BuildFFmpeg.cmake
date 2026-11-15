@@ -37,6 +37,9 @@ endif()
 if(TLRENDER_OPENAPV)
     list(APPEND FFmpeg_DEPS openapv)
 endif()
+if(TLRENDER_OPENH264)
+    list(APPEND FFmpeg_DEPS openh264)
+endif()
 if(TLRENDER_NASM)
     list(APPEND FFmpeg_DEPS NASM)
 endif()
@@ -579,6 +582,12 @@ if(TLRENDER_OPENAPV)
         --enable-liboapv
         --enable-encoder=liboapv)
 endif()
+if(TLRENDER_OPENH264)
+    # The encoder only: decoding H.264 is FFmpeg's own decoder's job.
+    list(APPEND FFmpeg_CONFIGURE_ARGS
+        --enable-libopenh264
+        --enable-encoder=libopenh264)
+endif()
 # Last among the components: FFmpeg's configure takes the options in order,
 # so a --disable here wins over the --enable of the same component above.
 foreach(component ${TLRENDER_FFMPEG_DISABLE})
@@ -629,7 +638,7 @@ if(WIN32)
     list(JOIN FFmpeg_CONFIGURE_ARGS " " FFmpeg_CONFIGURE_ARGS_TMP)
     # --needed, so that an MSYS2 that has the packages already -- continuous
     # integration's -- does not reach for the package mirror, which has been
-    # the thing to fail. pkgconf because libaom, libsvtav1 and OpenAPV are the
+    # the thing to fail. pkgconf because libaom, libsvtav1, OpenAPV and OpenH264 are the
     # dependencies FFmpeg will only find through pkg-config; the rest are
     # found here by the include and library paths passed above. Without it
     # PKG_CONFIG_PATH is exported into a shell that has nothing to read it,

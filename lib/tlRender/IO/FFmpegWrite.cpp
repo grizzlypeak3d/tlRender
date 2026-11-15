@@ -161,6 +161,16 @@ namespace tl
                       { "FFmpeg/PixelFormat", "yuv420p" } },
                     false,
                     { ".mp4", ".mov" } },
+                // OpenH264, where a build has it: H.264 without a system
+                // encoder or x264. Only in a build with an H.264 license.
+                // The High profile, which it otherwise leaves for
+                // Constrained Baseline and its weaker compression.
+                { "H.264 (OpenH264)",
+                    { { "FFmpeg/Codec", "libopenh264" },
+                      { "FFmpeg/CodecOptions", "profile=high" },
+                      { "FFmpeg/PixelFormat", "yuv420p" } },
+                    false,
+                    { ".mp4", ".mov" } },
                 { "HEVC (VideoToolbox)",
                     { { "FFmpeg/Codec", "hevc_videotoolbox" },
                       { "FFmpeg/PixelFormat", "yuv420p" } },
@@ -473,11 +483,13 @@ namespace tl
             // a pixel a frame, about 15 Mb/s for 1080p at 24 for H.264, a
             // third less for HEVC, which does as well with that much less.
             // Constant quality is a Mac-only feature of these encoders.
+            // OpenH264 the same: it is a bitrate encoder too.
             const std::string codecName = avCodec->name ? avCodec->name : "";
-            const bool vtLong =
+            const bool sizedBitrate =
                 "h264_videotoolbox" == codecName ||
-                "hevc_videotoolbox" == codecName;
-            if (vtLong && 0 == p.avCodecContext->bit_rate && !av_dict_get(avCodecOptions, "b", nullptr, 0))
+                "hevc_videotoolbox" == codecName ||
+                "libopenh264" == codecName;
+            if (sizedBitrate && 0 == p.avCodecContext->bit_rate && !av_dict_get(avCodecOptions, "b", nullptr, 0))
             {
                 const double fps =
                     p.avCodecContext->framerate.den > 0 ?
