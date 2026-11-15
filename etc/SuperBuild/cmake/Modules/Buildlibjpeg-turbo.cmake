@@ -19,6 +19,10 @@ set(libjpeg-turbo_ARGS
     ${TLRENDER_EXTERNAL_ARGS}
     -DENABLE_SHARED=${libjpeg-turbo_ENABLE_SHARED}
     -DENABLE_STATIC=${libjpeg-turbo_ENABLE_STATIC}
+    # The DLL C runtime, like everything else here. A static build otherwise
+    # compiles the static one in, overriding CMAKE_MSVC_RUNTIME_LIBRARY, and
+    # the application links two C runtimes (LNK4098).
+    -DWITH_CRT_DLL=ON
     -DWITH_TESTS=OFF)
 if(TLRENDER_NASM)
     list(APPEND libjpeg-turbo_ARGS -DCMAKE_ASM_NASM_COMPILER=${CMAKE_INSTALL_PREFIX}/bin/nasm)
