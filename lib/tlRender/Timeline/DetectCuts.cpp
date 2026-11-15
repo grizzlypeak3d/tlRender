@@ -7,6 +7,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstring>
 #include <deque>
 
 namespace tl
@@ -74,6 +75,144 @@ namespace tl
             std::vector<uint8_t> pixels;
         };
 
+        float halfToFloat(uint16_t value)
+        {
+            const uint32_t sign = (value >> 15) & 1;
+            const uint32_t exponent = (value >> 10) & 0x1f;
+            const uint32_t mantissa = value & 0x3ff;
+            float out = 0.F;
+            if (0 == exponent)
+            {
+                out = std::ldexp(static_cast<float>(mantissa), -24);
+            }
+            else if (31 == exponent)
+            {
+                out = mantissa ? 0.F : 65504.F;
+            }
+            else
+            {
+                out = std::ldexp(static_cast<float>(mantissa | 0x400), static_cast<int>(exponent) - 25);
+            }
+            return sign ? -out : out;
+        }
+
+        //! A frame made small and gray without FFmpeg, which the scaler
+        //! needs: each block of pixels averaged, its luma weighted as
+        //! FFmpeg's gray conversion weights it, so the scores and the
+        //! thresholds measured with it agree. For the packed types the
+        //! image readers give without FFmpeg; nothing for the others.
+        bool grayBox(const std::shared_ptr<ftk::Image>& image, int width, Gray& out)
+        {
+            const ftk::ImageInfo& info = image->getInfo();
+            int channels = 0;
+            int bytes = 0;
+            enum class Sample { U8, U16, U32, F16, F32 } sample = Sample::U8;
+            switch (info.type)
+            {
+            case ftk::ImageType::L_U8: channels = 1; bytes = 1; sample = Sample::U8; break;
+            case ftk::ImageType::L_U16: channels = 1; bytes = 2; sample = Sample::U16; break;
+            case ftk::ImageType::L_U32: channels = 1; bytes = 4; sample = Sample::U32; break;
+            case ftk::ImageType::L_F16: channels = 1; bytes = 2; sample = Sample::F16; break;
+            case ftk::ImageType::L_F32: channels = 1; bytes = 4; sample = Sample::F32; break;
+            case ftk::ImageType::LA_U8: channels = 2; bytes = 1; sample = Sample::U8; break;
+            case ftk::ImageType::LA_U16: channels = 2; bytes = 2; sample = Sample::U16; break;
+            case ftk::ImageType::LA_U32: channels = 2; bytes = 4; sample = Sample::U32; break;
+            case ftk::ImageType::LA_F16: channels = 2; bytes = 2; sample = Sample::F16; break;
+            case ftk::ImageType::LA_F32: channels = 2; bytes = 4; sample = Sample::F32; break;
+            case ftk::ImageType::RGB_U8: channels = 3; bytes = 1; sample = Sample::U8; break;
+            case ftk::ImageType::RGB_U16: channels = 3; bytes = 2; sample = Sample::U16; break;
+            case ftk::ImageType::RGB_U32: channels = 3; bytes = 4; sample = Sample::U32; break;
+            case ftk::ImageType::RGB_F16: channels = 3; bytes = 2; sample = Sample::F16; break;
+            case ftk::ImageType::RGB_F32: channels = 3; bytes = 4; sample = Sample::F32; break;
+            case ftk::ImageType::RGBA_U8: channels = 4; bytes = 1; sample = Sample::U8; break;
+            case ftk::ImageType::RGBA_U16: channels = 4; bytes = 2; sample = Sample::U16; break;
+            case ftk::ImageType::RGBA_U32: channels = 4; bytes = 4; sample = Sample::U32; break;
+            case ftk::ImageType::RGBA_F16: channels = 4; bytes = 2; sample = Sample::F16; break;
+            case ftk::ImageType::RGBA_F32: channels = 4; bytes = 4; sample = Sample::F32; break;
+            default: return false;
+            }
+            const int inW = info.size.w;
+            const int inH = info.size.h;
+            if (inW <= 0 || inH <= 0)
+            {
+                return false;
+            }
+            const int w = std::max(1, std::min(width, inW));
+            const int h = std::max(1, static_cast<int>(std::lround(
+                inH * w / static_cast<double>(inW))));
+            // Rows may be padded.
+            const size_t stride = image->getByteCount() / inH;
+            const uint8_t* data = image->getData();
+            auto value = [sample](const uint8_t* p)
+            {
+                float v = 0.F;
+                switch (sample)
+                {
+                case Sample::U8: v = p[0] / 255.F; break;
+                case Sample::U16:
+                {
+                    uint16_t u = 0;
+                    std::memcpy(&u, p, 2);
+                    v = u / 65535.F;
+                    break;
+                }
+                case Sample::U32:
+                {
+                    uint32_t u = 0;
+                    std::memcpy(&u, p, 4);
+                    v = static_cast<float>(u / 4294967295.0);
+                    break;
+                }
+                case Sample::F16:
+                {
+                    uint16_t u = 0;
+                    std::memcpy(&u, p, 2);
+                    v = halfToFloat(u);
+                    break;
+                }
+                case Sample::F32: std::memcpy(&v, p, 4); break;
+                }
+                return std::clamp(v, 0.F, 1.F);
+            };
+            out.size = ftk::Size2I(w, h);
+            out.pixels.resize(static_cast<size_t>(w) * h);
+            const size_t pixelBytes = static_cast<size_t>(channels) * bytes;
+            for (int oy = 0; oy < h; ++oy)
+            {
+                const int y0 = oy * inH / h;
+                const int y1 = std::max(y0 + 1, (oy + 1) * inH / h);
+                for (int ox = 0; ox < w; ++ox)
+                {
+                    const int x0 = ox * inW / w;
+                    const int x1 = std::max(x0 + 1, (ox + 1) * inW / w);
+                    double sum = 0.0;
+                    for (int y = y0; y < y1; ++y)
+                    {
+                        const uint8_t* row = data + y * stride;
+                        for (int x = x0; x < x1; ++x)
+                        {
+                            const uint8_t* p = row + x * pixelBytes;
+                            if (channels < 3)
+                            {
+                                sum += value(p);
+                            }
+                            else
+                            {
+                                sum +=
+                                    .299F * value(p) +
+                                    .587F * value(p + bytes) +
+                                    .114F * value(p + bytes * 2);
+                            }
+                        }
+                    }
+                    const double average = sum / ((y1 - y0) * (x1 - x0));
+                    out.pixels[static_cast<size_t>(oy) * w + ox] = static_cast<uint8_t>(
+                        std::lround(std::clamp(average, 0.0, 1.0) * 255.0));
+                }
+            }
+            return true;
+        }
+
         class Scorer
         {
         public:
@@ -100,7 +239,9 @@ namespace tl
                 }
                 if (!_scale->isValid())
                 {
-                    return false;
+                    // No FFmpeg to scale with, or a type it will not
+                    // convert: averaged here instead.
+                    return grayBox(image, _width, out);
                 }
                 const auto small = _scale->process(image);
                 if (!small)
