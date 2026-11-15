@@ -43,7 +43,11 @@ namespace tl
                         if (!p.menu)
                         {
                             // The units, the one in use checked, and below
-                            // them whether they count from the start.
+                            // them whether they count from the start. The
+                            // actions do not close the menu: it closes itself
+                            // after one, and closing it from the action freed
+                            // it (the close callback lets go of it) while it
+                            // was still handling the click.
                             p.menu = ftk::Menu::create(context);
                             auto weak = std::weak_ptr<TimeUnitsWidget>(
                                 std::dynamic_pointer_cast<TimeUnitsWidget>(shared_from_this()));
@@ -58,7 +62,6 @@ namespace tl
                                         if (auto widget = weak.lock())
                                         {
                                             widget->_p->model->setTimeUnits(units);
-                                            widget->_p->menu->close();
                                         }
                                     });
                                 p.menu->addAction(action);
@@ -72,7 +75,6 @@ namespace tl
                                     if (auto widget = weak.lock())
                                     {
                                         widget->_p->model->setStartAtZero(value);
-                                        widget->_p->menu->close();
                                     }
                                 });
                             startAtZero->setTooltip(
