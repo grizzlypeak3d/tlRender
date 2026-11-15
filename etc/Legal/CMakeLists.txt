@@ -32,6 +32,12 @@ if(NOT WIN32 AND NOT APPLE)
     list(APPEND LEGAL LICENSE_nv-codec-headers.txt)
 endif()
 
+# OpenH264 only where a build turns it on, which takes an H.264 license
+# (etc/SuperBuild/cmake/Modules/Buildopenh264.cmake).
+if(TLRENDER_OPENH264)
+    list(APPEND LEGAL LICENSE_openh264.txt)
+endif()
+
 # The USD notices ride only when USD does: what ships needs a
 # notice, and only what ships.
 if(TLRENDER_USD)

@@ -49,6 +49,9 @@ if(APPLE)
     set(TLRENDER_IMAGEIO ON CACHE BOOL "Enable support for HEIC and HEIF I/O with Apple's ImageIO")
 endif()
 set(TLRENDER_USD OFF CACHE BOOL "Enable support for USD")
+# The same option as the super build's, read here for its notice: FFmpeg
+# was built with OpenH264 (etc/SuperBuild/cmake/Modules/Buildopenh264.cmake).
+set(TLRENDER_OPENH264 OFF CACHE BOOL "FFmpeg was built with OpenH264")
 set(TLRENDER_PYTHON OFF CACHE BOOL "Enable support for Python")
 # Where the tlrender package goes, relative to the install prefix. The
 # default keeps "PYTHONPATH=<prefix>/lib" working; a wheel puts the
