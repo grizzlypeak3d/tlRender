@@ -617,7 +617,7 @@ namespace tl
                 {
                     std::error_code ec;
                     const auto size = std::filesystem::file_size(
-                        std::filesystem::u8path(fileName), ec);
+                        ftk::toFileSystem(fileName), ec);
                     if (!ec && size > 1024ULL * 1024 * 1024)
                     {
                         map = false;
