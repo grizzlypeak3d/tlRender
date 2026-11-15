@@ -257,6 +257,12 @@ namespace tl
         std::optional<OTIO_NS::RationalTime> TimeEdit::_mediaValue() const
         {
             FTK_P();
+            // Counted from the start, the media's own numbering is what is
+            // being set aside.
+            if (p.timeUnitsModel && p.timeUnitsModel->isStartAtZero() && p.value.has_value())
+            {
+                return p.timeUnitsModel->toDisplay(*p.value);
+            }
             return (p.timeMap.toMedia && p.value.has_value()) ?
                 p.timeMap.toMedia(*p.value) :
                 p.value;
@@ -280,7 +286,11 @@ namespace tl
                     mediaValue->rate(),
                     timeUnits,
                     &errorStatus);
-                if (tmp.has_value() && p.timeMap.fromMedia)
+                if (tmp.has_value() && p.timeUnitsModel->isStartAtZero())
+                {
+                    tmp = p.timeUnitsModel->fromDisplay(*tmp);
+                }
+                else if (tmp.has_value() && p.timeMap.fromMedia)
                 {
                     tmp = p.timeMap.fromMedia(*tmp);
                 }

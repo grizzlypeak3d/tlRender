@@ -413,7 +413,9 @@ namespace tl
             // ruler counts off is not the frame the media calls it when the
             // sequence was built out of the frames it has.
             return p.data->timeUnitsModel->getLabel(
-                p.data->toMediaTime ? p.data->toMediaTime(value) : value);
+                p.data->toMediaTime && !p.data->timeUnitsModel->isStartAtZero() ?
+                p.data->toMediaTime(value) :
+                value);
         }
 
         ftk::Size2I TimelineRuler::_getLabelMaxSize(
@@ -421,7 +423,7 @@ namespace tl
         {
             FTK_P();
             const std::string labelMax =
-                p.data->timeUnitsModel->getLabel(p.timeRange.duration());
+                p.data->timeUnitsModel->getDurationLabel(p.timeRange.duration());
             return fontSystem->getSize(labelMax, p.size.fontInfo);
         }
 

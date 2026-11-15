@@ -161,6 +161,46 @@ namespace tl
             changed = false;
             model->setDropFrame(true);
             FTK_CHECK(!changed);
+
+            // Counted from the start: a movie whose timecode starts at an
+            // hour reads from zero, in every unit, and what is typed reads
+            // back the same way; a duration does not change.
+            {
+                auto model = TimeUnitsModel::create(_context);
+                const OTIO_NS::RationalTime start(86400.0, 24.0);
+                const OTIO_NS::RationalTime t20 = start + OTIO_NS::RationalTime(480.0, 24.0);
+                model->setStart(start);
+                model->setTimeUnits(TimeUnits::Timecode);
+                FTK_CHECK("01:00:20:00" == model->getLabel(t20));
+                FTK_CHECK(!model->isStartAtZero());
+                bool changed = false;
+                auto observer = ftk::Observer<bool>::create(
+                    model->observeTimeUnitsChanged(),
+                    [&changed](bool) { changed = true; },
+                    ftk::ObserverAction::Suppress);
+                model->setStartAtZero(true);
+                FTK_CHECK(changed);
+                FTK_CHECK(model->isStartAtZero());
+                FTK_CHECK("00:00:20:00" == model->getLabel(t20));
+                FTK_CHECK("00:00:00:00" == model->getLabel(start));
+                model->setTimeUnits(TimeUnits::Seconds);
+                FTK_CHECK("20.00" == model->getLabel(t20));
+                model->setTimeUnits(TimeUnits::Frames);
+                FTK_CHECK("480" == model->getLabel(t20));
+                FTK_CHECK("48" == model->getDurationLabel(OTIO_NS::RationalTime(48.0, 24.0)));
+                // Back from what is shown, at another rate as well.
+                FTK_CHECK(t20 == model->fromDisplay(model->toDisplay(t20)));
+                FTK_CHECK(t20 == model->fromDisplay(OTIO_NS::RationalTime(20.0, 1.0)).rescaled_to(24.0));
+                // A new start, with it on, changes what is shown.
+                changed = false;
+                model->setStart(OTIO_NS::RationalTime(0.0, 24.0));
+                FTK_CHECK(changed);
+                FTK_CHECK("86880" == model->getLabel(t20));
+                // Off, the timeline's own times again.
+                model->setStart(start);
+                model->setStartAtZero(false);
+                FTK_CHECK("86880" == model->getLabel(t20));
+            }
         }
     }
 }

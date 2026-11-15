@@ -75,6 +75,14 @@ namespace tl
         TL_TIMELINE_API virtual std::string getLabel(
             const std::optional<OTIO_NS::RationalTime>&) const = 0;
 
+        //! Get a label for a duration, which no start is taken from.
+        TL_TIMELINE_API virtual std::string getDurationLabel(
+            const OTIO_NS::RationalTime&) const;
+
+        //! Get whether times are shown counted from the start (see
+        //! TimeUnitsModel::setStartAtZero()), in place of the media's own.
+        TL_TIMELINE_API virtual bool isStartAtZero() const;
+
     protected:
         std::shared_ptr<ftk::Observable<bool> > _timeUnitsChanged;
     };
@@ -111,8 +119,34 @@ namespace tl
         //! Set whether timecode is shown as drop frame, from the media.
         TL_TIMELINE_API void setDropFrame(bool);
 
+        //! Observe whether times are shown counted from the start.
+        TL_TIMELINE_API std::shared_ptr<ftk::IObservable<bool> > observeStartAtZero() const;
+
+        //! Set whether times are shown counted from the start: the first
+        //! frame 0, 0.0 seconds, or 00:00:00:00, rather than the frame or
+        //! timecode the media gives it. For someone told "at 20 seconds"
+        //! by a player that counts from zero, as most do. Text typed in is
+        //! read the same way. Durations are not changed.
+        TL_TIMELINE_API void setStartAtZero(bool);
+
+        //! Get the start the times are counted from.
+        TL_TIMELINE_API const std::optional<OTIO_NS::RationalTime>& getStart() const;
+
+        //! Set the start the times are counted from: the start of the
+        //! timeline being shown, or nothing.
+        TL_TIMELINE_API void setStart(const std::optional<OTIO_NS::RationalTime>&);
+
+        //! A time as it is shown: counted from the start when that is on.
+        TL_TIMELINE_API OTIO_NS::RationalTime toDisplay(const OTIO_NS::RationalTime&) const;
+
+        //! A time as it was shown, back to the timeline's.
+        TL_TIMELINE_API OTIO_NS::RationalTime fromDisplay(const OTIO_NS::RationalTime&) const;
+
         TL_TIMELINE_API std::string getLabel(
             const std::optional<OTIO_NS::RationalTime>&) const override;
+        TL_TIMELINE_API std::string getDurationLabel(
+            const OTIO_NS::RationalTime&) const override;
+        TL_TIMELINE_API bool isStartAtZero() const override;
 
     private:
         FTK_PRIVATE();

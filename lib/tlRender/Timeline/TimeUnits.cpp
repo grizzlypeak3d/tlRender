@@ -259,10 +259,22 @@ namespace tl
         return _timeUnitsChanged;
     }
 
+    std::string ITimeUnitsModel::getDurationLabel(const OTIO_NS::RationalTime& value) const
+    {
+        return getLabel(value);
+    }
+
+    bool ITimeUnitsModel::isStartAtZero() const
+    {
+        return false;
+    }
+
     struct TimeUnitsModel::Private
     {
         std::shared_ptr<ftk::Observable<TimeUnits> > timeUnits;
         bool dropFrame = false;
+        std::shared_ptr<ftk::Observable<bool> > startAtZero;
+        std::optional<OTIO_NS::RationalTime> start;
     };
 
     void TimeUnitsModel::_init(const std::shared_ptr<ftk::Context>& context)
@@ -270,6 +282,7 @@ namespace tl
         FTK_P();
         ITimeUnitsModel::_init(context);
         p.timeUnits = ftk::Observable<TimeUnits>::create(TimeUnits::Timecode);
+        p.startAtZero = ftk::Observable<bool>::create(false);
     }
 
     TimeUnitsModel::TimeUnitsModel() :
@@ -320,9 +333,69 @@ namespace tl
         }
     }
 
+    std::shared_ptr<ftk::IObservable<bool> > TimeUnitsModel::observeStartAtZero() const
+    {
+        return _p->startAtZero;
+    }
+
+    void TimeUnitsModel::setStartAtZero(bool value)
+    {
+        if (_p->startAtZero->setIfChanged(value))
+        {
+            _timeUnitsChanged->setAlways(true);
+        }
+    }
+
+    const std::optional<OTIO_NS::RationalTime>& TimeUnitsModel::getStart() const
+    {
+        return _p->start;
+    }
+
+    void TimeUnitsModel::setStart(const std::optional<OTIO_NS::RationalTime>& value)
+    {
+        FTK_P();
+        if (value != p.start)
+        {
+            p.start = value;
+            if (p.startAtZero->get())
+            {
+                _timeUnitsChanged->setAlways(true);
+            }
+        }
+    }
+
+    OTIO_NS::RationalTime TimeUnitsModel::toDisplay(const OTIO_NS::RationalTime& value) const
+    {
+        FTK_P();
+        return p.startAtZero->get() && p.start.has_value() ?
+            value - p.start->rescaled_to(value.rate()) :
+            value;
+    }
+
+    OTIO_NS::RationalTime TimeUnitsModel::fromDisplay(const OTIO_NS::RationalTime& value) const
+    {
+        FTK_P();
+        return p.startAtZero->get() && p.start.has_value() ?
+            value + p.start->rescaled_to(value.rate()) :
+            value;
+    }
+
     std::string TimeUnitsModel::getLabel(
         const std::optional<OTIO_NS::RationalTime>& value) const
     {
+        return timeToText(
+            value.has_value() ? std::optional<OTIO_NS::RationalTime>(toDisplay(*value)) : value,
+            _p->timeUnits->get(),
+            _p->dropFrame);
+    }
+
+    std::string TimeUnitsModel::getDurationLabel(const OTIO_NS::RationalTime& value) const
+    {
         return timeToText(value, _p->timeUnits->get(), _p->dropFrame);
+    }
+
+    bool TimeUnitsModel::isStartAtZero() const
+    {
+        return _p->startAtZero->get();
     }
 }

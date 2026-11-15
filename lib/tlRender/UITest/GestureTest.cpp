@@ -294,7 +294,7 @@ namespace tl
             window->layout(ftk::Size2I(1280, 960));
             app->tick();
             const ftk::Box2I& g = timelineWidget->getGeometry();
-            const auto wait = [this, app](int ms)
+            const auto wait = [app](int ms)
             {
                 const auto t = std::chrono::steady_clock::now();
                 while (std::chrono::steady_clock::now() - t < std::chrono::milliseconds(ms))

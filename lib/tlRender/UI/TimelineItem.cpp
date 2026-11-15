@@ -1081,7 +1081,7 @@ namespace tl
         {
             const OTIO_NS::RationalTime rescaled = value.rescaled_to(_data->speed);
             return ftk::Format("{0}").
-                arg(_data->timeUnitsModel->getLabel(rescaled));
+                arg(_data->timeUnitsModel->getDurationLabel(rescaled));
         }
 
         bool TimelineItem::_isTrackVisible(int index) const
@@ -2146,7 +2146,7 @@ namespace tl
                     false;
                 const OTIO_NS::RationalTime rescaled = duration.rescaled_to(_data->speed);
                 const std::string label = ftk::Format("{0}, {1}{2}").
-                    arg(_data->timeUnitsModel->getLabel(rescaled)).
+                    arg(_data->timeUnitsModel->getDurationLabel(rescaled)).
                     arg(khz ? (duration.rate() / 1000.0) : duration.rate()).
                     arg(khz ? "kHz" : "FPS");
                 track.durationLabel->setText(label);

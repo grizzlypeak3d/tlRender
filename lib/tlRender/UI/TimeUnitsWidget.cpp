@@ -3,9 +3,8 @@
 
 #include <tlRender/UI/TimeUnitsWidget.h>
 
-#include <ftk/UI/ButtonGroup.h>
-#include <ftk/UI/ComboBoxMenu.h>
-#include <ftk/UI/RowLayout.h>
+#include <ftk/UI/Action.h>
+#include <ftk/UI/Menu.h>
 #include <ftk/UI/ToolButton.h>
 
 namespace tl
@@ -17,7 +16,7 @@ namespace tl
             std::shared_ptr<TimeUnitsModel> model;
 
             std::shared_ptr<ftk::ToolButton> button;
-            std::shared_ptr<ftk::ComboBoxMenu> menu;
+            std::shared_ptr<ftk::Menu> menu;
         };
 
         void TimeUnitsWidget::_init(
@@ -43,30 +42,46 @@ namespace tl
                     {
                         if (!p.menu)
                         {
-                            std::vector<ftk::ComboBoxItem> items;
-                            for (const auto& label : getTimeUnitsLabels())
-                            {
-                                items.push_back(ftk::ComboBoxItem(label));
-                            }
-                            p.menu = ftk::ComboBoxMenu::create(
-                                context,
-                                items,
-                                static_cast<int>(p.model->getTimeUnits()));
-                            p.menu->open(getWindow(), p.button->getGeometry());
+                            // The units, the one in use checked, and below
+                            // them whether they count from the start.
+                            p.menu = ftk::Menu::create(context);
                             auto weak = std::weak_ptr<TimeUnitsWidget>(
                                 std::dynamic_pointer_cast<TimeUnitsWidget>(shared_from_this()));
-                            p.menu->setCallback(
-                                [weak](int index)
+                            const auto labels = getTimeUnitsLabels();
+                            for (size_t i = 0; i < labels.size(); ++i)
+                            {
+                                const auto units = static_cast<TimeUnits>(i);
+                                auto action = ftk::Action::create(
+                                    labels[i],
+                                    [weak, units](bool)
+                                    {
+                                        if (auto widget = weak.lock())
+                                        {
+                                            widget->_p->model->setTimeUnits(units);
+                                            widget->_p->menu->close();
+                                        }
+                                    });
+                                p.menu->addAction(action);
+                                p.menu->setChecked(action, units == p.model->getTimeUnits());
+                            }
+                            p.menu->addDivider();
+                            auto startAtZero = ftk::Action::create(
+                                "Start at Zero",
+                                [weak](bool value)
                                 {
                                     if (auto widget = weak.lock())
                                     {
+                                        widget->_p->model->setStartAtZero(value);
                                         widget->_p->menu->close();
-                                        if (index != -1)
-                                        {
-                                            widget->_p->model->setTimeUnits(static_cast<TimeUnits>(index));
-                                        }
                                     }
                                 });
+                            startAtZero->setTooltip(
+                                "Count from the start: the first frame 0, or\n"
+                                "00:00:00:00, rather than the frame or timecode\n"
+                                "the media gives it.");
+                            p.menu->addAction(startAtZero);
+                            p.menu->setChecked(startAtZero, p.model->isStartAtZero());
+                            p.menu->open(getWindow(), p.button->getGeometry());
                             p.menu->setCloseCallback(
                                 [weak]
                                 {
