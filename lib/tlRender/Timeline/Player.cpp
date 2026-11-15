@@ -156,6 +156,7 @@ namespace tl
         ftk::Image::setBufferPoolMax(getBufferPoolMax(playerOptions.cache));
         p.cacheInfo = ftk::Observable<PlayerCacheInfo>::create();
         p.droppedFrames = ftk::Observable<size_t>::create(0);
+        p.playEveryFrame = ftk::Observable<bool>::create(false);
         p.buffering = ftk::Observable<bool>::create(false);
 
         // Create observers.
@@ -591,6 +592,35 @@ namespace tl
         {
             std::unique_lock<std::mutex> lock(p.audioMutex.mutex);
             p.audioMutex.state.loop = value;
+        }
+    }
+
+    bool Player::isPlayEveryFrame() const
+    {
+        return _p->playEveryFrame->get();
+    }
+
+    std::shared_ptr<ftk::IObservable<bool> > Player::observePlayEveryFrame() const
+    {
+        return _p->playEveryFrame;
+    }
+
+    void Player::setPlayEveryFrame(bool value)
+    {
+        FTK_P();
+        if (p.playEveryFrame->setIfChanged(value))
+        {
+            p.playEveryFrameThread = value;
+            // The clock changes hands, the audio callback's for the wall
+            // clock or back, and both start from where playback is. The
+            // dropped frames start again too: none are dropped from here.
+            {
+                std::unique_lock<std::mutex> lock(p.audioMutex.mutex);
+                p.audioMutex.state.playEveryFrame = value;
+                p.audioReset(p.currentTime->get());
+            }
+            p.playbackReset(p.currentTime->get());
+            p.droppedFramesReset = true;
         }
     }
 
@@ -1186,7 +1216,7 @@ namespace tl
         {
             OTIO_NS::RationalTime start;
             double t = 0.0;
-            if (p.hasAudio())
+            if (p.audioIsClock())
             {
                 // The audio callback keeps the read position, so the clock
                 // is read rather than composed from an anchor and a count,
@@ -1249,15 +1279,19 @@ namespace tl
                 const std::chrono::duration<double> diff = now - playbackTimer;
                 t = diff.count() * (p.speed->get() * p.speedMult->get()) / timelineSpeed;
             }
-            if (Playback::Reverse == playback && !p.hasAudio())
+            if (Playback::Reverse == playback && !p.audioIsClock())
             {
                 t = -t;
             }
-            bool looped = false;
-            const OTIO_NS::RationalTime currentTime = p.loopPlayback(
+            OTIO_NS::RationalTime time =
                 start +
-                OTIO_NS::RationalTime(t, 1.0).rescaled_to(timelineSpeed).floor(),
-                looped);
+                OTIO_NS::RationalTime(t, 1.0).rescaled_to(timelineSpeed).floor();
+            if (p.playEveryFrame->get())
+            {
+                time = p.playEveryFrameTime(start, t, playback, timelineSpeed);
+            }
+            bool looped = false;
+            const OTIO_NS::RationalTime currentTime = p.loopPlayback(time, looped);
             //const double currentTimeDiff = abs(currentTime.value() - p.currentTime->get().value());
             if (p.currentTime->setIfChanged(currentTime))
             {
@@ -1398,7 +1432,11 @@ namespace tl
                     // shifting. The sound plays through; the picture shows
                     // what the cache has.
                     const auto now = std::chrono::steady_clock::now();
-                    if (!p.hasAudio() && now > p.audioMutex.state.muteTimeout)
+                    // Nor when every frame is played: waiting for the
+                    // frame is the tick's to do, and it does it every tick.
+                    if (!p.audioIsClock() &&
+                        !p.playEveryFrameThread &&
+                        now > p.audioMutex.state.muteTimeout)
                     {
                         {
                             std::unique_lock<std::mutex> lock(p.audioMutex.mutex);

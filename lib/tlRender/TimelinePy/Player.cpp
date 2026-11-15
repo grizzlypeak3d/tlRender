@@ -131,6 +131,13 @@ namespace tl
                 .def_prop_ro("observeDroppedFrames", &Player::observeDroppedFrames)
                 .def_prop_rw("loop", &Player::getLoop, &Player::setLoop)
                 .def_prop_ro("observeLoop", &Player::observeLoop)
+                .def_prop_rw(
+                    "playEveryFrame",
+                    &Player::isPlayEveryFrame,
+                    &Player::setPlayEveryFrame,
+                    "Wait for each frame to be shown rather than pass frames "
+                    "the cache does not have yet, with the audio silent.")
+                .def_prop_ro("observePlayEveryFrame", &Player::observePlayEveryFrame)
 
                 .def_prop_rw(
                     "currentTime",

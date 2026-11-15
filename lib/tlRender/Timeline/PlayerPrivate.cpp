@@ -23,7 +23,7 @@ namespace tl
         {
         case Loop::Loop:
         {
-            if (hasAudio())
+            if (audioIsClock())
             {
                 // The audio callback wraps its own read position, so the
                 // clock arrives already inside the range and nothing here
@@ -844,6 +844,67 @@ namespace tl
         std::unique_lock<std::mutex> lock(noAudio.mutex);
         noAudio.playbackTimer = std::chrono::steady_clock::now();
         noAudio.start = time;
+    }
+
+    OTIO_NS::RationalTime Player::Private::playEveryFrameTime(
+        const OTIO_NS::RationalTime& start,
+        double t,
+        Playback playback,
+        double timelineSpeed)
+    {
+        const OTIO_NS::RationalTime clock =
+            start +
+            OTIO_NS::RationalTime(t, 1.0).rescaled_to(timelineSpeed).floor();
+        if (!hasVideo())
+        {
+            return clock;
+        }
+
+        // Not past the current time until its frame is shown. The clock
+        // keeps running meanwhile: a frame that arrives in a tick or two,
+        // which is most of them for media that plays in real time, is
+        // followed on time by the next.
+        const OTIO_NS::RationalTime current = currentTime->get();
+        const auto& frames = currentVideoFrame->get();
+        const bool shown =
+            !frames.empty() &&
+            frames[0].time.rescaled_to(timelineSpeed).floor() ==
+            current.rescaled_to(timelineSpeed).floor();
+        if (!shown)
+        {
+            return current;
+        }
+
+        // No further than the next frame. A clock further on than that
+        // waited for the frame: it starts again from the next one, keeping
+        // only where it was within a frame, so the frames after it get
+        // their full time rather than following at once, and playback
+        // that is merely uneven from tick to tick keeps its pace.
+        const bool reverse = Playback::Reverse == playback;
+        const OTIO_NS::RationalTime next =
+            current + OTIO_NS::RationalTime(reverse ? -1.0 : 1.0, timelineSpeed);
+        const bool behind = reverse ? clock < next : clock > next;
+        if (!behind)
+        {
+            return clock;
+        }
+        const double frame = 1.0 / timelineSpeed;
+        const double excess = std::max(
+            (reverse ? -1.0 : 1.0) *
+            (start.to_seconds() + t - next.to_seconds()),
+            0.0);
+        const double keep = std::fmod(excess, frame);
+        const double rate = speed->get() * speedMult->get();
+        const double wall = rate > 0.0 ? keep * timelineSpeed / rate : 0.0;
+        {
+            std::unique_lock<std::mutex> lock(noAudio.mutex);
+            noAudio.start = next;
+            noAudio.playbackTimer =
+                std::chrono::steady_clock::now() -
+                std::chrono::duration_cast<std::chrono::steady_clock::duration>(
+                    std::chrono::duration<double>(wall));
+        }
+        return next;
     }
 
     void Player::Private::resetPlaybackTime(const OTIO_NS::RationalTime& time)

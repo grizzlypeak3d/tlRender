@@ -66,6 +66,7 @@ namespace tl
             _compareMediaReferences();
             _readBehind();
             _preroll();
+            _playEveryFrame();
             _outsideInOut();
             _jumps();
         }
@@ -714,6 +715,104 @@ namespace tl
             FTK_ASSERT(!player->isBuffering());
             FTK_ASSERT(player->getCurrentTime() > timeRange.start_time());
             player->setPlayback(Playback::Stop);
+        }
+
+        void PlayerTest::_playEveryFrame()
+        {
+            // Played much faster than it can be read, a sequence shows every
+            // frame in order when every frame is played, and drops none:
+            // forward and in reverse, and with audio, whose clock gives way
+            // to the wall clock that can wait.
+            const ftk::Path path = ftk::expandSeq(
+                ftk::Path(TLRENDER_SAMPLE_DATA, "Seq/BART_2021-02-07.0001.jpg"));
+            if (!_context->getSystem<ReadSystem>()->getPlugin(path))
+            {
+                return;
+            }
+            std::vector<std::pair<std::string, std::shared_ptr<Timeline> > > timelines;
+            timelines.push_back({ "video", Timeline::create(_context, path) });
+            timelines.push_back({
+                "video and audio",
+                Timeline::create(
+                    _context,
+                    path,
+                    ftk::Path(TLRENDER_SAMPLE_DATA, "AudioToneStereo.wav")) });
+            for (const auto& i : timelines)
+            {
+                for (const auto playback : { Playback::Forward, Playback::Reverse })
+                {
+                    auto player = Player::create(_context, i.second);
+                    const OTIO_NS::TimeRange& timeRange = player->getTimeRange();
+                    const double rate = timeRange.duration().rate();
+                    FTK_ASSERT(!player->isPlayEveryFrame());
+                    bool changed = false;
+                    auto playEveryFrameObserver = ftk::Observer<bool>::create(
+                        player->observePlayEveryFrame(),
+                        [&changed](bool value)
+                        {
+                            changed |= value;
+                        });
+                    player->setPlayEveryFrame(true);
+                    FTK_ASSERT(changed);
+                    FTK_ASSERT(player->isPlayEveryFrame());
+
+                    std::vector<int64_t> shown;
+                    auto videoObserver = ftk::ListObserver<VideoFrame>::create(
+                        player->observeCurrentVideo(),
+                        [&shown, rate](const std::vector<VideoFrame>& value)
+                        {
+                            if (!value.empty())
+                            {
+                                const int64_t frame = static_cast<int64_t>(
+                                    value[0].time.rescaled_to(rate).floor().value());
+                                if (shown.empty() || shown.back() != frame)
+                                {
+                                    shown.push_back(frame);
+                                }
+                            }
+                        });
+                    if (Playback::Reverse == playback)
+                    {
+                        player->seek(timeRange.end_time_inclusive());
+                    }
+                    player->setSpeed(1000.0);
+                    player->setPlayback(playback);
+                    const size_t count = std::min(
+                        static_cast<size_t>(timeRange.duration().value()) - 1,
+                        static_cast<size_t>(30));
+                    const auto t = std::chrono::steady_clock::now();
+                    while (shown.size() < count &&
+                        std::chrono::steady_clock::now() - t < std::chrono::seconds(30))
+                    {
+                        _context->tick();
+                        ftk::sleep(std::chrono::milliseconds(1));
+                    }
+                    player->setPlayback(Playback::Stop);
+                    std::stringstream ss;
+                    for (const auto frame : shown)
+                    {
+                        ss << frame << " ";
+                    }
+                    _print(ftk::Format("Play every frame, {0}, {1}: {2} shown, dropped {3}: {4}").
+                        arg(i.first).
+                        arg(playback).
+                        arg(shown.size()).
+                        arg(player->getDroppedFrames()).
+                        arg(ss.str()));
+                    FTK_ASSERT(shown.size() >= count);
+                    // From the second: the first is the frame shown before
+                    // playback started, which a seek may not have replaced.
+                    const int64_t step = Playback::Reverse == playback ? -1 : 1;
+                    for (size_t j = 2; j < shown.size(); ++j)
+                    {
+                        FTK_ASSERT(shown[j] == shown[j - 1] + step);
+                    }
+                    FTK_ASSERT(0 == player->getDroppedFrames());
+
+                    player->setPlayEveryFrame(false);
+                    FTK_ASSERT(!player->isPlayEveryFrame());
+                }
+            }
         }
 
         void PlayerTest::_jumps()

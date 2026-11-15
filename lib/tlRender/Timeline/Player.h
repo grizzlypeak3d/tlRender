@@ -204,6 +204,18 @@ namespace tl
         //! Set the playback loop mode.
         TL_TIMELINE_API void setLoop(Loop);
 
+        //! Get whether every frame is played.
+        TL_TIMELINE_API bool isPlayEveryFrame() const;
+
+        //! Observe whether every frame is played.
+        TL_TIMELINE_API std::shared_ptr<ftk::IObservable<bool> > observePlayEveryFrame() const;
+
+        //! Set whether every frame is played: the clock waits for each
+        //! frame to be shown rather than passing frames the cache does not
+        //! have yet, so media that cannot play in real time plays slower
+        //! with nothing dropped. The audio is silent, since it cannot wait.
+        TL_TIMELINE_API void setPlayEveryFrame(bool);
+
         ///@}
 
         //! \name Time

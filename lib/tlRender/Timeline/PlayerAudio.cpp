@@ -148,6 +148,11 @@ namespace tl
         return out;
     }
 
+    bool Player::Private::audioIsClock() const
+    {
+        return hasAudio() && !playEveryFrameThread;
+    }
+
     namespace
     {
         // Make a buffer at least this big. The audio thread's buffers only
@@ -630,7 +635,7 @@ namespace tl
 
         const AudioInfo& inputInfo = sourceAudioInfo;
         bool audio = false;
-        if (state.hold)
+        if (state.hold || state.playEveryFrame)
         {
             // The clock is held for the cache: silence, and the position
             // stays where it is, which the main thread reads as time

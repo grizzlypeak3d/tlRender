@@ -56,6 +56,19 @@ namespace tl
 
         bool hasVideo() const;
         bool hasAudio() const;
+        //! Whether the audio callback is the clock: there is audio, and
+        //! every frame is not being played (which needs the wall clock, the
+        //! one that can wait). Read from the player thread as well.
+        bool audioIsClock() const;
+        //! The current time when every frame is played, from the wall
+        //! clock's start and seconds since it: no further than the frame
+        //! after the one shown, and not past the current time until its
+        //! frame is shown.
+        OTIO_NS::RationalTime playEveryFrameTime(
+            const OTIO_NS::RationalTime& start,
+            double t,
+            Playback,
+            double timelineSpeed);
         void playbackReset(const OTIO_NS::RationalTime&);
         void resetPlaybackTime(const OTIO_NS::RationalTime&);
         void droppedFramesTick(
@@ -123,6 +136,9 @@ namespace tl
         std::shared_ptr<ftk::Observable<PlayerCacheOptions> > cacheOptions;
         std::shared_ptr<ftk::Observable<PlayerCacheInfo> > cacheInfo;
         std::shared_ptr<ftk::Observable<size_t> > droppedFrames;
+        std::shared_ptr<ftk::Observable<bool> > playEveryFrame;
+        //! playEveryFrame, for the player thread.
+        std::atomic<bool> playEveryFrameThread = false;
         //! The pre-roll (PlayerOptions::preroll), main thread: whether the
         //! clock is held for the cache, and whether a start or a seek has
         //! just happened, which is when the pre-roll is asked for in full.
@@ -266,6 +282,9 @@ namespace tl
             OTIO_NS::TimeRange inOutRange;
             //! The clock is held: silence, and the position stays.
             bool hold = false;
+            //! Every frame is played: silence, as with hold, since the
+            //! clock is the wall clock and waits for the frames.
+            bool playEveryFrame = false;
         };
 
         // Shared by three threads, all guarded by mutex: the main thread, the
