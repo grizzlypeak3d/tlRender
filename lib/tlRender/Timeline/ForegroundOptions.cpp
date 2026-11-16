@@ -182,7 +182,16 @@ namespace tl
     void from_json(const nlohmann::json& json, FrameGuide& out)
     {
         json.at("Enabled").get_to(out.enabled);
-        json.at("Aspect").get_to(out.aspect);
+        // A plain number from before the aspect was a ratio.
+        const auto& aspect = json.at("Aspect");
+        if (aspect.is_number())
+        {
+            out.aspect = AspectRatio(aspect.get<float>());
+        }
+        else
+        {
+            aspect.get_to(out.aspect);
+        }
         json.at("MaskOpacity").get_to(out.maskOpacity);
         json.at("LineWidth").get_to(out.lineWidth);
         json.at("Color").get_to(out.color);

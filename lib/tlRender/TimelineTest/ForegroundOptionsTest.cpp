@@ -124,7 +124,7 @@ namespace tl
                 v.clippingWarning.enabled = true;
                 v.clippingWarning.high = .9F;
                 v.frameGuide.enabled = true;
-                v.frameGuide.aspect = 1.85F;
+                v.frameGuide.aspect = AspectRatio(16.F, 9.F);
                 v.safeAreas.enabled = true;
                 v.safeAreas.title = .8F;
                 nlohmann::json json;
@@ -132,6 +132,15 @@ namespace tl
                 ForegroundOptions v2;
                 from_json(json, v2);
                 FTK_CHECK(v == v2);
+            }
+            {
+                // The aspect was a plain number before it was a ratio.
+                nlohmann::json json;
+                to_json(json, ForegroundOptions());
+                json["FrameGuide"]["Aspect"] = 1.85F;
+                ForegroundOptions v;
+                from_json(json, v);
+                FTK_CHECK(AspectRatio(1.85F) == v.frameGuide.aspect);
             }
         }
     }

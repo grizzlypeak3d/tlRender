@@ -59,6 +59,22 @@ namespace tl
                 FTK_CHECK(softClip != SoftClip());
             }
             {
+                AspectRatio v;
+                FTK_CHECK(parseAspectRatio("16:9", v));
+                FTK_CHECK(AspectRatio(16.F, 9.F) == v);
+                FTK_CHECK("16:9" == getLabel(v));
+                FTK_CHECK(parseAspectRatio("2.39", v));
+                FTK_CHECK(AspectRatio(2.39F, 1.F) == v);
+                FTK_CHECK("2.39:1" == getLabel(v));
+                FTK_CHECK(parseAspectRatio(" 1.85 : 1 ", v));
+                FTK_CHECK(AspectRatio(1.85F, 1.F) == v);
+                for (const std::string& bad : { "", ":", "16:", ":9", "0", "16:0", "-2", "a", "1:2:3", "2.39x" })
+                {
+                    FTK_CHECK(!parseAspectRatio(bad, v));
+                    FTK_CHECK(AspectRatio(1.85F, 1.F) == v);
+                }
+            }
+            {
                 DisplayOptions displayOptions;
                 displayOptions.channels = ftk::ChannelDisplay::Red;
                 FTK_CHECK(displayOptions == displayOptions);

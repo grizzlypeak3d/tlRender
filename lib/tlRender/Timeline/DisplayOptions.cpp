@@ -11,6 +11,8 @@
 
 #include <algorithm>
 #include <array>
+#include <cmath>
+#include <cstdlib>
 #include <sstream>
 
 namespace tl
@@ -50,6 +52,48 @@ namespace tl
         return ftk::Format("{0}:{1}").
             arg(value.num).
             arg(value.den);
+    }
+
+    namespace
+    {
+        bool parsePositive(const std::string& s, float& out)
+        {
+            const size_t first = s.find_first_not_of(" \t");
+            if (std::string::npos == first)
+                return false;
+            const size_t last = s.find_last_not_of(" \t");
+            const std::string t = s.substr(first, last - first + 1);
+            char* end = nullptr;
+            const float v = std::strtof(t.c_str(), &end);
+            if (end != t.c_str() + t.size() || !std::isfinite(v) || v <= 0.F)
+                return false;
+            out = v;
+            return true;
+        }
+    }
+
+    bool parseAspectRatio(const std::string& value, AspectRatio& out)
+    {
+        const auto pieces = ftk::split(value, ':', ftk::SplitOptions::KeepEmpty);
+        AspectRatio tmp;
+        if (1 == pieces.size())
+        {
+            if (!parsePositive(pieces[0], tmp.num))
+                return false;
+            tmp.den = 1.F;
+        }
+        else if (2 == pieces.size())
+        {
+            if (!parsePositive(pieces[0], tmp.num) ||
+                !parsePositive(pieces[1], tmp.den))
+                return false;
+        }
+        else
+        {
+            return false;
+        }
+        out = tmp;
+        return true;
     }
 
     AspectRatioOptions::AspectRatioOptions(const AspectRatio& value, AspectRatioType type) :

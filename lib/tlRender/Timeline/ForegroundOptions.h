@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include <tlRender/Timeline/DisplayOptions.h>
 #include <tlRender/Timeline/Export.h>
 #include <tlRender/Core/Util.h>
 
@@ -122,11 +123,12 @@ namespace tl
     //! Frame guide: the frame of another aspect ratio within the picture,
     //! 2.39 in a 16:9 picture say, outlined, with the rest masked. The
     //! lines are view pixels wide, so they stay one width however far the
-    //! picture is zoomed.
+    //! picture is zoomed. The aspect is kept as a ratio, so 16:9 is
+    //! exactly that rather than 1.78.
     struct TL_TIMELINE_API_TYPE FrameGuide
     {
         bool         enabled     = false;
-        float        aspect      = 2.39F;
+        AspectRatio  aspect      = AspectRatio(2.39F);
         float        maskOpacity = .85F;
         int          lineWidth   = 2;
         ftk::Color4F color       = ftk::Color4F(1.F, 1.F, 1.F, .5F);

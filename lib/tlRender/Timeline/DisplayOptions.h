@@ -82,6 +82,11 @@ namespace tl
     //! Get a label.
     TL_TIMELINE_API std::string getLabel(const AspectRatio&);
 
+    //! Parse an aspect ratio as a ratio, "16:9", or as a number, "2.39"
+    //! or "2.39:1". Both parts must be positive. Returns false and leaves
+    //! the value alone otherwise.
+    TL_TIMELINE_API bool parseAspectRatio(const std::string&, AspectRatio&);
+
     //! Aspect ratio types.
     enum class TL_TIMELINE_API_TYPE AspectRatioType
     {

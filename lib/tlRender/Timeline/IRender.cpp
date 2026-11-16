@@ -465,12 +465,15 @@ namespace tl
                 ftk::Box2F frame = picture;
                 if (picture.w() > 0.F && picture.h() > 0.F)
                 {
-                    if (options.frameGuide.enabled && options.frameGuide.aspect > 0.F)
+                    const float guide = options.frameGuide.aspect.isValid() ?
+                        static_cast<float>(options.frameGuide.aspect) :
+                        0.F;
+                    if (options.frameGuide.enabled && guide > 0.F)
                     {
                         const float aspect = picture.w() / picture.h();
-                        if (options.frameGuide.aspect > aspect)
+                        if (guide > aspect)
                         {
-                            const float h = picture.w() / options.frameGuide.aspect;
+                            const float h = picture.w() / guide;
                             frame = ftk::Box2F(
                                 picture.x(),
                                 picture.y() + (picture.h() - h) / 2.F,
@@ -479,7 +482,7 @@ namespace tl
                         }
                         else
                         {
-                            const float w = picture.h() * options.frameGuide.aspect;
+                            const float w = picture.h() * guide;
                             frame = ftk::Box2F(
                                 picture.x() + (picture.w() - w) / 2.F,
                                 picture.y(),
