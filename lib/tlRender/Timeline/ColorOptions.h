@@ -106,6 +106,17 @@ namespace tl
     //! for each one asked for.
     TL_TIMELINE_API bool hasOCIOEnvVar();
 
+    //! Set the configuration that OCIOConfig::BuiltIn names, one of
+    //! OpenColorIO's built-in configurations by its URI. OpenColorIO's
+    //! default, the CG configuration, unless the application chooses
+    //! another: the studio configuration has the camera log encodings,
+    //! which the CG configuration does not. Set before anything reads a
+    //! configuration; not for changing while one is in use.
+    TL_TIMELINE_API void setBuiltInOCIOConfig(const std::string&);
+
+    //! Get the configuration that OCIOConfig::BuiltIn names.
+    TL_TIMELINE_API const std::string& getBuiltInOCIOConfig();
+
     //! \name Serialize
     ///@{
 

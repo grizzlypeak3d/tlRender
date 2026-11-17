@@ -144,7 +144,7 @@ namespace tl
         switch (options.config)
         {
         case OCIOConfig::BuiltIn:
-            out = OCIO::Config::CreateFromFile("ocio://default");
+            out = OCIO::Config::CreateFromFile(getBuiltInOCIOConfig().c_str());
             break;
         case OCIOConfig::EnvVar:
             if (hasOCIOEnvVar())

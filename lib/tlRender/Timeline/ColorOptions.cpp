@@ -124,6 +124,25 @@ namespace tl
         return env && env[0];
     }
 
+    namespace
+    {
+        std::string& builtInOCIOConfig()
+        {
+            static std::string out = "ocio://default";
+            return out;
+        }
+    }
+
+    void setBuiltInOCIOConfig(const std::string& value)
+    {
+        builtInOCIOConfig() = value;
+    }
+
+    const std::string& getBuiltInOCIOConfig()
+    {
+        return builtInOCIOConfig();
+    }
+
     std::vector<std::string> getLUTFormatExts()
     {
         std::vector<std::string> out;

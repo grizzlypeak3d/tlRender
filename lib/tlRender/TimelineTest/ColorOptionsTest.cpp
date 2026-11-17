@@ -32,6 +32,16 @@ namespace tl
                 FTK_TEST_ENUM(LUTOrder);
             }
             {
+                // OpenColorIO's default unless the application chose
+                // another of its built-in configurations.
+                const std::string prev = getBuiltInOCIOConfig();
+                FTK_CHECK("ocio://default" == prev);
+                setBuiltInOCIOConfig("ocio://studio-config-latest");
+                FTK_CHECK("ocio://studio-config-latest" == getBuiltInOCIOConfig());
+                setBuiltInOCIOConfig(prev);
+                FTK_CHECK(prev == getBuiltInOCIOConfig());
+            }
+            {
                 // The order every renderer and the thumbnails go by.
                 FTK_CHECK(getColorStages(LUTOrder::PostConfig) == std::vector<ColorStage>({
                     ColorStage::ToLinear,
