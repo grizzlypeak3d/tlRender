@@ -115,17 +115,17 @@ namespace tl
         //! that says nothing, while the log says "Cannot load
         //! libcuda.so.1" (DJV #833). Captures nest; the innermost gets
         //! the messages.
-        class ErrorCapture
+        class TL_IO_API_TYPE ErrorCapture
         {
         public:
-            ErrorCapture();
-            ~ErrorCapture();
+            TL_IO_API ErrorCapture();
+            TL_IO_API ~ErrorCapture();
 
             //! The messages, separated by "; ".
-            const std::string& getText() const;
+            TL_IO_API const std::string& getText() const;
 
             //! Add a message; called from FFmpeg's log callback.
-            void add(const std::string&);
+            TL_IO_API void add(const std::string&);
 
         private:
             ErrorCapture* _prev = nullptr;
@@ -133,6 +133,6 @@ namespace tl
         };
 
         //! The capture alive on this thread, if any.
-        ErrorCapture* getErrorCapture();
+        TL_IO_API ErrorCapture* getErrorCapture();
     }
 }
