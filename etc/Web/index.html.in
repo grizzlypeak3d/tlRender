@@ -45,6 +45,15 @@ canvas { display: block; width: 100%; height: 100%; -webkit-user-drag: none; }
      for the worker to take over. -->
 <script src="coi-serviceworker.js"></script>
 <script>
+/* The page's own queries, which are not passed to the application:
+   "mem" and "grow" for the wasm memory (see tlMakeMemory), "pool" for
+   the number of thread workers, "wait=0" to start without waiting for
+   them, and "reload=0" to stay put when the graphics context is lost,
+   for reading what happened. */
+var tlPageQueries = ['mem', 'grow', 'pool', 'wait', 'reload'];
+var tlParams = new URLSearchParams(location.search);
+/* Read by the runtime as its thread pool size (PTHREAD_POOL_SIZE). */
+globalThis.__tlPoolSize = parseInt(tlParams.get('pool')) || 32;
 function tlError(text) {
     var el = document.getElementById('error');
     el.style.display = 'block';
@@ -94,6 +103,10 @@ if (!crossOriginIsolated) {
 document.getElementById('canvas').addEventListener(
     'webglcontextlost',
     function() {
+        if ('0' === tlParams.get('reload')) {
+            tlError('The graphics context was lost.');
+            return;
+        }
         tlError('The graphics context was lost; reloading.');
         setTimeout(function() {
             var url = new URL(location.href);
@@ -111,12 +124,10 @@ document.getElementById('canvas').addEventListener(
    device where the first try is still too much, or for trying a small
    one.
 
-   With the full 2GB the memory starts at the build's size and grows.
-   Below it, which is old Safari, it is made at its full size and never
-   grows: there, a shared memory one thread grew stayed its old size to
-   the others, and the main thread's first free of memory the opening
-   thread had allocated was out of bounds (iPad Pro, iPadOS 16.7,
-   2026-11-16). A "grow" query of 0 or 1 says which, for trying it. */
+   The memory starts at the build's size and grows; "grow=0" makes it
+   at its full size instead, for trying that. Made at full size by
+   default below 2GB (2026-11-16), Safari on an iPad refused it at every
+   size after a reload, where a growing one is still granted. */
 function tlMakeMemory() {
     var maximums = [2048, 1024, 512, 256];
     var params = new URLSearchParams(location.search);
@@ -127,7 +138,7 @@ function tlMakeMemory() {
     var grow = params.get('grow');
     for (var i = 0; i < maximums.length; ++i) {
         var pages = maximums[i] * 16;
-        var grows = null !== grow ? '0' !== grow : maximums[i] >= 2048;
+        var grows = '0' !== grow;
         try {
             var memory = new WebAssembly.Memory({
                 initial: grows ? 256 : pages,
@@ -148,8 +159,43 @@ function tlMakeMemory() {
     /* The runtime makes its own, and reports the failure. */
     return undefined;
 }
+/* The query string is the command line: "?url=clip.mp4" becomes
+   "-url clip.mp4". The page's own queries are left out. */
+var tlArguments = (function() {
+    var out = [];
+    new URLSearchParams(location.search).forEach(function(value, key) {
+        if (tlPageQueries.indexOf(key) >= 0) {
+            return;
+        }
+        out.push('-' + key);
+        if (value)
+        {
+            out.push(value);
+        }
+    });
+    return out;
+})();
+/* The thread workers load in the background so that the page is not
+   black while they do (PTHREAD_POOL_DELAY_LOAD), and main() waits for
+   them: a thread the main thread waits on before its worker has loaded
+   never starts, and the page hangs -- on a slower device, an iPad Pro
+   10.5, at opening a file. "wait=0" starts at once, as before. */
+var tlWait = '0' !== tlParams.get('wait');
 var Module = {
     canvas: document.getElementById('canvas'),
+    noInitialRun: tlWait,
+    onRuntimeInitialized: function() {
+        if (!tlWait) {
+            return;
+        }
+        var t0 = performance.now();
+        Promise.resolve(Module['pthreadPoolReady']).then(function() {
+            console.log('Thread pool: ' + globalThis.__tlPoolSize +
+                ' workers ready in ' +
+                Math.round(performance.now() - t0) + ' ms');
+            Module.callMain(tlArguments);
+        });
+    },
     wasmMemory: tlMakeMemory(),
     print: function(text) {
         console.log(text);
@@ -170,24 +216,10 @@ var Module = {
     locateFile: function(path) {
         return path + '?v=@tl_WEB_ID@';
     },
-    /* The query string is the command line: "?url=clip.mp4" becomes
-       "-url clip.mp4". The page's own queries are left out. */
-    arguments: (function() {
-        var out = [];
-        new URLSearchParams(location.search).forEach(function(value, key) {
-            if ('mem' === key || 'grow' === key) {
-                return;
-            }
-            out.push('-' + key);
-            if (value)
-            {
-                out.push(value);
-            }
-        });
-        return out;
-    })()
+    arguments: tlArguments
 };
 </script>
+
 <script>
 globalThis.__tlWCWorkerUrl = 'WebCodecsWorker.js?v=@tl_WEB_ID@';
 </script>

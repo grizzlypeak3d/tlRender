@@ -9,8 +9,13 @@ if(EMSCRIPTEN)
         # deadlocking the event loop, and instantiating every worker
         # before main() leaves the page black for as long as that
         # takes.
-        "-sPTHREAD_POOL_SIZE=32"
+        # The page sets the pool size (its "pool" query; 32 otherwise)
+        # and starts main() once the pool has loaded; see
+        # etc/Web/index.html.in. No "||" fallback here: the link
+        # command may go through a shell.
+        "-sPTHREAD_POOL_SIZE=globalThis.__tlPoolSize"
         "-sPTHREAD_POOL_DELAY_LOAD=1"
+        "-sEXPORTED_RUNTIME_METHODS=callMain"
         "-sALLOW_MEMORY_GROWTH=1"
         # The default 2GB maximum stays: growing past it turned into
         # out-of-bounds crashes in Firefox once the heap crossed 2GB --
