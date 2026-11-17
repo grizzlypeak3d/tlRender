@@ -29,6 +29,7 @@ namespace tl
             void _conversionRead();
             void _commandLine();
             void _commandMissing();
+            void _errorCapture();
             void _gif();
             void _webp();
             void _subfileSeek();

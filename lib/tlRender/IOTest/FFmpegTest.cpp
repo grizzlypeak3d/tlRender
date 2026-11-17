@@ -62,6 +62,33 @@ namespace tl
             _writeType();
             _conversionDepth();
             _conversionRead();
+            _errorCapture();
+        }
+
+        void FFmpegTest::_errorCapture()
+        {
+            // FFmpeg's errors reach a capture on this thread even though
+            // the plugin keeps its log quiet; the read plugin installs the
+            // callback that does it.
+            FTK_ASSERT(_context->getSystem<ReadSystem>()->getPlugin<ffmpeg::ReadPlugin>());
+            FTK_ASSERT(!ffmpeg::getErrorCapture());
+            {
+                ffmpeg::ErrorCapture capture;
+                av_log(nullptr, AV_LOG_ERROR, "first\n");
+                av_log(nullptr, AV_LOG_WARNING, "only a warning\n");
+                {
+                    ffmpeg::ErrorCapture inner;
+                    av_log(nullptr, AV_LOG_ERROR, "inner\n");
+                    FTK_ASSERT("inner" == inner.getText());
+                }
+                av_log(nullptr, AV_LOG_FATAL, "second %d\n", 2);
+                FTK_ASSERT("first; second 2" == capture.getText());
+
+                // Another thread's errors are its own.
+                std::thread([] { av_log(nullptr, AV_LOG_ERROR, "elsewhere\n"); }).join();
+                FTK_ASSERT("first; second 2" == capture.getText());
+            }
+            FTK_ASSERT(!ffmpeg::getErrorCapture());
         }
 
         void FFmpegTest::_conversionRead()

@@ -1451,9 +1451,13 @@ namespace tl
                     {
                         continue;
                     }
-                    if (av_hwdevice_ctx_create(
+                    // FFmpeg says why a device fails only in its log:
+                    // the return is a generic code.
+                    ErrorCapture capture;
+                    const int r = av_hwdevice_ctx_create(
                         &device, config->device_type,
-                        nullptr, nullptr, 0) >= 0)
+                        nullptr, nullptr, 0);
+                    if (r >= 0)
                     {
                         hwFormat = config->pix_fmt;
                         type = config->device_type;
@@ -1464,8 +1468,11 @@ namespace tl
                         {
                             tried += ", ";
                         }
-                        tried += av_hwdevice_get_type_name(
-                            config->device_type);
+                        tried += ftk::Format("{0}: {1}").
+                            arg(av_hwdevice_get_type_name(config->device_type)).
+                            arg(!capture.getText().empty() ?
+                                capture.getText() :
+                                getErrorLabel(r));
                     }
                 }
             }

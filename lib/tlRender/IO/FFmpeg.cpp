@@ -281,6 +281,45 @@ namespace tl
             return std::string(buf);
         }
 
+        namespace
+        {
+            thread_local ErrorCapture* errorCapture = nullptr;
+        }
+
+        ErrorCapture::ErrorCapture() :
+            _prev(errorCapture)
+        {
+            errorCapture = this;
+        }
+
+        ErrorCapture::~ErrorCapture()
+        {
+            errorCapture = _prev;
+        }
+
+        const std::string& ErrorCapture::getText() const
+        {
+            return _text;
+        }
+
+        void ErrorCapture::add(const std::string& value)
+        {
+            if (value.empty())
+            {
+                return;
+            }
+            if (!_text.empty())
+            {
+                _text += "; ";
+            }
+            _text += value;
+        }
+
+        ErrorCapture* getErrorCapture()
+        {
+            return errorCapture;
+        }
+
         std::weak_ptr<ftk::LogSystem> ReadPlugin::_logSystemWeak;
         bool ReadPlugin::_logEnabled = false;
         std::atomic<size_t> ReadPlugin::_logCount(0);
@@ -638,6 +677,23 @@ namespace tl
 
         void ReadPlugin::_logCallback(void*, int level, const char* fmt, va_list vl)
         {
+            // Errors go to a capture on this thread whether or not the
+            // log is enabled: that is how a failure FFmpeg only explains
+            // in its log reaches a warning.
+            if (level <= AV_LOG_ERROR)
+            {
+                if (auto capture = getErrorCapture())
+                {
+                    va_list copy;
+                    va_copy(copy, vl);
+                    char buf[ftk::cStringSize];
+                    vsnprintf(buf, ftk::cStringSize, fmt, copy);
+                    va_end(copy);
+                    std::string s(buf);
+                    ftk::removeTrailingNewlines(s);
+                    capture->add(s);
+                }
+            }
             if (!_logEnabled)
             {
                 return;

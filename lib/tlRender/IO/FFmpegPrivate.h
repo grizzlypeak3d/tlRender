@@ -108,5 +108,31 @@ namespace tl
 
         //! Get a label for a FFmpeg error code.
         std::string getErrorLabel(int);
+
+        //! FFmpeg's error messages on this thread while it is alive. Some
+        //! failures are only explained in FFmpeg's log, which the read
+        //! plugin keeps quiet: creating a hardware device returns a code
+        //! that says nothing, while the log says "Cannot load
+        //! libcuda.so.1" (DJV #833). Captures nest; the innermost gets
+        //! the messages.
+        class ErrorCapture
+        {
+        public:
+            ErrorCapture();
+            ~ErrorCapture();
+
+            //! The messages, separated by "; ".
+            const std::string& getText() const;
+
+            //! Add a message; called from FFmpeg's log callback.
+            void add(const std::string&);
+
+        private:
+            ErrorCapture* _prev = nullptr;
+            std::string _text;
+        };
+
+        //! The capture alive on this thread, if any.
+        ErrorCapture* getErrorCapture();
     }
 }
