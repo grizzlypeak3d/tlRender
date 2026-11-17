@@ -118,6 +118,11 @@ namespace tl
         _plugins.push_back(plugin);
     }
 
+    void ReadSystem::insertPlugin(size_t index, const std::shared_ptr<IReadPlugin>& plugin)
+    {
+        _plugins.insert(_plugins.begin() + std::min(index, _plugins.size()), plugin);
+    }
+
     void ReadSystem::removePlugin(const std::shared_ptr<IReadPlugin>& plugin)
     {
         const auto i = std::find(_plugins.begin(), _plugins.end(), plugin);

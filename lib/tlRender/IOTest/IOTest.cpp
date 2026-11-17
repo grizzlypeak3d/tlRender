@@ -32,6 +32,22 @@ namespace tl
             return std::shared_ptr<IOTest>(new IOTest(context));
         }
 
+        namespace
+        {
+            //! A plugin that claims PNG files and reads none of them.
+            class TestReadPlugin : public IReadPlugin
+            {
+            public:
+                static std::shared_ptr<TestReadPlugin> create(
+                    const std::shared_ptr<ftk::LogSystem>& logSystem)
+                {
+                    auto out = std::shared_ptr<TestReadPlugin>(new TestReadPlugin);
+                    out->_init("Test", { { ".png", FileType::Seq } }, logSystem);
+                    return out;
+                }
+            };
+        }
+
         void IOTest::run()
         {
             _videoData();
@@ -86,6 +102,29 @@ namespace tl
             }
             FTK_CHECK(!readSystem->videoRead(ftk::Path()));
             FTK_CHECK(!readSystem->audioRead(ftk::Path()));
+
+            // A plugin inserted first takes an extension another plugin
+            // has; removed, the extension goes back to that one.
+            {
+                const ftk::Path path("test.png");
+                const auto prev = readSystem->getPlugin(path);
+                FTK_ASSERT(prev);
+                auto plugin = TestReadPlugin::create(
+                    _context->getLogSystem());
+                const size_t count = readSystem->getPlugins().size();
+                readSystem->insertPlugin(0, plugin);
+                FTK_CHECK(readSystem->getPlugins().size() == count + 1);
+                FTK_CHECK(readSystem->getPlugins().front() == plugin);
+                FTK_CHECK(readSystem->getPlugin(path) == plugin);
+                readSystem->removePlugin(plugin);
+                FTK_CHECK(readSystem->getPlugin(path) == prev);
+
+                // Past the end, after the others.
+                readSystem->insertPlugin(count + 10, plugin);
+                FTK_CHECK(readSystem->getPlugins().back() == plugin);
+                FTK_CHECK(readSystem->getPlugin(path) == prev);
+                readSystem->removePlugin(plugin);
+            }
             auto writeSystem = _context->getSystem<WriteSystem>();
             FTK_CHECK(!writeSystem->write(ftk::Path(), IOInfo()));
         }

@@ -28,8 +28,16 @@ namespace tl
         //! Get the list of plugins.
         const std::vector<std::shared_ptr<IReadPlugin> >& getPlugins() const;
 
-        //! Add a plugin.
+        //! Add a plugin, after the others.
         TL_IO_API void addPlugin(const std::shared_ptr<IReadPlugin>&);
+
+        //! Insert a plugin before the one at the index, or after the others
+        //! for an index past the end. A file goes to the first plugin that
+        //! claims its extension, and to the next one when that one throws,
+        //! so a plugin inserted first can take some of an extension's files
+        //! and leave the rest to the plugin that had them: a camera format
+        //! in .mxf, say, with every other .mxf still read by FFmpeg.
+        TL_IO_API void insertPlugin(size_t index, const std::shared_ptr<IReadPlugin>&);
 
         //! Remove a plugin.
         TL_IO_API void removePlugin(const std::shared_ptr<IReadPlugin>&);

@@ -34,6 +34,9 @@ namespace tl
                 .def_prop_ro("plugins", &ReadSystem::getPlugins)
                 .def("addPlugin", &ReadSystem::addPlugin,
                     nb::arg("plugin"))
+                .def("insertPlugin", &ReadSystem::insertPlugin,
+                    nb::arg("index"),
+                    nb::arg("plugin"))
                 .def("removePlugin", &ReadSystem::removePlugin,
                     nb::arg("plugin"))
                 .def("getPlugin", static_cast<std::shared_ptr<IReadPlugin>
