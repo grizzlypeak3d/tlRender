@@ -107,25 +107,38 @@ document.getElementById('canvas').addEventListener(
    most it may grow to can follow the device: Safari on an iPad refuses
    a shared memory with the 2GB maximum the build asks for, and refuses
    more with each reload of the page, so smaller maximums are tried
-   until one is granted. The initial size is the build's. A "mem" query
-   names the maximum in MB, for a device where the first try is still
-   too much, or for trying a small one. */
+   until one is granted. A "mem" query names the maximum in MB, for a
+   device where the first try is still too much, or for trying a small
+   one.
+
+   With the full 2GB the memory starts at the build's size and grows.
+   Below it, which is old Safari, it is made at its full size and never
+   grows: there, a shared memory one thread grew stayed its old size to
+   the others, and the main thread's first free of memory the opening
+   thread had allocated was out of bounds (iPad Pro, iPadOS 16.7,
+   2026-11-16). A "grow" query of 0 or 1 says which, for trying it. */
 function tlMakeMemory() {
     var maximums = [2048, 1024, 512, 256];
-    var query = new URLSearchParams(location.search).get('mem');
+    var params = new URLSearchParams(location.search);
+    var query = params.get('mem');
     if (query) {
         maximums = [parseInt(query)];
     }
+    var grow = params.get('grow');
     for (var i = 0; i < maximums.length; ++i) {
+        var pages = maximums[i] * 16;
+        var grows = null !== grow ? '0' !== grow : maximums[i] >= 2048;
         try {
             var memory = new WebAssembly.Memory({
-                initial: 256,
-                maximum: maximums[i] * 16,
+                initial: grows ? 256 : pages,
+                maximum: pages,
                 shared: true });
             /* Touching the buffer is what makes a refusal show here
                rather than later. */
             if (memory.buffer.byteLength > 0) {
                 globalThis.__tlMemoryMax = maximums[i];
+                console.log('Memory: ' + maximums[i] + 'MB maximum, ' +
+                    (grows ? 'growing' : 'made at full size'));
                 return memory;
             }
         } catch (e) {
@@ -162,7 +175,7 @@ var Module = {
     arguments: (function() {
         var out = [];
         new URLSearchParams(location.search).forEach(function(value, key) {
-            if ('mem' === key) {
+            if ('mem' === key || 'grow' === key) {
                 return;
             }
             out.push('-' + key);
