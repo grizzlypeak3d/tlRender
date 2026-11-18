@@ -298,6 +298,8 @@ namespace tl
             _options = options;
             _displayOptions = displayOptions;
             _data = itemData;
+            p.colors.setOCIOOptions(displayOptions.ocio);
+            p.colors.setLUTOptions(displayOptions.lut);
 
             p.timeUnitsObserver = ftk::Observer<bool>::create(
                 itemData->timeUnitsModel->observeTimeUnitsChanged(),
@@ -497,6 +499,8 @@ namespace tl
             if (!changed)
                 return;
             _displayOptions = value;
+            p.colors.setOCIOOptions(value.ocio);
+            p.colors.setLUTOptions(value.lut);
             if (mediaChanged)
             {
                 _cancelRequests();
@@ -505,6 +509,16 @@ namespace tl
             _tracksUpdate();
             _textUpdate();
             setSizeUpdate();
+            setDrawUpdate();
+        }
+
+        void TimelineItem::setOCIOInputResolver(
+            const std::function<std::string(
+                const std::string& path,
+                const ftk::ImageTags&)>& value)
+        {
+            FTK_P();
+            p.colors.setOCIOInputResolver(value);
             setDrawUpdate();
         }
 
@@ -2001,8 +2015,6 @@ namespace tl
                             clipRectEnabledState.reset(new ftk::ClipRectEnabledState(render));
                             clipRectState.reset(new ftk::ClipRectState(render));
                             render->setClipRectEnabled(true);
-                            render->setOCIOOptions(_displayOptions.ocio);
-                            render->setLUTOptions(_displayOptions.lut);
                         }
 
                         // A thumbnail at the end of an item runs past it, so
@@ -2018,13 +2030,15 @@ namespace tl
                             ftk::intersect(clipRectState->getClipRect(), drawRect)));
 
                         render->drawImage(
-                            media.image,
+                            p.colors.get(media.image),
                             box,
                             ftk::Color4F(1.F, 1.F, 1.F),
                             imageOptions);
                     }
                 }
             }
+
+            p.colors.prune();
         }
 
         void TimelineItem::_drawItemLabels(

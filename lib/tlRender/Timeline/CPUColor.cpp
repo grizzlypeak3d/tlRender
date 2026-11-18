@@ -218,5 +218,125 @@ namespace tl
             }
         }
     }
+
+    CPUColorTable::CPUColorTable(const CPUColor& color, int size) :
+        _size(std::max(size, 2))
+    {
+        const size_t n = _size;
+        std::vector<float> rgba(n * n * n * 4);
+        float* c = rgba.data();
+        for (size_t b = 0; b < n; ++b)
+        {
+            for (size_t g = 0; g < n; ++g)
+            {
+                for (size_t r = 0; r < n; ++r, c += 4)
+                {
+                    c[0] = r / static_cast<float>(n - 1);
+                    c[1] = g / static_cast<float>(n - 1);
+                    c[2] = b / static_cast<float>(n - 1);
+                    c[3] = 1.F;
+                }
+            }
+        }
+        color.apply(rgba.data(), n * n * n);
+        _table.resize(n * n * n * 3);
+        for (size_t i = 0; i < n * n * n; ++i)
+        {
+            for (size_t j = 0; j < 3; ++j)
+            {
+                // Clamped here, the pixels are bytes: interpolating
+                // between values out of range would bring them in where
+                // they should not be.
+                const float v = rgba[i * 4 + j];
+                _table[i * 3 + j] = std::isfinite(v) ? std::clamp(v, 0.F, 1.F) : 0.F;
+            }
+        }
+    }
+
+    CPUColorTable::~CPUColorTable()
+    {}
+
+    void CPUColorTable::apply(uint8_t* rgba, size_t count) const
+    {
+        // Where each byte value falls between the table's points.
+        const int n = _size;
+        int index[256];
+        float frac[256];
+        for (int i = 0; i < 256; ++i)
+        {
+            const float v = i / 255.F * (n - 1);
+            index[i] = std::min(static_cast<int>(v), n - 2);
+            frac[i] = v - index[i];
+        }
+        const size_t dg = n * 3;
+        const size_t db = n * n * 3;
+        for (size_t i = 0; i < count; ++i, rgba += 4)
+        {
+            const int r = rgba[0];
+            const int g = rgba[1];
+            const int b = rgba[2];
+            const float fr = frac[r];
+            const float fg = frac[g];
+            const float fb = frac[b];
+            const float* c000 = _table.data() + index[b] * db + index[g] * dg + index[r] * 3;
+            const float* c100 = c000 + 3;
+            const float* c010 = c000 + dg;
+            const float* c001 = c000 + db;
+            const float* c110 = c100 + dg;
+            const float* c101 = c100 + db;
+            const float* c011 = c010 + db;
+            const float* c111 = c110 + db;
+
+            // Tetrahedral, as OpenColorIO interpolates its own tables: the
+            // gray axis is the diagonal of each cell, so a color with two
+            // channels the same is made from the corners along it, where
+            // across the cell an ACES 2.0 view can have it a long way off
+            // -- a bright yellow came out with a third of its blue back.
+            const float* p1;
+            const float* p2;
+            float w0, w1, w2, w3;
+            if (fr > fg)
+            {
+                if (fg > fb)
+                {
+                    p1 = c100; p2 = c110;
+                    w0 = 1.F - fr; w1 = fr - fg; w2 = fg - fb; w3 = fb;
+                }
+                else if (fr > fb)
+                {
+                    p1 = c100; p2 = c101;
+                    w0 = 1.F - fr; w1 = fr - fb; w2 = fb - fg; w3 = fg;
+                }
+                else
+                {
+                    p1 = c001; p2 = c101;
+                    w0 = 1.F - fb; w1 = fb - fr; w2 = fr - fg; w3 = fg;
+                }
+            }
+            else
+            {
+                if (fb > fg)
+                {
+                    p1 = c001; p2 = c011;
+                    w0 = 1.F - fb; w1 = fb - fg; w2 = fg - fr; w3 = fr;
+                }
+                else if (fb > fr)
+                {
+                    p1 = c010; p2 = c011;
+                    w0 = 1.F - fg; w1 = fg - fb; w2 = fb - fr; w3 = fr;
+                }
+                else
+                {
+                    p1 = c010; p2 = c110;
+                    w0 = 1.F - fg; w1 = fg - fr; w2 = fr - fb; w3 = fb;
+                }
+            }
+            for (size_t j = 0; j < 3; ++j)
+            {
+                const float v = w0 * c000[j] + w1 * p1[j] + w2 * p2[j] + w3 * c111[j];
+                rgba[j] = static_cast<uint8_t>(std::clamp(v, 0.F, 1.F) * 255.F + .5F);
+            }
+        }
+    }
 }
 #endif // TLRENDER_OCIO

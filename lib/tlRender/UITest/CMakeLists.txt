@@ -1,9 +1,11 @@
 set(HEADERS
     GestureTest.h
+    ThumbnailColorsTest.h
     ThumbnailSystemTest.h)
 
 set(SOURCE
     GestureTest.cpp
+    ThumbnailColorsTest.cpp
     ThumbnailSystemTest.cpp)
 
 # Static, for the reason in ftk's TestLib.
@@ -19,5 +21,9 @@ target_include_directories(tlUITest
         $<INSTALL_INTERFACE:include>)
 
 target_link_libraries(tlUITest tlUI ftk::ftkTestLib)
+if(TLRENDER_OCIO)
+    # To ask the built-in configuration what displays and views it has.
+    target_link_libraries(tlUITest OpenColorIO::OpenColorIO)
+endif()
 
 set_target_properties(tlUITest PROPERTIES FOLDER tests)

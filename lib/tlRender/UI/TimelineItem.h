@@ -125,6 +125,13 @@ namespace tl
             //! Set the display options.
             TL_UI_API void setDisplayOptions(const DisplayOptions&);
 
+            //! Set a resolver for each thumbnail's input color space; see
+            //! ThumbnailColors::setOCIOInputResolver().
+            TL_UI_API void setOCIOInputResolver(
+                const std::function<std::string(
+                    const std::string& path,
+                    const ftk::ImageTags&)>&);
+
             //! Convert a position to a time.
             TL_UI_API OTIO_NS::RationalTime posToTime(float) const;
 

@@ -4,10 +4,12 @@
 #include "tl-test.h"
 
 #include <tlRender/UITest/GestureTest.h>
+#include <tlRender/UITest/ThumbnailColorsTest.h>
 #include <tlRender/UITest/ThumbnailSystemTest.h>
 
 #include <tlRender/TimelineTest/AudioSystemTest.h>
 #include <tlRender/TimelineTest/BackgroundOptionsTest.h>
+#include <tlRender/TimelineTest/CPUColorTest.h>
 #include <tlRender/TimelineTest/ColorOptionsTest.h>
 #include <tlRender/TimelineTest/CompareOptionsTest.h>
 #include <tlRender/TimelineTest/DisplayOptionsTest.h>
@@ -156,6 +158,7 @@ namespace tl
             // Timeline tests.
             p.tests.push_back(timeline_tests::AudioSystemTest::create(context));
             p.tests.push_back(timeline_tests::BackgroundOptionsTest::create(context));
+            p.tests.push_back(timeline_tests::CPUColorTest::create(context));
             p.tests.push_back(timeline_tests::ColorOptionsTest::create(context));
             p.tests.push_back(timeline_tests::CompareOptionsTest::create(context));
             p.tests.push_back(timeline_tests::DisplayOptionsTest::create(context));
@@ -168,6 +171,7 @@ namespace tl
             p.tests.push_back(timeline_tests::UtilTest::create(context));
 
             // UI tests.
+            p.tests.push_back(ui_tests::ThumbnailColorsTest::create(context));
             if (gl)
             {
                 p.tests.push_back(ui_tests::ThumbnailSystemTest::create(context));

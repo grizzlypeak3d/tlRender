@@ -225,6 +225,13 @@ namespace tl
             //! Set the display options.
             TL_UI_API void setDisplayOptions(const DisplayOptions&);
 
+            //! Set a resolver for each thumbnail's input color space; see
+            //! TimelineItem::setOCIOInputResolver().
+            TL_UI_API void setOCIOInputResolver(
+                const std::function<std::string(
+                    const std::string& path,
+                    const ftk::ImageTags&)>&);
+
             ///@}
 
             TL_UI_API ftk::Size2I getSizeHint() const override;

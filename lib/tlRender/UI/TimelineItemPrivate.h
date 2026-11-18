@@ -5,6 +5,7 @@
 
 #include <tlRender/UI/TimelineItem.h>
 
+#include <tlRender/UI/ThumbnailColors.h>
 #include <tlRender/UI/ThumbnailSystem.h>
 
 #include <ftk/UI/Label.h>
@@ -27,6 +28,9 @@ namespace tl
         struct TimelineItem::Private
         {
             std::shared_ptr<Timeline> timeline;
+
+            //! The thumbnails in the display's color.
+            ThumbnailColors colors;
 
             //! Null when the item is drawn from a timeline that is not being
             //! played. Everything the player provides -- the current time, the

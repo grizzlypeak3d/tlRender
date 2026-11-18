@@ -5,7 +5,9 @@
 
 #include <tlRender/Timeline/ColorShaders.h>
 
+#include <cstdint>
 #include <memory>
+#include <vector>
 
 namespace tl
 {
@@ -44,6 +46,28 @@ namespace tl
 
     private:
         FTK_PRIVATE();
+    };
+
+    //! A CPUColor sampled into a table, for 8-bit pixels: a look up and an
+    //! interpolation for each, where the color itself is hundreds of
+    //! nanoseconds a pixel through an ACES 2.0 view -- tens of
+    //! milliseconds for one thumbnail. Close to the color rather than
+    //! exact, which is what a thumbnail needs. Alpha is passed through, so
+    //! it is not for the alpha channel display.
+    class TL_TIMELINE_API_TYPE CPUColorTable
+    {
+    public:
+        //! Sample the color, with this many points along each axis.
+        TL_TIMELINE_API explicit CPUColorTable(const CPUColor&, int size = 33);
+
+        TL_TIMELINE_API ~CPUColorTable();
+
+        //! Apply the color to RGBA pixels, four bytes each, in place.
+        TL_TIMELINE_API void apply(uint8_t* rgba, size_t count) const;
+
+    private:
+        int _size = 0;
+        std::vector<float> _table;
     };
 #endif // TLRENDER_OCIO
 

@@ -81,9 +81,10 @@
 namespace
 {
     //! The color thumbnails are put through, made once for a set of
-    //! options and an input.
+    //! options and an input: sampled into a table, as the color itself is
+    //! tens of milliseconds a thumbnail through an ACES 2.0 view.
 #if defined(TLRENDER_OCIO)
-    typedef tl::CPUColor ThumbnailColor;
+    typedef tl::CPUColorTable ThumbnailColor;
 #else // TLRENDER_OCIO
     struct ThumbnailColor {};
 #endif // TLRENDER_OCIO
@@ -1341,7 +1342,8 @@ namespace
         // and what sRGB cannot hold is then clipped.
         try
         {
-            out = std::make_shared<tl::CPUColor>(ocio, lut, tl::DisplayOptions(), true);
+            out = std::make_shared<tl::CPUColorTable>(
+                tl::CPUColor(ocio, lut, tl::DisplayOptions(), true));
         }
         catch (const std::exception&)
         {}
@@ -1367,18 +1369,9 @@ namespace
         const auto color = getThumbnailColor(engine, image->getTags());
         if (!color)
             return;
-        const size_t count = static_cast<size_t>(out->width) * out->height;
-        std::vector<float> pixels(count * 4);
-        for (size_t i = 0; i < count * 4; ++i)
-        {
-            pixels[i] = out->data[i] / 255.F;
-        }
-        color->apply(pixels.data(), count);
-        for (size_t i = 0; i < count * 4; ++i)
-        {
-            out->data[i] = static_cast<unsigned char>(
-                std::clamp(pixels[i], 0.F, 1.F) * 255.F + .5F);
-        }
+        color->apply(
+            out->data,
+            static_cast<size_t>(out->width) * out->height);
 #else // TLRENDER_OCIO
         (void)engine; (void)image; (void)out;
 #endif // TLRENDER_OCIO

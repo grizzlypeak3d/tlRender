@@ -1,6 +1,7 @@
 set(HEADERS
     AudioSystemTest.h
     BackgroundOptionsTest.h
+    CPUColorTest.h
     ColorOptionsTest.h
     CompareOptionsTest.h
     DisplayOptionsTest.h
@@ -15,6 +16,7 @@ set(HEADERS
 set(SOURCE
     AudioSystemTest.cpp
     BackgroundOptionsTest.cpp
+    CPUColorTest.cpp
     ColorOptionsTest.cpp
     CompareOptionsTest.cpp
     DisplayOptionsTest.cpp
@@ -39,5 +41,10 @@ target_include_directories(tlTimelineTest
         $<INSTALL_INTERFACE:include>)
 
 target_link_libraries(tlTimelineTest tlTimeline ftk::ftkTestLib)
+if(TLRENDER_OCIO)
+    # To ask the built-in configuration what displays and views it has,
+    # rather than naming ones that may not be in every version of it.
+    target_link_libraries(tlTimelineTest OpenColorIO::OpenColorIO)
+endif()
 
 set_target_properties(tlTimelineTest PROPERTIES FOLDER tests)

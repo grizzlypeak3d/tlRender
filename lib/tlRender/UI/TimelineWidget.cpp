@@ -25,6 +25,8 @@ namespace tl
         {
             std::shared_ptr<ITimeUnitsModel> timeUnitsModel;
 
+            std::function<std::string(const std::string&, const ftk::ImageTags&)> ocioInputResolver;
+
             //! One per item: the media time conversion is bound to a
             //! particular timeline, so it cannot be shared between them.
             std::vector<std::shared_ptr<ItemData> > itemData;
@@ -672,6 +674,19 @@ namespace tl
                 _scrollUpdate();
             }
         }
+
+        void TimelineWidget::setOCIOInputResolver(
+            const std::function<std::string(
+                const std::string& path,
+                const ftk::ImageTags&)>& value)
+        {
+            FTK_P();
+            p.ocioInputResolver = value;
+            for (const auto& item : p.timelineItems)
+            {
+                item->setOCIOInputResolver(value);
+            }
+        }
         
         ftk::Size2I TimelineWidget::getSizeHint() const
         {
@@ -1126,6 +1141,10 @@ namespace tl
                             p.layout));
                     }
 
+                    for (const auto& item : p.timelineItems)
+                    {
+                        item->setOCIOInputResolver(p.ocioInputResolver);
+                    }
                     p.timelineItems.front()->setStopOnScrub(p.stopOnScrub->get());
                     p.timelineItems.front()->setFrameMarkers(p.frameMarkers);
                     for (size_t i = 0; i < p.timelineItems.size(); ++i)
