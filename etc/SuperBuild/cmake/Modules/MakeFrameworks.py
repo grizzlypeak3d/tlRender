@@ -31,8 +31,18 @@ def real_library(lib_dir, name):
     real = [f for f in files if not os.path.islink(os.path.join(lib_dir, f))]
     if not real:
         raise SystemExit(f'No library for {name} in {lib_dir}')
-    # The one with the longest version is the file the links point at.
-    real.sort(key=len, reverse=True)
+    # The file "lib<name>.dylib" points at, which is the one a link
+    # records. Not the longest name: a prefix that had an older release
+    # installed keeps its files beside the new ones, the same length, and
+    # picking the old one left the new one with its own install name, which
+    # the application then linked and the bundle did not have.
+    link = os.path.join(lib_dir, f'lib{name}.dylib')
+    if os.path.exists(link):
+        target = os.path.basename(os.path.realpath(link))
+        if target in real:
+            return target, files
+    if len(real) > 1:
+        raise SystemExit(f'More than one library for {name} in {lib_dir}: {real}')
     return real[0], files
 
 
