@@ -35,7 +35,9 @@ namespace tl
         private:
             //! Whether the tests asked for include ones that make an OpenGL
             //! context. Nothing named means the whole suite, which does.
-            static bool _needsGL(const std::vector<std::string>& testNames);
+            static bool _needsGL(
+                const std::vector<std::string>& testNames,
+                const std::vector<std::string>& excludes);
 
             FTK_PRIVATE();
         };

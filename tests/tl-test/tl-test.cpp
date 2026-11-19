@@ -79,6 +79,7 @@ namespace tl
         struct App::Private
         {
             std::shared_ptr<ftk::CmdLineListArg<std::string> > testNames;
+            std::shared_ptr<ftk::CmdLineListOption<std::string> > excludes;
             std::shared_ptr<ftk::CmdLineFlag> noGL;
             std::vector<std::shared_ptr<ftk::test::ITest> > tests;
             std::chrono::steady_clock::time_point startTime;
@@ -93,6 +94,11 @@ namespace tl
                 "Test",
                 "Names of the tests to run.",
                 true);
+            p.excludes = ftk::CmdLineListOption<std::string>::create(
+                { "-exclude" },
+                "Leave out the tests whose names contain this; repeat it to "
+                "leave out more. A slow test can then run as its own process, "
+                "in parallel with the rest, without running twice.");
             p.noGL = ftk::CmdLineFlag::create(
                 { "-noGL" },
                 "Run only the tests that do not need OpenGL.");
@@ -102,7 +108,7 @@ namespace tl
                 "tl-test",
                 "Test application",
                 { p.testNames },
-                { p.noGL });
+                { p.excludes, p.noGL });
             p.startTime = std::chrono::steady_clock::now();
 
             // Only what the tests to be run need. The GL tests make a
@@ -110,7 +116,8 @@ namespace tl
             // creates, so a binary that always called it needed OpenGL to
             // start whatever was being run -- which is why the platforms
             // whose runners have no working OpenGL run none of the suite.
-            const bool gl = !p.noGL->found() && _needsGL(p.testNames->getList());
+            const bool gl = !p.noGL->found() &&
+                _needsGL(p.testNames->getList(), p.excludes->getList());
             if (gl)
             {
                 ui::init(context);
@@ -181,26 +188,34 @@ namespace tl
             }
         }
 
-        bool App::_needsGL(const std::vector<std::string>& testNames)
+        bool App::_needsGL(
+            const std::vector<std::string>& testNames,
+            const std::vector<std::string>& excludes)
         {
-            // Nothing named means the whole suite, which includes them.
-            if (testNames.empty())
-            {
-                return true;
-            }
             // Matched against the names themselves, the way run() matches
-            // them, so that a group name and a test name both work.
-            for (const auto& name : testNames)
+            // them, so that a group name and a test name both work. Nothing
+            // named means the whole suite, which includes them, less what is
+            // left out.
+            const auto matches = [](const std::string& name, const std::vector<std::string>& list)
             {
-                for (const std::string& glName : {
-                    "gl_test::RenderTest",
-                    "ui_tests::GestureTest",
-                    "ui_tests::ThumbnailSystemTest" })
+                for (const auto& i : list)
                 {
-                    if (ftk::contains(glName, name, ftk::CaseCompare::Insensitive))
+                    if (ftk::contains(name, i, ftk::CaseCompare::Insensitive))
                     {
                         return true;
                     }
+                }
+                return false;
+            };
+            for (const std::string& glName : {
+                "gl_test::RenderTest",
+                "ui_tests::GestureTest",
+                "ui_tests::ThumbnailSystemTest" })
+            {
+                if ((testNames.empty() || matches(glName, testNames)) &&
+                    !matches(glName, excludes))
+                {
+                    return true;
                 }
             }
             return false;
@@ -264,8 +279,26 @@ namespace tl
                 }
             }
 
+            // Then leave out the excluded ones, by the same matching.
+            for (const auto& exclude : p.excludes->getList())
+            {
+                const auto excluded = [&exclude](const std::shared_ptr<ftk::test::ITest>& test)
+                {
+                    return ftk::contains(test->getName(), exclude, ftk::CaseCompare::Insensitive);
+                };
+                if (std::none_of(p.tests.begin(), p.tests.end(), excluded))
+                {
+                    unmatched.push_back(exclude);
+                }
+                runTests.erase(
+                    std::remove_if(runTests.begin(), runTests.end(), excluded),
+                    runTests.end());
+            }
+
             // A filter that matched nothing used to run zero tests and exit
-            // successfully, which reads exactly like a suite that passed.
+            // successfully, which reads exactly like a suite that passed. An
+            // exclude that matches nothing is as likely a mistake: a renamed
+            // test, then run twice.
             if (!unmatched.empty())
             {
                 for (const auto& name : unmatched)
