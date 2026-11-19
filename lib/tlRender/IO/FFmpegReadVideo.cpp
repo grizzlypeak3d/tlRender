@@ -1394,8 +1394,7 @@ namespace tl
                 if (software)
                 {
                     _log(
-                        ftk::Format("Hardware decoding skipped for a full-range source; using software decoding: \"{0}\"").arg(_fileName),
-                        ftk::LogType::Warning);
+                        ftk::Format("Hardware decoding skipped for a full-range source; using software decoding: \"{0}\"").arg(_fileName));
                 }
                 return;
             }
@@ -1405,9 +1404,8 @@ namespace tl
                 if (software)
                 {
                     _log(
-                        ftk::Format("This machine has no hardware decoder for the codec \"{0}\"; using software decoding").
-                        arg(codec->name ? codec->name : "?"),
-                        ftk::LogType::Warning);
+                        ftk::Format("No hardware decoder for the codec \"{0}\"; using software decoding").
+                        arg(codec->name ? codec->name : "?"));
                 }
                 return;
             }
@@ -1479,11 +1477,14 @@ namespace tl
             if (!codecHasHw)
             {
                 // This codec has no hardware support in this build of
-                // FFmpeg; stay on the software path.
+                // FFmpeg; stay on the software path. Not a warning: most
+                // of the codecs in film work (ProRes, DNxHD, FFV1, raw
+                // video) have none on any card, and a warning for each read
+                // as hardware decoding failing (#833). Warnings are for a
+                // decoder that should have worked and did not.
                 _log(
-                    ftk::Format("Hardware decoding is not available for the codec \"{0}\"; using software decoding").
-                    arg(codec->name ? codec->name : "?"),
-                    ftk::LogType::Warning);
+                    ftk::Format("No hardware decoder for the codec \"{0}\"; using software decoding").
+                    arg(codec->name ? codec->name : "?"));
                 return;
             }
             if (!device)
@@ -2018,8 +2019,7 @@ namespace tl
                                 ftk::Format("Hardware decoding is coarser than the source ({0} for {1}); using software decoding: \"{2}\"").
                                 arg(dlDesc->name ? dlDesc->name : "?").
                                 arg(srcDesc->name ? srcDesc->name : "?").
-                                arg(_fileName),
-                                ftk::LogType::Warning);
+                                arg(_fileName));
                             return AVERROR_EXTERNAL;
                         }
                         // Confirms frames are really decoding on the hardware, as
