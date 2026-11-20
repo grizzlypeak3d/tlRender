@@ -12,13 +12,13 @@ namespace tl
     class TL_IO_API_TYPE IWrite : public IIO
     {
     protected:
-        void _init(
+        TL_IO_API void _init(
             const ftk::Path&,
             const IOOptions&,
             const IOInfo&,
             const std::shared_ptr<ftk::LogSystem>&);
 
-        IWrite();
+        TL_IO_API IWrite();
 
     public:
         TL_IO_API virtual ~IWrite();
@@ -55,12 +55,12 @@ namespace tl
         FTK_NON_COPYABLE(IWritePlugin);
 
     protected:
-        void _init(
+        TL_IO_API void _init(
             const std::string& name,
             const std::map<std::string, FileType>& extensions,
             const std::shared_ptr<ftk::LogSystem>&);
 
-        IWritePlugin();
+        TL_IO_API IWritePlugin();
 
     public:
         TL_IO_API virtual ~IWritePlugin() = 0;

@@ -18,13 +18,13 @@ namespace tl
     class TL_IO_API_TYPE IRead : public IIO
     {
     protected:
-        void _init(
+        TL_IO_API void _init(
             const ftk::Path&,
             const std::vector<ftk::MemFile>&,
             const IOOptions&,
             const std::shared_ptr<ftk::LogSystem>&);
 
-        IRead();
+        TL_IO_API IRead();
 
     public:
         TL_IO_API virtual ~IRead();
@@ -101,12 +101,12 @@ namespace tl
         FTK_NON_COPYABLE(IReadPlugin);
 
     protected:
-        void _init(
+        TL_IO_API void _init(
             const std::string& name,
             const std::map<std::string, FileType>& extensions,
             const std::shared_ptr<ftk::LogSystem>&);
 
-        IReadPlugin();
+        TL_IO_API IReadPlugin();
 
     public:
         TL_IO_API virtual ~IReadPlugin() = 0;

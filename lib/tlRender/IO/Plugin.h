@@ -26,12 +26,12 @@ namespace tl
         FTK_NON_COPYABLE(IIO);
 
     protected:
-        void _init(
+        TL_IO_API void _init(
             const ftk::Path&,
             const IOOptions&,
             const std::shared_ptr<ftk::LogSystem>&);
 
-        IIO();
+        TL_IO_API IIO();
 
     public:
         TL_IO_API virtual ~IIO() = 0;
@@ -54,12 +54,12 @@ namespace tl
         FTK_NON_COPYABLE(IIOPlugin);
 
     protected:
-        void _init(
+        TL_IO_API void _init(
             const std::string& name,
             const std::map<std::string, FileType>& exts,
             const std::shared_ptr<ftk::LogSystem>&);
 
-        IIOPlugin();
+        TL_IO_API IIOPlugin();
 
     public:
         TL_IO_API virtual ~IIOPlugin() = 0;
