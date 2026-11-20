@@ -5,7 +5,9 @@ script. People are welcome to read it too.
 
 tlRender is a C++ (CMake, C++20) library for playing back timelines, image
 sequences and movies, with OpenTimelineIO. It is the engine under DJV. The
-user interface toolkit is feather-tk, a submodule in `deps/ftk`.
+user interface toolkit is feather-tk, a submodule in `deps/ftk` with its
+own AGENTS.md; look there for the string, path and observable helpers
+before writing new ones.
 
 ## Where things are
 
@@ -80,6 +82,9 @@ including playback with a `tl.Player`.
 - A reader may store an image bottom up; `layout.mirror.y` in its
   information says so, and code that reads pixels has to check it.
 - A dependency's version is in its `etc/SuperBuild/cmake/Modules/Build*.cmake`.
+- Windows needs an export macro (`TL_IO_API`, `TL_TIMELINE_API`, ...) on
+  every function used from another library, protected ones included when
+  a class is meant to be subclassed there, as the IO plugins are.
 
 ## Contributions
 
