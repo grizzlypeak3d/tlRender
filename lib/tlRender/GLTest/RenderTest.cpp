@@ -1093,6 +1093,9 @@ namespace tl
                 OCIOOptions ocio;
                 LUTOptions lut;
                 DisplayOptions display;
+                //! The difference allowed, before the part that grows with
+                //! the value.
+                float tolerance = .002F;
             };
             std::vector<Case> cases;
             cases.push_back({ "nothing", OCIOOptions(), LUTOptions(), DisplayOptions() });
@@ -1103,7 +1106,12 @@ namespace tl
             cases.push_back({ "OCIO", ocio, LUTOptions(), DisplayOptions() });
             cases.push_back({ "OCIO, LUT before, corrections", ocio, lut, corrections });
             lut.order = LUTOrder::PostConfig;
-            cases.push_back({ "OCIO, LUT after, corrections", ocio, lut, corrections });
+            // A LUT after the configuration magnifies what OCIO's shaders
+            // differ by: this sRGB curve is about 13 times as steep near
+            // black, where the corrections leave some of the ramp, and
+            // OCIO's own difference there, about .0003, comes out near
+            // .004 (.0031 on Intel's GPUs).
+            cases.push_back({ "OCIO, LUT after, corrections", ocio, lut, corrections, .005F });
 
             for (const auto& c : cases)
             {
@@ -1143,7 +1151,7 @@ namespace tl
                                 const float b = expected[(y * size.w + x) * 4 + i];
                                 const float d = std::abs(a - b);
                                 maxDiff = std::max(maxDiff, d);
-                                if (d > .002F + .002F * std::abs(b))
+                                if (d > c.tolerance + .002F * std::abs(b))
                                 {
                                     ok = false;
                                 }
