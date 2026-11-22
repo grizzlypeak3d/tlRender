@@ -22,6 +22,181 @@ namespace tl
 {
     namespace ffmpeg
     {
+        namespace
+        {
+            // How long a reader has to have been left before it is asked
+            // for its decoder: a playing reader is idle between frames,
+            // and closing it there would have it open its file again for
+            // the next one.
+            const std::chrono::milliseconds decoderIdleMin(500);
+
+            // How long a reader waits for room with nothing closing
+            // before it opens its decoder anyway: as many readers in use
+            // as the limit cannot be asked, and a frame late is better
+            // than none.
+            const std::chrono::milliseconds decoderWaitMax(1000);
+        }
+
+        DecoderLimit::DecoderLimit()
+        {
+            // One for every two gigabytes: four on an eight gigabyte iPad,
+            // where a dozen 4K decoders took more than the system allows
+            // an application, and sixteen at most.
+            const size_t ramGB = ftk::getSysInfo().ramGB;
+            _max = ramGB > 0 ?
+                std::clamp(ramGB / 2, static_cast<size_t>(2), static_cast<size_t>(16)) :
+                8;
+        }
+
+        DecoderLimit& DecoderLimit::get()
+        {
+            static DecoderLimit limit;
+            return limit;
+        }
+
+        size_t DecoderLimit::getMax() const
+        {
+            std::unique_lock<std::mutex> lock(_mutex);
+            return _max;
+        }
+
+        void DecoderLimit::setMax(size_t value)
+        {
+            {
+                std::unique_lock<std::mutex> lock(_mutex);
+                _max = value;
+            }
+            _cv.notify_all();
+        }
+
+        size_t DecoderLimit::getCount() const
+        {
+            std::unique_lock<std::mutex> lock(_mutex);
+            return _entries.size();
+        }
+
+        void DecoderLimit::open(const void* id, const std::function<void()>& ask)
+        {
+            std::unique_lock<std::mutex> lock(_mutex);
+            auto i = std::find_if(
+                _entries.begin(),
+                _entries.end(),
+                [id](const Entry& entry) { return entry.id == id; });
+            if (i != _entries.end())
+            {
+                _entries.erase(i);
+            }
+            if (_max > 0 && _entries.size() >= _max)
+            {
+                auto deadline = std::chrono::steady_clock::now() + decoderWaitMax;
+                size_t closed = _closed;
+                while (_max > 0 && _entries.size() >= _max)
+                {
+                    const auto now = std::chrono::steady_clock::now();
+                    if (_closed != closed)
+                    {
+                        // Room is being made: wait on.
+                        closed = _closed;
+                        deadline = now + decoderWaitMax;
+                    }
+                    else if (now >= deadline)
+                    {
+                        break;
+                    }
+
+                    // Ask the idle readers, the one used least lately
+                    // first, for as many decoders as there are too many.
+                    const size_t over = _entries.size() + 1 - _max;
+                    size_t asked = 0;
+                    for (const auto& entry : _entries)
+                    {
+                        if (entry.asked)
+                        {
+                            ++asked;
+                        }
+                    }
+                    for (auto& entry : _entries)
+                    {
+                        if (asked >= over)
+                        {
+                            break;
+                        }
+                        if (!entry.busy && !entry.asked && now - entry.used >= decoderIdleMin)
+                        {
+                            entry.asked = true;
+                            entry.ask();
+                            ++asked;
+                        }
+                    }
+
+                    // Looked at again as readers finish, and as they come
+                    // to have been idle long enough to ask.
+                    _cv.wait_until(lock, std::min(deadline, now + std::chrono::milliseconds(100)));
+                }
+            }
+            Entry entry;
+            entry.id = id;
+            entry.used = std::chrono::steady_clock::now();
+            entry.ask = ask;
+            _entries.push_back(entry);
+        }
+
+        void DecoderLimit::setBusy(const void* id, bool value)
+        {
+            {
+                std::unique_lock<std::mutex> lock(_mutex);
+                auto i = std::find_if(
+                    _entries.begin(),
+                    _entries.end(),
+                    [id](const Entry& entry) { return entry.id == id; });
+                if (i != _entries.end())
+                {
+                    i->busy = value;
+                    i->used = std::chrono::steady_clock::now();
+                    if (value)
+                    {
+                        // In use again: no longer the one to ask, and the
+                        // last in line to be.
+                        i->asked = false;
+                        _entries.splice(_entries.end(), _entries, i);
+                    }
+                }
+            }
+            _cv.notify_all();
+        }
+
+        void DecoderLimit::close(const void* id)
+        {
+            {
+                std::unique_lock<std::mutex> lock(_mutex);
+                auto i = std::find_if(
+                    _entries.begin(),
+                    _entries.end(),
+                    [id](const Entry& entry) { return entry.id == id; });
+                if (i != _entries.end())
+                {
+                    _entries.erase(i);
+                    ++_closed;
+                }
+            }
+            _cv.notify_all();
+        }
+
+        size_t getDecoderMax()
+        {
+            return DecoderLimit::get().getMax();
+        }
+
+        void setDecoderMax(size_t value)
+        {
+            DecoderLimit::get().setMax(value);
+        }
+
+        size_t getDecoderCount()
+        {
+            return DecoderLimit::get().getCount();
+        }
+
         AVIOBufferData::AVIOBufferData(const uint8_t* p, size_t size) :
             p(p),
             size(size)
@@ -199,6 +374,7 @@ namespace tl
                     try
                     {
                         p.fileName = getFileName(path);
+                        _decoderOpen();
                         p.readVideo = std::make_shared<ReadVideo>(
                             p.fileName,
                             _mem,
@@ -213,6 +389,7 @@ namespace tl
                             p.info.tags = p.readVideo->getTags();
                         }
                         p.infoValid = true;
+                        DecoderLimit::get().setBusy(this, false);
 
                         _run();
                     }
@@ -234,7 +411,22 @@ namespace tl
                     }
 
                     // The epilogue.
+                    p.readVideo.reset();
+                    DecoderLimit::get().close(this);
                     p.condition.stopQueues();
+                });
+        }
+
+        void VideoRead::_decoderOpen()
+        {
+            FTK_P();
+            p.decoderAsked = false;
+            DecoderLimit::get().open(
+                this,
+                [this]
+                {
+                    _p->decoderAsked = true;
+                    _p->condition.wake();
                 });
         }
 
@@ -426,6 +618,7 @@ namespace tl
                     lastRequest = std::chrono::steady_clock::now();
                     if (!p.readVideo)
                     {
+                        _decoderOpen();
                         p.readVideo = std::make_shared<ReadVideo>(
                             p.fileName,
                             _mem,
@@ -434,6 +627,11 @@ namespace tl
                         p.readVideo->start();
                         p.currentTime = videoTime.start_time();
                         errorCount = 0;
+                    }
+                    else
+                    {
+                        p.decoderAsked = false;
+                        DecoderLimit::get().setBusy(this, true);
                     }
 
                     // Seek.
@@ -466,11 +664,17 @@ namespace tl
                         seconds;
 
                     p.currentTime += OTIO_NS::RationalTime(1.0, videoTime.duration().rate());
+                    DecoderLimit::get().setBusy(this, false);
                 }
                 else if (p.readVideo &&
-                    std::chrono::steady_clock::now() - lastRequest > idleTimeout)
+                    (p.decoderAsked ||
+                    std::chrono::steady_clock::now() - lastRequest > idleTimeout))
                 {
+                    // Idle for a while, or asked for the decoder by the
+                    // limit for another reader.
                     p.readVideo.reset();
+                    p.decoderAsked = false;
+                    DecoderLimit::get().close(this);
                 }
 
                 // Record any new errors from the worker, logging the

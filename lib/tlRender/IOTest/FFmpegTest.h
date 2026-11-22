@@ -38,6 +38,7 @@ namespace tl
             void _droppedFrames();
             void _presets();
             void _frameOrder();
+            void _decoderLimit();
             void _packedRows();
             void _conversionEdges();
             // Members rather than free helpers so they can report a

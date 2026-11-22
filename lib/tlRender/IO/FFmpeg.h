@@ -40,6 +40,27 @@ namespace tl
         //! decoder would pull in the software decoder it depends on.
         TL_IO_API bool hasHWDecode();
 
+        //! \name Decoder Limit
+        //! How many video decoders are open at once, across every reader.
+        //! A decoder is a good deal of memory, a hardware one above all
+        //! (a 4K H.264 session holds its reference frames, and on iOS the
+        //! system's decoding service holds as much again), and a timeline
+        //! keeps a reader for every clip it touches: the thumbnails of a
+        //! twelve clip timeline opened twelve at once, and an iPad ran out
+        //! of memory. A reader that needs a decoder while the limit is
+        //! reached waits for an idle one to close its own, asking the one
+        //! used least lately; one in use is never asked, so with that many
+        //! in use at once it waits no more than a moment and opens anyway.
+        //! The default is one for every two gigabytes of memory, from 2 to
+        //! 16. Zero is no limit.
+        ///@{
+
+        TL_IO_API size_t getDecoderMax();
+        TL_IO_API void setDecoderMax(size_t);
+        TL_IO_API size_t getDecoderCount();
+
+        ///@}
+
         //! FFmpeg video reader.
         //!
         //! The video and audio readers each own a demuxer; they share
@@ -83,6 +104,7 @@ namespace tl
 
         private:
             void _run();
+            void _decoderOpen();
 
             FTK_PRIVATE();
         };

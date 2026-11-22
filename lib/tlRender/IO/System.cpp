@@ -28,6 +28,7 @@
 #endif // TLRENDER_USD
 
 #include <ftk/Core/Context.h>
+#include <ftk/Core/DiagSystem.h>
 #include <ftk/Core/String.h>
 
 #include <iomanip>
@@ -69,6 +70,15 @@ namespace tl
             _plugins.push_back(png::ReadPlugin::create(logSystem));
 #if defined(TLRENDER_FFMPEG_PLUGIN)
             _plugins.push_back(ffmpeg::ReadPlugin::create(logSystem));
+            if (auto diagSystem = context->getSystem<ftk::DiagSystem>())
+            {
+                diagSystem->addSampler(
+                    "Timeline objects/Decoders: {0}",
+                    [] { return static_cast<int64_t>(ffmpeg::getDecoderCount()); });
+                diagSystem->addSampler(
+                    "Timeline objects/Decoder limit: {0}",
+                    [] { return static_cast<int64_t>(ffmpeg::getDecoderMax()); });
+            }
 #endif // TLRENDER_FFMPEG_PLUGIN
 #if defined(__EMSCRIPTEN__)
             _plugins.push_back(webcodecs::ReadPlugin::create(logSystem));

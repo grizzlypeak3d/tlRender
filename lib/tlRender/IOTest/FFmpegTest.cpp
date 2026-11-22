@@ -18,6 +18,7 @@
 #include <cstring>
 #include <cstdio>
 #include <filesystem>
+#include <functional>
 #include <array>
 #include <chrono>
 #include <cmath>
@@ -57,6 +58,7 @@ namespace tl
             _droppedFrames();
             _presets();
             _frameOrder();
+            _decoderLimit();
             _packedRows();
             _conversionEdges();
             _writeType();
@@ -472,6 +474,92 @@ namespace tl
                 }
                 FTK_CHECK(level == i * 10);
             }
+        }
+
+        void FFmpegTest::_decoderLimit()
+        {
+            // No more decoders open at once than the limit: a reader that
+            // needs one asks an idle reader for its own, and reads on: an
+            // iPad ran out of memory with a dozen 4K decoders open at once.
+            // The reader that gave its decoder up opens it again when asked
+            // for a frame.
+            auto writePlugin = _context->getSystem<WriteSystem>()->getPlugin<ffmpeg::WritePlugin>();
+            const auto& codecs = writePlugin->getCodecs();
+            if (std::find(codecs.begin(), codecs.end(), "qtrle") == codecs.end())
+            {
+                _print("Skipped: no QuickTime Animation encoder");
+                return;
+            }
+            const ftk::Path path(
+                ftk::fromFileSystem(_getTempDir() / "FFmpegDecoderLimitTest.mov"));
+            const ftk::ImageInfo imageInfo(64, 64, ftk::ImageType::RGB_U8);
+            IOInfo info;
+            info.video.push_back(imageInfo);
+            info.videoTime = OTIO_NS::TimeRange(
+                OTIO_NS::RationalTime(0.0, 24.0),
+                OTIO_NS::RationalTime(4, 24.0));
+            {
+                IOOptions options;
+                options["FFmpeg/Codec"] = "qtrle";
+                auto write = writePlugin->write(path, info, options);
+                for (int i = 0; i < 4; ++i)
+                {
+                    auto image = ftk::Image::create(imageInfo);
+                    std::memset(image->getData(), i * 10, image->getByteCount());
+                    write->writeVideo(OTIO_NS::RationalTime(i, 24.0), image);
+                }
+                write->finish();
+            }
+
+            const size_t max = ffmpeg::getDecoderMax();
+            FTK_CHECK(max >= 2 && max <= 16);
+            const size_t count = ffmpeg::getDecoderCount();
+            auto waitFor = [](const std::function<bool(void)>& value)
+            {
+                const auto t0 = std::chrono::steady_clock::now();
+                while (!value() &&
+                    std::chrono::steady_clock::now() - t0 < std::chrono::seconds(5))
+                {
+                    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+                }
+                return value();
+            };
+
+            ffmpeg::setDecoderMax(count + 2);
+            auto readPlugin = _context->getSystem<ReadSystem>()->getPlugin(path);
+            std::vector<std::shared_ptr<IVideoRead> > reads;
+            for (int i = 0; i < 3; ++i)
+            {
+                reads.push_back(readPlugin->videoRead(path, IOOptions()));
+                FTK_CHECK(reads.back());
+            }
+            for (int i = 0; i < 3; ++i)
+            {
+                const auto data = reads[i]->readVideo(OTIO_NS::RationalTime(i, 24.0)).get();
+                FTK_CHECK(data.image);
+                FTK_CHECK(ffmpeg::getDecoderCount() <= count + 2);
+            }
+            // The first, used least lately, gave its decoder up, and opens
+            // it again for a frame, the next in line giving up its own.
+            const auto data = reads[0]->readVideo(OTIO_NS::RationalTime(3, 24.0)).get();
+            FTK_CHECK(data.image);
+            FTK_CHECK(ffmpeg::getDecoderCount() <= count + 2);
+
+            // Closed with their readers.
+            reads.clear();
+            FTK_CHECK(waitFor([count] { return ffmpeg::getDecoderCount() == count; }));
+
+            // No limit.
+            ffmpeg::setDecoderMax(0);
+            for (int i = 0; i < 3; ++i)
+            {
+                reads.push_back(readPlugin->videoRead(path, IOOptions()));
+                FTK_CHECK(reads.back()->readVideo(OTIO_NS::RationalTime(0.0, 24.0)).get().image);
+            }
+            FTK_CHECK(ffmpeg::getDecoderCount() == count + 3);
+            reads.clear();
+            FTK_CHECK(waitFor([count] { return ffmpeg::getDecoderCount() == count; }));
+            ffmpeg::setDecoderMax(max);
         }
 
         void FFmpegTest::_packedRows()

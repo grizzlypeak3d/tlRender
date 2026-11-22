@@ -17,6 +17,9 @@ extern "C"
 } // extern "C"
 
 #include <atomic>
+#include <chrono>
+#include <functional>
+#include <list>
 #include <optional>
 #include <set>
 #include <condition_variable>
@@ -27,6 +30,48 @@ namespace tl
 {
     namespace ffmpeg
     {
+        //! The decoder limit; see getDecoderMax(). The ids are the
+        //! readers; the list runs from the one used least lately.
+        class DecoderLimit
+        {
+        public:
+            static DecoderLimit& get();
+
+            size_t getMax() const;
+            void setMax(size_t);
+            size_t getCount() const;
+
+            //! Count a decoder for the reader, which is about to use it,
+            //! first waiting for room; ask is how an idle reader is asked
+            //! to close its decoder.
+            void open(const void* id, const std::function<void()>& ask);
+
+            //! Note the reader is using its decoder, or has finished.
+            void setBusy(const void* id, bool);
+
+            //! The reader has closed its decoder.
+            void close(const void* id);
+
+        private:
+            DecoderLimit();
+
+            struct Entry
+            {
+                const void* id = nullptr;
+                bool busy = true;
+                bool asked = false;
+                std::chrono::steady_clock::time_point used;
+                std::function<void()> ask;
+            };
+            mutable std::mutex _mutex;
+            std::condition_variable _cv;
+            size_t _max = 0;
+            std::list<Entry> _entries;
+            //! How many decoders have closed, for a waiting reader to see
+            //! room being made.
+            size_t _closed = 0;
+        };
+
         struct AVIOBufferData
         {
             AVIOBufferData() = default;
@@ -315,6 +360,9 @@ namespace tl
             std::string fileName;
 
             std::shared_ptr<ReadVideo> readVideo;
+            //! Whether the decoder limit has asked for the decoder back;
+            //! see DecoderLimit.
+            std::atomic<bool> decoderAsked{ false };
 
             IOInfo info;
             //! Set once the open has filled the information, which

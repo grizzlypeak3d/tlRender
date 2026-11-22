@@ -74,7 +74,7 @@ namespace tl
                 lock,
                 [this]
                 {
-                    bool out = !_running;
+                    bool out = !_running || _woken;
                     for (auto i = _queues.begin();
                         !out && i != _queues.end();
                         ++i)
@@ -83,6 +83,7 @@ namespace tl
                     }
                     return out;
                 });
+            _woken = false;
             return _running;
         }
 
@@ -96,7 +97,7 @@ namespace tl
                 timeout,
                 [this]
                 {
-                    bool out = !_running;
+                    bool out = !_running || _woken;
                     for (auto i = _queues.begin();
                         !out && i != _queues.end();
                         ++i)
@@ -105,7 +106,19 @@ namespace tl
                     }
                     return out;
                 });
+            _woken = false;
             return _running;
+        }
+
+        //! Wake the worker without a request, for something it has to do
+        //! between requests; waitFor() then returns at once.
+        void wake()
+        {
+            {
+                std::unique_lock<std::mutex> lock(_mutex);
+                _woken = true;
+            }
+            _cv.notify_one();
         }
 
         //! Stop the condition and wake the worker thread. Called by the
@@ -151,6 +164,7 @@ namespace tl
         std::mutex _mutex;
         std::condition_variable _cv;
         std::atomic<bool> _running{ true };
+        bool _woken = false;
         std::vector<IRequestQueue*> _queues;
     };
 
