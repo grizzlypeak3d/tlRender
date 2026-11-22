@@ -44,6 +44,10 @@ typedef enum
 TL_C_API tl_engine* tl_engine_create(const char* logFile);
 TL_C_API void tl_engine_destroy(tl_engine*);
 
+//! Write to the log, as from the given part of the application; an
+//! error when error is non-zero.
+TL_C_API void tl_engine_log(tl_engine*, const char* prefix, const char* message, int error);
+
 //! Tick the engine: once per display frame, before the views draw.
 TL_C_API void tl_engine_tick(tl_engine*);
 

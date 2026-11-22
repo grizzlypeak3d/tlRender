@@ -555,6 +555,16 @@ int tl_engine_has_gpu(tl_engine* engine)
     return engine && engine->gpu ? 1 : 0;
 }
 
+void tl_engine_log(tl_engine* engine, const char* prefix, const char* message, int error)
+{
+    if (!engine || !engine->context || !prefix || !message)
+        return;
+    engine->context->getLogSystem()->print(
+        prefix,
+        message,
+        error ? ftk::LogType::Error : ftk::LogType::Message);
+}
+
 const char* tl_engine_get_error(tl_engine* engine)
 {
     return engine ? engine->error.c_str() : "";
