@@ -1746,35 +1746,23 @@ namespace tl
                 {
                     continue;
                 }
-                const ftk::Box2F lines[] =
-                {
-                    ftk::Box2F(outline.x(), outline.y(), outline.w(), w),
-                    ftk::Box2F(outline.x(), outline.y() + outline.h() - w, outline.w(), w),
-                    ftk::Box2F(outline.x(), outline.y() + w, w, outline.h() - w * 2.F),
-                    ftk::Box2F(outline.x() + outline.w() - w, outline.y() + w, w, outline.h() - w * 2.F)
-                };
-                // Clipped to the viewport: a data window can reach far
-                // outside the picture, and the drawing is in the window's
-                // coordinates, over the widgets around the viewport.
-                const float gx0 = g.min.x;
-                const float gy0 = g.min.y;
-                const float gx1 = g.max.x + 1;
-                const float gy1 = g.max.y + 1;
-                for (const auto& line : lines)
-                {
-                    const float x0 = std::max(line.x(), gx0);
-                    const float y0 = std::max(line.y(), gy0);
-                    const float x1 = std::min(line.x() + line.w(), gx1);
-                    const float y1 = std::min(line.y() + line.h(), gy1);
-                    if (x1 > x0 && y1 > y0)
-                    {
-                        rects.push_back(ftk::Box2F(x0, y0, x1 - x0, y1 - y0));
-                    }
-                }
+                rects.push_back(ftk::Box2F(outline.x(), outline.y(), outline.w(), w));
+                rects.push_back(ftk::Box2F(outline.x(), outline.y() + outline.h() - w, outline.w(), w));
+                rects.push_back(ftk::Box2F(outline.x(), outline.y() + w, w, outline.h() - w * 2.F));
+                rects.push_back(ftk::Box2F(outline.x() + outline.w() - w, outline.y() + w, w, outline.h() - w * 2.F));
             }
             if (!rects.empty())
             {
+                // Clipped to the viewport: a data window can reach far
+                // outside the picture, and a widget's own drawing is not
+                // clipped, only its children's (IWidget::setClipChildren()).
+                const bool clipRectEnabledPrev = event.render->getClipRectEnabled();
+                const ftk::Box2I clipRectPrev = event.render->getClipRect();
+                event.render->setClipRectEnabled(true);
+                event.render->setClipRect(clipRectEnabledPrev ? ftk::intersect(g, clipRectPrev) : g);
                 event.render->drawRects(rects, options.color);
+                event.render->setClipRectEnabled(clipRectEnabledPrev);
+                event.render->setClipRect(clipRectPrev);
             }
         }
 
