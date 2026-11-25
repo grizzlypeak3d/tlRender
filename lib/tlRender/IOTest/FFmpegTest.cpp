@@ -8,6 +8,11 @@
 #include <tlRender/IO/FFmpegPrivate.h>
 #include <tlRender/IO/System.h>
 
+extern "C"
+{
+#include <libavutil/mastering_display_metadata.h>
+}
+
 #include <ftk/Core/Assert.h>
 #include <ftk/Core/Context.h>
 #include <ftk/Core/FileIO.h>
@@ -55,6 +60,7 @@ namespace tl
             _subfileSeek();
             _pixelAspectRatio();
             _streamTags();
+            _hdrData();
             _pulldown();
             _droppedFrames();
             _presets();
@@ -1191,6 +1197,57 @@ namespace tl
             _print(ftk::Format("Pixel aspect ratio: {0}").
                 arg(info.video[0].pixelAspectRatio));
             FTK_CHECK(2.0F == info.video[0].pixelAspectRatio);
+        }
+
+        void FFmpegTest::_hdrData()
+        {
+            // An HDR10 frame: PQ, with its mastering display and light
+            // levels, which the Blackmagic output sends "from file".
+            {
+                AVFrame* frame = av_frame_alloc();
+                AVMasteringDisplayMetadata* m = av_mastering_display_metadata_create_side_data(frame);
+                m->has_primaries = 1;
+                m->display_primaries[0][0] = av_make_q(68, 100);
+                m->display_primaries[0][1] = av_make_q(32, 100);
+                m->display_primaries[1][0] = av_make_q(265, 1000);
+                m->display_primaries[1][1] = av_make_q(69, 100);
+                m->display_primaries[2][0] = av_make_q(15, 100);
+                m->display_primaries[2][1] = av_make_q(6, 100);
+                m->white_point[0] = av_make_q(3127, 10000);
+                m->white_point[1] = av_make_q(329, 1000);
+                m->has_luminance = 1;
+                m->min_luminance = av_make_q(1, 200);
+                m->max_luminance = av_make_q(1000, 1);
+                AVContentLightMetadata* l = av_content_light_metadata_create_side_data(frame);
+                l->MaxCLL = 800;
+                l->MaxFALL = 300;
+                HDRData hdr;
+                ffmpeg::toHDRData(frame->side_data, frame->nb_side_data, AVCOL_TRC_SMPTE2084, hdr);
+                FTK_ASSERT(HDR_EOTF::ST2084 == hdr.eotf);
+                FTK_ASSERT(std::fabs(hdr.primaries[0].x - .68F) < .0001F);
+                FTK_ASSERT(std::fabs(hdr.primaries[1].y - .69F) < .0001F);
+                FTK_ASSERT(std::fabs(hdr.primaries[3].x - .3127F) < .0001F);
+                FTK_ASSERT(std::fabs(hdr.displayMasteringLuminance.min() - .005F) < .0001F);
+                FTK_ASSERT(1000.F == hdr.displayMasteringLuminance.max());
+                FTK_ASSERT(800.F == hdr.maxCLL);
+                FTK_ASSERT(300.F == hdr.maxFALL);
+                av_frame_free(&frame);
+            }
+            // A mastering display without luminance keeps the default
+            // rather than reading zero over zero, and SDR stays SDR.
+            {
+                AVFrame* frame = av_frame_alloc();
+                AVMasteringDisplayMetadata* m = av_mastering_display_metadata_create_side_data(frame);
+                m->has_primaries = 0;
+                m->has_luminance = 0;
+                HDRData hdr;
+                ffmpeg::toHDRData(frame->side_data, frame->nb_side_data, AVCOL_TRC_BT709, hdr);
+                const HDRData defaults;
+                FTK_ASSERT(HDR_EOTF::SDR == hdr.eotf);
+                FTK_ASSERT(defaults.displayMasteringLuminance == hdr.displayMasteringLuminance);
+                FTK_ASSERT(defaults.primaries == hdr.primaries);
+                av_frame_free(&frame);
+            }
         }
 
         void FFmpegTest::_streamTags()

@@ -61,7 +61,13 @@ namespace tl
         AVRational swap(AVRational);
 
         //! Convert to HDR data.
-        void toHDRData(AVFrameSideData**, int size, HDRData&);
+        //! The HDR data of a frame: its transfer, and the mastering display
+        //! and light levels from its side data, where they are there.
+        void toHDRData(
+            AVFrameSideData**,
+            int size,
+            AVColorTransferCharacteristic,
+            HDRData&);
 
         //! Convert from FFmpeg.
         AudioType toAudioType(AVSampleFormat);

@@ -92,8 +92,18 @@ namespace tl
             return AVRational({ value.den, value.num });
         }
 
-        void toHDRData(AVFrameSideData** sideData, int size, HDRData& hdr)
+        void toHDRData(
+            AVFrameSideData** sideData,
+            int size,
+            AVColorTransferCharacteristic trc,
+            HDRData& hdr)
         {
+            // PQ, HDR10's transfer. HLG has no value of its own in HDR_EOTF
+            // and stays SDR.
+            if (AVCOL_TRC_SMPTE2084 == trc)
+            {
+                hdr.eotf = HDR_EOTF::ST2084;
+            }
             for (int i = 0; i < size; ++i)
             {
                 switch (sideData[i]->type)
@@ -101,11 +111,28 @@ namespace tl
                 case AV_FRAME_DATA_MASTERING_DISPLAY_METADATA:
                 {
                     auto data = reinterpret_cast<AVMasteringDisplayMetadata*>(sideData[i]->data);
-                    // As a fraction: the minimum is a fraction of a nit,
-                    // which an integer division made zero.
-                    hdr.displayMasteringLuminance = ftk::RangeF(
-                        av_q2d(data->min_luminance),
-                        av_q2d(data->max_luminance));
+                    // Each only where the stream has it: what it does not
+                    // have is zero over zero, which as a number is NaN.
+                    if (data->has_primaries)
+                    {
+                        for (int j = 0; j < 3; ++j)
+                        {
+                            hdr.primaries[j] = ftk::V2F(
+                                av_q2d(data->display_primaries[j][0]),
+                                av_q2d(data->display_primaries[j][1]));
+                        }
+                        hdr.primaries[static_cast<size_t>(HDRPrimaries::White)] = ftk::V2F(
+                            av_q2d(data->white_point[0]),
+                            av_q2d(data->white_point[1]));
+                    }
+                    if (data->has_luminance)
+                    {
+                        // As a fraction: the minimum is a fraction of a nit,
+                        // which an integer division made zero.
+                        hdr.displayMasteringLuminance = ftk::RangeF(
+                            av_q2d(data->min_luminance),
+                            av_q2d(data->max_luminance));
+                    }
                     break;
                 }
                 case AV_FRAME_DATA_CONTENT_LIGHT_LEVEL:
