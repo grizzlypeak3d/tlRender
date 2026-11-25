@@ -1463,11 +1463,24 @@ namespace tl
                     const int64_t seconds =
                         p.thread.state.currentTime.rescaled_to(1.0).value() -
                         p.thread.state.audioOffset;
+                    const ftk::Range<int64_t> secondsRange = p.getAudioSecondsRange();
                     std::unique_lock<std::mutex> lock(p.audioMutex.mutex);
+                    // Looping, the seconds either side wrap around the
+                    // in/out range as the cache does: near the out point
+                    // the next second is the one at the in point, which is
+                    // what a reader of these frames running on through the
+                    // loop point (an output device's sound) needs next.
+                    const bool looping = Loop::Loop == p.audioMutex.state.loop;
                     for (int64_t s : { seconds - 1, seconds, seconds + 1 })
                     {
-                        if (const auto i = p.audioMutex.cache.find(s);
-                            i != p.audioMutex.cache.end())
+                        const int64_t key = looping ? tl::loop(s, secondsRange) : s;
+                        const bool listed = std::find_if(
+                            audioFrameList.begin(),
+                            audioFrameList.end(),
+                            [key](const AudioFrame& value) { return key == value.seconds; }) !=
+                            audioFrameList.end();
+                        if (const auto i = p.audioMutex.cache.find(key);
+                            !listed && i != p.audioMutex.cache.end())
                         {
                             audioFrameList.push_back(i->second);
                         }
