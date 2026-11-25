@@ -668,9 +668,15 @@ namespace tl
                                     {
                                         if (requestTime < range.value().start_time() + otioTransition->out_offset())
                                         {
+                                            // The clip coming in becomes B, all of it: its
+                                            // reader and media time too, which the cancels
+                                            // and the playhead hints go by, or the read of
+                                            // the clip going out below took their place.
                                             std::swap(videoLayerData.image, videoLayerData.imageB);
                                             std::swap(videoLayerData.bounds, videoLayerData.boundsB);
                                             std::swap(videoLayerData.path, videoLayerData.pathB);
+                                            std::swap(videoLayerData.read, videoLayerData.readB);
+                                            std::swap(videoLayerData.mediaTime, videoLayerData.mediaTimeB);
                                             videoLayerData.transition = toTransition(otioTransition->transition_type());
                                             videoLayerData.transitionValue = _transitionValue(
                                                 requestTime.value(),
@@ -1156,6 +1162,15 @@ namespace tl
                         e.what(),
                         ftk::LogType::Error);
                 }
+            }
+            if (!layer.audio)
+            {
+                // A clip that opened but gave no audio (it failed, or was
+                // cancelled) is a second of silence: a layer with no audio
+                // reaches the player as no samples, and playback, timed by
+                // the audio, stops with it. See the request above.
+                layer.audio = Audio::create(ioInfo.audio, ioInfo.audio.sampleRate);
+                layer.audio->zero();
             }
             frame.layers.push_back(layer);
         }
