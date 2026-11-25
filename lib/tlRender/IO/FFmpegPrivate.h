@@ -73,6 +73,17 @@ namespace tl
         //! (a timecode track), or the container, in that order.
         std::string getTimecode(AVFormatContext*);
 
+        //! Get a stream's details and its own metadata as tags with the
+        //! given prefix, "Video/" or "Audio/": the codec's profile and tag,
+        //! the bit rate and depth, and for video the field order, chroma
+        //! siting, rotation, and HDR mastering metadata, for audio the
+        //! channel layout (see tl::isSourceTag()).
+        void getStreamTags(AVFormatContext*, int stream, const std::string& prefix, ftk::ImageTags&);
+
+        //! Get the container's details as tags prefixed "File/": its format,
+        //! bit rate, and streams.
+        void getFileTags(AVFormatContext*, ftk::ImageTags&);
+
         //! RAII class for FFmpeg packets.
         class Packet
         {

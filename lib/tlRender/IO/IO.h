@@ -165,6 +165,12 @@ namespace tl
         ftk::Box2I& dataWindow,
         ftk::Box2I& displayWindow);
 
+    //! Whether a tag describes the file that was read rather than the
+    //! picture: the details a reader gives of the file, its streams, and
+    //! their codecs, prefixed "File/", "Video/", and "Audio/". They are not
+    //! written into another file, which has details of its own.
+    TL_IO_API bool isSourceTag(const std::string&);
+
     //! Options.
     //!
     //! A plugin's own keys are "Plugin/Option"; the bare keys are for any

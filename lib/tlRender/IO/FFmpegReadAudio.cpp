@@ -267,6 +267,8 @@ namespace tl
                     {
                         _tags[i.first] = i.second;
                     }
+                    getStreamTags(_avFormatContext, _avStream, "Audio/", _tags);
+                    getFileTags(_avFormatContext, _tags);
                     {
                         _source.codec =
                             avcodec_get_name(_avCodecContext[_avStream]->codec_id);

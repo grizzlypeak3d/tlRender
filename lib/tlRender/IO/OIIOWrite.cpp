@@ -148,7 +148,10 @@ namespace tl
             }
             for (const auto& tag : tags)
             {
-                oiioSpec.attribute(tag.first, tag.second);
+                if (!isSourceTag(tag.first))
+                {
+                    oiioSpec.attribute(tag.first, tag.second);
+                }
             }
             // The colors, for what reads the file: without a profile a
             // display's pixels other than sRGB's, Display P3's, are taken

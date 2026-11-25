@@ -1029,6 +1029,8 @@ namespace tl
                             _tags["Color Matrix"] = name;
                         }
                     }
+                    getStreamTags(_avFormatContext, _avStream, "Video/", _tags);
+                    getFileTags(_avFormatContext, _tags);
                     {
                         _source.codec =
                             avcodec_get_name(_avCodecContext[_avStream]->codec_id);

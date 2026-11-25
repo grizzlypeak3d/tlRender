@@ -738,7 +738,9 @@ namespace tl
             {
                 if ("Color Primaries" == i.first ||
                     "Color Transfer" == i.first ||
-                    "Color Matrix" == i.first)
+                    "Color Matrix" == i.first ||
+                    "hdr" == i.first ||
+                    isSourceTag(i.first))
                 {
                     continue;
                 }

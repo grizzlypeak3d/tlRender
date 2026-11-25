@@ -54,6 +54,7 @@ namespace tl
             _webp();
             _subfileSeek();
             _pixelAspectRatio();
+            _streamTags();
             _pulldown();
             _droppedFrames();
             _presets();
@@ -1190,6 +1191,78 @@ namespace tl
             _print(ftk::Format("Pixel aspect ratio: {0}").
                 arg(info.video[0].pixelAspectRatio));
             FTK_CHECK(2.0F == info.video[0].pixelAspectRatio);
+        }
+
+        void FFmpegTest::_streamTags()
+        {
+            FTK_CHECK(isSourceTag("File/Format"));
+            FTK_CHECK(isSourceTag("Video/Profile"));
+            FTK_CHECK(isSourceTag("Audio/Bit Rate"));
+            FTK_CHECK(!isSourceTag("title"));
+            FTK_CHECK(!isSourceTag("Video"));
+
+            // The details of the file and its video stream.
+            const ftk::Path path(TLRENDER_SAMPLE_DATA, "Anamorphic.mov");
+            auto readSystem = _context->getSystem<ReadSystem>();
+            auto readPlugin = readSystem->getPlugin<ffmpeg::ReadPlugin>();
+            if (!readPlugin)
+            {
+                _print("Skipped: no plugin reads the fixture");
+                return;
+            }
+            const auto tag = [](const ftk::ImageTags& tags, const std::string& key)
+            {
+                const auto i = tags.find(key);
+                return i != tags.end() ? i->second : std::string("<none>");
+            };
+            {
+                auto read = readPlugin->videoRead(path);
+                const IOInfo info = read->getInfo().get();
+                FTK_CHECK("QuickTime / MOV" == tag(info.tags, "File/Format"));
+                FTK_CHECK(0 == tag(info.tags, "File/Streams").find("video (prores)"));
+                FTK_CHECK("Proxy" == tag(info.tags, "Video/Profile"));
+                FTK_CHECK("apco" == tag(info.tags, "Video/Codec Tag"));
+                FTK_CHECK("Progressive" == tag(info.tags, "Video/Field Order"));
+                // And each frame has them too.
+                const auto data = read->readVideo(info.videoTime->start_time()).get();
+                FTK_CHECK(data.image);
+                FTK_CHECK("Proxy" == tag(data.image->getTags(), "Video/Profile"));
+            }
+
+            // What was read is not written into another file: the file
+            // written has details of its own.
+            auto writePlugin = _context->getSystem<WriteSystem>()->getPlugin<ffmpeg::WritePlugin>();
+            const ftk::Path writePath(ftk::fromFileSystem(_getTempDir() / "FFmpegStreamTags.mov"));
+            const ftk::ImageInfo imageInfo = writePlugin->getInfo(
+                ftk::ImageInfo(16, 16, ftk::ImageType::RGB_U8));
+            auto image = ftk::Image::create(imageInfo);
+            image->zero();
+            IOOptions options;
+            options["FFmpeg/Codec"] = "mjpeg";
+            try
+            {
+                write(
+                    writePlugin,
+                    image,
+                    writePath,
+                    imageInfo,
+                    {
+                        { "title", "title" },
+                        { "File/Format", "fake" },
+                        { "Video/Profile", "fake" }
+                    },
+                    OTIO_NS::RationalTime(1.0, 24.0),
+                    options);
+                auto read = readPlugin->videoRead(writePath);
+                const IOInfo info = read->getInfo().get();
+                FTK_CHECK("title" == tag(info.tags, "title"));
+                FTK_CHECK("QuickTime / MOV" == tag(info.tags, "File/Format"));
+                FTK_CHECK("fake" != tag(info.tags, "Video/Profile"));
+            }
+            catch (const std::exception& e)
+            {
+                _error(e.what());
+            }
         }
 
         void FFmpegTest::_pulldown()

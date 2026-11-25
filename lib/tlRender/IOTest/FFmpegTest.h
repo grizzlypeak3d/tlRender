@@ -34,6 +34,7 @@ namespace tl
             void _webp();
             void _subfileSeek();
             void _pixelAspectRatio();
+            void _streamTags();
             void _pulldown();
             void _droppedFrames();
             void _presets();

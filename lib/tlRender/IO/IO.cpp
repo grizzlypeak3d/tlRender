@@ -84,6 +84,14 @@ namespace tl
         }
     }
 
+    bool isSourceTag(const std::string& value)
+    {
+        return
+            0 == value.compare(0, 5, "File/") ||
+            0 == value.compare(0, 6, "Video/") ||
+            0 == value.compare(0, 6, "Audio/");
+    }
+
     bool getDataWindow(
         const ftk::ImageTags& tags,
         ftk::Box2I& dataWindow,

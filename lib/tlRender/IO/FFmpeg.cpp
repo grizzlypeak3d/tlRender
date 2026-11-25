@@ -14,6 +14,8 @@
 #include <nlohmann/json.hpp>
 
 #include <algorithm>
+#include <cmath>
+#include <cstring>
 
 #if defined(__APPLE__)
 #include <TargetConditionals.h>
@@ -25,6 +27,7 @@ extern "C"
 #include <libavformat/avformat.h>
 #include <libavutil/channel_layout.h>
 #include <libavutil/dict.h>
+#include <libavutil/display.h>
 #include <libavutil/ffversion.h>
 #include <libavutil/hdr_dynamic_metadata.h>
 #include <libavutil/imgutils.h>
@@ -98,9 +101,11 @@ namespace tl
                 case AV_FRAME_DATA_MASTERING_DISPLAY_METADATA:
                 {
                     auto data = reinterpret_cast<AVMasteringDisplayMetadata*>(sideData[i]->data);
+                    // As a fraction: the minimum is a fraction of a nit,
+                    // which an integer division made zero.
                     hdr.displayMasteringLuminance = ftk::RangeF(
-                        data->min_luminance.num / data->min_luminance.den,
-                        data->max_luminance.num / data->max_luminance.den);
+                        av_q2d(data->min_luminance),
+                        av_q2d(data->max_luminance));
                     break;
                 }
                 case AV_FRAME_DATA_CONTENT_LIGHT_LEVEL:
@@ -149,6 +154,193 @@ namespace tl
             default: break;
             }
             return out;
+        }
+
+        namespace
+        {
+            std::string getBitRateLabel(int64_t value)
+            {
+                return value >= 1000000 ?
+                    std::string(ftk::Format("{0} Mb/s").arg(value / 1000000.0, 1)) :
+                    std::string(ftk::Format("{0} kb/s").arg(value / 1000.0, 0));
+            }
+
+            std::string getFieldOrderLabel(AVFieldOrder value)
+            {
+                switch (value)
+                {
+                case AV_FIELD_PROGRESSIVE: return "Progressive";
+                case AV_FIELD_TT: return "Top field first";
+                case AV_FIELD_BB: return "Bottom field first";
+                case AV_FIELD_TB: return "Top field coded first, bottom shown first";
+                case AV_FIELD_BT: return "Bottom field coded first, top shown first";
+                default: break;
+                }
+                return std::string();
+            }
+
+            std::string getChromaticityLabel(const AVRational& x, const AVRational& y)
+            {
+                return ftk::Format("{0} {1}").arg(av_q2d(x), 4).arg(av_q2d(y), 4);
+            }
+        }
+
+        void getStreamTags(
+            AVFormatContext* avFormatContext,
+            int stream,
+            const std::string& prefix,
+            ftk::ImageTags& tags)
+        {
+            if (stream < 0 || stream >= static_cast<int>(avFormatContext->nb_streams))
+                return;
+            const AVStream* avStream = avFormatContext->streams[stream];
+            const AVCodecParameters* par = avStream->codecpar;
+
+            if (const char* name = avcodec_profile_name(par->codec_id, par->profile))
+            {
+                tags[prefix + "Profile"] = name;
+            }
+            if (par->codec_tag != 0)
+            {
+                char buf[AV_FOURCC_MAX_STRING_SIZE] = {};
+                av_fourcc_make_string(buf, par->codec_tag);
+                tags[prefix + "Codec Tag"] = buf;
+            }
+            if (par->bit_rate > 0)
+            {
+                tags[prefix + "Bit Rate"] = getBitRateLabel(par->bit_rate);
+            }
+            if (par->bits_per_raw_sample > 0)
+            {
+                tags[prefix + "Bit Depth"] = ftk::Format("{0}").arg(par->bits_per_raw_sample);
+            }
+
+            if (AVMEDIA_TYPE_VIDEO == par->codec_type)
+            {
+                const std::string fieldOrder = getFieldOrderLabel(par->field_order);
+                if (!fieldOrder.empty())
+                {
+                    tags[prefix + "Field Order"] = fieldOrder;
+                }
+                if (par->chroma_location != AVCHROMA_LOC_UNSPECIFIED)
+                {
+                    if (const char* name = av_chroma_location_name(par->chroma_location))
+                    {
+                        tags[prefix + "Chroma Location"] = name;
+                    }
+                }
+#if LIBAVCODEC_VERSION_INT >= AV_VERSION_INT(60, 29, 100)
+                if (const AVPacketSideData* sd = av_packet_side_data_get(
+                    par->coded_side_data,
+                    par->nb_coded_side_data,
+                    AV_PKT_DATA_DISPLAYMATRIX))
+                {
+                    const double rotation = av_display_rotation_get(
+                        reinterpret_cast<const int32_t*>(sd->data));
+                    // Counterclockwise, as the display matrix gives it
+                    // and ffprobe reports it.
+                    if (!std::isnan(rotation) && std::abs(rotation) > .5)
+                    {
+                        tags[prefix + "Rotation"] = ftk::Format("{0} degrees {1}").
+                            arg(std::abs(rotation), 0).
+                            arg(rotation > 0.0 ? "counterclockwise" : "clockwise");
+                    }
+                }
+                if (const AVPacketSideData* sd = av_packet_side_data_get(
+                    par->coded_side_data,
+                    par->nb_coded_side_data,
+                    AV_PKT_DATA_MASTERING_DISPLAY_METADATA))
+                {
+                    const auto* data = reinterpret_cast<const AVMasteringDisplayMetadata*>(sd->data);
+                    if (data->has_primaries)
+                    {
+                        tags[prefix + "Mastering Primaries"] = ftk::Format(
+                            "R {0}, G {1}, B {2}, W {3}").
+                            arg(getChromaticityLabel(data->display_primaries[0][0], data->display_primaries[0][1])).
+                            arg(getChromaticityLabel(data->display_primaries[1][0], data->display_primaries[1][1])).
+                            arg(getChromaticityLabel(data->display_primaries[2][0], data->display_primaries[2][1])).
+                            arg(getChromaticityLabel(data->white_point[0], data->white_point[1]));
+                    }
+                    if (data->has_luminance)
+                    {
+                        tags[prefix + "Mastering Luminance"] = ftk::Format("{0} to {1} nits").
+                            arg(av_q2d(data->min_luminance), 4).
+                            arg(av_q2d(data->max_luminance), 0);
+                    }
+                }
+                if (const AVPacketSideData* sd = av_packet_side_data_get(
+                    par->coded_side_data,
+                    par->nb_coded_side_data,
+                    AV_PKT_DATA_CONTENT_LIGHT_LEVEL))
+                {
+                    const auto* data = reinterpret_cast<const AVContentLightMetadata*>(sd->data);
+                    tags[prefix + "Max CLL"] = ftk::Format("{0} nits").arg(data->MaxCLL);
+                    tags[prefix + "Max FALL"] = ftk::Format("{0} nits").arg(data->MaxFALL);
+                }
+#endif // LIBAVCODEC_VERSION_INT
+            }
+            else if (AVMEDIA_TYPE_AUDIO == par->codec_type)
+            {
+                char buf[256] = {};
+                if (av_channel_layout_describe(&par->ch_layout, buf, sizeof(buf)) > 0)
+                {
+                    tags[prefix + "Channel Layout"] = buf;
+                }
+                if (0 == par->bits_per_raw_sample && par->bits_per_coded_sample > 0)
+                {
+                    tags[prefix + "Bit Depth"] = ftk::Format("{0}").arg(par->bits_per_coded_sample);
+                }
+            }
+
+            // The stream's own metadata: the handler, the vendor, the
+            // encoder, the language.
+            AVDictionaryEntry* tag = nullptr;
+            while ((tag = av_dict_get(avStream->metadata, "", tag, AV_DICT_IGNORE_SUFFIX)))
+            {
+                // A vendor of four zero bytes is none.
+                if (0 == strcmp(tag->key, "vendor_id") &&
+                    0 == strcmp(tag->value, "[0][0][0][0]"))
+                    continue;
+                tags[prefix + tag->key] = tag->value;
+            }
+        }
+
+        void getFileTags(AVFormatContext* avFormatContext, ftk::ImageTags& tags)
+        {
+            if (avFormatContext->iformat && avFormatContext->iformat->long_name)
+            {
+                tags["File/Format"] = avFormatContext->iformat->long_name;
+            }
+            if (avFormatContext->bit_rate > 0)
+            {
+                tags["File/Bit Rate"] = getBitRateLabel(avFormatContext->bit_rate);
+            }
+            std::vector<std::string> streams;
+            for (unsigned int i = 0; i < avFormatContext->nb_streams; ++i)
+            {
+                const AVCodecParameters* par = avFormatContext->streams[i]->codecpar;
+                std::string s;
+                if (const char* type = av_get_media_type_string(par->codec_type))
+                {
+                    s = type;
+                }
+                const char* codec = avcodec_get_name(par->codec_id);
+                if (codec && AV_CODEC_ID_NONE != par->codec_id)
+                {
+                    s += std::string(s.empty() ? "" : " ") + "(" + codec + ")";
+                }
+                else if (par->codec_tag != 0)
+                {
+                    char buf[AV_FOURCC_MAX_STRING_SIZE] = {};
+                    av_fourcc_make_string(buf, par->codec_tag);
+                    s += std::string(s.empty() ? "" : " ") + "(" + buf + ")";
+                }
+                streams.push_back(s);
+            }
+            if (!streams.empty())
+            {
+                tags["File/Streams"] = ftk::join(streams, ", ");
+            }
         }
 
         std::string getTimecode(AVFormatContext* avFormatContext)
