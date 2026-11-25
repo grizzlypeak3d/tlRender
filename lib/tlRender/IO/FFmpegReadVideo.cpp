@@ -1985,6 +1985,22 @@ namespace tl
                         kCVPixelFormatType_420YpCbCr8BiPlanarFullRange == format;
                 }
 #endif // __APPLE__
+                if (_hwAccel && !_hwLogged && _avFrame->format != _hwPixelFormat)
+                {
+                    // The device came up but the decoder gave a software
+                    // frame: the hardware has no decoder for this stream
+                    // (ProRes on an A-series iPad, 4:2:2 on NVDEC), and
+                    // FFmpeg's own decoder took over without saying so.
+                    const char* format = av_get_pix_fmt_name(
+                        static_cast<AVPixelFormat>(_avFrame->format));
+                    _log(
+                        ftk::Format("Hardware decoding is not available for the codec \"{0}\" ({1}); using software decoding: \"{2}\"").
+                        arg(_avCodec->name ? _avCodec->name : "?").
+                        arg(format ? format : "?").
+                        arg(_fileName),
+                        ftk::LogType::Warning);
+                    _hwLogged = true;
+                }
                 if (_hwAccel && !textureFrame && _avFrame->format == _hwPixelFormat)
                 {
                     // Download the hardware surface to a CPU frame (NV12/P010).
