@@ -673,6 +673,22 @@ if(WIN32)
         COMMAND ${FFmpeg_MSYS2} -c "mv ${CMAKE_INSTALL_PREFIX}/bin/swresample.lib ${CMAKE_INSTALL_PREFIX}/lib"
         COMMAND ${FFmpeg_MSYS2} -c "mv ${CMAKE_INSTALL_PREFIX}/bin/swscale.lib ${CMAKE_INSTALL_PREFIX}/lib")
 else()
+    # libaom, libsvtav1, OpenAPV and OpenH264 are found by FFmpeg only
+    # through pkg-config, which is the system's here (on Windows MSYS2's is
+    # installed above). Without one, configure fails long after it could
+    # have been said, with "aom >= 2.0.0 not found using pkg-config" however
+    # well aom was built: a fresh Mac without Homebrew's was seen to.
+    if(TLRENDER_AOM OR TLRENDER_SVTAV1 OR TLRENDER_OPENAPV OR TLRENDER_OPENH264)
+        find_program(FFmpeg_PKG_CONFIG_EXECUTABLE NAMES pkg-config pkgconf)
+        if(NOT FFmpeg_PKG_CONFIG_EXECUTABLE)
+            message(FATAL_ERROR
+                "FFmpeg needs pkg-config to find libaom, libsvtav1, OpenAPV "
+                "and OpenH264: install it (macOS: \"brew install pkgconf\"; "
+                "Ubuntu: \"sudo apt-get install pkg-config\"; Rocky: "
+                "\"sudo dnf install pkgconf-pkg-config\").")
+        endif()
+    endif()
+
     # -lpthread because the configure check for SVT-AV1 links its static
     # library, whose pkg-config file lists no private libraries, and on glibc
     # before 2.34 the pthread and semaphore symbols it needs are not in libc.
