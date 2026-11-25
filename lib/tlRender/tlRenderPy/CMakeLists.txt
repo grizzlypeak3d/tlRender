@@ -66,6 +66,30 @@ else()
     set(TLRENDER_STUBGEN ${NB_DIR}/stubgen.py)
 endif()
 set(TLRENDER_PYTHON_STUB ${TLRENDER_PYTHON_PACKAGE_DIR}/_tlrender/__init__.pyi)
+# Where a library's headers are, from its target's include directories:
+# the one that has the given header in it. A source build's and an
+# installed package's alike, for doc_stub.py.
+function(tlrender_find_headers out target header)
+    set(found)
+    if(TARGET ${target})
+        get_target_property(dirs ${target} INTERFACE_INCLUDE_DIRECTORIES)
+        foreach(dir ${dirs})
+            string(REGEX REPLACE "^\\$<BUILD_INTERFACE:(.*)>$" "\\1" dir "${dir}")
+            if(NOT dir MATCHES "^\\$<" AND EXISTS ${dir}/${header})
+                get_filename_component(found ${dir}/${header} DIRECTORY)
+                get_filename_component(found ${found}/.. ABSOLUTE)
+                break()
+            endif()
+        endforeach()
+    endif()
+    set(${out} ${found} PARENT_SCOPE)
+endfunction()
+# feather-tk's, for its classes the stubs have: the observables.
+tlrender_find_headers(TLRENDER_FTK_HEADERS ftk::ftkCore ftk/Core/Observable.h)
+set(TLRENDER_DOC_HEADERS --headers ${PROJECT_SOURCE_DIR}/lib/tlRender)
+if(TLRENDER_FTK_HEADERS)
+    list(APPEND TLRENDER_DOC_HEADERS --headers ${TLRENDER_FTK_HEADERS})
+endif()
 # The GPU renderers' libraries as well, where they are built: the UI
 # libraries load them, and the module could not be imported without their
 # being found.
@@ -110,6 +134,14 @@ add_custom_command(
         # in the build environment instead.
         -i ${CMAKE_INSTALL_PREFIX}/python
         -O ${TLRENDER_PYTHON_PACKAGE_DIR}
+    # The headers' comments, as the stubs' docstrings: the bindings have
+    # almost none of their own. See etc/Python/doc_stub.py.
+    COMMAND ${Python_EXECUTABLE}
+        ${PROJECT_SOURCE_DIR}/etc/Python/doc_stub.py
+        ${TLRENDER_DOC_HEADERS}
+        --bindings ${PROJECT_SOURCE_DIR}/lib/tlRender
+        ${TLRENDER_PYTHON_PACKAGE_DIR}/_tlrender/__init__.pyi
+        ${TLRENDER_PYTHON_PACKAGE_DIR}/_tlrender/ui.pyi
     # feather-tk's module as well where it is built here rather than
     # installed: importing this one imports that one, which has to exist
     # by then.
@@ -118,6 +150,7 @@ add_custom_command(
         $<TARGET_NAME_IF_EXISTS:_feather_tk>
         ${TLRENDER_STUBGEN}
         ${PROJECT_SOURCE_DIR}/etc/Python/make_stub.py
+        ${PROJECT_SOURCE_DIR}/etc/Python/doc_stub.py
     COMMENT "Generating the tlrender type stubs")
 add_custom_target(_tlrender_stub ALL DEPENDS ${TLRENDER_PYTHON_STUB})
 file(TOUCH ${TLRENDER_PYTHON_PACKAGE_DIR}/py.typed)
