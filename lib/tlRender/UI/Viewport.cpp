@@ -1789,8 +1789,16 @@ namespace tl
             const ftk::V2I& viewPos = p.viewPos->get();
             const double zoom = p.zoom->get();
 
+            const Compare compare = p.compareOptions->get().compare;
             for (size_t i = 0; i < boxes.size() && i < p.videoFrame.size(); ++i)
             {
+                // Only over a picture that is shown: B's missing frame, with
+                // A alone on screen, is not A's.
+                if (!isShown(compare, i))
+                {
+                    continue;
+                }
+
                 // Any layer standing in makes the picture a stand-in: what is
                 // on screen is not what was asked for either way.
                 bool missing = false;
