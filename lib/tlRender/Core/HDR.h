@@ -21,6 +21,7 @@ namespace tl
     {
         SDR,
         HDR,
+        //! SMPTE ST 2084 (PQ).
         ST2084,
 
         Count,
@@ -44,6 +45,7 @@ namespace tl
     //! HDR data.
     struct TL_CORE_API_TYPE HDRData
     {
+        //! Electro-optical transfer function.
         HDR_EOTF eotf = HDR_EOTF::SDR;
 
         //! Default Rec. 2020 color primaries (red, green, blue, white).
@@ -54,8 +56,11 @@ namespace tl
             ftk::V2F(.131F,  .046F),
             ftk::V2F(.3127F, .3290F)
         };
+        //! Mastering display luminance, minimum to maximum, in nits.
         ftk::RangeF displayMasteringLuminance = ftk::RangeF(0.F, 1000.F);
+        //! Maximum content light level in nits.
         float maxCLL = 1000.F;
+        //! Maximum frame-average light level in nits.
         float maxFALL = 400.F;
 
         bool operator == (const HDRData&) const = default;

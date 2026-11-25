@@ -41,7 +41,9 @@ namespace tl
     //! Comparison time modes.
     enum class TL_TIMELINE_API_TYPE CompareTime
     {
+        //! Each file at the same offset from the start of its time range.
         Relative,
+        //! Each file at the same time, whatever its time range.
         Absolute,
 
         Count,
@@ -52,9 +54,15 @@ namespace tl
     //! Comparison options.
     struct TL_TIMELINE_API_TYPE CompareOptions
     {
+        //! The comparison mode.
         Compare  compare      = Compare::None;
+        //! The wipe center, as a fraction of the first image's width and
+        //! height; (0, 0) is the top left.
         ftk::V2F wipeCenter   = ftk::V2F(.5F, .5F);
+        //! The wipe rotation, in degrees. At zero the wipe line is vertical,
+        //! with A on the left and B on the right.
         float    wipeRotation = 0.F;
+        //! The opacity of A over B in the overlay comparison, from 0 to 1.
         float    overlay      = .5F;
 
         //! What the difference is multiplied by before it is shown. The
@@ -63,6 +71,11 @@ namespace tl
         //! their own size they are indistinguishable from black.
         float    differenceGain = 1.F;
 
+        //! Whether the other files are sized to the first: fitted to its box
+        //! where they are drawn over it, as tall as it side by side, as wide
+        //! as it one above the other, and fitted to tiles its size. Otherwise
+        //! each keeps its own size, and the tiles are as large as the largest
+        //! file.
         bool     sameSize     = true;
 
         bool operator == (const CompareOptions&) const = default;

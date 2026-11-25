@@ -56,9 +56,13 @@ namespace tl
             AudioType type,
             int       sampleRate);
 
+        //! Audio name.
         std::string name         = "Default";
+        //! Number of channels.
         int         channelCount = 0;
+        //! Sample data type.
         AudioType   type         = AudioType::None;
+        //! Sample rate in hertz.
         int         sampleRate   = 0;
 
         //! Is the audio valid?

@@ -23,9 +23,15 @@ namespace tl
         //! Item data.
         struct TL_UI_API_TYPE ItemData
         {
+            //! The timeline's frame rate, which durations are shown at.
             double speed = 0.0;
+            //! The directory relative media paths are read against: the
+            //! timeline's protocol and directory.
             std::string dir;
+            //! The options the timeline was opened with. The items read their
+            //! thumbnails and waveforms with its path and I/O options.
             Options options;
+            //! The time units model the time and duration labels are shown in.
             std::shared_ptr<ITimeUnitsModel> timeUnitsModel;
 
             //! How to turn a time on the timeline into the time to show for
@@ -41,7 +47,9 @@ namespace tl
         //! In/out points display options.
         enum class TL_UI_API_TYPE InOutDisplay
         {
+            //! Mark the range between the in and out points.
             InsideRange,
+            //! Mark the parts of the timeline outside the in and out points.
             OutsideRange,
 
             Count,
@@ -74,6 +82,8 @@ namespace tl
         //! Item options.
         struct TL_UI_API_TYPE ItemOptions
         {
+            //! Whether the items take the mouse and keyboard, to seek, scroll,
+            //! and zoom. Off for a timeline that is only looked at.
             bool inputEnabled = true;
 
             bool operator == (const ItemOptions&) const = default;
@@ -89,9 +99,13 @@ namespace tl
         //! Display options.
         struct TL_UI_API_TYPE DisplayOptions
         {
+            //! How the in and out points are drawn on the ruler.
             InOutDisplay inOutDisplay = InOutDisplay::InsideRange;
+            //! Which of the cache is drawn on the ruler.
             CacheDisplay cacheDisplay = CacheDisplay::VideoAndAudio;
 
+            //! Show only the first video and first audio track, as strips
+            //! without labels, and scroll horizontally only.
             bool minimize = true;
 
             //! Background of the timeline area; None lets whatever is
@@ -102,16 +116,30 @@ namespace tl
             //! has one. Items without a color are unaffected.
             bool clipColors = true;
 
+            //! Whether video clips show thumbnails.
             bool thumbnails = true;
+            //! Thumbnail height in pixels, not scaled by the display scale.
+            //! The width follows from the media's aspect ratio.
             int thumbnailHeight = 100;
+            //! Whether audio clips show waveforms.
             bool waveforms = true;
+            //! Width in pixels of each waveform tile.
             int waveformWidth = 50;
+            //! Waveform height in pixels, not scaled by the display scale.
             int waveformHeight = 50;
+            //! Waveform primitive type. Waveforms are drawn as meshes whatever
+            //! it is set to; a change only requests them again.
             WaveformPrim waveformPrim = WaveformPrim::Mesh;
 
+            //! The size of the band thumbnails and waveforms are requested for,
+            //! as a multiple of the visible area about its center, so that
+            //! scrolling finds them started. Items that leave the band let
+            //! theirs go.
             float clipRectScale = 2.F;
 
+            //! The OpenColorIO options thumbnails are colored with.
             OCIOOptions ocio;
+            //! The LUT options thumbnails are colored with.
             LUTOptions lut;
 
             bool operator == (const DisplayOptions&) const = default;
@@ -120,8 +148,11 @@ namespace tl
         //! Marker.
         struct TL_UI_API_TYPE Marker
         {
+            //! Marker name.
             std::string name;
+            //! Marker color; see getMarkerColor().
             ftk::Color4F color;
+            //! The marked range, in the time of the item the marker is on.
             OTIO_NS::TimeRange range;
 
             TL_UI_API bool operator == (const Marker&) const;

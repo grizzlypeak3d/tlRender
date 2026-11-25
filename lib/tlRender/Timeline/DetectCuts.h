@@ -50,7 +50,10 @@ namespace tl
         //! frames within relativeWindow on either side of it (and half that
         //! times the highest of them). A relativeRatio of zero turns it off.
         float relativeMin = .1F;
+        //! How many times the average of the frames around it a frame must
+        //! score to be a cut; zero turns the comparison off.
         float relativeRatio = 4.F;
+        //! Number of frames on either side a frame is compared with.
         int relativeWindow = 12;
 
         //! Cuts closer together than this many frames are one cut, the
@@ -67,7 +70,9 @@ namespace tl
     //! before, from 0 to 1, and its average luma, from 0 to 1.
     struct TL_TIMELINE_API_TYPE CutScore
     {
+        //! How different the frame is from the one before, from 0 to 1.
         float score = 0.F;
+        //! Average luma of the frame, from 0 to 1.
         float luma = 0.F;
 
         bool operator == (const CutScore&) const = default;

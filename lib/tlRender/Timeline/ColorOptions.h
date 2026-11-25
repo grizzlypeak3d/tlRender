@@ -20,8 +20,11 @@ namespace tl
     //! OpenColorIO configuration options.
     enum class TL_TIMELINE_API_TYPE OCIOConfig
     {
+        //! The configuration built into OpenColorIO, "ocio://default".
         BuiltIn,
+        //! The configuration the OCIO environment variable names.
         EnvVar,
+        //! The configuration file in OCIOOptions::fileName.
         File,
 
         Count,
@@ -32,12 +35,21 @@ namespace tl
     //! OpenColorIO options.
     struct TL_TIMELINE_API_TYPE OCIOOptions
     {
+        //! Whether OpenColorIO color management is applied. It takes effect
+        //! only with a display, a view, and an input color space (this one's
+        //! or DisplayOptions::ocioInput).
         bool        enabled  = false;
+        //! Where the configuration comes from.
         OCIOConfig  config   = OCIOConfig::BuiltIn;
+        //! The configuration file, for OCIOConfig::File.
         std::string fileName;
+        //! The input color space, by name in the configuration.
         std::string input;
+        //! The display, by name in the configuration.
         std::string display;
+        //! The view, by name in the configuration.
         std::string view;
+        //! The look, by name in the configuration; empty for none.
         std::string look;
 
         bool operator == (const OCIOOptions&) const = default;
@@ -60,7 +72,11 @@ namespace tl
     //! LUT operation order.
     enum class TL_TIMELINE_API_TYPE LUTOrder
     {
+        //! Applied after the color adjustments and the OpenColorIO display
+        //! transform.
         PostConfig,
+        //! Applied before the OpenColorIO input conversion and the color
+        //! adjustments.
         PreConfig,
 
         Count,
@@ -86,9 +102,13 @@ namespace tl
     //! LUT options.
     struct TL_TIMELINE_API_TYPE LUTOptions
     {
+        //! Whether the LUT is applied.
         bool         enabled   = false;
+        //! The LUT file, in any of the formats getLUTFormatNames() lists.
         std::string  fileName;
+        //! The direction the LUT is applied in.
         LUTDirection direction = LUTDirection::First;
+        //! Where the LUT is applied among the display's color operations.
         LUTOrder     order     = LUTOrder::First;
 
         bool operator == (const LUTOptions&) const = default;

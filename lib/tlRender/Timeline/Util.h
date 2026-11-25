@@ -30,7 +30,9 @@ namespace tl
     //! A named group of timeline file extensions, e.g. "Images".
     struct TL_TIMELINE_API_TYPE ExtGroup
     {
+        //! The name of the group, e.g. "Images".
         std::string label;
+        //! The file extensions, with the leading period.
         std::vector<std::string> exts;
 
         bool operator == (const ExtGroup&) const = default;

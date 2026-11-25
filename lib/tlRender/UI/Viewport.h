@@ -51,8 +51,11 @@ namespace tl
             //! \name Comparison Options
             ///@{
 
+            //! Get the comparison options.
             TL_UI_API const CompareOptions& getCompareOptions() const;
+            //! Observe the comparison options.
             TL_UI_API std::shared_ptr<ftk::IObservable<CompareOptions> > observeCompareOptions() const;
+            //! Set the comparison options.
             TL_UI_API void setCompareOptions(const CompareOptions&);
 
             ///@}
@@ -60,8 +63,11 @@ namespace tl
             //! \name OpenColorIO Options
             ///@{
 
+            //! Get the OpenColorIO options.
             TL_UI_API const OCIOOptions& getOCIOOptions() const;
+            //! Observe the OpenColorIO options.
             TL_UI_API std::shared_ptr<ftk::IObservable<OCIOOptions> > observeOCIOOptions() const;
+            //! Set the OpenColorIO options.
             TL_UI_API void setOCIOOptions(const OCIOOptions&);
 
             //! Set a resolver for per layer OCIO input color spaces; see
@@ -76,8 +82,11 @@ namespace tl
             //! \name LUT Options
             ///@{
 
+            //! Get the LUT options.
             TL_UI_API const LUTOptions& getLUTOptions() const;
+            //! Observe the LUT options.
             TL_UI_API std::shared_ptr<ftk::IObservable<LUTOptions> > observeLUTOptions() const;
+            //! Set the LUT options.
             TL_UI_API void setLUTOptions(const LUTOptions&);
 
             ///@}
@@ -85,8 +94,15 @@ namespace tl
             //! \name Image Options
             ///@{
 
+            //! Get the image options, one for each of the player's current
+            //! video frames: the first for the player's own timeline, the rest
+            //! for the timelines compared with it. A frame without one is drawn
+            //! with its layers' own options.
             TL_UI_API const std::vector<ftk::ImageOptions>& getImageOptions() const;
+            //! Observe the image options.
             TL_UI_API std::shared_ptr<ftk::IObservableList<ftk::ImageOptions> > observeImageOptions() const;
+            //! Set the image options. The first one's alpha blend, unless it is
+            //! None, is also how the picture is blended into the window.
             TL_UI_API void setImageOptions(const std::vector<ftk::ImageOptions>&);
 
             ///@}
@@ -94,8 +110,14 @@ namespace tl
             //! \name Display Options
             ///@{
 
+            //! Get the display options, one for each of the player's current
+            //! video frames as for the image options. A frame without one is
+            //! drawn with the defaults. The first one's aspect ratio lays out
+            //! the comparison.
             TL_UI_API const std::vector<tl::DisplayOptions>& getDisplayOptions() const;
+            //! Observe the display options.
             TL_UI_API std::shared_ptr<ftk::IObservableList<tl::DisplayOptions> > observeDisplayOptions() const;
+            //! Set the display options.
             TL_UI_API void setDisplayOptions(const std::vector<tl::DisplayOptions>&);
 
             ///@}
@@ -103,15 +125,21 @@ namespace tl
             //! \name Background Options
             ///@{
 
+            //! Get the background options.
             TL_UI_API const BackgroundOptions& getBackgroundOptions() const;
+            //! Observe the background options.
             TL_UI_API std::shared_ptr<ftk::IObservable<BackgroundOptions> > observeBackgroundOptions() const;
+            //! Set the background options.
             TL_UI_API void setBackgroundOptions(const BackgroundOptions&);
 
             //! \name Foreground Options
             ///@{
 
+            //! Get the foreground options.
             TL_UI_API const ForegroundOptions& getForegroundOptions() const;
+            //! Observe the foreground options.
             TL_UI_API std::shared_ptr<ftk::IObservable<ForegroundOptions> > observeForegroundOptions() const;
+            //! Set the foreground options.
             TL_UI_API void setForegroundOptions(const ForegroundOptions&);
 
             ///@}
@@ -119,8 +147,13 @@ namespace tl
             //! \name Color Buffer Type
             ///@{
 
+            //! Get the type of the buffer the viewport draws into, one of
+            //! getViewportColorBuffers(). The default is
+            //! getViewportColorBufferDefault().
             TL_UI_API ftk::ImageType getColorBuffer() const;
+            //! Observe the type of the buffer the viewport draws into.
             TL_UI_API std::shared_ptr<ftk::IObservable<ftk::ImageType> > observeColorBuffer() const;
+            //! Set the type of the buffer the viewport draws into.
             TL_UI_API void setColorBuffer(ftk::ImageType);
 
             //! Get what the picture is display encoded for.
@@ -147,7 +180,11 @@ namespace tl
             //! \name Timeline Player
             ///@{
 
+            //! Get the player whose frames are drawn, if any.
             TL_UI_API const std::shared_ptr<Player>& getPlayer() const;
+            //! Set the player whose frames are drawn, or none. The frames per
+            //! second and dropped frames go back to zero, and the pick and color
+            //! sample are unset.
             TL_UI_API virtual void setPlayer(const std::shared_ptr<Player>&);
 
             //! Show a held frame in place of the comparison's other sources

@@ -11,6 +11,8 @@ namespace tl
     //! Audio layer.
     struct TL_TIMELINE_API_TYPE AudioLayer
     {
+        //! Audio data: one second of it, silent where the clip does not cover
+        //! the second.
         std::shared_ptr<Audio> audio;
 
         bool operator == (const AudioLayer&) const = default;
@@ -19,7 +21,11 @@ namespace tl
     //! Audio frame.
     struct TL_TIMELINE_API_TYPE AudioFrame
     {
+        //! Time the frame starts at, in seconds. A frame is one second of
+        //! audio.
         double                  seconds = -1.0;
+        //! One layer for each audio clip under the frame's second, or one
+        //! silent layer when there are none.
         std::vector<AudioLayer> layers;
 
         bool operator == (const AudioFrame&) const = default;

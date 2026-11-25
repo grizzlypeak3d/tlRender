@@ -52,7 +52,10 @@ namespace tl
     {
         TL_IO_API SeqOptions();
 
+        //! Frame rate, in frames per second, of a sequence whose files do not
+        //! give one.
         double        defaultSpeed  = 24.0;
+        //! What to do about a frame the sequence does not have.
         MissingFrames missingFrames = MissingFrames::Error;
 
         bool operator == (const SeqOptions&) const = default;

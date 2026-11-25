@@ -19,10 +19,18 @@ namespace tl
     //! Video layer.
     struct TL_TIMELINE_API_TYPE VideoLayer
     {
+        //! The image, or null when there is none. During a transition, the
+        //! image of the clip going out.
         std::shared_ptr<ftk::Image> image;
+        //! The options "image" is drawn with when the renderer is not given
+        //! options of its own.
         ftk::ImageOptions           imageOptions;
 
+        //! During a transition, the image of the clip coming in; null
+        //! otherwise.
         std::shared_ptr<ftk::Image> imageB;
+        //! The options "imageB" is drawn with when the renderer is not given
+        //! options of its own.
         ftk::ImageOptions           imageOptionsB;
 
         //! The box the image occupies within the timeline canvas, when the
@@ -40,7 +48,10 @@ namespace tl
         //! clip during a transition and may be placed differently.
         std::optional<ftk::Box2F>   boundsB;
 
+        //! The transition the layer is in at this time, or None.
         Transition                  transition      = Transition::None;
+        //! How far through the transition the frame is, from zero at its
+        //! start to one at its end.
         float                       transitionValue = 0.F;
 
         //! The path of the media the image came from, so a consumer can
@@ -79,6 +90,8 @@ namespace tl
     //! Video frame.
     struct TL_TIMELINE_API_TYPE VideoFrame
     {
+        //! The size of the timeline's video, from its I/O information
+        //! (Timeline::getIOInfo()). The layer images may be other sizes.
         ftk::Size2I             size;
 
         //! The size of the canvas shared by the whole timeline, when any clip
@@ -87,7 +100,10 @@ namespace tl
         //! image sizes instead.
         ftk::Size2I             canvasSize;
 
+        //! The time on the timeline the frame is for.
         OTIO_NS::RationalTime   time;
+        //! The layers, one for each enabled video track with an item at the
+        //! time, in track order.
         std::vector<VideoLayer> layers;
 
         TL_TIMELINE_API bool operator == (const VideoFrame&) const;

@@ -41,11 +41,18 @@ namespace tl
     //! Grid.
     struct TL_TIMELINE_API_TYPE Grid
     {
+        //! Whether the grid is drawn. It is left out while its cells are no
+        //! more than the line width plus ten view pixels across.
         bool          enabled      = false;
+        //! Whether the cells are a size (cellSize) or a number (cellCount).
         GridCellMode  cellMode     = GridCellMode::CellSize;
+        //! The cell size, in image pixels, for GridCellMode::CellSize.
         int           cellSize     = 100;
+        //! The number of columns and rows, for GridCellMode::CellCount.
         ftk::V2I      cellCount    = ftk::V2I(5, 3);
+        //! The line width, in view pixels.
         int           lineWidth    = 2;
+        //! The line color.
         ftk::Color4F  color        = ftk::Color4F(0.F, 0.F, 0.F);
         GridLabels    labels       = GridLabels::None;
         ftk::Color4F  textColor    = ftk::Color4F(1.F, 1.F, 1.F);
@@ -59,9 +66,14 @@ namespace tl
     //! Center marker.
     struct TL_TIMELINE_API_TYPE CenterMarker
     {
+        //! Whether the center marker is drawn.
         bool         enabled = false;
+        //! How far the cross reaches from the center, in view pixels. The
+        //! arms start a third of the way out, leaving the center clear.
         int          size    = 30;
+        //! The line width, in view pixels.
         int          width   = 3;
+        //! The marker color.
         ftk::Color4F color   = ftk::Color4F(1.F, 1.F, 1.F);
 
         bool operator == (const CenterMarker&) const = default;
@@ -82,8 +94,11 @@ namespace tl
     //! way it hides the outline.
     struct TL_TIMELINE_API_TYPE MissingIndicator
     {
+        //! Whether the indicator is drawn.
         bool         enabled = false;
+        //! The line width of the cross, in view pixels.
         int          width   = 6;
+        //! The cross color.
         ftk::Color4F color   = ftk::Color4F(1.F, 0.F, 0.F);
 
         bool operator == (const MissingIndicator&) const = default;
@@ -112,9 +127,13 @@ namespace tl
     //! is the color under the warning, not the warning.
     struct TL_TIMELINE_API_TYPE ClippingWarning
     {
+        //! Whether the clipping warning is drawn.
         bool                enabled = false;
+        //! What is compared with the range.
         ClippingWarningMode mode    = ClippingWarningMode::AnyChannel;
+        //! The bottom of the range; what is below it is marked magenta.
         float               low     = 0.F;
+        //! The top of the range; what is above it is marked red.
         float               high    = 1.F;
 
         bool operator == (const ClippingWarning&) const = default;
@@ -127,10 +146,17 @@ namespace tl
     //! exactly that rather than 1.78.
     struct TL_TIMELINE_API_TYPE FrameGuide
     {
+        //! Whether the frame guide is drawn.
         bool         enabled     = false;
+        //! The aspect ratio of the frame. One that is not valid draws no
+        //! guide.
         AspectRatio  aspect      = AspectRatio(2.39F);
+        //! The opacity of the black mask outside the frame, from 0 to 1.
         float        maskOpacity = .85F;
+        //! The width of the frame's outline, in view pixels, inside the
+        //! frame.
         int          lineWidth   = 2;
+        //! The outline color.
         ftk::Color4F color       = ftk::Color4F(1.F, 1.F, 1.F, .5F);
 
         bool operator == (const FrameGuide&) const = default;
@@ -140,10 +166,17 @@ namespace tl
     //! frame -- the frame guide's when it is on, the picture's otherwise.
     struct TL_TIMELINE_API_TYPE SafeAreas
     {
+        //! Whether the safe areas are drawn.
         bool         enabled   = false;
+        //! The action safe area, as a fraction of the frame's width and
+        //! height.
         float        action    = .93F;
+        //! The title safe area, as a fraction of the frame's width and
+        //! height.
         float        title     = .9F;
+        //! The line width, in view pixels.
         int          lineWidth = 2;
+        //! The line color.
         ftk::Color4F color     = ftk::Color4F(1.F, 1.F, 1.F, .5F);
 
         bool operator == (const SafeAreas&) const = default;
@@ -155,8 +188,11 @@ namespace tl
     //! tl::getDataWindow()). The lines are view pixels wide.
     struct TL_TIMELINE_API_TYPE DataWindow
     {
+        //! Whether the data window is drawn.
         bool         enabled   = false;
+        //! The line width, in view pixels, inside the data window's edge.
         int          lineWidth = 2;
+        //! The line color.
         ftk::Color4F color     = ftk::Color4F(1.F, .75F, 0.F);
 
         bool operator == (const DataWindow&) const = default;
@@ -165,12 +201,19 @@ namespace tl
     //! Foreground options.
     struct TL_TIMELINE_API_TYPE ForegroundOptions
     {
+        //! The grid.
         Grid             grid;
+        //! The center marker.
         CenterMarker     centerMarker;
+        //! The missing frame indicator.
         MissingIndicator missingIndicator;
+        //! The clipping warning.
         ClippingWarning  clippingWarning;
+        //! The frame guide.
         FrameGuide       frameGuide;
+        //! The safe areas.
         SafeAreas        safeAreas;
+        //! The data window outline.
         DataWindow       dataWindow;
 
         bool operator == (const ForegroundOptions&) const = default;

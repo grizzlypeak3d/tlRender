@@ -15,7 +15,10 @@ namespace tl
     //! Audio device ID.
     struct TL_TIMELINE_API_TYPE AudioDeviceID
     {
+        //! Device number, as the audio driver gives it; -1 is the default
+        //! device.
         int         number = -1;
+        //! Device name, as the audio driver gives it.
         std::string name;
 
         bool operator == (const AudioDeviceID&) const = default;
@@ -24,7 +27,9 @@ namespace tl
     //! Audio device information.
     struct TL_TIMELINE_API_TYPE AudioDeviceInfo
     {
+        //! Device ID.
         AudioDeviceID id;
+        //! The device's audio format.
         AudioInfo     info;
 
         bool operator == (const AudioDeviceInfo&) const = default;

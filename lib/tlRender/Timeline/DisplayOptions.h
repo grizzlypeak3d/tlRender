@@ -16,11 +16,19 @@ namespace tl
     //! Color values.
     struct TL_TIMELINE_API_TYPE Color
     {
+        //! Whether the color values are applied.
         bool     enabled    = false;
+        //! Added to the red, green, and blue before the other values are
+        //! applied; zero does nothing.
         ftk::V3F add        = ftk::V3F(0.F, 0.F, 0.F);
+        //! Brightness, a multiplier for each channel; one does nothing.
         ftk::V3F brightness = ftk::V3F(1.F, 1.F, 1.F);
+        //! Contrast for each channel, pivoting on 0.5; one does nothing.
         ftk::V3F contrast   = ftk::V3F(1.F, 1.F, 1.F);
+        //! Saturation for each channel; one does nothing and zero is gray.
         ftk::V3F saturation = ftk::V3F(1.F, 1.F, 1.F);
+        //! Hue rotation in turns: 0.5 is half way round the color wheel, and
+        //! zero does nothing.
         float    hue        = 0.F;
 
         bool operator == (const Color&) const = default;
@@ -32,11 +40,20 @@ namespace tl
     //! Levels values.
     struct TL_TIMELINE_API_TYPE Levels
     {
+        //! Whether the levels are applied.
         bool  enabled = false;
+        //! The input low value, subtracted from each channel first.
         float inLow   = 0.F;
+        //! The input high value. Each channel is divided by it after inLow
+        //! is subtracted, so the input range ends at inLow plus inHigh.
         float inHigh  = 1.F;
+        //! The gamma: after the input range, each value that is not negative
+        //! is raised to one over it, so above one brightens the midtones.
         float gamma   = 1.F;
+        //! The output low value, added last.
         float outLow  = 0.F;
+        //! The output high value. The values are multiplied by it before
+        //! outLow is added, so the output range ends at outLow plus outHigh.
         float outHigh = 1.F;
 
         bool operator == (const Levels&) const = default;
@@ -48,7 +65,9 @@ namespace tl
     //! exrdisplay formula was never neutral at its defaults.
     struct TL_TIMELINE_API_TYPE Exposure
     {
+        //! Whether the exposure is applied.
         bool  enabled  = false;
+        //! The exposure, in stops.
         float exposure = 0.F;
 
         bool operator == (const Exposure&) const = default;
@@ -57,7 +76,10 @@ namespace tl
     //! Soft clip.
     struct TL_TIMELINE_API_TYPE SoftClip
     {
+        //! Whether the soft clip is applied.
         bool  enabled = false;
+        //! The amount, from 0 to 1: values above one minus the amount are
+        //! rolled off toward one rather than passing it. Zero does nothing.
         float value   = 0.F;
 
         bool operator == (const SoftClip&) const = default;
@@ -69,9 +91,12 @@ namespace tl
         AspectRatio() = default;
         TL_TIMELINE_API explicit AspectRatio(float num, float den = 1.F);
 
+        //! The numerator, the width part of the ratio.
         float num = 1.F;
+        //! The denominator, the height part of the ratio.
         float den = 1.F;
 
+        //! Whether both parts are positive.
         TL_TIMELINE_API bool isValid() const;
 
         TL_TIMELINE_API operator float () const;
@@ -90,7 +115,9 @@ namespace tl
     //! Aspect ratio types.
     enum class TL_TIMELINE_API_TYPE AspectRatioType
     {
+        //! The value is the pixel aspect ratio, in place of the image's own.
         Pixel,
+        //! The value is the aspect ratio of the whole picture.
         Display,
 
         Count,
@@ -104,7 +131,10 @@ namespace tl
         AspectRatioOptions() = default;
         TL_TIMELINE_API AspectRatioOptions(const AspectRatio&, AspectRatioType);
 
+        //! The aspect ratio. One that is not valid, as the default 0:0 is,
+        //! leaves the image's own.
         AspectRatio     value = AspectRatio(0.F, 0.F);
+        //! Whether the value is a pixel or a picture aspect ratio.
         AspectRatioType type  = AspectRatioType::Pixel;
 
         bool operator == (const AspectRatioOptions&) const = default;
@@ -150,13 +180,22 @@ namespace tl
     //! Display options.
     struct TL_TIMELINE_API_TYPE DisplayOptions
     {
+        //! The channels shown: the color, or one of red, green, blue and
+        //! alpha as gray. Applied last, after the color management.
         ftk::ChannelDisplay channels    = ftk::ChannelDisplay::Color;
+        //! Whether the color is inverted, one minus each of red, green and
+        //! blue. Applied first, before the other adjustments.
         bool                negative    = false;
+        //! How the picture is mirrored: across (x), down (y), or both.
         ftk::ImageMirror    mirror;
         AspectRatioOptions  aspectRatio;
+        //! The color adjustments.
         Color               color;
+        //! The levels adjustment.
         Levels              levels;
+        //! The exposure adjustment.
         Exposure            exposure;
+        //! The soft clip.
         SoftClip            softClip;
 
         //! Per item override of the OCIO input color space; empty uses

@@ -27,7 +27,11 @@ namespace tl
         //! media's own time does. Left unset the two are the same.
         struct TL_UI_API_TYPE TimeMap
         {
+            //! Convert a player time to the media time shown. Not used when the
+            //! time units model counts from zero.
             std::function<OTIO_NS::RationalTime(const OTIO_NS::RationalTime&)> toMedia;
+            //! Convert a media time, as typed, back to the player time. Not
+            //! used when the time units model counts from zero.
             std::function<OTIO_NS::RationalTime(const OTIO_NS::RationalTime&)> fromMedia;
         };
 
