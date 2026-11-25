@@ -337,12 +337,12 @@ namespace tl
                         if (size.w <= cellSizeT.w - options.grid.lineWidth &&
                             size.h <= cellSizeT.h - options.grid.lineWidth)
                         {
-                            for (int i = 0; i < options.grid.cellCount.y; ++i)
+                            for (int i = 0; i < cellCount.y; ++i)
                             {
-                                const int y = box.min.y + i / static_cast<float>(options.grid.cellCount.y) * box.h();
-                                for (int j = 0; j < options.grid.cellCount.x; ++j)
+                                const int y = box.min.y + i / static_cast<float>(cellCount.y) * box.h();
+                                for (int j = 0; j < cellCount.x; ++j)
                                 {
-                                    const int x = box.min.x + j / static_cast<float>(options.grid.cellCount.x) * box.w();
+                                    const int x = box.min.x + j / static_cast<float>(cellCount.x) * box.w();
                                     text = getLabel(
                                         options.grid.labels,
                                         GridLabels::Pixels == options.grid.labels ? (x - box.min.x) : j,
@@ -376,7 +376,7 @@ namespace tl
                     std::vector<ftk::Box2F> rects;
                     for (int i = 0; i <= cellCount.y; ++i)
                     {
-                        const float y = box.min.y + i / static_cast<float>(options.grid.cellCount.y) * box.h();
+                        const float y = box.min.y + i / static_cast<float>(cellCount.y) * box.h();
                         const ftk::V3F v0 = vm * ftk::V3F(box.min.x, y, 0.F);
                         const ftk::V3F v1 = vm * ftk::V3F(box.max.x + 1, y, 0.F);
                         const ftk::V2I v2(
@@ -393,7 +393,7 @@ namespace tl
                     }
                     for (int i = 0; i <= cellCount.x; ++i)
                     {
-                        const float x = box.min.x + i / static_cast<float>(options.grid.cellCount.x) * box.w();
+                        const float x = box.min.x + i / static_cast<float>(cellCount.x) * box.w();
                         const ftk::V3F v0 = vm * ftk::V3F(x, box.min.y, 0.F);
                         const ftk::V3F v1 = vm * ftk::V3F(x, box.max.y + 1, 0.F);
                         const ftk::V2I v2(
