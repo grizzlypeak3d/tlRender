@@ -105,5 +105,5 @@ if(APPLE)
     # The architecture is not -- it is whatever the machine building is, and
     # naming one here cross compiles on any other. Packages name it, because a
     # package has to decide; a build discovers it.
-    set(CMAKE_OSX_DEPLOYMENT_TARGET "10.15" CACHE STRING "")
+    set(CMAKE_OSX_DEPLOYMENT_TARGET "12" CACHE STRING "")
 endif()

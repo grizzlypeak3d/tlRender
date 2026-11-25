@@ -1,7 +1,7 @@
 # Continuous integration on macOS.
 include("${CMAKE_CURRENT_LIST_DIR}/local.cmake" OPTIONAL)
 
-# Newer than DJV's package, which still goes back to 10.15.
+# Newer than DJV's package, which goes back to 12.
 set(CMAKE_OSX_DEPLOYMENT_TARGET "14" CACHE STRING "")
 
 # The runner has no working OpenGL, so the tests that make a context are left

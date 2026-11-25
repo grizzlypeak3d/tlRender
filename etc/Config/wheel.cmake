@@ -33,7 +33,7 @@ set(BUILD_SHARED_LIBS ON CACHE BOOL "")
 # only the first is ignored by default. An Intel runner has a Homebrew
 # libjpeg, which OpenImageIO found in place of the one built here; the
 # wheel then carried a library built for macOS 14 and the repair tool
-# refused it against the 10.15 the wheel is tagged for.
+# refused it against the older macOS the wheel is tagged for.
 if(APPLE)
     set(TLRENDER_IGNORE_PREFIX_PATH "/opt/homebrew;/usr/local" CACHE STRING "")
 endif()
