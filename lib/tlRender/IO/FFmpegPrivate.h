@@ -63,7 +63,8 @@ namespace tl
         //! Convert to HDR data.
         //! The HDR data of a frame: its transfer, and the mastering display
         //! and light levels from its side data, where they are there.
-        void toHDRData(
+        //! Exported for the tests, as ErrorCapture is.
+        TL_IO_API void toHDRData(
             AVFrameSideData**,
             int size,
             AVColorTransferCharacteristic,
