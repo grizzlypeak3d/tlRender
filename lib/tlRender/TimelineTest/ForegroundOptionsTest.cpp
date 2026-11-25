@@ -110,6 +110,9 @@ namespace tl
                 v = ForegroundOptions();
                 v.safeAreas.enabled = true;
                 FTK_CHECK(v != ForegroundOptions());
+                v = ForegroundOptions();
+                v.dataWindow.enabled = true;
+                FTK_CHECK(v != ForegroundOptions());
             }
             {
                 ForegroundOptions v;
@@ -127,6 +130,8 @@ namespace tl
                 v.frameGuide.aspect = AspectRatio(16.F, 9.F);
                 v.safeAreas.enabled = true;
                 v.safeAreas.title = .8F;
+                v.dataWindow.enabled = true;
+                v.dataWindow.lineWidth = 3;
                 nlohmann::json json;
                 to_json(json, v);
                 ForegroundOptions v2;

@@ -363,6 +363,7 @@ namespace tl
             void _frameView();
             void _updateFrameView();
             void _drawMissingIndicators(const ftk::DrawEvent&);
+            void _drawDataWindows(const ftk::DrawEvent&);
             void _drawGPU(const ftk::DrawEvent&);
             //! Whether the picture drawn is Display P3: through an
             //! OpenColorIO Display P3 display, or without a display

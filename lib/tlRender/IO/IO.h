@@ -7,6 +7,7 @@
 #include <tlRender/Core/Audio.h>
 #include <tlRender/Core/Time.h>
 
+#include <ftk/Core/Box.h>
 #include <ftk/Core/Image.h>
 
 #include <optional>
@@ -152,6 +153,17 @@ namespace tl
     //! Get a floating point image type for the given channel count and bit
     //! depth.
     TL_IO_API ftk::ImageType getFloatImageType(size_t channelCount, size_t bitDepth);
+
+    //! Get the data window and the display window of an image from its
+    //! tags, as the OpenEXR reader gives them: "Data Window" and "Display
+    //! Window", each the first and last pixel, "x0 y0 x1 y1". In a file of
+    //! more than one part they are those of the part the image was read
+    //! from: "Part" is its number, and its tags are prefixed "Part N/".
+    //! Returns false when the tags have no data window.
+    TL_IO_API bool getDataWindow(
+        const ftk::ImageTags&,
+        ftk::Box2I& dataWindow,
+        ftk::Box2I& displayWindow);
 
     //! Options.
     //!

@@ -126,6 +126,13 @@ namespace tl
         json["Color"] = in.color;
     }
 
+    void to_json(nlohmann::json& json, const DataWindow& in)
+    {
+        json["Enabled"] = in.enabled;
+        json["LineWidth"] = in.lineWidth;
+        json["Color"] = in.color;
+    }
+
     void to_json(nlohmann::json& json, const ForegroundOptions& in)
     {
         json["Grid"] = in.grid;
@@ -134,6 +141,7 @@ namespace tl
         json["ClippingWarning"] = in.clippingWarning;
         json["FrameGuide"] = in.frameGuide;
         json["SafeAreas"] = in.safeAreas;
+        json["DataWindow"] = in.dataWindow;
     }
 
     void from_json(const nlohmann::json& json, Grid& out)
@@ -206,6 +214,13 @@ namespace tl
         json.at("Color").get_to(out.color);
     }
 
+    void from_json(const nlohmann::json& json, DataWindow& out)
+    {
+        json.at("Enabled").get_to(out.enabled);
+        json.at("LineWidth").get_to(out.lineWidth);
+        json.at("Color").get_to(out.color);
+    }
+
     void from_json(const nlohmann::json& json, ForegroundOptions& out)
     {
         json.at("Grid").get_to(out.grid);
@@ -227,6 +242,10 @@ namespace tl
         if (json.contains("SafeAreas"))
         {
             json.at("SafeAreas").get_to(out.safeAreas);
+        }
+        if (json.contains("DataWindow"))
+        {
+            json.at("DataWindow").get_to(out.dataWindow);
         }
     }
 }

@@ -23,6 +23,8 @@ namespace tl
             void run() override;
 
         private:
+            void _multipart();
+
             // Members rather than free helpers so they can report a
             // failed check, which goes through the test.
             void write(

@@ -26,6 +26,17 @@ namespace tl
         //! Read the tags from an Imf header.
         void readTags(const Imf::Header&, ftk::ImageTags&);
 
+        //! The tags every part of a multipart file has its own of, which
+        //! are given for each part whether or not they differ from the
+        //! first part's.
+        const std::vector<std::string>& getPartHeaderTags();
+
+        //! Read the tags of the parts after the first, given the first
+        //! part's: a part's tags are prefixed "Part N/", and are the header
+        //! tags and those that differ from the first part's. "Parts" is the
+        //! number of parts. Nothing is added for a file of one part.
+        void readPartTags(const std::vector<const Imf::Header*>&, ftk::ImageTags&);
+
         //! Write tags to an Imf header.
         void writeTags(const ftk::ImageTags&, double speed, Imf::Header&);
 

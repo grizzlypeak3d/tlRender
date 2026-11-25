@@ -47,6 +47,11 @@ if(TLRENDER_IMAGEIO)
         "-framework CoreGraphics"
         "-framework CoreFoundation")
 endif()
+if(TLRENDER_EXR)
+    # The test writes a multipart file with OpenEXR itself, which the
+    # plugin's writer does not.
+    target_link_libraries(tlIOTest OpenEXR::OpenEXR)
+endif()
 if(TLRENDER_FFMPEG_PLUGIN)
     # The test asks FFmpeg itself what this build can encode, so it needs the
     # libraries rather than only the plugin that wraps them: tlIO links them

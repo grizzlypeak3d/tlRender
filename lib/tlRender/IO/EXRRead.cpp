@@ -161,11 +161,21 @@ namespace tl
                     }
                     _f.reset(new Imf::MultiPartInputFile(*_s));
 
-                    // Get the tags.
+                    // Get the tags: the first part's, and what the others
+                    // have of their own.
                     const int partsCount = _f->parts();
                     if (partsCount > 0)
                     {
                         readTags(_f->header(0), _info.tags);
+                    }
+                    if (partsCount > 1)
+                    {
+                        std::vector<const Imf::Header*> headers;
+                        for (int part = 0; part < partsCount; ++part)
+                        {
+                            headers.push_back(&_f->header(part));
+                        }
+                        readPartTags(headers, _info.tags);
                     }
 
                     // Get the layers.
@@ -450,7 +460,15 @@ namespace tl
                             imageInfo.type = ftk::ImageType::RGB_F16;
                         }
                         out.image = ftk::Image::create(imageInfo);
-                        out.image->setTags(_info.tags);
+                        // The frame's own tags, and in a file of more than
+                        // one part, which part the layer is read from: its
+                        // header tags are the ones prefixed "Part N/".
+                        ftk::ImageTags tags = _info.tags;
+                        if (_f->parts() > 1)
+                        {
+                            tags["Part"] = ftk::Format("{0}").arg(_layers[layer].part);
+                        }
+                        out.image->setTags(tags);
                         const int channels = ftk::getChannelCount(imageInfo.type);
                         const int channelByteCount = ftk::getBitDepth(imageInfo.type) / 8;
                         const int cb = channels * channelByteCount;

@@ -3,6 +3,7 @@
 
 #include <tlRender/UI/Viewport.h>
 
+#include <tlRender/IO/IO.h>
 #include <tlRender/Timeline/IRender.h>
 #include <tlRender/GL/Render.h>
 
@@ -25,6 +26,7 @@
 #include <ftk/Core/LogSystem.h>
 #include <ftk/Core/RenderUtil.h>
 
+#include <algorithm>
 #include <cmath>
 
 namespace tl
@@ -1403,6 +1405,7 @@ namespace tl
                 render->drawTexture(p.fgBuffer->getColorID(), g, true);
             }
 
+            _drawDataWindows(event);
             _drawMissingIndicators(event);
 
             if (Private::Resample::Wait == p.resample)
@@ -1619,6 +1622,7 @@ namespace tl
                 render->drawTexture(p.gpuFgBuffer->getID(), g, true);
             }
 
+            _drawDataWindows(event);
             _drawMissingIndicators(event);
 
             if (Private::Resample::Wait == p.resample)
@@ -1630,6 +1634,128 @@ namespace tl
         void Viewport::_drawGPU(const ftk::DrawEvent&)
         {}
 #endif // TLRENDER_GPU
+
+        void Viewport::_drawDataWindows(const ftk::DrawEvent& event)
+        {
+            FTK_P();
+            const auto& options = p.fgOptions->get().dataWindow;
+            if (!options.enabled || p.videoFrame.empty())
+            {
+                return;
+            }
+
+            // Drawn here, in the widget's own coordinates, rather than into
+            // the foreground buffer: the data window can reach outside the
+            // picture, and the outline is drawn where it reaches.
+            const ftk::Box2I& g = getGeometry();
+            const CompareOptions& compareOptions = p.compareOptions->get();
+            const auto& displayOptions = p.displayOptions->get();
+            const auto boxes = getBoxes(
+                compareOptions,
+                !displayOptions.empty() ?
+                    displayOptions.front().aspectRatio :
+                    AspectRatioOptions(),
+                p.videoFrame);
+            const ftk::V2I& viewPos = p.viewPos->get();
+            const double zoom = p.zoom->get();
+
+            // The pictures that are seen whole: A alone when B is drawn
+            // over it or into it, as the foreground is.
+            size_t start = 0;
+            size_t end = std::min(boxes.size(), p.videoFrame.size());
+            switch (compareOptions.compare)
+            {
+            case Compare::None:
+            case Compare::Wipe:
+            case Compare::Butterfly:
+            case Compare::Overlay:
+            case Compare::Difference:
+                end = std::min(end, static_cast<size_t>(1));
+                break;
+            case Compare::B:
+                start = 1;
+                end = std::min(end, static_cast<size_t>(2));
+                break;
+            default: break;
+            }
+
+            std::vector<ftk::Box2F> rects;
+            for (size_t i = start; i < end; ++i)
+            {
+                const auto& layers = p.videoFrame[i].layers;
+                if (layers.empty() || !layers.front().image)
+                {
+                    continue;
+                }
+                ftk::Box2I dataWindow;
+                ftk::Box2I displayWindow;
+                if (!getDataWindow(
+                    layers.front().image->getTags(),
+                    dataWindow,
+                    displayWindow) ||
+                    !dataWindow.isValid() ||
+                    displayWindow.w() <= 0 ||
+                    displayWindow.h() <= 0)
+                {
+                    continue;
+                }
+
+                // The data window as fractions of the display window, which
+                // is the picture: the box takes in the pixel aspect ratio.
+                float x0 = (dataWindow.min.x - displayWindow.min.x) /
+                    static_cast<float>(displayWindow.w());
+                float x1 = (dataWindow.max.x + 1 - displayWindow.min.x) /
+                    static_cast<float>(displayWindow.w());
+                float y0 = (dataWindow.min.y - displayWindow.min.y) /
+                    static_cast<float>(displayWindow.h());
+                float y1 = (dataWindow.max.y + 1 - displayWindow.min.y) /
+                    static_cast<float>(displayWindow.h());
+                const DisplayOptions& display =
+                    i < displayOptions.size() ? displayOptions[i] :
+                    !displayOptions.empty() ? displayOptions.front() :
+                    DisplayOptions();
+                if (display.mirror.x)
+                {
+                    std::swap(x0, x1);
+                    x0 = 1.F - x0;
+                    x1 = 1.F - x1;
+                }
+                if (display.mirror.y)
+                {
+                    std::swap(y0, y1);
+                    y0 = 1.F - y0;
+                    y1 = 1.F - y1;
+                }
+
+                const ftk::Box2I& box = boxes[i];
+                const float bx = g.min.x + viewPos.x + box.min.x * zoom;
+                const float by = g.min.y + viewPos.y + box.min.y * zoom;
+                const float bw = box.w() * zoom;
+                const float bh = box.h() * zoom;
+                const ftk::Box2F outline(
+                    bx + x0 * bw,
+                    by + y0 * bh,
+                    (x1 - x0) * bw,
+                    (y1 - y0) * bh);
+
+                // Inside the edge, as the frame guide's is.
+                const float w = std::min(
+                    static_cast<float>(std::max(1, options.lineWidth)),
+                    std::min(outline.w(), outline.h()) / 2.F);
+                if (w <= 0.F)
+                {
+                    continue;
+                }
+                rects.push_back(ftk::Box2F(outline.x(), outline.y(), outline.w(), w));
+                rects.push_back(ftk::Box2F(outline.x(), outline.y() + outline.h() - w, outline.w(), w));
+                rects.push_back(ftk::Box2F(outline.x(), outline.y() + w, w, outline.h() - w * 2.F));
+                rects.push_back(ftk::Box2F(outline.x() + outline.w() - w, outline.y() + w, w, outline.h() - w * 2.F));
+            }
+            if (!rects.empty())
+            {
+                event.render->drawRects(rects, options.color);
+            }
+        }
 
         void Viewport::_drawMissingIndicators(const ftk::DrawEvent& event)
         {

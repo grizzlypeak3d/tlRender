@@ -49,6 +49,62 @@ namespace tl
         return out;
     }
 
+    namespace
+    {
+        bool parseBox(const std::string& value, ftk::Box2I& out)
+        {
+            std::stringstream ss(value);
+            int x0 = 0;
+            int y0 = 0;
+            int x1 = 0;
+            int y1 = 0;
+            if (!(ss >> x0 >> y0 >> x1 >> y1))
+            {
+                return false;
+            }
+            out = ftk::Box2I(ftk::V2I(x0, y0), ftk::V2I(x1, y1));
+            return true;
+        }
+
+        const std::string* findPartTag(
+            const ftk::ImageTags& tags,
+            const std::string& prefix,
+            const std::string& key)
+        {
+            if (!prefix.empty())
+            {
+                const auto i = tags.find(prefix + key);
+                if (i != tags.end())
+                {
+                    return &i->second;
+                }
+            }
+            const auto i = tags.find(key);
+            return i != tags.end() ? &i->second : nullptr;
+        }
+    }
+
+    bool getDataWindow(
+        const ftk::ImageTags& tags,
+        ftk::Box2I& dataWindow,
+        ftk::Box2I& displayWindow)
+    {
+        // The first part's are not prefixed, nor are another part's that
+        // are the same as the first's.
+        std::string prefix;
+        const auto i = tags.find("Part");
+        if (i != tags.end() && i->second != "0")
+        {
+            prefix = "Part " + i->second + "/";
+        }
+        const std::string* data = findPartTag(tags, prefix, "Data Window");
+        const std::string* display = findPartTag(tags, prefix, "Display Window");
+        return
+            data && display &&
+            parseBox(*data, dataWindow) &&
+            parseBox(*display, displayWindow);
+    }
+
     ftk::ImageType getFloatImageType(std::size_t channelCount, std::size_t bitDepth)
     {
         ftk::ImageType out = ftk::ImageType::None;

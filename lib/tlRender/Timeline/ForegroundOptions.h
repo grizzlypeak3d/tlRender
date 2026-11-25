@@ -149,6 +149,19 @@ namespace tl
         bool operator == (const SafeAreas&) const = default;
     };
 
+    //! Data window: the outline of the pixels a file holds, which can be
+    //! smaller than the picture, or reach outside it, as an OpenEXR data
+    //! window can. Drawn for images whose tags give one (see
+    //! tl::getDataWindow()). The lines are view pixels wide.
+    struct TL_TIMELINE_API_TYPE DataWindow
+    {
+        bool         enabled   = false;
+        int          lineWidth = 2;
+        ftk::Color4F color     = ftk::Color4F(1.F, .75F, 0.F);
+
+        bool operator == (const DataWindow&) const = default;
+    };
+
     //! Foreground options.
     struct TL_TIMELINE_API_TYPE ForegroundOptions
     {
@@ -158,6 +171,7 @@ namespace tl
         ClippingWarning  clippingWarning;
         FrameGuide       frameGuide;
         SafeAreas        safeAreas;
+        DataWindow       dataWindow;
 
         bool operator == (const ForegroundOptions&) const = default;
     };
@@ -171,6 +185,7 @@ namespace tl
     TL_TIMELINE_API void to_json(nlohmann::json&, const ClippingWarning&);
     TL_TIMELINE_API void to_json(nlohmann::json&, const FrameGuide&);
     TL_TIMELINE_API void to_json(nlohmann::json&, const SafeAreas&);
+    TL_TIMELINE_API void to_json(nlohmann::json&, const DataWindow&);
     TL_TIMELINE_API void to_json(nlohmann::json&, const ForegroundOptions&);
 
     TL_TIMELINE_API void from_json(const nlohmann::json&, Grid&);
@@ -179,6 +194,7 @@ namespace tl
     TL_TIMELINE_API void from_json(const nlohmann::json&, ClippingWarning&);
     TL_TIMELINE_API void from_json(const nlohmann::json&, FrameGuide&);
     TL_TIMELINE_API void from_json(const nlohmann::json&, SafeAreas&);
+    TL_TIMELINE_API void from_json(const nlohmann::json&, DataWindow&);
     TL_TIMELINE_API void from_json(const nlohmann::json&, ForegroundOptions&);
 
     ///@}

@@ -9,20 +9,25 @@
 
 #include <ImfBoxAttribute.h>
 #include <ImfChannelList.h>
+#include <ImfChannelListAttribute.h>
 #include <ImfChromaticitiesAttribute.h>
+#include <ImfCompressionAttribute.h>
 #include <ImfDoubleAttribute.h>
 #include <ImfFloatAttribute.h>
 #include <ImfFloatVectorAttribute.h>
 #include <ImfFramesPerSecond.h>
 #include <ImfIntAttribute.h>
 #include <ImfKeyCodeAttribute.h>
+#include <ImfLineOrderAttribute.h>
 #include <ImfMatrixAttribute.h>
+#include <ImfPreviewImageAttribute.h>
 #include <ImfRationalAttribute.h>
 #include <ImfStandardAttributes.h>
 #include <ImfStdIO.h>
 #include <ImfStringAttribute.h>
 #include <ImfStringVectorAttribute.h>
 #include <ImfThreading.h>
+#include <ImfTileDescriptionAttribute.h>
 #include <ImfTimeCodeAttribute.h>
 #include <ImfVecAttribute.h>
 
@@ -205,6 +210,87 @@ namespace tl
             }
 
             template<typename T>
+            std::string serialize(const Imath::Vec3<T>& value)
+            {
+                std::stringstream ss;
+                ss << value.x << " " << value.y << " " << value.z;
+                return ss.str();
+            }
+
+            //! Imath's own output of a 3x3 matrix runs over several lines,
+            //! in parentheses; this is the 4x4 matrix's form.
+            template<typename T>
+            std::string serialize(const Imath::Matrix33<T>& value)
+            {
+                std::vector<std::string> s;
+                for (size_t j = 0; j < 3; ++j)
+                {
+                    for (size_t i = 0; i < 3; ++i)
+                    {
+                        s.push_back(ftk::Format("{0}").arg(value.x[j][i]));
+                    }
+                }
+                return ftk::join(s, ' ');
+            }
+
+            std::string serialize(const std::vector<float>& value)
+            {
+                std::vector<std::string> s;
+                for (const float i : value)
+                {
+                    s.push_back(ftk::Format("{0}").arg(i));
+                }
+                return ftk::join(s, ' ');
+            }
+
+            //! The names OpenEXR gives them, which are the writer's
+            //! options too.
+            std::string getCompressionLabel(Imf::Compression value)
+            {
+                switch (value)
+                {
+                case Imf::NO_COMPRESSION: return "None";
+                case Imf::RLE_COMPRESSION: return "RLE";
+                case Imf::ZIPS_COMPRESSION: return "ZIPS";
+                case Imf::ZIP_COMPRESSION: return "ZIP";
+                case Imf::PIZ_COMPRESSION: return "PIZ";
+                case Imf::PXR24_COMPRESSION: return "PXR24";
+                case Imf::B44_COMPRESSION: return "B44";
+                case Imf::B44A_COMPRESSION: return "B44A";
+                case Imf::DWAA_COMPRESSION: return "DWAA";
+                case Imf::DWAB_COMPRESSION: return "DWAB";
+#if TLRENDER_OPENEXR_VERSION >= 30400
+                case Imf::HTJ2K256_COMPRESSION: return "HTJ2K256";
+                case Imf::HTJ2K32_COMPRESSION: return "HTJ2K32";
+#endif // TLRENDER_OPENEXR_VERSION
+                default: break;
+                }
+                return ftk::Format("{0}").arg(static_cast<int>(value));
+            }
+
+            std::string getLineOrderLabel(Imf::LineOrder value)
+            {
+                switch (value)
+                {
+                case Imf::INCREASING_Y: return "Increasing Y";
+                case Imf::DECREASING_Y: return "Decreasing Y";
+                case Imf::RANDOM_Y: return "Random Y";
+                default: break;
+                }
+                return ftk::Format("{0}").arg(static_cast<int>(value));
+            }
+
+            std::string getChannelNames(const Imf::ChannelList& value)
+            {
+                std::vector<std::string> names;
+                for (auto i = value.begin(); i != value.end(); ++i)
+                {
+                    names.push_back(i.name());
+                }
+                return ftk::join(names, " ");
+            }
+
+            template<typename T>
             std::string serialize(const Imath::Matrix44<T>& value)
             {
                 std::vector<std::string> s;
@@ -234,12 +320,23 @@ namespace tl
             template<>
             std::string serialize(const Imf::TileDescription& value)
             {
-                std::stringstream ss;
-                ss << value.xSize << " " <<
-                    value.ySize << " " <<
-                    value.mode << " " <<
-                    value.roundingMode;
-                return ss.str();
+                std::string out = ftk::Format("{0} x {1}").
+                    arg(value.xSize).
+                    arg(value.ySize);
+                switch (value.mode)
+                {
+                case Imf::ONE_LEVEL: out += ", one level"; break;
+                case Imf::MIPMAP_LEVELS: out += ", mipmap levels"; break;
+                case Imf::RIPMAP_LEVELS: out += ", ripmap levels"; break;
+                default: break;
+                }
+                if (value.mode != Imf::ONE_LEVEL)
+                {
+                    out += Imf::ROUND_UP == value.roundingMode ?
+                        ", rounded up" :
+                        ", rounded down";
+                }
+                return out;
             }
 
             template<>
@@ -489,16 +586,9 @@ namespace tl
             tags["Pixel Aspect Ratio"] = serialize(header.pixelAspectRatio());
             tags["Screen Window Center"] = serialize(header.screenWindowCenter());
             tags["Screen Window Width"] = serialize(header.screenWindowWidth());
-            {
-                std::vector<std::string> values;
-                for (auto i = header.channels().begin(); i != header.channels().end(); ++i)
-                {
-                    values.push_back(i.name());
-                }
-                tags["Channels"] = ftk::join(values, " ");
-            }
-            tags["Line Order"] = serialize(header.lineOrder());
-            tags["Compression"] = serialize(header.compression());
+            tags["Channels"] = getChannelNames(header.channels());
+            tags["Line Order"] = getLineOrderLabel(header.lineOrder());
+            tags["Compression"] = getCompressionLabel(header.compression());
 
             // Multipart attributes.
             if (header.hasName())
@@ -634,9 +724,56 @@ namespace tl
                 {
                     tags[name] = serialize(static_cast<const Imf::V3fAttribute&>(attr).value());
                 }
+                else if (type == Imf::V2dAttribute::staticTypeName())
+                {
+                    tags[name] = serialize(static_cast<const Imf::V2dAttribute&>(attr).value());
+                }
+                else if (type == Imf::V3dAttribute::staticTypeName())
+                {
+                    tags[name] = serialize(static_cast<const Imf::V3dAttribute&>(attr).value());
+                }
                 else if (type == Imf::Box2iAttribute::staticTypeName())
                 {
                     tags[name] = serialize(static_cast<const Imf::Box2iAttribute&>(attr).value());
+                }
+                else if (type == Imf::Box2fAttribute::staticTypeName())
+                {
+                    tags[name] = serialize(static_cast<const Imf::Box2fAttribute&>(attr).value());
+                }
+                else if (type == Imf::M33dAttribute::staticTypeName())
+                {
+                    tags[name] = serialize(static_cast<const Imf::M33dAttribute&>(attr).value());
+                }
+                else if (type == Imf::M44dAttribute::staticTypeName())
+                {
+                    tags[name] = serialize(static_cast<const Imf::M44dAttribute&>(attr).value());
+                }
+                else if (type == Imf::FloatVectorAttribute::staticTypeName())
+                {
+                    tags[name] = serialize(static_cast<const Imf::FloatVectorAttribute&>(attr).value());
+                }
+                else if (type == Imf::PreviewImageAttribute::staticTypeName())
+                {
+                    const auto& preview = static_cast<const Imf::PreviewImageAttribute&>(attr).value();
+                    tags[name] = ftk::Format("{0} x {1} preview image").
+                        arg(preview.width()).
+                        arg(preview.height());
+                }
+                else if (type == Imf::ChannelListAttribute::staticTypeName())
+                {
+                    tags[name] = getChannelNames(static_cast<const Imf::ChannelListAttribute&>(attr).value());
+                }
+                else if (type == Imf::CompressionAttribute::staticTypeName())
+                {
+                    tags[name] = getCompressionLabel(static_cast<const Imf::CompressionAttribute&>(attr).value());
+                }
+                else if (type == Imf::LineOrderAttribute::staticTypeName())
+                {
+                    tags[name] = getLineOrderLabel(static_cast<const Imf::LineOrderAttribute&>(attr).value());
+                }
+                else if (type == Imf::TileDescriptionAttribute::staticTypeName())
+                {
+                    tags[name] = serialize(static_cast<const Imf::TileDescriptionAttribute&>(attr).value());
                 }
                 else if (type == Imf::M33fAttribute::staticTypeName())
                 {
@@ -668,8 +805,52 @@ namespace tl
                 }
                 else
                 {
-                    // Unknown type: record at least its presence and type.
-                    tags[name] = type;
+                    // Unknown type: record at least its presence and
+                    // type, in parentheses so it is not taken for a value.
+                    tags[name] = "(" + type + ")";
+                }
+            }
+        }
+
+        const std::vector<std::string>& getPartHeaderTags()
+        {
+            static const std::vector<std::string> out =
+            {
+                "Name",
+                "Type",
+                "View",
+                "Data Window",
+                "Display Window",
+                "Channels",
+                "Compression",
+                "Tile"
+            };
+            return out;
+        }
+
+        void readPartTags(const std::vector<const Imf::Header*>& headers, ftk::ImageTags& tags)
+        {
+            if (headers.size() < 2)
+            {
+                return;
+            }
+            const ftk::ImageTags first = tags;
+            tags["Parts"] = ftk::Format("{0}").arg(headers.size());
+            const auto& headerTags = getPartHeaderTags();
+            for (size_t part = 1; part < headers.size(); ++part)
+            {
+                ftk::ImageTags partTags;
+                readTags(*headers[part], partTags);
+                const std::string prefix = ftk::Format("Part {0}/").arg(part);
+                for (const auto& tag : partTags)
+                {
+                    const auto i = first.find(tag.first);
+                    if (std::find(headerTags.begin(), headerTags.end(), tag.first) != headerTags.end() ||
+                        i == first.end() ||
+                        i->second != tag.second)
+                    {
+                        tags[prefix + tag.first] = tag.second;
+                    }
                 }
             }
         }

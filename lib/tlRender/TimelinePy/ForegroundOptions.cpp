@@ -94,6 +94,14 @@ namespace tl
                 .def(nanobind::self == nanobind::self)
                 .def(nanobind::self != nanobind::self);
 
+            nb::class_<DataWindow>(m, "DataWindow")
+                .def(nb::init())
+                .def_rw("enabled", &DataWindow::enabled)
+                .def_rw("lineWidth", &DataWindow::lineWidth)
+                .def_rw("color", &DataWindow::color)
+                .def(nanobind::self == nanobind::self)
+                .def(nanobind::self != nanobind::self);
+
             nb::class_<ForegroundOptions>(m, "ForegroundOptions")
                 .def(nb::init())
                 .def_rw("grid", &ForegroundOptions::grid)
@@ -102,6 +110,7 @@ namespace tl
                 .def_rw("clippingWarning", &ForegroundOptions::clippingWarning)
                 .def_rw("frameGuide", &ForegroundOptions::frameGuide)
                 .def_rw("safeAreas", &ForegroundOptions::safeAreas)
+                .def_rw("dataWindow", &ForegroundOptions::dataWindow)
                 .def(nanobind::self == nanobind::self)
                 .def(nanobind::self != nanobind::self);
 

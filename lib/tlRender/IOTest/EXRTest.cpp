@@ -6,6 +6,18 @@
 #include <tlRender/IO/EXR.h>
 #include <tlRender/IO/System.h>
 
+#include <ImfBoxAttribute.h>
+#include <ImfChannelList.h>
+#include <ImfFloatVectorAttribute.h>
+#include <ImfFrameBuffer.h>
+#include <ImfHeader.h>
+#include <ImfMatrixAttribute.h>
+#include <ImfMultiPartOutputFile.h>
+#include <ImfOutputPart.h>
+#include <ImfPartType.h>
+#include <ImfStringAttribute.h>
+#include <ImfVecAttribute.h>
+
 #include <ftk/Core/Assert.h>
 #include <ftk/Core/Context.h>
 #include <ftk/Core/FileIO.h>
@@ -32,6 +44,7 @@ namespace tl
         void EXRTest::run()
         {
             _partial();
+            _multipart();
             _enums();
             _util();
             _io();
@@ -377,6 +390,175 @@ namespace tl
                         _error(e.what());
                     }
                 }
+            }
+        }
+
+        void EXRTest::_multipart()
+        {
+            // Two parts, as a renderer writes its passes: the beauty, and
+            // a depth pass of its own data window, compression, and
+            // attributes.
+            const ftk::Path path(ftk::fromFileSystem(_getTempDir() / "EXRMultipart.exr"));
+            const Imath::Box2i displayWindow(Imath::V2i(0, 0), Imath::V2i(15, 15));
+            const Imath::Box2i depthWindow(Imath::V2i(2, 3), Imath::V2i(9, 12));
+            try
+            {
+                std::vector<Imf::Header> headers;
+                {
+                    Imf::Header header(displayWindow, displayWindow);
+                    header.setName("beauty");
+                    header.setType(Imf::SCANLINEIMAGE);
+                    header.compression() = Imf::ZIP_COMPRESSION;
+                    for (const auto& c : { "R", "G", "B", "A" })
+                    {
+                        header.channels().insert(c, Imf::Channel(Imf::HALF));
+                    }
+                    header.insert("shared", Imf::StringAttribute("same"));
+                    header.insert("differs", Imf::StringAttribute("beauty"));
+                    header.insert("v2d", Imf::V2dAttribute(Imath::V2d(1.5, 2.5)));
+                    header.insert("v3f", Imf::V3fAttribute(Imath::V3f(1.F, 2.F, 3.F)));
+                    header.insert("m33f", Imf::M33fAttribute(Imath::M33f()));
+                    header.insert("m44d", Imf::M44dAttribute(Imath::M44d()));
+                    header.insert("box2f", Imf::Box2fAttribute(
+                        Imath::Box2f(Imath::V2f(0.F, 1.F), Imath::V2f(2.F, 3.F))));
+                    header.insert("floats", Imf::FloatVectorAttribute(
+                        Imf::FloatVector({ 1.F, 2.F, 3.F })));
+                    headers.push_back(header);
+                }
+                {
+                    Imf::Header header(displayWindow, depthWindow);
+                    header.setName("depth");
+                    header.setType(Imf::SCANLINEIMAGE);
+                    header.compression() = Imf::PIZ_COMPRESSION;
+                    header.channels().insert("Z", Imf::Channel(Imf::FLOAT));
+                    header.insert("shared", Imf::StringAttribute("same"));
+                    header.insert("differs", Imf::StringAttribute("depth"));
+                    headers.push_back(header);
+                }
+                Imf::MultiPartOutputFile file(
+                    path.get().c_str(),
+                    headers.data(),
+                    static_cast<int>(headers.size()));
+                {
+                    std::vector<uint16_t> pixels(16 * 16 * 4, 0);
+                    Imf::FrameBuffer frameBuffer;
+                    const char* names[] = { "R", "G", "B", "A" };
+                    for (size_t c = 0; c < 4; ++c)
+                    {
+                        frameBuffer.insert(names[c], Imf::Slice(
+                            Imf::HALF,
+                            reinterpret_cast<char*>(pixels.data() + c),
+                            sizeof(uint16_t) * 4,
+                            sizeof(uint16_t) * 4 * 16));
+                    }
+                    Imf::OutputPart part(file, 0);
+                    part.setFrameBuffer(frameBuffer);
+                    part.writePixels(16);
+                }
+                {
+                    const int w = depthWindow.max.x - depthWindow.min.x + 1;
+                    const int h = depthWindow.max.y - depthWindow.min.y + 1;
+                    std::vector<float> pixels(w * h, 1.F);
+                    Imf::FrameBuffer frameBuffer;
+                    // The slice is addressed from pixel (0, 0), which lies
+                    // outside the data window.
+                    frameBuffer.insert("Z", Imf::Slice(
+                        Imf::FLOAT,
+                        reinterpret_cast<char*>(
+                            pixels.data() - depthWindow.min.x - depthWindow.min.y * w),
+                        sizeof(float),
+                        sizeof(float) * w));
+                    Imf::OutputPart part(file, 1);
+                    part.setFrameBuffer(frameBuffer);
+                    part.writePixels(h);
+                }
+            }
+            catch (const std::exception& e)
+            {
+                _error(e.what());
+                return;
+            }
+
+            auto readSystem = _context->getSystem<ReadSystem>();
+            auto readPlugin = readSystem->getPlugin<exr::ReadPlugin>();
+            auto decode = readPlugin->decode();
+            const IOInfo info = decode->getInfo(path.get(), nullptr);
+            auto tag = [](const ftk::ImageTags& tags, const std::string& key)
+            {
+                const auto i = tags.find(key);
+                return i != tags.end() ? i->second : std::string("<none>");
+            };
+            FTK_CHECK("2" == tag(info.tags, "Parts"));
+            FTK_CHECK("beauty" == tag(info.tags, "Name"));
+            FTK_CHECK("ZIP" == tag(info.tags, "Compression"));
+            FTK_CHECK("Increasing Y" == tag(info.tags, "Line Order"));
+            FTK_CHECK("A B G R" == tag(info.tags, "Channels"));
+            FTK_CHECK("0 0 15 15" == tag(info.tags, "Data Window"));
+            FTK_CHECK("depth" == tag(info.tags, "Part 1/Name"));
+            FTK_CHECK("PIZ" == tag(info.tags, "Part 1/Compression"));
+            FTK_CHECK("Z" == tag(info.tags, "Part 1/Channels"));
+            FTK_CHECK("2 3 9 12" == tag(info.tags, "Part 1/Data Window"));
+            // Given for each part, though it is the same.
+            FTK_CHECK("0 0 15 15" == tag(info.tags, "Part 1/Display Window"));
+            // Given only when it differs.
+            FTK_CHECK("depth" == tag(info.tags, "Part 1/differs"));
+            FTK_CHECK("<none>" == tag(info.tags, "Part 1/shared"));
+            FTK_CHECK("<none>" == tag(info.tags, "Part 1/Line Order"));
+            // The types that were only named.
+            FTK_CHECK("1.5 2.5" == tag(info.tags, "v2d"));
+            FTK_CHECK("1 2 3" == tag(info.tags, "v3f"));
+            FTK_CHECK("1 0 0 0 1 0 0 0 1" == tag(info.tags, "m33f"));
+            FTK_CHECK("1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 1" == tag(info.tags, "m44d"));
+            FTK_CHECK("0 1 2 3" == tag(info.tags, "box2f"));
+            FTK_CHECK("1 2 3" == tag(info.tags, "floats"));
+
+            // Each layer's frame says which part it is read from, and
+            // getDataWindow() gives that part's windows.
+            int depthLayer = -1;
+            for (size_t i = 0; i < info.video.size(); ++i)
+            {
+                if ("Z" == info.video[i].name)
+                {
+                    depthLayer = static_cast<int>(i);
+                }
+            }
+            FTK_CHECK(depthLayer > 0);
+            {
+                const auto videoData = decode->readVideo(
+                    path.get(), nullptr, OTIO_NS::RationalTime(0.0, 24.0), {});
+                FTK_CHECK(videoData.image);
+                const auto& tags = videoData.image->getTags();
+                FTK_CHECK("0" == tag(tags, "Part"));
+                ftk::Box2I data;
+                ftk::Box2I display;
+                FTK_CHECK(getDataWindow(tags, data, display));
+                FTK_CHECK(ftk::Box2I(0, 0, 16, 16) == data);
+                FTK_CHECK(ftk::Box2I(0, 0, 16, 16) == display);
+            }
+            {
+                IOOptions options;
+                options["Layer"] = ftk::Format("{0}").arg(depthLayer);
+                const auto videoData = decode->readVideo(
+                    path.get(), nullptr, OTIO_NS::RationalTime(0.0, 24.0), options);
+                FTK_CHECK(videoData.image);
+                const auto& tags = videoData.image->getTags();
+                FTK_CHECK("1" == tag(tags, "Part"));
+                ftk::Box2I data;
+                ftk::Box2I display;
+                FTK_CHECK(getDataWindow(tags, data, display));
+                FTK_CHECK(ftk::Box2I(ftk::V2I(2, 3), ftk::V2I(9, 12)) == data);
+                FTK_CHECK(ftk::Box2I(0, 0, 16, 16) == display);
+            }
+            {
+                // A single part file has neither.
+                ftk::ImageTags tags;
+                tags["Data Window"] = "1 2 3 4";
+                tags["Display Window"] = "0 0 9 9";
+                ftk::Box2I data;
+                ftk::Box2I display;
+                FTK_CHECK(getDataWindow(tags, data, display));
+                FTK_CHECK(ftk::Box2I(ftk::V2I(1, 2), ftk::V2I(3, 4)) == data);
+                FTK_CHECK(!getDataWindow(ftk::ImageTags(), data, display));
             }
         }
 
