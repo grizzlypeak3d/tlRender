@@ -21,13 +21,20 @@ namespace tl
             out.colorMatrix = color(options.color);
         }
         out.levelsEnabled = options.levels.enabled;
+        // The high values are the white points, so the shaders are given
+        // the ranges' widths: they divide by the one and multiply by the
+        // other. A range with no width is given a little.
         out.levelsInLow = options.levels.inLow;
-        out.levelsInHigh = options.levels.inHigh;
+        out.levelsInHigh = options.levels.inHigh - options.levels.inLow;
+        if (std::fabs(out.levelsInHigh) < .000001F)
+        {
+            out.levelsInHigh = .000001F;
+        }
         out.levelsGamma = options.levels.gamma > 0.F ?
             (1.F / options.levels.gamma) :
             1000000.F;
         out.levelsOutLow = options.levels.outLow;
-        out.levelsOutHigh = options.levels.outHigh;
+        out.levelsOutHigh = options.levels.outHigh - options.levels.outLow;
         out.exposureEnabled = options.exposure.enabled;
         out.exposure = options.exposure.enabled ?
             std::pow(2.F, options.exposure.exposure) :

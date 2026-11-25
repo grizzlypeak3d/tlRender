@@ -21,6 +21,7 @@ namespace tl
 
         private:
             void _table();
+            void _levels();
         };
     }
 }

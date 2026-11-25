@@ -42,18 +42,17 @@ namespace tl
     {
         //! Whether the levels are applied.
         bool  enabled = false;
-        //! The input low value, subtracted from each channel first.
+        //! The input black point: the value that becomes outLow.
         float inLow   = 0.F;
-        //! The input high value. Each channel is divided by it after inLow
-        //! is subtracted, so the input range ends at inLow plus inHigh.
+        //! The input white point: the value that becomes outHigh. Values
+        //! outside the input range are not clamped.
         float inHigh  = 1.F;
         //! The gamma: after the input range, each value that is not negative
         //! is raised to one over it, so above one brightens the midtones.
         float gamma   = 1.F;
-        //! The output low value, added last.
+        //! The output black point.
         float outLow  = 0.F;
-        //! The output high value. The values are multiplied by it before
-        //! outLow is added, so the output range ends at outLow plus outHigh.
+        //! The output white point.
         float outHigh = 1.F;
 
         bool operator == (const Levels&) const = default;

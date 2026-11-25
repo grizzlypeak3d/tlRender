@@ -32,6 +32,43 @@ namespace tl
         void CPUColorTest::run()
         {
             _table();
+            _levels();
+        }
+
+        void CPUColorTest::_levels()
+        {
+            // The high values are the white points, as the low values are
+            // the black points: In 0.2 to 0.8 onto Out 0.1 to 0.9. They had
+            // been widths, so 0.8 in came out at 0.75 of the range.
+            DisplayOptions options;
+            options.levels.enabled = true;
+            options.levels.inLow = .2F;
+            options.levels.inHigh = .8F;
+            options.levels.outLow = .1F;
+            options.levels.outHigh = .9F;
+            const CPUColor color(OCIOOptions(), LUTOptions(), options);
+            float rgba[] =
+            {
+                .2F, .5F, .8F, 1.F,
+                .35F, 0.F, 1.F, 1.F
+            };
+            color.apply(rgba, 2);
+            const float expected[] =
+            {
+                .1F, .5F, .9F, 1.F,
+                .3F, -.1666667F, 1.1666667F, 1.F
+            };
+            for (size_t i = 0; i < 8; ++i)
+            {
+                FTK_ASSERT(std::fabs(rgba[i] - expected[i]) < .0001F);
+            }
+
+            // A range with no width does not divide by zero.
+            options.levels.inHigh = options.levels.inLow;
+            const CPUColor flat(OCIOOptions(), LUTOptions(), options);
+            float one[] = { .5F, .5F, .5F, 1.F };
+            flat.apply(one, 1);
+            FTK_ASSERT(std::isfinite(one[0]));
         }
 
         void CPUColorTest::_table()

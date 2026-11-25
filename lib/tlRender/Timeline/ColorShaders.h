@@ -66,9 +66,13 @@ namespace tl
         ftk::M44F colorMatrix;
         bool      levelsEnabled   = false;
         float     levelsInLow     = 0.F;
+        //! The width of the input range, Levels::inHigh less inLow, which
+        //! the value is divided by; never zero.
         float     levelsInHigh    = 1.F;
+        //! One over Levels::gamma.
         float     levelsGamma     = 1.F;
         float     levelsOutLow    = 0.F;
+        //! The width of the output range, Levels::outHigh less outLow.
         float     levelsOutHigh   = 1.F;
         bool      exposureEnabled = false;
         float     exposure        = 1.F;
