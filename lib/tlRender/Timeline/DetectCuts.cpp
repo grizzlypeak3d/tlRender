@@ -297,6 +297,14 @@ namespace tl
                         std::clamp(std::min(mafd, diff) / 100.0, 0.0, 1.0));
                     _prevMafd = mafd;
                 }
+                else if (count > 0 && !_prev.pixels.empty())
+                {
+                    // A picture of another shape is another clip: a cut,
+                    // which the difference could not be taken across. The
+                    // frame after it starts the motion over.
+                    out.score = 1.F;
+                    _prevMafd = 0.0;
+                }
                 _prev = frame;
                 return out;
             }

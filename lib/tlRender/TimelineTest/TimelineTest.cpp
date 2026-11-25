@@ -19,6 +19,7 @@
 
 #include <algorithm>
 #include <cstring>
+#include <fstream>
 #include <ftk/Core/Format.h>
 #include <ftk/Core/Path.h>
 #include <ftk/Core/String.h>
@@ -1178,6 +1179,65 @@ namespace tl
                 range,
                 DetectCutsOptions(),
                 [](size_t frame, size_t) { return frame < 5; }).empty());
+
+            // A cut between pictures of different shapes, the same gray:
+            // the difference cannot be taken across it, and had scored
+            // nothing.
+            for (const auto& shape : { std::make_pair(std::string("wide"), ftk::Size2I(64, 36)),
+                                       std::make_pair(std::string("square"), ftk::Size2I(36, 36)) })
+            {
+                IOInfo shapeInfo;
+                shapeInfo.video.push_back(writePlugin->getInfo(
+                    ftk::ImageInfo(shape.second, ftk::ImageType::RGB_U8)));
+                for (int frame = 0; frame < 10; ++frame)
+                {
+                    auto image = ftk::Image::create(shapeInfo.video[0]);
+                    std::memset(image->getData(), 120, image->getByteCount());
+                    auto write = writeSystem->write(
+                        ftk::Path(ftk::fromFileSystem(dir / ftk::Format("{0}.{1}.png").
+                            arg(shape.first).arg(frame, 4, '0').str())),
+                        shapeInfo);
+                    write->writeVideo(OTIO_NS::RationalTime(frame, 24.0), image);
+                }
+            }
+            const auto range10 = std::string(
+                "{ \"OTIO_SCHEMA\": \"TimeRange.1\","
+                " \"start_time\": { \"OTIO_SCHEMA\": \"RationalTime.1\", \"rate\": 24.0, \"value\": 0.0 },"
+                " \"duration\": { \"OTIO_SCHEMA\": \"RationalTime.1\", \"rate\": 24.0, \"value\": 10.0 } }");
+            const auto clip = [&range10](const std::string& name)
+            {
+                return
+                    "{ \"OTIO_SCHEMA\": \"Clip.1\", \"name\": \"" + name + "\","
+                    " \"source_range\": " + range10 + ","
+                    " \"media_reference\": { \"OTIO_SCHEMA\": \"ImageSequenceReference.1\","
+                    " \"target_url_base\": \"\", \"name_prefix\": \"" + name + ".\","
+                    " \"name_suffix\": \".png\", \"start_frame\": 0, \"frame_step\": 1,"
+                    " \"rate\": 24.0, \"frame_zero_padding\": 4,"
+                    " \"missing_frame_policy\": \"error\", \"available_range\": " + range10 + " } }";
+            };
+            const std::string otio =
+                "{ \"OTIO_SCHEMA\": \"Timeline.1\", \"name\": \"shapes\","
+                " \"tracks\": { \"OTIO_SCHEMA\": \"Stack.1\", \"children\": ["
+                " { \"OTIO_SCHEMA\": \"Track.1\", \"kind\": \"Video\", \"children\": [ " +
+                clip("wide") + ", " + clip("square") + " ] } ] } }";
+            const std::filesystem::path otioPath = dir / "shapes.otio";
+            {
+                std::ofstream file(otioPath);
+                file << otio;
+            }
+            auto shapes = Timeline::create(_context, ftk::Path(ftk::fromFileSystem(otioPath)));
+            const OTIO_NS::TimeRange shapesRange = shapes->getTimeRange();
+            const auto shapeScores = scoreFrames(shapes, shapesRange);
+            FTK_CHECK(20 == shapeScores.size());
+            if (20 == shapeScores.size())
+            {
+                FTK_CHECK(0.F == shapeScores[5].score);
+                FTK_CHECK(1.F == shapeScores[10].score);
+                FTK_CHECK(0.F == shapeScores[11].score);
+            }
+            const auto shapeCuts = detectCuts(shapes, shapesRange);
+            FTK_CHECK(1 == shapeCuts.size() &&
+                shapesRange.start_time() + OTIO_NS::RationalTime(10.0, 24.0) == shapeCuts[0]);
         }
 
         void TimelineTest::_separateAudio()
