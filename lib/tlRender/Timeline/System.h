@@ -30,6 +30,10 @@ namespace tl
         TL_TIMELINE_API void tick() override;
         TL_TIMELINE_API std::chrono::milliseconds getTickTime() const override;
 
+        //! Busy while a player is playing, so that the application's loop
+        //! notices each frame on time.
+        TL_TIMELINE_API bool isBusy() const override;
+
     private:
         void _addPlayer(const std::shared_ptr<Player>&);
 

@@ -4,6 +4,7 @@
 #include <tlRender/TimelineTest/PlayerTest.h>
 
 #include <tlRender/Timeline/Player.h>
+#include <tlRender/Timeline/System.h>
 #include <tlRender/Timeline/Util.h>
 
 #include <tlRender/IO/System.h>
@@ -1006,6 +1007,15 @@ namespace tl
                 FTK_CHECK(!video.empty() && video.front().time == player->getCurrentTime());
                 wait(std::chrono::milliseconds(100));
             }
+
+            // Busy while playing, which keeps an application's loop from
+            // idling between the frames.
+            FTK_CHECK(!_context->isBusy());
+            player->setPlayback(Playback::Forward);
+            FTK_CHECK(_context->getSystem<System>()->isBusy());
+            FTK_CHECK(_context->isBusy());
+            player->setPlayback(Playback::Stop);
+            FTK_CHECK(!_context->isBusy());
         }
     }
 }

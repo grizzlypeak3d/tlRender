@@ -174,6 +174,21 @@ namespace tl
         return std::chrono::milliseconds(1);
     }
 
+    bool System::isBusy() const
+    {
+        for (const auto& i : _p->players)
+        {
+            if (auto player = i.lock())
+            {
+                if (player->getPlayback() != Playback::Stop)
+                {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
     void System::_addPlayer(const std::shared_ptr<Player>& player)
     {
         _p->players.push_back(player);
