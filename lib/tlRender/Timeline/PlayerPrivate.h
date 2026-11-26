@@ -437,11 +437,13 @@ namespace tl
         {
             std::chrono::steady_clock::time_point playbackTimer;
             OTIO_NS::RationalTime start;
-            //! Reset outside a tick (playback started, a seek), with the
-            //! application paced to the display: the clock starts at the
-            //! next tick's frame time instead, the refresh the start is
-            //! shown at, rather than now, a refresh or so before it.
-            bool anchorPending = false;
+            //! The last tick's frame time, when the application is paced
+            //! to the display: the refresh the current time is shown at,
+            //! which a reset starts the clock at rather than now, a refresh
+            //! or so before it. Started at now, the clock ran a frame ahead
+            //! at the next tick, and a loop skipped a frame (the A4000 at
+            //! 60 and 24 fps).
+            std::optional<std::chrono::steady_clock::time_point> frameTime;
             std::mutex mutex;
         };
         NoAudio noAudio;

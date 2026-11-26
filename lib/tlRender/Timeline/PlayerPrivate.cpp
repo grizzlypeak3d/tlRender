@@ -842,9 +842,8 @@ namespace tl
     void Player::Private::playbackReset(const OTIO_NS::RationalTime& time)
     {
         std::unique_lock<std::mutex> lock(noAudio.mutex);
-        noAudio.playbackTimer = std::chrono::steady_clock::now();
+        noAudio.playbackTimer = noAudio.frameTime.value_or(std::chrono::steady_clock::now());
         noAudio.start = time;
-        noAudio.anchorPending = true;
     }
 
     OTIO_NS::RationalTime Player::Private::playEveryFrameTime(

@@ -1213,7 +1213,14 @@ namespace tl
 
         // Calculate the current time: of the refresh the frame will be
         // shown at, when the application knows it, and otherwise of now.
-        if (playback != Playback::Stop && timelineSpeed > 0.0)
+        if (Playback::Stop == playback)
+        {
+            // Not kept while stopped: a start minutes later would begin
+            // the clock at a refresh long gone.
+            std::unique_lock<std::mutex> lock(p.noAudio.mutex);
+            p.noAudio.frameTime.reset();
+        }
+        else if (timelineSpeed > 0.0)
         {
             const auto realNow = std::chrono::steady_clock::now();
             auto frameTime = realNow;
@@ -1225,6 +1232,12 @@ namespace tl
                     frameTime = *value;
                     paced = true;
                 }
+            }
+            {
+                std::unique_lock<std::mutex> lock(p.noAudio.mutex);
+                p.noAudio.frameTime = paced ?
+                    std::optional<std::chrono::steady_clock::time_point>(frameTime) :
+                    std::nullopt;
             }
             OTIO_NS::RationalTime start;
             double t = 0.0;
@@ -1290,11 +1303,6 @@ namespace tl
                 std::chrono::steady_clock::time_point playbackTimer;
                 {
                     std::unique_lock<std::mutex> lock(p.noAudio.mutex);
-                    if (paced && p.noAudio.anchorPending)
-                    {
-                        p.noAudio.playbackTimer = frameTime;
-                    }
-                    p.noAudio.anchorPending = false;
                     start = p.noAudio.start;
                     playbackTimer = p.noAudio.playbackTimer;
                 }
@@ -1314,17 +1322,7 @@ namespace tl
             }
             bool looped = false;
             const OTIO_NS::RationalTime currentTime = p.loopPlayback(time, looped);
-            if (looped && paced && !p.audioIsClock())
-            {
-                // The wrap restarted the clock at now; the frame it wrapped
-                // to is shown at this tick's frame time, a refresh or so
-                // later, and a clock started now ran a frame ahead at the
-                // next tick: a frame skipped at every loop (the A4000 at
-                // 60 and 24 fps).
-                std::unique_lock<std::mutex> lock(p.noAudio.mutex);
-                p.noAudio.playbackTimer = frameTime;
-                p.noAudio.anchorPending = false;
-            }
+
             //const double currentTimeDiff = abs(currentTime.value() - p.currentTime->get().value());
             if (p.currentTime->setIfChanged(currentTime))
             {
