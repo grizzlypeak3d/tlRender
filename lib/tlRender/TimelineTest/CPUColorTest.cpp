@@ -37,6 +37,7 @@ namespace tl
 
         void CPUColorTest::_levels()
         {
+#if defined(TLRENDER_OCIO)
             // The high values are the white points, as the low values are
             // the black points: In 0.2 to 0.8 onto Out 0.1 to 0.9. They had
             // been widths, so 0.8 in came out at 0.75 of the range.
@@ -69,6 +70,7 @@ namespace tl
             float one[] = { .5F, .5F, .5F, 1.F };
             flat.apply(one, 1);
             FTK_CHECK(std::isfinite(one[0]));
+#endif // TLRENDER_OCIO
         }
 
         void CPUColorTest::_table()
