@@ -1211,9 +1211,19 @@ namespace tl
             p.audioMutex.state.hold = false;
         }
 
-        // Calculate the current time.
+        // Calculate the current time: of the refresh the frame will be
+        // shown at, when the application knows it, and otherwise of now.
         if (playback != Playback::Stop && timelineSpeed > 0.0)
         {
+            const auto realNow = std::chrono::steady_clock::now();
+            auto frameTime = realNow;
+            if (auto context = getContext())
+            {
+                if (const auto& value = context->getFrameTime())
+                {
+                    frameTime = *value;
+                }
+            }
             OTIO_NS::RationalTime start;
             double t = 0.0;
             if (p.audioIsClock())
@@ -1234,10 +1244,16 @@ namespace tl
                     outputLatency = p.audioMutex.outputLatency;
                     if (p.audioMutex.positionDuration > 0.0)
                     {
+                        // Up to the block handed over, and on to the
+                        // refresh the frame is for.
                         const std::chrono::duration<double> elapsed =
-                            std::chrono::steady_clock::now() - p.audioMutex.positionTime;
+                            frameTime - p.audioMutex.positionTime;
+                        const std::chrono::duration<double> ahead = frameTime - realNow;
                         position += static_cast<int64_t>(
-                            std::clamp(elapsed.count(), 0.0, p.audioMutex.positionDuration) *
+                            std::clamp(
+                                elapsed.count(),
+                                0.0,
+                                p.audioMutex.positionDuration + std::max(ahead.count(), 0.0)) *
                             p.audioMutex.positionRate);
                     }
                 }
@@ -1275,8 +1291,7 @@ namespace tl
                     start = p.noAudio.start;
                     playbackTimer = p.noAudio.playbackTimer;
                 }
-                const auto now = std::chrono::steady_clock::now();
-                const std::chrono::duration<double> diff = now - playbackTimer;
+                const std::chrono::duration<double> diff = frameTime - playbackTimer;
                 t = diff.count() * (p.speed->get() * p.speedMult->get()) / timelineSpeed;
             }
             if (Playback::Reverse == playback && !p.audioIsClock())
