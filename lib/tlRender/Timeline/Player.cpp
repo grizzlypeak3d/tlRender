@@ -1217,11 +1217,13 @@ namespace tl
         {
             const auto realNow = std::chrono::steady_clock::now();
             auto frameTime = realNow;
+            bool paced = false;
             if (auto context = getContext())
             {
                 if (const auto& value = context->getFrameTime())
                 {
                     frameTime = *value;
+                    paced = true;
                 }
             }
             OTIO_NS::RationalTime start;
@@ -1288,6 +1290,11 @@ namespace tl
                 std::chrono::steady_clock::time_point playbackTimer;
                 {
                     std::unique_lock<std::mutex> lock(p.noAudio.mutex);
+                    if (paced && p.noAudio.anchorPending)
+                    {
+                        p.noAudio.playbackTimer = frameTime;
+                    }
+                    p.noAudio.anchorPending = false;
                     start = p.noAudio.start;
                     playbackTimer = p.noAudio.playbackTimer;
                 }
@@ -1307,6 +1314,17 @@ namespace tl
             }
             bool looped = false;
             const OTIO_NS::RationalTime currentTime = p.loopPlayback(time, looped);
+            if (looped && paced && !p.audioIsClock())
+            {
+                // The wrap restarted the clock at now; the frame it wrapped
+                // to is shown at this tick's frame time, a refresh or so
+                // later, and a clock started now ran a frame ahead at the
+                // next tick: a frame skipped at every loop (the A4000 at
+                // 60 and 24 fps).
+                std::unique_lock<std::mutex> lock(p.noAudio.mutex);
+                p.noAudio.playbackTimer = frameTime;
+                p.noAudio.anchorPending = false;
+            }
             //const double currentTimeDiff = abs(currentTime.value() - p.currentTime->get().value());
             if (p.currentTime->setIfChanged(currentTime))
             {

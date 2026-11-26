@@ -844,6 +844,7 @@ namespace tl
         std::unique_lock<std::mutex> lock(noAudio.mutex);
         noAudio.playbackTimer = std::chrono::steady_clock::now();
         noAudio.start = time;
+        noAudio.anchorPending = true;
     }
 
     OTIO_NS::RationalTime Player::Private::playEveryFrameTime(

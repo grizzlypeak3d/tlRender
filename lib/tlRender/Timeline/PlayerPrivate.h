@@ -437,6 +437,11 @@ namespace tl
         {
             std::chrono::steady_clock::time_point playbackTimer;
             OTIO_NS::RationalTime start;
+            //! Reset outside a tick (playback started, a seek), with the
+            //! application paced to the display: the clock starts at the
+            //! next tick's frame time instead, the refresh the start is
+            //! shown at, rather than now, a refresh or so before it.
+            bool anchorPending = false;
             std::mutex mutex;
         };
         NoAudio noAudio;
