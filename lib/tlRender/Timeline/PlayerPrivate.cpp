@@ -9,6 +9,7 @@
 #include <ftk/Core/Format.h>
 #include <ftk/Core/String.h>
 
+#include <algorithm>
 #include <cmath>
 
 namespace tl
@@ -839,10 +840,64 @@ namespace tl
         return out;
     }
 
+    namespace
+    {
+        //! How far before the frame time, as a fraction of a refresh, to
+        //! start the clock, so that the frame boundaries fall as far from
+        //! the refreshes as they can: started at the frame time itself,
+        //! at 60 fps on a 60 Hz display every boundary fell on a refresh,
+        //! where the refresh estimate moving by a fraction of a
+        //! millisecond chose one frame or the other (the A4000: a hundred
+        //! hitches a minute). Half a refresh at 60 and 30 fps on 60 Hz, a
+        //! quarter at 24.
+        double clockOffset(double period, double frameDuration)
+        {
+            if (period <= 0.0 || frameDuration <= 0.0)
+            {
+                return 0.0;
+            }
+            // Frames a refresh; a boundary is where the frame count from
+            // the start is whole.
+            const double x = period / frameDuration;
+            double out = 0.5;
+            double best = -1.0;
+            for (int i = 0; i < 64; ++i)
+            {
+                const double offset = (i + 0.5) / 64.0;
+                double margin = 1.0;
+                for (int j = 0; j < 120; ++j)
+                {
+                    const double v = (offset + j) * x;
+                    const double f = v - std::floor(v);
+                    margin = std::min(margin, std::min(f, 1.0 - f));
+                }
+                if (margin > best)
+                {
+                    best = margin;
+                    out = offset;
+                }
+            }
+            return out;
+        }
+    }
+
     void Player::Private::playbackReset(const OTIO_NS::RationalTime& time)
     {
         std::unique_lock<std::mutex> lock(noAudio.mutex);
-        noAudio.playbackTimer = noAudio.frameTime.value_or(std::chrono::steady_clock::now());
+        if (noAudio.frameTime)
+        {
+            const double rate = speed->get() * speedMult->get();
+            const double offset = clockOffset(
+                noAudio.framePeriod,
+                rate > 0.0 ? 1.0 / rate : 0.0);
+            noAudio.playbackTimer = *noAudio.frameTime -
+                std::chrono::duration_cast<std::chrono::steady_clock::duration>(
+                    std::chrono::duration<double>(offset * noAudio.framePeriod));
+        }
+        else
+        {
+            noAudio.playbackTimer = std::chrono::steady_clock::now();
+        }
         noAudio.start = time;
     }
 

@@ -1224,12 +1224,14 @@ namespace tl
         {
             const auto realNow = std::chrono::steady_clock::now();
             auto frameTime = realNow;
+            double framePeriod = 0.0;
             bool paced = false;
             if (auto context = getContext())
             {
                 if (const auto& value = context->getFrameTime())
                 {
                     frameTime = *value;
+                    framePeriod = context->getFramePeriod();
                     paced = true;
                 }
             }
@@ -1238,6 +1240,7 @@ namespace tl
                 p.noAudio.frameTime = paced ?
                     std::optional<std::chrono::steady_clock::time_point>(frameTime) :
                     std::nullopt;
+                p.noAudio.framePeriod = paced ? framePeriod : 0.0;
             }
             OTIO_NS::RationalTime start;
             double t = 0.0;

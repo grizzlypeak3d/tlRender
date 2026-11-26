@@ -444,6 +444,8 @@ namespace tl
             //! at the next tick, and a loop skipped a frame (the A4000 at
             //! 60 and 24 fps).
             std::optional<std::chrono::steady_clock::time_point> frameTime;
+            //! The refresh period with it, in seconds.
+            double framePeriod = 0.0;
             std::mutex mutex;
         };
         NoAudio noAudio;
