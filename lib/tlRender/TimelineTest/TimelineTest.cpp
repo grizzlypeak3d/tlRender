@@ -2166,7 +2166,7 @@ namespace tl
                 options);
             const OTIO_NS::TimeRange& timeRange = timeline->getTimeRange();
             const int count = static_cast<int>(timeRange.duration().value());
-            FTK_ASSERT(count >= 30);
+            FTK_CHECK(count >= 30);
             const int priority = reverse ? count / 3 : count * 2 / 3;
             const double rate = timeRange.duration().rate();
             timeline->setRequestPriority(
@@ -2200,7 +2200,7 @@ namespace tl
                 }
                 std::this_thread::sleep_for(std::chrono::microseconds(100));
             }
-            FTK_ASSERT(0 == remaining);
+            FTK_CHECK(0 == remaining);
 
             // Those the playhead reaches first are all done before any of the
             // others. The first two asked for can be taken before the rest
@@ -2226,7 +2226,7 @@ namespace tl
                 arg(reverse ? "reverse" : "forward").
                 arg(firstDone).
                 arg(othersDone));
-            FTK_ASSERT(firstDone <= othersDone);
+            FTK_CHECK(firstDone <= othersDone);
         }
 
 }

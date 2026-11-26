@@ -1313,11 +1313,27 @@ namespace tl
                 p.playback->get() != Playback::Stop &&
                 !p.buffering->get();
             // The picture for the time this tick moved to, when the thread
-            // has it ready; otherwise what the thread last found.
-            const auto i = p.mutex.videoNear.find(p.mutex.state.currentTime);
-            currentVideoFrame = i != p.mutex.videoNear.end() ?
-                i->second :
-                p.mutex.currentVideoFrame;
+            // has it ready; otherwise what the thread last found, unless
+            // the picture already shown is nearer the time: the thread
+            // runs behind the tick, and what it last found can be a frame
+            // before one picked here, which went back a frame.
+            const OTIO_NS::RationalTime& time = p.mutex.state.currentTime;
+            const auto i = p.mutex.videoNear.find(time);
+            if (i != p.mutex.videoNear.end())
+            {
+                currentVideoFrame = i->second;
+            }
+            else
+            {
+                currentVideoFrame = p.mutex.currentVideoFrame;
+                const auto& shown = p.currentVideoFrame->get();
+                if (!currentVideoFrame.empty() && !shown.empty() &&
+                    std::abs(shown.front().time.to_seconds() - time.to_seconds()) <
+                    std::abs(currentVideoFrame.front().time.to_seconds() - time.to_seconds()))
+                {
+                    currentVideoFrame = shown;
+                }
+            }
             currentAudioFrame = p.mutex.currentAudioFrame;
             cacheInfo = p.mutex.cacheInfo;
         }

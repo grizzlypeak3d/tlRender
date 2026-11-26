@@ -60,7 +60,7 @@ namespace tl
             };
             for (size_t i = 0; i < 8; ++i)
             {
-                FTK_ASSERT(std::fabs(rgba[i] - expected[i]) < .0001F);
+                FTK_CHECK(std::fabs(rgba[i] - expected[i]) < .0001F);
             }
 
             // A range with no width does not divide by zero.
@@ -68,7 +68,7 @@ namespace tl
             const CPUColor flat(OCIOOptions(), LUTOptions(), options);
             float one[] = { .5F, .5F, .5F, 1.F };
             flat.apply(one, 1);
-            FTK_ASSERT(std::isfinite(one[0]));
+            FTK_CHECK(std::isfinite(one[0]));
         }
 
         void CPUColorTest::_table()

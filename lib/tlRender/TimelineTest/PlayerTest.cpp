@@ -626,14 +626,14 @@ namespace tl
             auto timeline = Timeline::create(_context, path);
             auto player = Player::create(_context, timeline);
             const IOInfo& ioInfo = player->getIOInfo();
-            FTK_ASSERT(!ioInfo.video.empty());
+            FTK_CHECK(!ioInfo.video.empty());
             PlayerCacheOptions cacheOptions;
             cacheOptions.videoGB = 24.F * ioInfo.video[0].getByteCount() / ftk::gigabyte;
             cacheOptions.readBehind = .5F;
             player->setCacheOptions(cacheOptions);
             const OTIO_NS::TimeRange& timeRange = player->getTimeRange();
             const double rate = timeRange.duration().rate();
-            FTK_ASSERT(timeRange.duration().value() > 24 + 2 * rate * cacheOptions.readBehind);
+            FTK_CHECK(timeRange.duration().value() > 24 + 2 * rate * cacheOptions.readBehind);
 
             const auto t = std::chrono::steady_clock::now();
             while (std::chrono::steady_clock::now() - t < std::chrono::seconds(2))
@@ -654,9 +654,9 @@ namespace tl
                 endCached |= range.end_time_inclusive() >= endStart;
                 _print(ftk::Format("Read behind: cached {0}").arg(range));
             }
-            FTK_ASSERT(!cached.empty());
-            FTK_ASSERT(startCached);
-            FTK_ASSERT(!endCached);
+            FTK_CHECK(!cached.empty());
+            FTK_CHECK(startCached);
+            FTK_CHECK(!endCached);
         }
 
         void PlayerTest::_preroll()
@@ -712,9 +712,9 @@ namespace tl
                 arg(player->getDroppedFrames()).
                 arg(player->observeCacheInfo()->get().videoPercentage).
                 arg(waited.count()));
-            FTK_ASSERT(buffered);
-            FTK_ASSERT(!player->isBuffering());
-            FTK_ASSERT(player->getCurrentTime() > timeRange.start_time());
+            FTK_CHECK(buffered);
+            FTK_CHECK(!player->isBuffering());
+            FTK_CHECK(player->getCurrentTime() > timeRange.start_time());
             player->setPlayback(Playback::Stop);
         }
 
@@ -745,7 +745,7 @@ namespace tl
                     auto player = Player::create(_context, i.second);
                     const OTIO_NS::TimeRange& timeRange = player->getTimeRange();
                     const double rate = timeRange.duration().rate();
-                    FTK_ASSERT(!player->isPlayEveryFrame());
+                    FTK_CHECK(!player->isPlayEveryFrame());
                     bool changed = false;
                     auto playEveryFrameObserver = ftk::Observer<bool>::create(
                         player->observePlayEveryFrame(),
@@ -754,8 +754,8 @@ namespace tl
                             changed |= value;
                         });
                     player->setPlayEveryFrame(true);
-                    FTK_ASSERT(changed);
-                    FTK_ASSERT(player->isPlayEveryFrame());
+                    FTK_CHECK(changed);
+                    FTK_CHECK(player->isPlayEveryFrame());
 
                     std::vector<int64_t> shown;
                     auto videoObserver = ftk::ListObserver<VideoFrame>::create(
@@ -800,18 +800,18 @@ namespace tl
                         arg(shown.size()).
                         arg(player->getDroppedFrames()).
                         arg(ss.str()));
-                    FTK_ASSERT(shown.size() >= count);
+                    FTK_CHECK(shown.size() >= count);
                     // From the second: the first is the frame shown before
                     // playback started, which a seek may not have replaced.
                     const int64_t step = Playback::Reverse == playback ? -1 : 1;
                     for (size_t j = 2; j < shown.size(); ++j)
                     {
-                        FTK_ASSERT(shown[j] == shown[j - 1] + step);
+                        FTK_CHECK(shown[j] == shown[j - 1] + step);
                     }
-                    FTK_ASSERT(0 == player->getDroppedFrames());
+                    FTK_CHECK(0 == player->getDroppedFrames());
 
                     player->setPlayEveryFrame(false);
-                    FTK_ASSERT(!player->isPlayEveryFrame());
+                    FTK_CHECK(!player->isPlayEveryFrame());
                 }
             }
         }

@@ -79,8 +79,8 @@ namespace tl
             // FFmpeg's errors reach a capture on this thread even though
             // the plugin keeps its log quiet; the read plugin installs the
             // callback that does it.
-            FTK_ASSERT(_context->getSystem<ReadSystem>()->getPlugin<ffmpeg::ReadPlugin>());
-            FTK_ASSERT(!ffmpeg::getErrorCapture());
+            FTK_CHECK(_context->getSystem<ReadSystem>()->getPlugin<ffmpeg::ReadPlugin>());
+            FTK_CHECK(!ffmpeg::getErrorCapture());
             {
                 ffmpeg::ErrorCapture capture;
                 av_log(nullptr, AV_LOG_ERROR, "first\n");
@@ -88,16 +88,16 @@ namespace tl
                 {
                     ffmpeg::ErrorCapture inner;
                     av_log(nullptr, AV_LOG_ERROR, "inner\n");
-                    FTK_ASSERT("inner" == inner.getText());
+                    FTK_CHECK("inner" == inner.getText());
                 }
                 av_log(nullptr, AV_LOG_FATAL, "second %d\n", 2);
-                FTK_ASSERT("first; second 2" == capture.getText());
+                FTK_CHECK("first; second 2" == capture.getText());
 
                 // Another thread's errors are its own.
                 std::thread([] { av_log(nullptr, AV_LOG_ERROR, "elsewhere\n"); }).join();
-                FTK_ASSERT("first; second 2" == capture.getText());
+                FTK_CHECK("first; second 2" == capture.getText());
             }
-            FTK_ASSERT(!ffmpeg::getErrorCapture());
+            FTK_CHECK(!ffmpeg::getErrorCapture());
         }
 
         void FFmpegTest::_conversionRead()
@@ -1223,14 +1223,14 @@ namespace tl
                 l->MaxFALL = 300;
                 HDRData hdr;
                 ffmpeg::toHDRData(frame->side_data, frame->nb_side_data, AVCOL_TRC_SMPTE2084, hdr);
-                FTK_ASSERT(HDR_EOTF::ST2084 == hdr.eotf);
-                FTK_ASSERT(std::fabs(hdr.primaries[0].x - .68F) < .0001F);
-                FTK_ASSERT(std::fabs(hdr.primaries[1].y - .69F) < .0001F);
-                FTK_ASSERT(std::fabs(hdr.primaries[3].x - .3127F) < .0001F);
-                FTK_ASSERT(std::fabs(hdr.displayMasteringLuminance.min() - .005F) < .0001F);
-                FTK_ASSERT(1000.F == hdr.displayMasteringLuminance.max());
-                FTK_ASSERT(800.F == hdr.maxCLL);
-                FTK_ASSERT(300.F == hdr.maxFALL);
+                FTK_CHECK(HDR_EOTF::ST2084 == hdr.eotf);
+                FTK_CHECK(std::fabs(hdr.primaries[0].x - .68F) < .0001F);
+                FTK_CHECK(std::fabs(hdr.primaries[1].y - .69F) < .0001F);
+                FTK_CHECK(std::fabs(hdr.primaries[3].x - .3127F) < .0001F);
+                FTK_CHECK(std::fabs(hdr.displayMasteringLuminance.min() - .005F) < .0001F);
+                FTK_CHECK(1000.F == hdr.displayMasteringLuminance.max());
+                FTK_CHECK(800.F == hdr.maxCLL);
+                FTK_CHECK(300.F == hdr.maxFALL);
                 av_frame_free(&frame);
             }
             // A mastering display without luminance keeps the default
@@ -1243,9 +1243,9 @@ namespace tl
                 HDRData hdr;
                 ffmpeg::toHDRData(frame->side_data, frame->nb_side_data, AVCOL_TRC_BT709, hdr);
                 const HDRData defaults;
-                FTK_ASSERT(HDR_EOTF::SDR == hdr.eotf);
-                FTK_ASSERT(defaults.displayMasteringLuminance == hdr.displayMasteringLuminance);
-                FTK_ASSERT(defaults.primaries == hdr.primaries);
+                FTK_CHECK(HDR_EOTF::SDR == hdr.eotf);
+                FTK_CHECK(defaults.displayMasteringLuminance == hdr.displayMasteringLuminance);
+                FTK_CHECK(defaults.primaries == hdr.primaries);
                 av_frame_free(&frame);
             }
         }
