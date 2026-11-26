@@ -33,6 +33,7 @@ namespace tl
             void _playEveryFrame();
             void _outsideInOut();
             void _jumps();
+            void _sameTick();
         };
     }
 }

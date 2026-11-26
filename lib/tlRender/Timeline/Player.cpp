@@ -1312,7 +1312,12 @@ namespace tl
             p.mutex.state.playing =
                 p.playback->get() != Playback::Stop &&
                 !p.buffering->get();
-            currentVideoFrame = p.mutex.currentVideoFrame;
+            // The picture for the time this tick moved to, when the thread
+            // has it ready; otherwise what the thread last found.
+            const auto i = p.mutex.videoNear.find(p.mutex.state.currentTime);
+            currentVideoFrame = i != p.mutex.videoNear.end() ?
+                i->second :
+                p.mutex.currentVideoFrame;
             currentAudioFrame = p.mutex.currentAudioFrame;
             cacheInfo = p.mutex.cacheInfo;
         }
@@ -1355,6 +1360,12 @@ namespace tl
                 p.mutex.clearRequests = false;
                 clearCache = p.mutex.clearCache;
                 p.mutex.clearCache = false;
+                if (clearCache)
+                {
+                    // Frames made with the old settings, which the tick
+                    // must not pick up before this pass replaces them.
+                    p.mutex.videoNear.clear();
+                }
                 cacheDir = p.mutex.cacheDir;
             }
             p.thread.state = state;
@@ -1411,6 +1422,32 @@ namespace tl
             // Update the current video frame.
             if (p.hasVideo())
             {
+                // And the frames next to it, for the tick to pick from.
+                std::map<OTIO_NS::RationalTime, std::vector<VideoFrame> > near;
+                const OTIO_NS::RationalTime& current = p.thread.state.currentTime;
+                const OTIO_NS::TimeRange& inOut = p.thread.state.inOutRange;
+                const double rate = current.rate();
+                const auto add = [&p, &near](const OTIO_NS::RationalTime& time)
+                    {
+                        const auto i = p.thread.videoCache.find(time);
+                        if (i != p.thread.videoCache.end())
+                        {
+                            near[time] = i->second;
+                        }
+                    };
+                add(current);
+                for (int k = 1; k <= 2; ++k)
+                {
+                    add(current + OTIO_NS::RationalTime(k, rate));
+                    add(current - OTIO_NS::RationalTime(k, rate));
+                    add(inOut.start_time() + OTIO_NS::RationalTime(k - 1, rate));
+                    add(inOut.end_time_inclusive() - OTIO_NS::RationalTime(k - 1, rate));
+                }
+                {
+                    std::unique_lock<std::mutex> lock(p.mutex.mutex);
+                    p.mutex.videoNear = std::move(near);
+                }
+
                 if (const auto i = p.thread.videoCache.find(p.thread.state.currentTime);
                     i != p.thread.videoCache.end())
                 {

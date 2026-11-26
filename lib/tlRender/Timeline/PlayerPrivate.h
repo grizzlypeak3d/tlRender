@@ -237,6 +237,14 @@ namespace tl
             bool clearCache = false;
             CacheDir cacheDir = CacheDir::Forward;
             std::vector<VideoFrame> currentVideoFrame;
+            // The cached frames next to the current time, either way and
+            // around the in/out range's ends, so that the tick that moves
+            // the playhead shows the picture for it in the same tick. Left
+            // to the thread, the picture came a tick after the time, and
+            // the window presented twice a frame: the first, with only the
+            // time changed, could take the display's next refresh and hold
+            // the picture back one, which on a slow GPU showed as pops.
+            std::map<OTIO_NS::RationalTime, std::vector<VideoFrame> > videoNear;
             std::vector<AudioFrame> currentAudioFrame;
             PlayerCacheInfo cacheInfo;
             std::mutex mutex;

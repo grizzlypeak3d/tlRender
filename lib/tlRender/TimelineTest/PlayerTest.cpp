@@ -69,6 +69,7 @@ namespace tl
             _playEveryFrame();
             _outsideInOut();
             _jumps();
+            _sameTick();
         }
 
         void PlayerTest::_enums()
@@ -963,6 +964,47 @@ namespace tl
                 _print(ftk::Format("Inside: cached {0}").arg(range));
                 FTK_CHECK(range.start_time() >= inOut.start_time());
                 FTK_CHECK(range.end_time_inclusive() <= inOut.end_time_inclusive());
+            }
+        }
+
+        void PlayerTest::_sameTick()
+        {
+            // Stepping onto a cached frame shows it in the tick that moves
+            // the time, not a tick later: a window that presents in between
+            // shows the time changed and the picture not, and on a slow GPU
+            // that present held the picture back a refresh.
+            const ftk::Path path = ftk::expandSeq(
+                ftk::Path(TLRENDER_SAMPLE_DATA, "Seq/BART_2021-02-07.0001.jpg"));
+            if (!_context->getSystem<ReadSystem>()->getPlugin(path))
+            {
+                return;
+            }
+            auto timeline = Timeline::create(_context, path);
+            auto player = Player::create(_context, timeline);
+            const auto wait = [this](const std::chrono::milliseconds& value)
+            {
+                const auto t = std::chrono::steady_clock::now();
+                while (std::chrono::steady_clock::now() - t < value)
+                {
+                    _context->tick();
+                    ftk::sleep(std::chrono::milliseconds(5));
+                }
+            };
+            wait(std::chrono::milliseconds(500));
+            for (const bool next : { true, true, true, false, false })
+            {
+                if (next)
+                {
+                    player->frameNext();
+                }
+                else
+                {
+                    player->framePrev();
+                }
+                _context->tick();
+                const auto& video = player->getCurrentVideo();
+                FTK_CHECK(!video.empty() && video.front().time == player->getCurrentTime());
+                wait(std::chrono::milliseconds(100));
             }
         }
     }
