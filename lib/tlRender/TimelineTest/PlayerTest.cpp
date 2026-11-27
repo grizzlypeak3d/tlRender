@@ -72,6 +72,7 @@ namespace tl
             _jumps();
             _sameTick();
             _paced();
+            _pausedFrame();
         }
 
         void PlayerTest::_enums()
@@ -1239,6 +1240,80 @@ namespace tl
                     }
                     FTK_CHECK(static_cast<double>(held) >= std::floor(1.0 / perRefresh));
                 }
+            }
+        }
+
+        void PlayerTest::_pausedFrame()
+        {
+            // Stopped, the picture stays on the last frame shown and does
+            // not go back to one before it: what a pause shows. Played
+            // paced, refreshes at 60 Hz in real time, and unpaced.
+            const ftk::Path path = ftk::expandSeq(
+                ftk::Path(TLRENDER_SAMPLE_DATA, "Seq/BART_2021-02-07.0001.jpg"));
+            if (!_context->getSystem<ReadSystem>()->getPlugin(path))
+            {
+                return;
+            }
+            for (const bool paced : { true, false })
+            {
+                auto player = Player::create(_context, Timeline::create(_context, path));
+                player->setLoop(Loop::Loop);
+                const double period = 1.0 / 60.0;
+                const auto base = std::chrono::steady_clock::now();
+                std::optional<OTIO_NS::RationalTime> shown;
+                bool back = false;
+                const auto tick = [&](bool pacedTick)
+                {
+                    if (pacedTick)
+                    {
+                        const double t = std::chrono::duration<double>(
+                            std::chrono::steady_clock::now() - base).count();
+                        const double k = std::floor(t / period) + 1.0;
+                        _context->setFrameTime(
+                            base + std::chrono::duration_cast<std::chrono::steady_clock::duration>(
+                                std::chrono::duration<double>(k * period)),
+                            period);
+                    }
+                    else
+                    {
+                        _context->setFrameTime(std::nullopt);
+                    }
+                    _context->tick();
+                    const auto& video = player->getCurrentVideo();
+                    if (!video.empty())
+                    {
+                        const OTIO_NS::RationalTime time = video.front().time;
+                        // Back other than at a loop.
+                        if (shown.has_value() && time < shown.value() &&
+                            (shown.value() - time).value() < 10.0)
+                        {
+                            back = true;
+                        }
+                        shown = time;
+                    }
+                    ftk::sleep(std::chrono::milliseconds(2));
+                };
+                player->setPlayback(Playback::Forward);
+                const auto t = std::chrono::steady_clock::now();
+                while (std::chrono::steady_clock::now() - t < std::chrono::milliseconds(500))
+                {
+                    tick(paced);
+                }
+                const std::optional<OTIO_NS::RationalTime> lastPlaying = shown;
+                player->setPlayback(Playback::Stop);
+                const auto t2 = std::chrono::steady_clock::now();
+                while (std::chrono::steady_clock::now() - t2 < std::chrono::milliseconds(250))
+                {
+                    tick(false);
+                }
+                _print(ftk::Format("Paused, {0}: last shown playing {1}, stopped {2}, current time {3}").
+                    arg(paced ? "paced" : "unpaced").
+                    arg(lastPlaying.has_value() ? lastPlaying->value() : -1.0).
+                    arg(shown.has_value() ? shown->value() : -1.0).
+                    arg(player->getCurrentTime().value()));
+                FTK_CHECK(lastPlaying.has_value());
+                FTK_CHECK(!back);
+                FTK_CHECK(shown.has_value() && shown.value() == player->getCurrentTime());
             }
         }
     }

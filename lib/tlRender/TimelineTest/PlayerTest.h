@@ -35,6 +35,7 @@ namespace tl
             void _jumps();
             void _sameTick();
             void _paced();
+            void _pausedFrame();
         };
     }
 }
