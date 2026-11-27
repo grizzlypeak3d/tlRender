@@ -34,6 +34,7 @@ namespace tl
             void _outsideInOut();
             void _jumps();
             void _sameTick();
+            void _paced();
         };
     }
 }

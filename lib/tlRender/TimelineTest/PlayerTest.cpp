@@ -71,6 +71,7 @@ namespace tl
             _outsideInOut();
             _jumps();
             _sameTick();
+            _paced();
         }
 
         void PlayerTest::_enums()
@@ -1016,6 +1017,157 @@ namespace tl
             FTK_CHECK(_context->isBusy());
             player->setPlayback(Playback::Stop);
             FTK_CHECK(!_context->isBusy());
+        }
+
+        void PlayerTest::_paced()
+        {
+            // Paced to the display (ftk::Context::setFrameTime), the player
+            // picks the frame for the refresh it will be shown at, so the
+            // frames keep an even cadence: over any stretch of refreshes
+            // the frames advanced are within one of the rate's share of
+            // them (one a refresh for 60 fps on 60 Hz, each frame two for
+            // 30, three and two in turn for 24). From the start, across
+            // loops and after a seek, forward and in reverse, with the refresh estimate moving by
+            // up to half a millisecond: frame boundaries on the refreshes
+            // let movement that small flip a frame, a hundred hitches a
+            // minute on the A4000. The clock is the refreshes alone, simulated
+            // faster than they come.
+            struct Case
+            {
+                double rate;
+                double refresh;
+                Playback playback = Playback::Forward;
+            };
+            const std::vector<Case> cases =
+            {
+                { 60.0, 60.0 },
+                { 30.0, 60.0 },
+                { 24.0, 60.0 },
+                { 25.0, 60.0 },
+                { 24000.0 / 1001.0, 60000.0 / 1001.0 },
+                { 60.0, 50.0 },
+                { 24.0, 120.0 },
+                { 24.0, 60.0, Playback::Reverse },
+                { 25.0, 60.0, Playback::Reverse }
+            };
+            for (const auto& c : cases)
+            {
+                const double duration = 48.0;
+                auto otioGap = new OTIO_NS::Gap(OTIO_NS::TimeRange(
+                    OTIO_NS::RationalTime(0.0, c.rate),
+                    OTIO_NS::RationalTime(duration, c.rate)));
+                auto otioTrack = new OTIO_NS::Track;
+                otioTrack->append_child(otioGap);
+                OTIO_NS::SerializableObject::Retainer<OTIO_NS::Timeline> otioTimeline(
+                    new OTIO_NS::Timeline);
+                otioTimeline->tracks()->append_child(otioTrack);
+                auto player = Player::create(_context, Timeline::create(_context, otioTimeline));
+                player->setLoop(Loop::Loop);
+                const OTIO_NS::RationalTime start = player->getTimeRange().start_time();
+
+                // The refreshes, and the estimate's movement: a fixed
+                // sequence in [-0.5, 0.5] ms. They start when playback
+                // does, which puts the frame boundaries of a clock started
+                // then on the refreshes, the worst case.
+                const double period = 1.0 / c.refresh;
+                auto base = std::chrono::steady_clock::now();
+                uint32_t seed = 1;
+                const auto refresh = [&](int k)
+                {
+                    seed = seed * 1664525U + 1013904223U;
+                    const double jitter = ((seed >> 8) / 16777216.0 - 0.5) * 0.001;
+                    return base + std::chrono::duration_cast<std::chrono::steady_clock::duration>(
+                        std::chrono::duration<double>(k * period + jitter));
+                };
+
+                // Ticks once a refresh, the frames shown unwrapped across
+                // loops; a stretch ends at a seek.
+                const double dir = Playback::Reverse == c.playback ? -1.0 : 1.0;
+                std::vector<std::vector<std::pair<int, double> > > stretches(1);
+                double loops = 0.0;
+                double prev = 0.0;
+                const auto tick = [&](int k)
+                {
+                    _context->setFrameTime(refresh(k), period);
+                    // The timeline system ticks at most once a millisecond.
+                    ftk::sleep(std::chrono::milliseconds(1));
+                    _context->tick();
+                    const double f = (player->getCurrentTime() - start).rescaled_to(c.rate).value();
+                    if ((f - prev) * dir < -duration / 2.0)
+                    {
+                        loops += dir * duration;
+                    }
+                    prev = f;
+                    stretches.back().push_back({ k, f + loops });
+                };
+                int k = 0;
+                tick(k++);
+                stretches.back().clear();
+                player->setPlayback(c.playback);
+                base = std::chrono::steady_clock::now();
+                const int count = static_cast<int>(c.refresh * 6.0);
+                for (; k < count / 2; ++k)
+                {
+                    tick(k);
+                }
+                player->seek(start + OTIO_NS::RationalTime(10.0, c.rate));
+                stretches.push_back({});
+                prev = 10.0;
+                loops = 0.0;
+                for (; k < count; ++k)
+                {
+                    tick(k);
+                }
+                player->setPlayback(Playback::Stop);
+                _context->setFrameTime(std::nullopt);
+
+                const double perRefresh = c.rate / c.refresh;
+                for (size_t s = 0; s < stretches.size(); ++s)
+                {
+                    const auto& frames = stretches[s];
+                    size_t bad = 0;
+                    double worst = 0.0;
+                    for (size_t i = 0; i < frames.size(); ++i)
+                    {
+                        for (size_t j = i + 1; j < frames.size(); ++j)
+                        {
+                            const double d =
+                                (frames[j].second - frames[i].second) -
+                                (frames[j].first - frames[i].first) * perRefresh * dir;
+                            worst = std::max(worst, std::abs(d));
+                            if (std::abs(d) >= 1.0 - 1e-9)
+                            {
+                                ++bad;
+                            }
+                        }
+                    }
+                    std::stringstream ss;
+                    for (size_t i = 0; i < std::min(frames.size(), static_cast<size_t>(16)); ++i)
+                    {
+                        ss << frames[i].second << " ";
+                    }
+                    _print(ftk::Format("Paced {0} fps on {1} Hz, {2}, {3}: {4} refreshes, worst {5} frames, "
+                        "{6} pairs off; first frames: {7}").
+                        arg(c.rate, 3).
+                        arg(c.refresh, 3).
+                        arg(c.playback).
+                        arg(0 == s ? "from the start" : "after a seek").
+                        arg(frames.size()).
+                        arg(worst, 2).
+                        arg(bad).
+                        arg(ss.str()));
+                    FTK_CHECK(0 == bad);
+                    // The first frame, the start's or the seek's, is shown
+                    // and for all of its refreshes.
+                    FTK_CHECK(!frames.empty() && (0 == s ? 0.0 : 10.0) == frames.front().second);
+                    size_t held = 0;
+                    while (held < frames.size() && frames[held].second == frames.front().second)
+                    {
+                        ++held;
+                    }
+                    FTK_CHECK(static_cast<double>(held) >= std::floor(1.0 / perRefresh));
+                }
+            }
         }
     }
 }

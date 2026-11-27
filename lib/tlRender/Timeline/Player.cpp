@@ -1235,12 +1235,24 @@ namespace tl
                     paced = true;
                 }
             }
+            bool firstPaced = false;
             {
                 std::unique_lock<std::mutex> lock(p.noAudio.mutex);
+                firstPaced = paced && !p.noAudio.frameTime;
                 p.noAudio.frameTime = paced ?
                     std::optional<std::chrono::steady_clock::time_point>(frameTime) :
                     std::nullopt;
                 p.noAudio.framePeriod = paced ? framePeriod : 0.0;
+            }
+            if (firstPaced && !p.audioIsClock())
+            {
+                // The first paced tick since playback started: the clock
+                // was started at whenever that was, and starts again at
+                // this refresh, where the current time is shown, so the
+                // frame boundaries keep clear of the refreshes (see
+                // clockOffset()). Loops keep the clock running, so a start
+                // between them stayed for as long as it played.
+                p.playbackReset(p.currentTime->get());
             }
             OTIO_NS::RationalTime start;
             double t = 0.0;
@@ -1316,9 +1328,14 @@ namespace tl
             {
                 t = -t;
             }
-            OTIO_NS::RationalTime time =
-                start +
-                OTIO_NS::RationalTime(t, 1.0).rescaled_to(timelineSpeed).floor();
+            // Whole frames from the start, counted toward it when the time
+            // is negative, in reverse: the frame played from is shown first
+            // and for all of its time, as forward. The floor of a negative
+            // time went to the frame before at once, and a start or a seek
+            // in reverse never showed its frame.
+            const OTIO_NS::RationalTime frames =
+                OTIO_NS::RationalTime(std::abs(t), 1.0).rescaled_to(timelineSpeed).floor();
+            OTIO_NS::RationalTime time = t < 0.0 ? start - frames : start + frames;
             if (p.playEveryFrame->get())
             {
                 time = p.playEveryFrameTime(start, t, playback, timelineSpeed);

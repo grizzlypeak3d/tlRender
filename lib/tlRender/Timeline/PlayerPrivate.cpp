@@ -49,7 +49,18 @@ namespace tl
                 out = tl::loop(out, range, &looped);
                 if (looped)
                 {
-                    resetPlaybackTime(out);
+                    // The clock runs on, moved back by what the loop took
+                    // off, keeping where it was within a frame. Started
+                    // again at the in point, it dropped that, and a loop
+                    // of a length not a whole number of refreshes broke
+                    // the cadence at each wrap (25 fps on 60 Hz, paced).
+                    droppedFramesReset = true;
+                    {
+                        std::unique_lock<std::mutex> lock(audioMutex.mutex);
+                        audioReset(out);
+                    }
+                    std::unique_lock<std::mutex> lock(noAudio.mutex);
+                    noAudio.start = noAudio.start + (out - time);
                 }
             }
             break;
@@ -881,7 +892,7 @@ namespace tl
         }
     }
 
-    void Player::Private::playbackReset(const OTIO_NS::RationalTime& time)
+    void Player::Private::playbackReset(const OTIO_NS::RationalTime& time, bool next)
     {
         std::unique_lock<std::mutex> lock(noAudio.mutex);
         if (noAudio.frameTime)
@@ -892,7 +903,8 @@ namespace tl
                 rate > 0.0 ? 1.0 / rate : 0.0);
             noAudio.playbackTimer = *noAudio.frameTime -
                 std::chrono::duration_cast<std::chrono::steady_clock::duration>(
-                    std::chrono::duration<double>(offset * noAudio.framePeriod));
+                    std::chrono::duration<double>(
+                        ((next ? -1.0 : 0.0) + offset) * noAudio.framePeriod));
         }
         else
         {
@@ -964,7 +976,7 @@ namespace tl
 
     void Player::Private::resetPlaybackTime(const OTIO_NS::RationalTime& time)
     {
-        // Only seek and loop wrap call this, so it is the choke point for
+        // Only a seek calls this, so it is the choke point for
         // genuine position discontinuities -- the jumps the dropped-frame
         // detector must absorb rather than count. The stall re-sync resets the
         // clock through playbackReset() directly and deliberately does NOT land
@@ -980,7 +992,10 @@ namespace tl
             std::unique_lock<std::mutex> lock(audioMutex.mutex);
             audioReset(time);
         }
-        playbackReset(time);
+        // Paced, at the next refresh: the last tick's is still showing the
+        // frame before the seek, and anchored there, the seek's frame was
+        // cut a refresh short (never shown at 60 fps on 60 Hz).
+        playbackReset(time, true);
     }
 
     void Player::Private::droppedFramesTick(

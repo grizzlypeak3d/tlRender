@@ -69,7 +69,10 @@ namespace tl
             double t,
             Playback,
             double timelineSpeed);
-        void playbackReset(const OTIO_NS::RationalTime&);
+        //! Start the wall clock at a time: paced, at the last tick's frame
+        //! time, where the current time is shown, or with next the refresh
+        //! after it, where a time not shown yet will be.
+        void playbackReset(const OTIO_NS::RationalTime&, bool next = false);
         void resetPlaybackTime(const OTIO_NS::RationalTime&);
         void droppedFramesTick(
             const std::optional<OTIO_NS::RationalTime>& presentedTime,
