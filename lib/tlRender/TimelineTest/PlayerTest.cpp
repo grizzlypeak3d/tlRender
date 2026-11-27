@@ -1112,12 +1112,26 @@ namespace tl
                     prev = first;
                     loops = 0.0;
                 };
+                // The timeline system ticks at most once a millisecond,
+                // counted from the start of its last tick. Waited for
+                // rather than slept: on Windows a millisecond's sleep can
+                // come back a little early, the player missed that tick and
+                // caught up at the next, a frame held and one skipped.
+                auto lastTick = std::chrono::steady_clock::now();
+                const auto tickContext = [&]
+                {
+                    while (std::chrono::steady_clock::now() - lastTick <
+                        std::chrono::microseconds(1250))
+                    {
+                        ftk::sleep(std::chrono::microseconds(250));
+                    }
+                    lastTick = std::chrono::steady_clock::now();
+                    _context->tick();
+                };
                 const auto tick = [&](int k)
                 {
                     _context->setFrameTime(refresh(k), period);
-                    // The timeline system ticks at most once a millisecond.
-                    ftk::sleep(std::chrono::milliseconds(1));
-                    _context->tick();
+                    tickContext();
                     const double f = frame();
                     if ((f - prev) * dir < -duration / 2.0)
                     {
@@ -1131,8 +1145,7 @@ namespace tl
                     for (int i = 0; i < count; ++i)
                     {
                         _context->setFrameTime(std::nullopt);
-                        ftk::sleep(std::chrono::milliseconds(1));
-                        _context->tick();
+                        tickContext();
                     }
                 };
                 const int second = static_cast<int>(c.refresh);
