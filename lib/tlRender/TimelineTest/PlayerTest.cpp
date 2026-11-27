@@ -1027,7 +1027,8 @@ namespace tl
             // the frames advanced are within one of the rate's share of
             // them (one a refresh for 60 fps on 60 Hz, each frame two for
             // 30, three and two in turn for 24). From the start, across
-            // loops and after a seek, forward and in reverse, with the refresh estimate moving by
+            // loops, after a seek, a scrub and a pause, forward and in
+            // reverse, with the refresh estimate moving by
             // up to half a millisecond: frame boundaries on the refreshes
             // let movement that small flip a frame, a hundred hitches a
             // minute on the A4000. The clock is the refreshes alone, simulated
@@ -1068,31 +1069,55 @@ namespace tl
                 // The refreshes, and the estimate's movement: a fixed
                 // sequence in [-0.5, 0.5] ms. They start when playback
                 // does, which puts the frame boundaries of a clock started
-                // then on the refreshes, the worst case.
+                // then on the refreshes, the worst case. After a pause the
+                // estimate can be out by a fraction of a refresh, drifted
+                // while nothing presented or pulled by presents that went
+                // straight through; it is corrected at the first mark when
+                // late, and by 2% a refresh when early (see
+                // ftk::Window::_presented()).
                 const double period = 1.0 / c.refresh;
                 auto base = std::chrono::steady_clock::now();
                 uint32_t seed = 1;
+                int resumed = 0;
+                double resumeError = 0.0;
+                bool resumeSnap = false;
                 const auto refresh = [&](int k)
                 {
                     seed = seed * 1664525U + 1013904223U;
                     const double jitter = ((seed >> 8) / 16777216.0 - 0.5) * 0.001;
+                    const double error = resumeSnap ?
+                        (k == resumed ? resumeError : 0.0) :
+                        resumeError * std::pow(0.98, k - resumed);
                     return base + std::chrono::duration_cast<std::chrono::steady_clock::duration>(
-                        std::chrono::duration<double>(k * period + jitter));
+                        std::chrono::duration<double>(k * period + jitter + error));
                 };
 
                 // Ticks once a refresh, the frames shown unwrapped across
-                // loops; a stretch ends at a seek.
+                // loops; a stretch starts at a start, a seek or a resume,
+                // with the frame it should show first.
                 const double dir = Playback::Reverse == c.playback ? -1.0 : 1.0;
-                std::vector<std::vector<std::pair<int, double> > > stretches(1);
+                std::vector<std::vector<std::pair<int, double> > > stretches;
+                std::vector<double> firsts;
                 double loops = 0.0;
                 double prev = 0.0;
+                const auto frame = [&]
+                {
+                    return (player->getCurrentTime() - start).rescaled_to(c.rate).value();
+                };
+                const auto stretch = [&](double first)
+                {
+                    stretches.push_back({});
+                    firsts.push_back(first);
+                    prev = first;
+                    loops = 0.0;
+                };
                 const auto tick = [&](int k)
                 {
                     _context->setFrameTime(refresh(k), period);
                     // The timeline system ticks at most once a millisecond.
                     ftk::sleep(std::chrono::milliseconds(1));
                     _context->tick();
-                    const double f = (player->getCurrentTime() - start).rescaled_to(c.rate).value();
+                    const double f = frame();
                     if ((f - prev) * dir < -duration / 2.0)
                     {
                         loops += dir * duration;
@@ -1100,21 +1125,67 @@ namespace tl
                     prev = f;
                     stretches.back().push_back({ k, f + loops });
                 };
+                const auto unpaced = [&](int count)
+                {
+                    for (int i = 0; i < count; ++i)
+                    {
+                        _context->setFrameTime(std::nullopt);
+                        ftk::sleep(std::chrono::milliseconds(1));
+                        _context->tick();
+                    }
+                };
+                const int second = static_cast<int>(c.refresh);
                 int k = 0;
-                tick(k++);
-                stretches.back().clear();
+                unpaced(1);
                 player->setPlayback(c.playback);
                 base = std::chrono::steady_clock::now();
-                const int count = static_cast<int>(c.refresh * 6.0);
-                for (; k < count / 2; ++k)
+                stretch(0.0);
+                for (const int end = k + second * 3; k < end; ++k)
                 {
                     tick(k);
                 }
                 player->seek(start + OTIO_NS::RationalTime(10.0, c.rate));
-                stretches.push_back({});
-                prev = 10.0;
-                loops = 0.0;
-                for (; k < count; ++k)
+                stretch(10.0);
+                for (const int end = k + second * 3 / 2; k < end; ++k)
+                {
+                    tick(k);
+                }
+
+                // Paused and scrubbed, as the timeline does (stopped while
+                // the button is held), and played again from where the
+                // scrub ended; the estimate late at the resume.
+                const double paused = frame();
+                player->setPlayback(Playback::Stop);
+                unpaced(5);
+                FTK_CHECK(paused == frame());
+                for (const double time : { 20.0, 25.0, 30.0 })
+                {
+                    player->seek(start + OTIO_NS::RationalTime(time, c.rate));
+                    unpaced(5);
+                }
+                player->setPlayback(c.playback);
+                k += second;
+                resumed = k;
+                resumeError = period / 3.0;
+                resumeSnap = true;
+                stretch(30.0);
+                for (const int end = k + second * 3 / 2; k < end; ++k)
+                {
+                    tick(k);
+                }
+
+                // Paused and played again; the estimate early at the
+                // resume.
+                const double paused2 = frame();
+                player->setPlayback(Playback::Stop);
+                unpaced(10);
+                player->setPlayback(c.playback);
+                k += second;
+                resumed = k;
+                resumeError = -period / 3.0;
+                resumeSnap = false;
+                stretch(paused2);
+                for (const int end = k + second * 3 / 2; k < end; ++k)
                 {
                     tick(k);
                 }
@@ -1151,7 +1222,8 @@ namespace tl
                         arg(c.rate, 3).
                         arg(c.refresh, 3).
                         arg(c.playback).
-                        arg(0 == s ? "from the start" : "after a seek").
+                        arg(std::vector<std::string>{ "from the start", "after a seek",
+                            "after a scrub", "after a pause" }[s]).
                         arg(frames.size()).
                         arg(worst, 2).
                         arg(bad).
@@ -1159,7 +1231,7 @@ namespace tl
                     FTK_CHECK(0 == bad);
                     // The first frame, the start's or the seek's, is shown
                     // and for all of its refreshes.
-                    FTK_CHECK(!frames.empty() && (0 == s ? 0.0 : 10.0) == frames.front().second);
+                    FTK_CHECK(!frames.empty() && firsts[s] == frames.front().second);
                     size_t held = 0;
                     while (held < frames.size() && frames[held].second == frames.front().second)
                     {

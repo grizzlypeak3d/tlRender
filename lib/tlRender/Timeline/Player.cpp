@@ -1239,6 +1239,27 @@ namespace tl
             {
                 std::unique_lock<std::mutex> lock(p.noAudio.mutex);
                 firstPaced = paced && !p.noAudio.frameTime;
+                if (paced && p.noAudio.frameTime && framePeriod > 0.0)
+                {
+                    // From one tick to the next the frame time moves by
+                    // whole refreshes, and what is over is the estimate of
+                    // them moving. The clock moves with it, so it counts
+                    // the refreshes and its frame boundaries stay where
+                    // they were among them: after a pause the estimate can
+                    // be out by a fraction of a refresh, drifted while
+                    // nothing presented, and as it was corrected the
+                    // boundaries crossed refreshes (a frame shown twice
+                    // and the next skipped). So playback without audio
+                    // runs at the display's rate as the system gives it:
+                    // on one a little slower than it says, a little slow
+                    // and even, rather than on time and uneven.
+                    const double step = std::chrono::duration<double>(
+                        frameTime - *p.noAudio.frameTime).count();
+                    const double move = step - std::round(step / framePeriod) * framePeriod;
+                    p.noAudio.playbackTimer +=
+                        std::chrono::duration_cast<std::chrono::steady_clock::duration>(
+                            std::chrono::duration<double>(move));
+                }
                 p.noAudio.frameTime = paced ?
                     std::optional<std::chrono::steady_clock::time_point>(frameTime) :
                     std::nullopt;
