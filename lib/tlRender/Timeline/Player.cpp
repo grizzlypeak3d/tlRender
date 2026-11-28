@@ -624,6 +624,28 @@ namespace tl
         }
     }
 
+    bool Player::hasAudioClock() const
+    {
+        return _p->audioClockEnabled;
+    }
+
+    void Player::setAudioClock(bool value)
+    {
+        FTK_P();
+        if (value != p.audioClockEnabled)
+        {
+            p.audioClockEnabled = value;
+            // The clock changes hands, as for setPlayEveryFrame(), and
+            // starts from where playback is.
+            {
+                std::unique_lock<std::mutex> lock(p.audioMutex.mutex);
+                p.audioReset(p.currentTime->get());
+            }
+            p.playbackReset(p.currentTime->get());
+            p.droppedFramesReset = true;
+        }
+    }
+
     const OTIO_NS::RationalTime& Player::getCurrentTime() const
     {
         return _p->currentTime->get();

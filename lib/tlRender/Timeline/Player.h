@@ -216,6 +216,17 @@ namespace tl
         //! with nothing dropped. The audio is silent, since it cannot wait.
         TL_TIMELINE_API void setPlayEveryFrame(bool);
 
+        //! Get whether the sound card's clock times playback where there
+        //! is sound to play, which it does by default.
+        TL_TIMELINE_API bool hasAudioClock() const;
+
+        //! Set whether the sound card's clock times playback. Off where
+        //! another clock does, a video output device's, whose ticks the
+        //! frames are chosen for (ftk::App::setFrameTimeSource()): the
+        //! sound card's runs at its own rate, and against the device's it
+        //! repeated a frame and skipped the next now and then.
+        TL_TIMELINE_API void setAudioClock(bool);
+
         ///@}
 
         //! \name Time

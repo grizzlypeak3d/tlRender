@@ -150,7 +150,7 @@ namespace tl
 
     bool Player::Private::audioIsClock() const
     {
-        return hasAudio() && !playEveryFrameThread;
+        return hasAudio() && !playEveryFrameThread && audioClockEnabled;
     }
 
     namespace

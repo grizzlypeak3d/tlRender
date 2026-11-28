@@ -142,6 +142,8 @@ namespace tl
         std::shared_ptr<ftk::Observable<bool> > playEveryFrame;
         //! playEveryFrame, for the player thread.
         std::atomic<bool> playEveryFrameThread = false;
+        //! Player::setAudioClock().
+        std::atomic<bool> audioClockEnabled = true;
         //! The pre-roll (PlayerOptions::preroll), main thread: whether the
         //! clock is held for the cache, and whether a start or a seek has
         //! just happened, which is when the pre-roll is asked for in full.
