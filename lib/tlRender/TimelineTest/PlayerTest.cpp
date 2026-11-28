@@ -73,6 +73,7 @@ namespace tl
             _sameTick();
             _paced();
             _pausedFrame();
+            _pacedSwitch();
         }
 
         void PlayerTest::_enums()
@@ -1327,6 +1328,102 @@ namespace tl
                 FTK_CHECK(lastPlaying.has_value());
                 FTK_CHECK(!back);
                 FTK_CHECK(shown.has_value() && shown.value() == player->getCurrentTime());
+            }
+        }
+
+        void PlayerTest::_pacedSwitch()
+        {
+            // Paced to one clock and then another while playing, as when a
+            // video output starts: a window's 60 Hz, then a device's 25 fps
+            // ticks, at phases across a tick and with the estimates moving
+            // by up to half a millisecond. Nothing is skipped at the
+            // change, the frame showing is held at most a tick longer, and
+            // after it each tick shows the next frame: the clock follows
+            // the frame times (see Player::_tick()), so the change is one
+            // more move of them.
+            const double rate = 25.0;
+            for (int phase = 0; phase < 10; ++phase)
+            {
+                auto otioGap = new OTIO_NS::Gap(OTIO_NS::TimeRange(
+                    OTIO_NS::RationalTime(0.0, rate),
+                    OTIO_NS::RationalTime(500.0, rate)));
+                auto otioTrack = new OTIO_NS::Track;
+                otioTrack->append_child(otioGap);
+                OTIO_NS::SerializableObject::Retainer<OTIO_NS::Timeline> otioTimeline(
+                    new OTIO_NS::Timeline);
+                otioTimeline->tracks()->append_child(otioTrack);
+                auto player = Player::create(_context, Timeline::create(_context, otioTimeline));
+                const OTIO_NS::RationalTime start = player->getTimeRange().start_time();
+                const auto frame = [&]
+                {
+                    return (player->getCurrentTime() - start).rescaled_to(rate).value();
+                };
+                uint32_t seed = 1 + phase;
+                auto lastTick = std::chrono::steady_clock::now();
+                const auto tick = [&](const std::chrono::steady_clock::time_point& t, double period)
+                {
+                    seed = seed * 1664525U + 1013904223U;
+                    const double jitter = ((seed >> 8) / 16777216.0 - 0.5) * 0.001;
+                    _context->setFrameTime(
+                        t + std::chrono::duration_cast<std::chrono::steady_clock::duration>(
+                            std::chrono::duration<double>(jitter)),
+                        period);
+                    while (std::chrono::steady_clock::now() - lastTick < std::chrono::microseconds(1250))
+                    {
+                        ftk::sleep(std::chrono::microseconds(250));
+                    }
+                    lastTick = std::chrono::steady_clock::now();
+                    _context->tick();
+                    return frame();
+                };
+                const auto at = [](const std::chrono::steady_clock::time_point& base, double seconds)
+                {
+                    return base + std::chrono::duration_cast<std::chrono::steady_clock::duration>(
+                        std::chrono::duration<double>(seconds));
+                };
+                player->setPlayback(Playback::Forward);
+                const auto base = std::chrono::steady_clock::now();
+                double last = 0.0;
+                for (int k = 0; k < 60; ++k)
+                {
+                    last = tick(at(base, k / 60.0), 1.0 / 60.0);
+                }
+                // The device's ticks from just after the window's last, a
+                // tenth of a tick further each time.
+                std::vector<double> frames;
+                const double device = 60 / 60.0 + (phase + 0.5) * 0.1 / rate;
+                for (int k = 0; k < 60; ++k)
+                {
+                    frames.push_back(tick(at(base, device + k / rate), 1.0 / rate));
+                }
+                player->setPlayback(Playback::Stop);
+                _context->setFrameTime(std::nullopt);
+
+                size_t held = 0;
+                while (held < frames.size() && frames[held] == frames.front())
+                {
+                    ++held;
+                }
+                size_t off = 0;
+                for (size_t i = held + 1; i < frames.size(); ++i)
+                {
+                    if (frames[i] != frames[i - 1] + 1.0)
+                    {
+                        ++off;
+                    }
+                }
+                std::stringstream ss;
+                ss << last << " |";
+                for (size_t i = 0; i < std::min(frames.size(), static_cast<size_t>(8)); ++i)
+                {
+                    ss << " " << frames[i];
+                }
+                _print(ftk::Format("Paced, the clock changed while playing, phase {0}: {1}; {2} off a frame a tick").
+                    arg(phase).arg(ss.str()).arg(off));
+                FTK_CHECK(!frames.empty());
+                FTK_CHECK(frames.front() >= last && frames.front() <= last + 1.0);
+                FTK_CHECK(held <= 2);
+                FTK_CHECK(0 == off);
             }
         }
     }
